@@ -33,6 +33,10 @@ if (dbHost && dbName && dbUser && dbPassword) {
     storage: sqlitePath,
     logging: false
   });
+  // Enable foreign key constraints in SQLite
+  sequelize.query('PRAGMA foreign_keys = ON;')
+    .then(() => console.log('SQLite foreign key constraints enabled.'))
+    .catch((err) => console.error('Failed to enable SQLite foreign keys:', err));
 }
 
 module.exports = sequelize;

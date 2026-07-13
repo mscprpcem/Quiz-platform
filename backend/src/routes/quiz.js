@@ -136,7 +136,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       title: title || quiz.title,
       event_name: event_name || quiz.event_name,
       description: description !== undefined ? description : quiz.description,
-      scheduled_start: scheduled_start !== undefined ? scheduled_start : quiz.scheduled_start
+      scheduled_start: scheduled_start !== undefined ? (scheduled_start || null) : quiz.scheduled_start
     });
 
     return res.json(quiz);

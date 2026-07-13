@@ -56,7 +56,7 @@ export default function Results() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {/* Score */}
           <div className="bg-zinc-50 p-4 rounded-lg border border-microsoft-border flex flex-col items-center">
             <Award className="text-microsoft-blue mb-1" size={18} />

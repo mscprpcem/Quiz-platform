@@ -28,8 +28,8 @@ export default function Navbar() {
               <div className="bg-[#00a4ef]"></div>
               <div className="bg-[#ffb900]"></div>
             </div>
-            <span className="font-semibold text-lg text-microsoft-darkGray tracking-tight flex items-center">
-              Microsoft <span className="font-normal text-zinc-500 ml-1">Student Club</span>
+            <span className="font-semibold text-base sm:text-lg text-microsoft-darkGray tracking-tight flex items-center">
+              Microsoft <span className="font-normal text-zinc-500 ml-1 hidden sm:inline">Student Club</span>
             </span>
           </div>
 
@@ -72,7 +72,7 @@ export default function Navbar() {
                   className="flex items-center space-x-1.5 px-3 py-2 border border-zinc-200 rounded-md text-sm font-medium text-red-600 hover:bg-red-50 hover:border-red-100 transition-all"
                 >
                   <LogOut size={16} />
-                  <span>Logout</span>
+                  <span className="hidden sm:inline">Logout</span>
                 </button>
               </div>
             )}
@@ -109,7 +109,7 @@ export default function Navbar() {
                   }`}
                 >
                   <Trophy size={16} />
-                  <span>Practice Arena</span>
+                  <span className="hidden sm:inline">Practice Arena</span>
                 </button>
 
                 <button
@@ -121,7 +121,7 @@ export default function Navbar() {
                   }`}
                 >
                   <Play size={16} />
-                  <span>Join Live</span>
+                  <span className="hidden sm:inline">Join Live</span>
                 </button>
 
                 <div className="h-6 w-px bg-zinc-200 mx-1"></div>

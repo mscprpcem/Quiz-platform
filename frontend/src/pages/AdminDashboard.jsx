@@ -23,7 +23,12 @@ import {
   Copy,
   Download,
   Share2,
-  Check
+  Check,
+  CheckCircle,
+  Edit2,
+  ListCollapse,
+  BarChart2,
+  QrCode
 } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -45,6 +50,17 @@ export default function AdminDashboard() {
   const [timerIntervalId, setTimerIntervalId] = useState(null);
   const [showQRModal, setShowQRModal] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
+
+  // Inactive Quiz Management States
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedQuiz, setSelectedQuiz] = useState(null);
+  const [quizForm, setQuizForm] = useState({ title: '', event_name: '', description: '', scheduled_start: '' });
+  const [formError, setFormError] = useState('');
+  
+  // General QR Sharing States for list cards
+  const [qrQuiz, setQrQuiz] = useState(null);
+  const [showCatalogQRModal, setShowCatalogQRModal] = useState(false);
+  const [catalogCopyFeedback, setCatalogCopyFeedback] = useState(false);
 
   // Load quizzes on mount
   const loadQuizzes = async () => {
@@ -262,6 +278,213 @@ export default function AdminDashboard() {
     }
   };
 
+  // Inactive Quiz Management Actions (Dashboard)
+  const handleOpenCreate = (quiz = null) => {
+    if (quiz) {
+      setSelectedQuiz(quiz);
+      let formattedDate = '';
+      if (quiz.scheduled_start) {
+        const d = new Date(quiz.scheduled_start);
+        const pad = (n) => n.toString().padStart(2, '0');
+        formattedDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+      }
+      setQuizForm({
+        title: quiz.title,
+        event_name: quiz.event_name,
+        description: quiz.description || '',
+        scheduled_start: formattedDate
+      });
+    } else {
+      setSelectedQuiz(null);
+      setQuizForm({ title: '', event_name: '', description: '', scheduled_start: '' });
+    }
+    setFormError('');
+    setShowCreateModal(true);
+  };
+
+  const handleSaveQuiz = async (e) => {
+    e.preventDefault();
+    if (!quizForm.title || !quizForm.event_name) {
+      setFormError('Title and Event Name are required.');
+      return;
+    }
+
+    try {
+      if (selectedQuiz) {
+        // Edit Mode
+        await api.put(`/api/quizzes/${selectedQuiz.id}`, quizForm);
+      } else {
+        // Create Mode
+        await api.post('/api/quizzes', quizForm);
+      }
+      setShowCreateModal(false);
+      loadQuizzes();
+    } catch (err) {
+      setFormError(err.response?.data?.error || 'Failed to save quiz details.');
+    }
+  };
+
+  const handleDeleteQuiz = async (id) => {
+    if (confirm('Are you sure you want to delete this quiz? All questions, participant scores, and logs will be permanently erased.')) {
+      try {
+        await api.delete(`/api/quizzes/${id}`);
+        loadQuizzes();
+      } catch (err) {
+        alert('Error deleting quiz session.');
+      }
+    }
+  };
+
+  // General sharing helpers for catalog cards in dashboard
+  const handleOpenCatalogQR = (quiz) => {
+    setQrQuiz(quiz);
+    setCatalogCopyFeedback(false);
+    setShowCatalogQRModal(true);
+  };
+
+  const handleCatalogCopyLink = () => {
+    if (!qrQuiz) return;
+    const url = `${window.location.protocol}//${window.location.host}/join/${qrQuiz.join_code}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCatalogCopyFeedback(true);
+      setTimeout(() => setCatalogCopyFeedback(false), 2000);
+    });
+  };
+
+  const handleCatalogShareSession = () => {
+    if (!qrQuiz) return;
+    const url = `${window.location.protocol}//${window.location.host}/join/${qrQuiz.join_code}`;
+    if (navigator.share) {
+      navigator.share({
+        title: qrQuiz.title,
+        text: `Join my live quiz "${qrQuiz.title}" by scanning the QR or using the link!`,
+        url: url
+      }).catch((err) => console.log('Error sharing:', err));
+    } else {
+      handleCatalogCopyLink();
+    }
+  };
+
+  const handleCatalogDownloadQR = (elementId) => {
+    if (!qrQuiz) return;
+    const svgElement = document.getElementById(elementId);
+    if (!svgElement) return;
+
+    const svgString = new XMLSerializer().serializeToString(svgElement);
+    const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
+    const URL = window.URL || window.webkitURL || window;
+    const blobURL = URL.createObjectURL(svgBlob);
+    
+    const image = new Image();
+    image.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 400;
+      canvas.height = 620;
+      const ctx = canvas.getContext('2d');
+      
+      // Draw card background
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Draw top gradient border
+      const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
+      grad.addColorStop(0, '#0078d4');
+      grad.addColorStop(1, '#005a9e');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, canvas.width, 8);
+      
+      // Draw Microsoft 4-square logo
+      ctx.fillStyle = '#f25022';
+      ctx.fillRect(187, 30, 12, 12);
+      ctx.fillStyle = '#7fba00';
+      ctx.fillRect(201, 30, 12, 12);
+      ctx.fillStyle = '#00a4ef';
+      ctx.fillRect(187, 44, 12, 12);
+      ctx.fillStyle = '#ffb900';
+      ctx.fillRect(201, 44, 12, 12);
+      
+      // MSC text header
+      ctx.fillStyle = '#323130';
+      ctx.font = 'bold 13px "Segoe UI", "Segoe UI Semibold", sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('MICROSOFT STUDENT CLUB', 200, 75);
+      
+      // MSC-PRPCEM text
+      ctx.fillStyle = '#0078d4';
+      ctx.font = 'bold 11px "Segoe UI", sans-serif';
+      ctx.fillText('MSC-PRPCEM CHAPTER', 200, 95);
+      
+      // Separator line
+      ctx.strokeStyle = '#edebe9';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(40, 115);
+      ctx.lineTo(360, 115);
+      ctx.stroke();
+      
+      // Quiz Title
+      ctx.fillStyle = '#201f1e';
+      ctx.font = 'bold 16px "Segoe UI", sans-serif';
+      ctx.fillText(qrQuiz.title.toUpperCase(), 200, 140);
+      
+      // Event name
+      ctx.fillStyle = '#605e5c';
+      ctx.font = '600 10px "Segoe UI", sans-serif';
+      ctx.fillText(qrQuiz.event_name.toUpperCase(), 200, 158);
+      
+      // Draw QR Code frame/inner shadow box
+      ctx.fillStyle = '#f8f8f8';
+      ctx.fillRect(80, 185, 240, 240);
+      ctx.strokeStyle = '#edebe9';
+      ctx.strokeRect(80, 185, 240, 240);
+      
+      // Draw the QR Code image
+      ctx.drawImage(image, 90, 195, 220, 220);
+      
+      // Scan instructions
+      ctx.fillStyle = '#605e5c';
+      ctx.font = '600 11px "Segoe UI", sans-serif';
+      ctx.fillText('Scan with camera or visit:', 200, 455);
+      
+      // Join URL
+      ctx.fillStyle = '#005a9e';
+      ctx.font = 'bold 12px "Segoe UI", sans-serif';
+      const joinUrl = `${window.location.protocol}//${window.location.host}/join/${qrQuiz.join_code}`;
+      ctx.fillText(joinUrl, 200, 475);
+      
+      // Code background box
+      ctx.fillStyle = '#f3f2f1';
+      ctx.fillRect(80, 505, 240, 65);
+      ctx.strokeStyle = '#edebe9';
+      ctx.strokeRect(80, 505, 240, 65);
+      
+      // Code label
+      ctx.fillStyle = '#605e5c';
+      ctx.font = 'bold 9px "Segoe UI", sans-serif';
+      ctx.fillText('UNIQUE JOIN CODE', 200, 523);
+      
+      // Big Code text
+      ctx.fillStyle = '#0078d4';
+      ctx.font = 'black 28px "Segoe UI", sans-serif';
+      ctx.fillText(qrQuiz.join_code, 200, 555);
+      
+      // Footnote
+      ctx.fillStyle = '#a19f9d';
+      ctx.font = 'bold 8px "Segoe UI", sans-serif';
+      ctx.fillText('Powered by Microsoft Student Club Quiz Platform', 200, 600);
+      
+      // Export as PNG
+      const png = canvas.toDataURL('image/png');
+      const downloadLink = document.createElement('a');
+      downloadLink.href = png;
+      downloadLink.download = `msc-prpcem-quiz-${qrQuiz.join_code}.png`;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+    };
+    image.src = blobURL;
+  };
+
   // Load detailed active quiz from backend
   const handleLoadActiveQuiz = async (quizId) => {
     try {
@@ -394,14 +617,21 @@ export default function AdminDashboard() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in space-y-6">
       
       {/* Title Header */}
-      <div className="flex justify-between items-center bg-white border border-microsoft-border p-6 rounded-xl shadow-sm">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-zinc-200/80 p-6 rounded-2xl shadow-lg shadow-zinc-150/30 gap-4 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#f25022] via-[#7fba00] via-[#00a4ef] to-[#ffb900]"></div>
         <div>
-          <h1 className="text-3xl font-extrabold text-zinc-900 tracking-tight">Quiz Control Center</h1>
-          <p className="text-sm text-zinc-500 mt-1">Manage live quiz sessions, monitor participants, and release questions.</p>
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight flex items-center gap-2">
+            <span>Quiz Control Center</span>
+            <span className="flex h-2.5 w-2.5 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-microsoft-blue opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-microsoft-blue"></span>
+            </span>
+          </h1>
+          <p className="text-xs sm:text-sm text-zinc-500 mt-1">Manage live quiz sessions, monitor participants, and release questions.</p>
         </div>
         <button
           onClick={() => navigate('/admin/quizzes')}
-          className="flex items-center space-x-1.5 bg-microsoft-blue hover:bg-microsoft-darkBlue text-white px-4 py-2.5 rounded-lg text-sm font-semibold shadow-sm transition-all cursor-pointer"
+          className="flex items-center space-x-1.5 bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue hover:from-microsoft-darkBlue hover:to-microsoft-darkBlue text-white px-5 py-3 rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer flex-shrink-0"
         >
           <Plus size={16} />
           <span>Manage Quizzes</span>
@@ -412,60 +642,60 @@ export default function AdminDashboard() {
       {activeQuiz ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Controls Section */}
-          <div className="lg:col-span-2 bg-white border border-microsoft-border rounded-xl p-6 shadow-sm space-y-6">
-            <div className="flex justify-between items-start border-b border-zinc-100 pb-4">
+          <div className="lg:col-span-2 bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-md space-y-6">
+            <div className="flex justify-between items-start border-b border-zinc-150 pb-4">
               <div>
-                <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-microsoft-lightBlue text-microsoft-darkBlue">
-                  <span className="w-1.5 h-1.5 rounded-full bg-microsoft-blue animate-ping"></span>
+                <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-microsoft-lightBlue text-microsoft-darkBlue border border-microsoft-blue/10">
+                  <span className="w-1.5 h-1.5 rounded-full bg-microsoft-blue animate-pulse"></span>
                   <span>Live: {activeQuiz.status.replace('_', ' ')}</span>
                 </span>
-                <h2 className="text-xl font-bold text-zinc-800 mt-2">{activeQuiz.title}</h2>
-                <p className="text-xs text-zinc-400 mt-0.5">Join Code: <span className="font-bold text-zinc-700 select-all">{activeQuiz.join_code}</span></p>
+                <h2 className="text-xl font-black text-zinc-800 tracking-tight mt-2">{activeQuiz.title}</h2>
+                <p className="text-xs text-zinc-500 mt-0.5">Join Code: <span className="font-extrabold text-microsoft-blue select-all bg-microsoft-lightBlue px-2 py-0.5 rounded ml-1">{activeQuiz.join_code}</span></p>
               </div>
 
-              {/* Top Control Action */}
+              {/* Abort Session */}
               <button
                 onClick={endQuiz}
-                className="bg-red-50 hover:bg-red-100 border border-red-100 text-red-600 px-3.5 py-1.5 rounded-md text-xs font-bold transition-all"
+                className="bg-red-50 hover:bg-red-100 border border-red-150 text-red-600 hover:text-red-700 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-sm cursor-pointer"
               >
-                Abort Quiz Session
+                Abort Session
               </button>
             </div>
 
             {/* Dashboard status indicators */}
-            <div className="grid grid-cols-3 gap-4">
-              <div className="bg-zinc-50 p-4 rounded-lg border border-microsoft-border text-center">
-                <Users className="text-microsoft-blue mx-auto mb-1" size={18} />
-                <span className="text-[10px] font-bold text-zinc-400 uppercase">Joined</span>
-                <p className="text-lg font-bold text-zinc-800 mt-0.5">{participants.length}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-zinc-50/50 p-4 rounded-xl border border-zinc-150 text-center shadow-sm">
+                <Users className="text-microsoft-blue mx-auto mb-1.5" size={20} />
+                <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest block">Joined Players</span>
+                <p className="text-2xl font-black text-zinc-800 mt-1">{participants.length}</p>
               </div>
 
-              <div className="bg-zinc-50 p-4 rounded-lg border border-microsoft-border text-center">
-                <BookOpen className="text-zinc-500 mx-auto mb-1" size={18} />
-                <span className="text-[10px] font-bold text-zinc-400 uppercase">Question Progress</span>
-                <p className="text-lg font-bold text-zinc-800 mt-0.5">
+              <div className="bg-zinc-50/50 p-4 rounded-xl border border-zinc-150 text-center shadow-sm">
+                <BookOpen className="text-zinc-500 mx-auto mb-1.5" size={20} />
+                <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest block">Question Progress</span>
+                <p className="text-2xl font-black text-zinc-800 mt-1">
                   {currentQuestionIndex >= 0 ? `${currentQuestionIndex + 1}/${activeQuiz.questions.length}` : `0/${activeQuiz.questions.length}`}
                 </p>
               </div>
 
-              <div className="bg-zinc-50 p-4 rounded-lg border border-microsoft-border text-center">
-                <Award className="text-microsoft-success mx-auto mb-1" size={18} />
-                <span className="text-[10px] font-bold text-zinc-400 uppercase">Status</span>
-                <p className="text-xs font-bold text-microsoft-success mt-1.5 capitalize">
+              <div className="bg-zinc-50/50 p-4 rounded-xl border border-zinc-150 text-center shadow-sm">
+                <Award className="text-microsoft-success mx-auto mb-1.5" size={20} />
+                <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest block">Gameplay Status</span>
+                <p className="text-sm font-black text-microsoft-success mt-2 uppercase tracking-wide bg-emerald-50 border border-emerald-100 py-1.5 rounded-lg">
                   {currentQuestionStatus.replace('_', ' ')}
                 </p>
               </div>
             </div>
 
             {/* Session Actions Panel */}
-            <div className="bg-zinc-50 border border-microsoft-border rounded-xl p-5 space-y-4">
-              <h3 className="text-sm font-bold text-zinc-700">Quiz Control Actions</h3>
+            <div className="bg-zinc-50/50 border border-zinc-150 rounded-2xl p-5 space-y-4">
+              <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Quiz Control Console</h3>
               
               <div className="flex flex-wrap gap-3">
                 {activeQuiz.status === 'draft' && (
                   <button
                     onClick={startLobby}
-                    className="flex items-center space-x-2 bg-microsoft-blue hover:bg-microsoft-darkBlue text-white px-5 py-3 rounded-lg text-sm font-semibold shadow-sm transition-all"
+                    className="flex items-center space-x-2 bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue text-white px-5 py-3 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
                   >
                     <Play size={16} fill="currentColor" />
                     <span>Start Session Lobby</span>
@@ -475,7 +705,7 @@ export default function AdminDashboard() {
                 {activeQuiz.status === 'waiting_lobby' && (
                   <button
                     onClick={startQuiz}
-                    className="flex items-center space-x-2 bg-microsoft-blue hover:bg-microsoft-darkBlue text-white px-5 py-3 rounded-lg text-sm font-semibold shadow-sm transition-all"
+                    className="flex items-center space-x-2 bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue text-white px-5 py-3 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
                   >
                     <Play size={16} fill="currentColor" />
                     <span>Start Quiz Gameplay</span>
@@ -488,7 +718,7 @@ export default function AdminDashboard() {
                     <button
                       onClick={releaseQuestion}
                       disabled={currentQuestionStatus === 'released'}
-                      className="flex items-center space-x-2 bg-microsoft-blue hover:bg-microsoft-darkBlue disabled:bg-zinc-300 text-white px-5 py-3 rounded-lg text-sm font-semibold shadow-sm transition-all cursor-pointer"
+                      className="flex items-center space-x-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 disabled:from-zinc-300 disabled:to-zinc-300 text-white px-5 py-3 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
                     >
                       <ArrowRight size={16} />
                       <span>
@@ -504,7 +734,7 @@ export default function AdminDashboard() {
                     <button
                       onClick={lockSubmissions}
                       disabled={currentQuestionStatus !== 'released'}
-                      className="flex items-center space-x-2 bg-amber-500 hover:bg-amber-600 disabled:bg-zinc-300 text-white px-5 py-3 rounded-lg text-sm font-semibold shadow-sm transition-all"
+                      className="flex items-center space-x-2 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 disabled:from-zinc-300 disabled:to-zinc-300 text-white px-5 py-3 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
                     >
                       <Lock size={16} />
                       <span>Lock Answers</span>
@@ -515,7 +745,7 @@ export default function AdminDashboard() {
                       <button
                         onClick={resumeQuiz}
                         disabled={currentQuestionStatus !== 'released'}
-                        className="flex items-center space-x-2 bg-zinc-700 hover:bg-zinc-800 disabled:bg-zinc-300 text-white px-5 py-3 rounded-lg text-sm font-semibold shadow-sm transition-all"
+                        className="flex items-center space-x-2 bg-gradient-to-r from-zinc-700 to-zinc-800 hover:from-zinc-800 hover:to-zinc-900 disabled:from-zinc-300 disabled:to-zinc-300 text-white px-5 py-3 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
                       >
                         <Play size={16} fill="currentColor" />
                         <span>Resume Question</span>
@@ -524,7 +754,7 @@ export default function AdminDashboard() {
                       <button
                         onClick={pauseQuiz}
                         disabled={currentQuestionStatus !== 'released'}
-                        className="flex items-center space-x-2 bg-zinc-700 hover:bg-zinc-800 disabled:bg-zinc-300 text-white px-5 py-3 rounded-lg text-sm font-semibold shadow-sm transition-all"
+                        className="flex items-center space-x-2 bg-gradient-to-r from-zinc-700 to-zinc-800 hover:from-zinc-800 hover:to-zinc-900 disabled:from-zinc-300 disabled:to-zinc-300 text-white px-5 py-3 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
                       >
                         <Pause size={16} fill="currentColor" />
                         <span>Pause Question</span>
@@ -534,7 +764,7 @@ export default function AdminDashboard() {
                     {/* Skip question */}
                     <button
                       onClick={skipQuestion}
-                      className="flex items-center space-x-2 bg-zinc-200 hover:bg-zinc-300 text-zinc-700 px-5 py-3 rounded-lg text-sm font-semibold border border-zinc-300 transition-all"
+                      className="flex items-center space-x-2 bg-white hover:bg-zinc-100 text-zinc-700 border border-zinc-200 px-5 py-3 rounded-xl text-sm font-bold transition-all active:scale-95 shadow-sm cursor-pointer"
                     >
                       <SkipForward size={16} />
                       <span>Skip Question</span>
@@ -545,14 +775,14 @@ export default function AdminDashboard() {
 
               {/* Submissions feedback progress */}
               {currentQuestionStatus === 'released' && (
-                <div className="border-t border-zinc-200 pt-4 space-y-2 animate-fade-in">
+                <div className="border-t border-zinc-200/80 pt-4 space-y-2 animate-fade-in">
                   <div className="flex justify-between text-xs font-semibold text-zinc-500">
-                    <span>Active Timer: <span className="font-bold text-red-600">{timerCount}s</span></span>
-                    <span>Submissions: <span className="font-bold text-zinc-700">{submissionStats.submittedCount} / {submissionStats.totalCount}</span></span>
+                    <span>Active Timer: <span className="font-extrabold text-red-655 animate-pulse">{timerCount}s</span></span>
+                    <span>Submissions: <span className="font-extrabold text-zinc-850">{submissionStats.submittedCount} / {submissionStats.totalCount}</span></span>
                   </div>
-                  <div className="w-full bg-zinc-200 h-2.5 rounded-full overflow-hidden">
+                  <div className="w-full bg-zinc-200 h-2.5 rounded-full overflow-hidden shadow-inner">
                     <div
-                      className="bg-microsoft-blue h-full transition-all duration-300"
+                      className="bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue h-full transition-all duration-300 shadow-[0_0_8px_rgba(0,120,212,0.4)]"
                       style={{
                         width: `${submissionStats.totalCount > 0 ? (submissionStats.submittedCount / submissionStats.totalCount) * 100 : 0}%`
                       }}
@@ -566,70 +796,70 @@ export default function AdminDashboard() {
           {/* Right Column (Active Question details & Session QR Code) */}
           <div className="lg:col-span-1 space-y-6">
             {/* Active Question Spec Sheet */}
-            <div className="bg-white border border-microsoft-border rounded-xl p-6 shadow-sm flex flex-col justify-between">
-              <h3 className="text-md font-bold text-zinc-800 border-b border-zinc-100 pb-3">Active Question Details</h3>
+            <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-md flex flex-col justify-between">
+              <h3 className="text-md font-extrabold text-zinc-800 border-b border-zinc-100 pb-3 tracking-tight">Active Question Details</h3>
               
               {currentQuestionIndex >= 0 && activeQuiz.questions[currentQuestionIndex] ? (
                 <div className="space-y-4 py-4 flex-grow animate-fade-in text-sm">
                   <div>
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Question Text</span>
-                    <p className="font-bold text-zinc-800 leading-snug mt-1">
+                    <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest block">Question Text</span>
+                    <p className="font-bold text-zinc-800 leading-snug mt-1.5">
                       {activeQuiz.questions[currentQuestionIndex].question}
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div className="bg-zinc-50 p-2 border border-zinc-100 rounded">
-                      <span className="font-semibold text-zinc-400 uppercase">Option A</span>
-                      <p className="font-bold text-zinc-700 mt-0.5 truncate">{activeQuiz.questions[currentQuestionIndex].option_a}</p>
+                    <div className={`p-2.5 border rounded-xl ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'a' ? 'border-emerald-505 bg-emerald-50/50' : 'border-zinc-150 bg-zinc-50/50'}`}>
+                      <span className={`font-bold uppercase tracking-wider text-[9px] block ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'a' ? 'text-emerald-700' : 'text-zinc-450'}`}>Option A</span>
+                      <p className={`font-semibold mt-0.5 truncate ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'a' ? 'text-emerald-800' : 'text-zinc-650'}`}>{activeQuiz.questions[currentQuestionIndex].option_a}</p>
                     </div>
-                    <div className="bg-zinc-50 p-2 border border-zinc-100 rounded">
-                      <span className="font-semibold text-zinc-400 uppercase">Option B</span>
-                      <p className="font-bold text-zinc-700 mt-0.5 truncate">{activeQuiz.questions[currentQuestionIndex].option_b}</p>
+                    <div className={`p-2.5 border rounded-xl ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'b' ? 'border-emerald-505 bg-emerald-50/50' : 'border-zinc-150 bg-zinc-50/50'}`}>
+                      <span className={`font-bold uppercase tracking-wider text-[9px] block ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'b' ? 'text-emerald-700' : 'text-zinc-450'}`}>Option B</span>
+                      <p className={`font-semibold mt-0.5 truncate ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'b' ? 'text-emerald-800' : 'text-zinc-650'}`}>{activeQuiz.questions[currentQuestionIndex].option_b}</p>
                     </div>
-                    <div className="bg-zinc-50 p-2 border border-zinc-100 rounded">
-                      <span className="font-semibold text-zinc-400 uppercase">Option C</span>
-                      <p className="font-bold text-zinc-700 mt-0.5 truncate">{activeQuiz.questions[currentQuestionIndex].option_c}</p>
+                    <div className={`p-2.5 border rounded-xl ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'c' ? 'border-emerald-505 bg-emerald-50/50' : 'border-zinc-150 bg-zinc-50/50'}`}>
+                      <span className={`font-bold uppercase tracking-wider text-[9px] block ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'c' ? 'text-emerald-700' : 'text-zinc-450'}`}>Option C</span>
+                      <p className={`font-semibold mt-0.5 truncate ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'c' ? 'text-emerald-800' : 'text-zinc-650'}`}>{activeQuiz.questions[currentQuestionIndex].option_c}</p>
                     </div>
-                    <div className="bg-zinc-50 p-2 border border-zinc-100 rounded">
-                      <span className="font-semibold text-zinc-400 uppercase">Option D</span>
-                      <p className="font-bold text-zinc-700 mt-0.5 truncate">{activeQuiz.questions[currentQuestionIndex].option_d}</p>
+                    <div className={`p-2.5 border rounded-xl ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'd' ? 'border-emerald-505 bg-emerald-50/50' : 'border-zinc-150 bg-zinc-50/50'}`}>
+                      <span className={`font-bold uppercase tracking-wider text-[9px] block ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'd' ? 'text-emerald-700' : 'text-zinc-450'}`}>Option D</span>
+                      <p className={`font-semibold mt-0.5 truncate ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'd' ? 'text-emerald-800' : 'text-zinc-650'}`}>{activeQuiz.questions[currentQuestionIndex].option_d}</p>
                     </div>
                   </div>
-                  <div className="bg-emerald-50 text-emerald-800 p-3 rounded-lg border border-emerald-100 font-bold text-xs flex justify-between">
-                    <span>Correct Answer:</span>
-                    <span className="text-sm font-extrabold uppercase">Option {activeQuiz.questions[currentQuestionIndex].correct_answer}</span>
+                  <div className="bg-emerald-50 border border-emerald-100 text-emerald-800 p-3.5 rounded-xl font-bold text-xs flex justify-between items-center shadow-sm">
+                    <span className="flex items-center gap-1.5"><CheckCircle size={14} className="text-emerald-600 animate-pulse" /> Correct Answer:</span>
+                    <span className="text-sm font-extrabold uppercase bg-emerald-100 px-2 py-0.5 rounded-md">Option {activeQuiz.questions[currentQuestionIndex].correct_answer}</span>
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-12 text-zinc-400 text-sm flex-grow flex items-center justify-center">
+                <div className="text-center py-16 text-zinc-400 text-sm flex-grow flex items-center justify-center">
                   Release first question to show details.
                 </div>
               )}
 
               <button
                 onClick={() => navigate(`/admin/quizzes/${activeQuiz.id}`)}
-                className="w-full text-center border border-zinc-200 hover:bg-zinc-50 text-zinc-600 font-semibold py-2 rounded-md text-xs transition-all mt-4"
+                className="w-full text-center border border-zinc-200 hover:border-zinc-350 hover:bg-zinc-50 text-zinc-600 font-bold py-2.5 rounded-xl text-xs transition-all mt-4 cursor-pointer"
               >
                 Configure Question Sheet
               </button>
             </div>
 
-            {/* Session QR Code Card */}
-            <div className="bg-white border border-microsoft-border rounded-xl p-6 shadow-sm space-y-4 text-center">
-              <h3 className="text-md font-bold text-zinc-800 border-b border-zinc-100 pb-3">Session Share Link</h3>
-              <div className="flex flex-col items-center space-y-3">
-                <div className="bg-zinc-50 p-3 rounded-lg border border-zinc-100 shadow-inner">
+            {/* Session Share Link */}
+            <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-md space-y-4 text-center">
+              <h3 className="text-md font-extrabold text-zinc-800 border-b border-zinc-100 pb-3 tracking-tight">Session Share Link</h3>
+              <div className="flex flex-col items-center space-y-3.5">
+                <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-100 shadow-inner">
                   <QRCodeSVG
                     id="sidebar-qr-svg"
                     value={`${window.location.protocol}//${window.location.host}/join/${activeQuiz.join_code}`}
-                    size={140}
+                    size={130}
                     level="H"
                     includeMargin={false}
                   />
                 </div>
                 <div className="w-full">
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Join URL</p>
-                  <p className="text-xs text-zinc-500 font-medium select-all truncate max-w-[200px] mx-auto bg-zinc-50 border border-zinc-100 rounded px-2 py-1 mt-1">
+                  <p className="text-[9px] font-bold text-zinc-450 uppercase tracking-widest">Join URL</p>
+                  <p className="text-xs text-zinc-550 font-bold select-all truncate max-w-[200px] mx-auto bg-zinc-50 border border-zinc-155 rounded-xl px-2.5 py-1.5 mt-1 leading-snug">
                     {window.location.origin}/join/{activeQuiz.join_code}
                   </p>
                 </div>
@@ -637,7 +867,7 @@ export default function AdminDashboard() {
                   <button
                     onClick={handleCopyLink}
                     title="Copy Link"
-                    className="flex flex-col items-center justify-center border border-zinc-200 hover:border-microsoft-blue/50 hover:bg-zinc-50 text-zinc-600 hover:text-microsoft-blue p-2 rounded-lg text-[10px] font-semibold transition-all shadow-sm cursor-pointer"
+                    className="flex flex-col items-center justify-center border border-zinc-200 hover:border-microsoft-blue/40 hover:bg-zinc-50 text-zinc-600 hover:text-microsoft-blue p-2.5 rounded-xl text-[10px] font-bold transition-all shadow-sm cursor-pointer"
                   >
                     {copyFeedback ? <Check size={14} className="text-microsoft-success" /> : <Copy size={14} />}
                     <span className="mt-1">{copyFeedback ? 'Copied' : 'Copy'}</span>
@@ -645,7 +875,7 @@ export default function AdminDashboard() {
                   <button
                     onClick={() => handleDownloadQR('sidebar-qr-svg')}
                     title="Download PNG"
-                    className="flex flex-col items-center justify-center border border-zinc-200 hover:border-microsoft-blue/50 hover:bg-zinc-50 text-zinc-600 hover:text-microsoft-blue p-2 rounded-lg text-[10px] font-semibold transition-all shadow-sm cursor-pointer"
+                    className="flex flex-col items-center justify-center border border-zinc-200 hover:border-microsoft-blue/40 hover:bg-zinc-50 text-zinc-600 hover:text-microsoft-blue p-2.5 rounded-xl text-[10px] font-bold transition-all shadow-sm cursor-pointer"
                   >
                     <Download size={14} />
                     <span className="mt-1">Download</span>
@@ -653,7 +883,7 @@ export default function AdminDashboard() {
                   <button
                     onClick={handleShareSession}
                     title="Share Link"
-                    className="flex flex-col items-center justify-center border border-zinc-200 hover:border-microsoft-blue/50 hover:bg-zinc-50 text-zinc-600 hover:text-microsoft-blue p-2 rounded-lg text-[10px] font-semibold transition-all shadow-sm cursor-pointer"
+                    className="flex flex-col items-center justify-center border border-zinc-200 hover:border-microsoft-blue/40 hover:bg-zinc-50 text-zinc-600 hover:text-microsoft-blue p-2.5 rounded-xl text-[10px] font-bold transition-all shadow-sm cursor-pointer"
                   >
                     <Share2 size={14} />
                     <span className="mt-1">Share</span>
@@ -661,14 +891,14 @@ export default function AdminDashboard() {
                 </div>
                 <div className="w-full h-px bg-zinc-100"></div>
                 <div className="w-full">
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Join Code</p>
-                  <h2 className="text-2xl font-extrabold text-microsoft-blue tracking-wider select-all mt-0.5">{activeQuiz.join_code}</h2>
+                  <p className="text-[9px] font-bold text-zinc-450 uppercase tracking-widest">Join Code</p>
+                  <h2 className="text-3xl font-black text-microsoft-blue tracking-widest select-all mt-0.5">{activeQuiz.join_code}</h2>
                 </div>
                 <button
                   onClick={() => setShowQRModal(true)}
-                  className="w-full text-center border border-microsoft-blue bg-microsoft-blue/5 hover:bg-microsoft-blue hover:text-white text-microsoft-blue font-bold py-2.5 rounded-md text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm"
+                  className="w-full text-center border border-microsoft-blue/20 bg-microsoft-blue/5 hover:bg-microsoft-blue hover:text-white text-microsoft-blue font-extrabold py-3 rounded-xl text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm active:scale-95"
                 >
-                  <Eye size={12} />
+                  <Eye size={13} />
                   <span>Project Fullscreen QR</span>
                 </button>
               </div>
@@ -676,50 +906,57 @@ export default function AdminDashboard() {
           </div>
 
           {/* Participant Monitoring Table */}
-          <div className="lg:col-span-3 bg-white border border-microsoft-border rounded-xl p-6 shadow-sm">
+          <div className="lg:col-span-3 bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-md">
             <div className="flex justify-between items-center border-b border-zinc-100 pb-4 mb-4">
-              <h3 className="text-lg font-bold text-zinc-800">Connected Participants Telemetry</h3>
-              <span className="bg-zinc-100 text-zinc-600 text-xs font-semibold px-2.5 py-1 rounded-full">
-                {participants.length} Active Users
+              <h3 className="text-lg font-black text-zinc-800 tracking-tight">Connected Participants Telemetry</h3>
+              <span className="bg-microsoft-blue/5 border border-microsoft-blue/10 text-microsoft-blue text-xs font-bold px-3 py-1 rounded-full">
+                {participants.length} Active Players
               </span>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-zinc-200 text-sm text-left">
-                <thead className="bg-zinc-50 text-zinc-400 uppercase text-[10px] font-bold tracking-wider">
+            <div className="overflow-x-auto rounded-xl border border-zinc-150">
+              <table className="min-w-full divide-y divide-zinc-250 text-sm text-left">
+                <thead className="bg-zinc-50 text-zinc-500 uppercase text-[9px] font-bold tracking-wider">
                   <tr>
-                    <th className="px-6 py-3">Rank</th>
-                    <th className="px-6 py-3">Name</th>
-                    <th className="px-6 py-3">College</th>
-                    <th className="px-6 py-3">Current Score</th>
-                    <th className="px-6 py-3">Tab Switches</th>
-                    <th className="px-6 py-3">Telemetry Connection</th>
-                    <th className="px-6 py-3 text-right">Actions</th>
+                    <th className="px-6 py-3.5">Rank</th>
+                    <th className="px-6 py-3.5">Name</th>
+                    <th className="px-6 py-3.5">College</th>
+                    <th className="px-6 py-3.5">Current Score</th>
+                    <th className="px-6 py-3.5">Tab Violations</th>
+                    <th className="px-6 py-3.5">Telemetry Status</th>
+                    <th className="px-6 py-3.5 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-zinc-100 text-zinc-700">
+                <tbody className="divide-y divide-zinc-150 text-zinc-700 bg-white">
                   {participants.map((p, idx) => (
-                    <tr key={p.id} className="hover:bg-zinc-50/50 transition-colors">
+                    <tr key={p.id} className="hover:bg-zinc-50/30 transition-colors">
                       <td className="px-6 py-4 font-bold text-zinc-500">#{p.score ? idx + 1 : 'N/A'}</td>
-                      <td className="px-6 py-4 font-semibold text-zinc-800">{p.name}</td>
-                      <td className="px-6 py-4">{p.college}</td>
-                      <td className="px-6 py-4 font-bold text-microsoft-blue">{p.score || 0} pts</td>
                       <td className="px-6 py-4">
-                        <span className={`px-2 py-1 rounded text-xs font-bold ${
+                        <div className="flex items-center space-x-2.5">
+                          <div className="w-8 h-8 rounded-full bg-microsoft-blue/5 text-microsoft-blue border border-microsoft-blue/10 font-bold flex items-center justify-center text-xs flex-shrink-0">
+                            {p.name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="font-semibold text-zinc-800">{p.name}</span>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-zinc-500">{p.college}</td>
+                      <td className="px-6 py-4 font-extrabold text-microsoft-blue">{p.score || 0} pts</td>
+                      <td className="px-6 py-4">
+                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wide uppercase ${
                           p.tab_switch_count >= 3
-                            ? 'bg-red-50 text-red-600'
+                            ? 'bg-red-50 text-red-655 border border-red-100 animate-pulse'
                             : p.tab_switch_count >= 1
-                            ? 'bg-amber-50 text-amber-600'
-                            : 'bg-zinc-50 text-zinc-400'
+                            ? 'bg-amber-50 text-amber-600 border border-amber-100'
+                            : 'bg-zinc-50 text-zinc-400 border border-zinc-100'
                         }`}>
                           {p.tab_switch_count || 0} switches
                         </span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex items-center space-x-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                        <span className={`inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${
                           p.connection_status === 'connected'
-                            ? 'bg-emerald-50 text-emerald-700'
-                            : 'bg-red-50 text-red-700 animate-pulse'
+                            ? 'bg-emerald-50 text-emerald-700 border-emerald-100'
+                            : 'bg-red-50 text-red-700 border-red-100 animate-pulse'
                         }`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${p.connection_status === 'connected' ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
                           <span>{p.connection_status === 'connected' ? 'Active' : 'Offline'}</span>
@@ -728,9 +965,9 @@ export default function AdminDashboard() {
                       <td className="px-6 py-4 text-right">
                         <button
                           onClick={() => kickParticipant(p.id)}
-                          className="text-red-600 hover:text-red-800 font-semibold text-xs border border-transparent hover:border-red-100 hover:bg-red-50 px-2.5 py-1.5 rounded-md transition-all"
+                          className="text-red-600 hover:text-white border border-red-200 hover:bg-red-600 hover:border-red-600 px-3 py-1.5 rounded-xl font-bold text-xs transition-all active:scale-95 cursor-pointer shadow-sm"
                         >
-                          Kick Out
+                          Kick
                         </button>
                       </td>
                     </tr>
@@ -750,9 +987,11 @@ export default function AdminDashboard() {
         </div>
       ) : (
         /* Quiz Selector / Inactive Session Center */
-        <div className="bg-white border border-microsoft-border rounded-xl p-6 shadow-sm space-y-6">
-          <h2 className="text-xl font-bold text-zinc-800">Launch Quiz Session</h2>
-          <p className="text-sm text-zinc-500">Select an existing quiz below to open the session waiting lobby for participants.</p>
+        <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 md:p-8 shadow-lg shadow-zinc-150/30 space-y-6">
+          <div className="border-b border-zinc-100 pb-4">
+            <h2 className="text-xl sm:text-2xl font-black text-zinc-800 tracking-tight">Launch Quiz Session</h2>
+            <p className="text-xs sm:text-sm text-zinc-500 mt-1">Select an existing quiz below to open the session waiting lobby for participants.</p>
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
             {quizzes.map((quiz) => {
@@ -760,22 +999,78 @@ export default function AdminDashboard() {
               return (
                 <div
                   key={quiz.id}
-                  className="bg-zinc-50 border border-microsoft-border rounded-xl p-5 hover:shadow-md transition-all flex flex-col justify-between"
+                  className="bg-white border border-zinc-200 hover:border-microsoft-blue/30 rounded-2xl p-5 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between relative overflow-hidden group"
                 >
-                  <div className="space-y-2">
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{quiz.event_name}</span>
-                    <h3 className="text-lg font-bold text-zinc-800 leading-tight truncate">{quiz.title}</h3>
-                    <p className="text-xs text-zinc-400 line-clamp-2">{quiz.description || 'No description provided.'}</p>
+                  {/* Hover glow effect background */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-microsoft-lightBlue/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                  
+                  <div className="space-y-3.5 relative z-10">
+                    <div className="flex justify-between items-start">
+                      <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest bg-zinc-100 px-2 py-0.5 rounded-full truncate max-w-[120px]">{quiz.event_name}</span>
+                      <div className="flex space-x-1 bg-zinc-50 border border-zinc-100 p-0.5 rounded-lg shadow-sm">
+                        {/* Edit */}
+                        <button
+                          onClick={() => handleOpenCreate(quiz)}
+                          className="p-1.5 hover:bg-white text-zinc-400 hover:text-zinc-700 rounded-md transition-all cursor-pointer"
+                          title="Edit Metadata"
+                        >
+                          <Edit2 size={12} />
+                        </button>
+                        
+                        {/* Share QR */}
+                        <button
+                          onClick={() => handleOpenCatalogQR(quiz)}
+                          className="p-1.5 hover:bg-white text-zinc-400 hover:text-microsoft-blue rounded-md transition-all cursor-pointer"
+                          title="Share & QR Code Card"
+                        >
+                          <QrCode size={12} />
+                        </button>
+
+                        {/* Delete */}
+                        <button
+                          onClick={() => handleDeleteQuiz(quiz.id)}
+                          className="p-1.5 hover:bg-white text-zinc-400 hover:text-red-650 rounded-md transition-all cursor-pointer"
+                          title="Delete Quiz"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold text-zinc-800 leading-snug group-hover:text-microsoft-blue transition-colors duration-200 truncate" title={quiz.title}>{quiz.title}</h3>
+                      <p className="text-xs text-zinc-550 line-clamp-2 mt-1 leading-relaxed">{quiz.description || 'No description provided.'}</p>
+                    </div>
                   </div>
 
-                  <div className="border-t border-zinc-200 mt-4 pt-4 flex justify-between items-center">
-                    <span className="text-xs font-semibold text-zinc-500">
-                      {quiz.questionCount || 0} Questions
-                    </span>
-                    
+                  {/* Counts section pill */}
+                  <div className="bg-zinc-50/50 border border-zinc-100/80 rounded-xl my-4 py-2.5 grid grid-cols-2 text-center text-xs relative z-10">
+                    <div className="border-r border-zinc-150">
+                      <span className="font-extrabold text-zinc-755 text-sm block">{quiz.questionCount || 0}</span>
+                      <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider">Questions</span>
+                    </div>
+                    <div>
+                      <span className="font-extrabold text-zinc-755 text-sm block">{quiz.participantCount || 0}</span>
+                      <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider">Plays</span>
+                    </div>
+                  </div>
+
+                  {/* Actions section */}
+                  <div className="flex justify-between items-center space-x-2.5 mt-auto pt-2.5 border-t border-zinc-100 relative z-10">
+                    {/* Questions Sheet */}
+                    <button
+                      onClick={() => navigate(`/admin/quizzes/${quiz.id}`)}
+                      className="flex items-center space-x-1 px-3 py-2 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 text-zinc-650 hover:text-zinc-800 rounded-xl transition-all text-xs font-semibold select-none cursor-pointer"
+                      title="Manage Questions"
+                    >
+                      <ListCollapse size={13} />
+                      <span>Sheet</span>
+                    </button>
+
+                    {/* Launch Lobby */}
                     <button
                       onClick={() => handleLoadActiveQuiz(quiz.id)}
-                      className="flex items-center space-x-1 bg-microsoft-blue hover:bg-microsoft-darkBlue text-white text-xs font-bold px-3 py-1.5 rounded transition-all cursor-pointer shadow-sm"
+                      className="flex-grow flex items-center justify-center space-x-1.5 px-4 py-2 bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue hover:from-microsoft-darkBlue hover:to-microsoft-darkBlue text-white text-xs font-extrabold rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
+                      title="Launch Lobby"
                     >
                       <Play size={12} fill="currentColor" />
                       <span>Launch Lobby</span>
@@ -786,7 +1081,7 @@ export default function AdminDashboard() {
             })}
 
             {quizzes.length === 0 && !loading && (
-              <div className="col-span-full py-12 text-center text-zinc-400 text-sm bg-zinc-50 border border-dashed border-zinc-200 rounded-xl">
+              <div className="col-span-full py-16 text-center text-zinc-400 text-sm bg-zinc-50 border border-dashed border-zinc-200 rounded-2xl">
                 No quizzes created yet. Navigate to "Manage Quizzes" to create one.
               </div>
             )}
@@ -796,16 +1091,21 @@ export default function AdminDashboard() {
 
       {/* FULLSCREEN QR CODE MODAL FOR PROJECTORS */}
       {activeQuiz && showQRModal && (
-        <div className="fixed inset-0 bg-zinc-955 bg-opacity-95 bg-zinc-950/98 z-50 flex flex-col items-center justify-center text-white p-8 overflow-y-auto">
-          <button
-            onClick={() => setShowQRModal(false)}
-            className="absolute top-6 right-6 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-white p-3 rounded-full transition-all cursor-pointer shadow-lg"
+        <div
+          onClick={() => setShowQRModal(false)}
+          className="fixed inset-0 bg-zinc-950/90 z-50 overflow-y-auto py-8 flex justify-center items-start cursor-pointer text-white"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="max-w-md w-full text-center space-y-6 animate-fade-in text-sm cursor-default my-auto"
           >
-            <X size={24} />
-          </button>
+            <button
+              onClick={() => setShowQRModal(false)}
+              className="absolute top-6 right-6 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-white p-3 rounded-full transition-all cursor-pointer shadow-lg"
+            >
+              <X size={24} />
+            </button>
 
-          <div className="max-w-md w-full text-center space-y-6 animate-fade-in text-sm">
-            
             {/* Branded Card Container */}
             <div className="bg-white text-zinc-800 p-8 rounded-2xl shadow-2xl border-4 border-microsoft-blue/20 max-w-sm mx-auto space-y-5 text-center relative overflow-hidden">
               <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue"></div>
@@ -840,7 +1140,7 @@ export default function AdminDashboard() {
                 />
               </div>
 
-              <div className="space-y-3.5">
+              <div className="space-y-3.5 text-zinc-700">
                 <div className="text-xs font-semibold text-zinc-500">
                   <p>Scan with camera or visit:</p>
                   <p className="text-microsoft-darkBlue font-bold underline select-all mt-0.5">
@@ -870,6 +1170,201 @@ export default function AdminDashboard() {
               >
                 <Download size={14} />
                 <span>Download Card</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CREATE / EDIT MODAL (DASHBOARD) */}
+      {showCreateModal && (
+        <div
+          onClick={() => setShowCreateModal(false)}
+          className="fixed inset-0 bg-zinc-950/60 z-50 overflow-y-auto py-8 flex justify-center items-start cursor-pointer"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-xl border border-microsoft-border max-w-md w-full shadow-2xl p-6 relative animate-fade-in cursor-default my-auto text-zinc-700"
+          >
+            <button
+              onClick={() => setShowCreateModal(false)}
+              className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-650"
+            >
+              <X size={20} />
+            </button>
+
+            <h3 className="text-xl font-bold text-zinc-800 border-b border-zinc-100 pb-3">
+              {selectedQuiz ? 'Edit Quiz Metadata' : 'Create New Quiz'}
+            </h3>
+
+            {formError && (
+              <div className="mt-4 bg-red-50 text-red-750 p-2.5 rounded text-xs">
+                {formError}
+              </div>
+            )}
+
+            <form onSubmit={handleSaveQuiz} className="mt-4 space-y-4 text-sm text-zinc-700">
+              <div>
+                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
+                  Quiz Title
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={quizForm.title}
+                  onChange={(e) => setQuizForm((prev) => ({ ...prev, title: e.target.value }))}
+                  placeholder="Cloud Infrastructure Trivia"
+                  className="w-full px-3 py-2 border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-microsoft-blue"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
+                  Event Name
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={quizForm.event_name}
+                  onChange={(e) => setQuizForm((prev) => ({ ...prev, event_name: e.target.value }))}
+                  placeholder="Azure Seminar 2026"
+                  className="w-full px-3 py-2 border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-microsoft-blue"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
+                  Description
+                </label>
+                <textarea
+                  rows={3}
+                  value={quizForm.description}
+                  onChange={(e) => setQuizForm((prev) => ({ ...prev, description: e.target.value }))}
+                  placeholder="Enter a brief summary details about this quiz..."
+                  className="w-full px-3 py-2 border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-microsoft-blue"
+                ></textarea>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
+                  Scheduled Start Date & Time
+                </label>
+                <input
+                  type="datetime-local"
+                  value={quizForm.scheduled_start}
+                  onChange={(e) => setQuizForm((prev) => ({ ...prev, scheduled_start: e.target.value }))}
+                  className="w-full px-3 py-2 border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-microsoft-blue"
+                />
+              </div>
+
+              <button
+                type="submit"
+                className="w-full bg-microsoft-blue hover:bg-microsoft-darkBlue text-white font-semibold py-2.5 rounded transition-all shadow-sm active:scale-98 cursor-pointer"
+              >
+                Save Quiz Details
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* FULLSCREEN QR CODE / SHARE MODAL (DASHBOARD CATALOG) */}
+      {qrQuiz && showCatalogQRModal && (
+        <div
+          onClick={() => {
+            setShowCatalogQRModal(false);
+            setQrQuiz(null);
+          }}
+          className="fixed inset-0 bg-zinc-950/80 z-50 overflow-y-auto py-6 flex justify-center items-start cursor-pointer"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-zinc-900 text-white rounded-2xl p-5 max-w-sm w-full shadow-2xl border border-zinc-800 relative animate-fade-in text-center space-y-4 cursor-default my-auto"
+          >
+            <button
+              onClick={() => {
+                setShowCatalogQRModal(false);
+                setQrQuiz(null);
+              }}
+              className="absolute top-4 right-4 bg-zinc-850 border border-zinc-700 hover:bg-zinc-700 text-zinc-400 hover:text-white p-2 rounded-full transition-all cursor-pointer"
+              title="Close Modal"
+            >
+              <X size={16} />
+            </button>
+
+            {/* Branded Card Container */}
+            <div className="bg-white text-zinc-850 p-4 rounded-xl shadow-inner border-2 border-microsoft-blue/15 max-w-xs mx-auto space-y-3.5 text-center relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue"></div>
+              
+              {/* Microsoft Logo Icon */}
+              <div className="flex flex-col items-center space-y-1 pt-1">
+                <div className="grid grid-cols-2 gap-0.5 w-5 h-5">
+                  <div className="bg-[#f25022]"></div>
+                  <div className="bg-[#7fba00]"></div>
+                  <div className="bg-[#00a4ef]"></div>
+                  <div className="bg-[#ffb900]"></div>
+                </div>
+                <h2 className="text-[10px] font-extrabold tracking-wider uppercase text-zinc-500">Microsoft Student Club</h2>
+                <span className="text-[9px] font-bold text-microsoft-blue bg-microsoft-lightBlue px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  MSC-PRPCEM CHAPTER
+                </span>
+              </div>
+
+              <div className="border-t border-b border-zinc-100 py-2 my-0.5 text-zinc-750">
+                <h1 className="text-sm font-black text-zinc-850 leading-tight uppercase truncate" title={qrQuiz.title}>{qrQuiz.title}</h1>
+                <p className="text-[8px] text-zinc-450 font-bold uppercase tracking-widest mt-0.5 truncate" title={qrQuiz.event_name}>{qrQuiz.event_name}</p>
+              </div>
+
+              {/* QR Code Container */}
+              <div className="inline-block bg-zinc-50 p-2.5 rounded-lg border border-zinc-100">
+                <QRCodeSVG
+                  id="dashboard-catalog-qr-svg"
+                  value={`${window.location.protocol}//${window.location.host}/join/${qrQuiz.join_code}`}
+                  size={130}
+                  level="H"
+                  includeMargin={false}
+                />
+              </div>
+
+              <div className="space-y-1.5 text-zinc-700">
+                <div className="text-[10px] font-semibold text-zinc-500">
+                  <p>Scan with camera or visit:</p>
+                  <p className="text-microsoft-darkBlue font-bold underline select-all mt-0.5 break-all">
+                    {window.location.origin}/join/{qrQuiz.join_code}
+                  </p>
+                </div>
+                
+                <div className="bg-zinc-50 border border-zinc-100 p-2.5 rounded-lg">
+                  <span className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest text-center">Unique Join Code</span>
+                  <span className="block text-xl font-black text-microsoft-blue tracking-widest select-all mt-0.5 text-center">{qrQuiz.join_code}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Actions for Modal */}
+            <div className="flex flex-col space-y-2.5 max-w-xs mx-auto">
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={handleCatalogCopyLink}
+                  className="flex items-center justify-center space-x-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white font-bold py-2.5 rounded-lg text-xs transition-all cursor-pointer shadow-md border border-zinc-750"
+                >
+                  {catalogCopyFeedback ? <Check size={14} className="text-microsoft-success animate-scale-up" /> : <Copy size={14} />}
+                  <span>{catalogCopyFeedback ? 'Copied' : 'Copy URL'}</span>
+                </button>
+                <button
+                  onClick={() => handleCatalogDownloadQR('dashboard-catalog-qr-svg')}
+                  className="flex items-center justify-center space-x-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white font-bold py-2.5 rounded-lg text-xs transition-all cursor-pointer shadow-md border border-zinc-750"
+                >
+                  <Download size={14} />
+                  <span>Download Card</span>
+                </button>
+              </div>
+              <button
+                onClick={handleCatalogShareSession}
+                className="w-full flex items-center justify-center space-x-2 bg-microsoft-blue hover:bg-microsoft-darkBlue text-white font-bold py-3 rounded-lg text-xs transition-all cursor-pointer shadow-lg"
+              >
+                <Share2 size={14} />
+                <span>Share Join Details</span>
               </button>
             </div>
           </div>
