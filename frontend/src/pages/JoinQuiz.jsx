@@ -167,7 +167,7 @@ export default function JoinQuiz() {
                   required
                   value={formData.name}
                   onChange={handleChange}
-                  placeholder="Amit Sharma"
+                  placeholder="Amit Yadav"
                   className="block w-full pl-10 pr-3 py-2.5 border border-zinc-200 rounded-lg bg-zinc-50/50 text-zinc-850 placeholder-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-microsoft-blue focus:border-transparent transition-all"
                 />
               </div>
@@ -189,7 +189,7 @@ export default function JoinQuiz() {
                   required
                   value={formData.college}
                   onChange={handleChange}
-                  placeholder="PCEM"
+                  placeholder="PRPCEM"
                   className="block w-full pl-10 pr-3 py-2.5 border border-zinc-200 rounded-lg bg-zinc-50/50 text-zinc-850 placeholder-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-microsoft-blue focus:border-transparent transition-all"
                 />
               </div>

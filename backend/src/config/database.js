@@ -31,12 +31,22 @@ if (dbHost && dbName && dbUser && dbPassword) {
   sequelize = new Sequelize({
     dialect: 'sqlite',
     storage: sqlitePath,
-    logging: false
+    logging: false,
+    hooks: {
+      afterConnect: (connection, config) => {
+        return new Promise((resolve, reject) => {
+          connection.run('PRAGMA foreign_keys = ON;', (err) => {
+            if (err) {
+              console.error('Failed to enable SQLite foreign keys on connection:', err);
+              reject(err);
+            } else {
+              resolve();
+            }
+          });
+        });
+      }
+    }
   });
-  // Enable foreign key constraints in SQLite
-  sequelize.query('PRAGMA foreign_keys = ON;')
-    .then(() => console.log('SQLite foreign key constraints enabled.'))
-    .catch((err) => console.error('Failed to enable SQLite foreign keys:', err));
 }
 
 module.exports = sequelize;

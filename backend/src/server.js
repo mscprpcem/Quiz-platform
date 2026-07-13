@@ -1,10 +1,11 @@
 const express = require('express');
 const http = require('http');
+const path = require('path');
 const { Server } = require('socket.io');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-const { sequelize, Admin } = require('./models');
+const { sequelize, Admin, BrandSettings } = require('./models');
 const { initializeSocket } = require('./services/socket');
 
 // Route Imports
@@ -12,6 +13,7 @@ const authRoutes = require('./routes/auth');
 const quizRoutes = require('./routes/quiz');
 const analyticsRoutes = require('./routes/analytics');
 const exportRoutes = require('./routes/export');
+const brandingRoutes = require('./routes/branding');
 
 require('dotenv').config();
 
@@ -41,6 +43,9 @@ app.use(cors({
 
 app.use(express.json());
 
+// Serve uploaded files statically (logos, etc.)
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
 // Rate Limiter to prevent brute force / flooding
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -56,6 +61,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/quizzes', quizRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/branding', brandingRoutes);
 
 // Root Endpoint
 app.get('/', (req, res) => {
@@ -96,6 +102,15 @@ const startServer = async () => {
       console.log('----------------------------------------------------');
     } else {
       console.log('Admin account already exists. Skipping seed.');
+    }
+
+    // Seed default branding settings if none exist
+    const existingBranding = await BrandSettings.findOne();
+    if (!existingBranding) {
+      await BrandSettings.create({});
+      console.log('Default branding settings seeded.');
+    } else {
+      console.log('Branding settings already exist. Skipping seed.');
     }
 
     // Start server

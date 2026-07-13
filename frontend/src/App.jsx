@@ -16,6 +16,7 @@ import QuizManagement from './pages/QuizManagement';
 import QuestionManagement from './pages/QuestionManagement';
 import Analytics from './pages/Analytics';
 import PracticeQuiz from './pages/PracticeQuiz';
+import BrandSettings from './pages/BrandSettings';
 
 // Private Route Enforcer for Admin pages
 const AdminRoute = ({ children }) => {
@@ -87,6 +88,14 @@ export default function App() {
                   element={
                     <AdminRoute>
                       <Analytics />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/branding"
+                  element={
+                    <AdminRoute>
+                      <BrandSettings />
                     </AdminRoute>
                   }
                 />

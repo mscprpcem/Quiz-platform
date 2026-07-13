@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Play, ShieldAlert, Award, Layers, Trophy, BookOpen, Clock, ArrowRight } from 'lucide-react';
+import { Play, ShieldAlert, Award, Layers, Trophy, BookOpen, Clock, ArrowRight, Sparkles, Zap } from 'lucide-react';
 
 export default function Home() {
   const navigate = useNavigate();
@@ -21,22 +21,32 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex flex-col justify-center py-10 px-4 sm:px-6 lg:px-8 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-microsoft-lightBlue/20 via-zinc-50 to-white">
-      <div className="max-w-6xl mx-auto space-y-16 animate-fade-in">
+    <div className="min-h-[calc(100vh-60px)] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Subtle gradient background */}
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_left,_rgba(0,120,212,0.06)_0%,_transparent_50%),_radial-gradient(ellipse_at_bottom_right,_rgba(16,124,65,0.04)_0%,_transparent_50%)] pointer-events-none"></div>
+      
+      {/* Decorative orbs */}
+      <div className="absolute top-20 right-[15%] w-72 h-72 bg-microsoft-blue/[0.03] rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute bottom-20 left-[10%] w-96 h-96 bg-emerald-500/[0.02] rounded-full blur-3xl pointer-events-none"></div>
+
+      <div className="max-w-6xl mx-auto space-y-20 animate-fade-in relative z-10">
         
         {/* Hero & Quick Join Section */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center pt-4">
           
           {/* Left: Text Contents */}
-          <div className="lg:col-span-7 space-y-6 text-left">
-            <div className="inline-flex items-center space-x-2 bg-microsoft-lightBlue text-microsoft-darkBlue px-4 py-1.5 rounded-full text-xs font-bold shadow-sm">
-              <span className="w-2 h-2 rounded-full bg-microsoft-blue animate-ping"></span>
+          <div className="lg:col-span-7 space-y-7 text-left">
+            <div className="inline-flex items-center space-x-2 bg-microsoft-lightBlue/80 text-microsoft-darkBlue px-4 py-1.5 rounded-full text-xs font-semibold shadow-sm border border-microsoft-blue/10 backdrop-blur-sm">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-microsoft-blue opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-microsoft-blue"></span>
+              </span>
               <span>Microsoft Student Club Event Hub</span>
             </div>
 
-            <h1 className="text-4xl sm:text-6xl font-extrabold text-zinc-900 tracking-tight leading-tight">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-zinc-900 tracking-tight leading-[1.1]">
               Real-Time Quiz & <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-microsoft-blue via-[#0091EA] to-microsoft-darkBlue">
                 Practice Arena
               </span>
             </h1>
@@ -45,18 +55,19 @@ export default function Home() {
               Join club live-hosted quizzes, compete on real-time speed scoring leaderboards, or practice independently in our brand new self-paced Arena!
             </p>
 
-            <div className="flex flex-wrap gap-4 pt-2">
+            <div className="flex flex-wrap gap-3 pt-1">
               <button
                 onClick={() => navigate('/practice')}
-                className="flex items-center space-x-2 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-150 active:scale-98 cursor-pointer"
+                className="group flex items-center space-x-2 bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold py-3 px-6 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.97] cursor-pointer"
               >
                 <Trophy size={18} />
                 <span>Enter Practice Arena</span>
+                <ArrowRight size={15} className="opacity-0 -ml-2 group-hover:opacity-100 group-hover:ml-0 transition-all duration-200" />
               </button>
               
               <button
                 onClick={() => navigate('/admin/login')}
-                className="flex items-center space-x-2 bg-white hover:bg-zinc-50 text-zinc-700 font-semibold py-3 px-6 rounded-lg border border-zinc-200 hover:border-zinc-300 transition-all duration-155 active:scale-98 shadow-sm cursor-pointer"
+                className="flex items-center space-x-2 bg-white hover:bg-zinc-50 text-zinc-600 hover:text-zinc-800 font-semibold py-3 px-6 rounded-xl border border-zinc-200 hover:border-zinc-300 transition-all duration-200 active:scale-[0.97] shadow-sm cursor-pointer"
               >
                 <span>Organize Quiz (Admin)</span>
               </button>
@@ -65,22 +76,22 @@ export default function Home() {
 
           {/* Right: Quick Join Card */}
           <div className="lg:col-span-5">
-            <div className="bg-white border border-microsoft-border p-8 rounded-2xl shadow-xl space-y-6 relative overflow-hidden group">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue"></div>
+            <div className="bg-white border border-zinc-200/80 p-8 rounded-2xl shadow-soft space-y-6 relative overflow-hidden group hover:shadow-soft-lg transition-shadow duration-300">
+              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-microsoft-blue via-[#00a4ef] to-microsoft-darkBlue"></div>
               
-              <div className="space-y-1">
-                <h3 className="text-xl font-bold text-zinc-800">Quick Join Session</h3>
-                <p className="text-xs text-zinc-400">Got an active event code? Join immediately below.</p>
+              <div className="space-y-1.5">
+                <h3 className="text-xl font-bold text-zinc-800 tracking-tight">Quick Join Session</h3>
+                <p className="text-sm text-zinc-400">Got an active event code? Join immediately below.</p>
               </div>
 
               {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2 rounded-md text-xs font-semibold">
+                <div className="bg-red-50 border border-red-100 text-red-600 px-3.5 py-2.5 rounded-xl text-xs font-semibold animate-fade-in">
                   {error}
                 </div>
               )}
 
               <form onSubmit={handleQuickJoinSubmit} className="space-y-4">
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <label htmlFor="joinCode" className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
                     6-Digit Join Code
                   </label>
@@ -94,13 +105,13 @@ export default function Home() {
                       setJoinCode(e.target.value.toUpperCase());
                       setError('');
                     }}
-                    className="block w-full border border-zinc-200 rounded-lg bg-zinc-50 py-3 px-4 text-center font-bold text-xl tracking-widest text-zinc-800 uppercase focus:bg-white focus:outline-none focus:ring-2 focus:ring-microsoft-blue focus:border-transparent transition-all"
+                    className="block w-full border border-zinc-200 rounded-xl bg-zinc-50/80 py-3.5 px-4 text-center font-bold text-xl tracking-[0.25em] text-zinc-800 uppercase focus:bg-white focus:outline-none focus:ring-2 focus:ring-microsoft-blue/30 focus:border-microsoft-blue transition-all duration-200 placeholder:text-zinc-300 placeholder:tracking-[0.25em]"
                   />
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full flex items-center justify-center space-x-2 bg-microsoft-blue hover:bg-microsoft-darkBlue text-white font-semibold py-3.5 rounded-lg transition-all active:scale-98 shadow-md cursor-pointer"
+                  className="w-full flex items-center justify-center space-x-2 bg-gradient-to-b from-[#0A84FF] to-[#0068D6] hover:from-[#007AE6] hover:to-[#005FC0] text-white font-semibold py-3.5 rounded-xl transition-all duration-200 active:scale-[0.97] shadow-md hover:shadow-lg cursor-pointer"
                 >
                   <span>Join Live Lobby</span>
                   <ArrowRight size={16} />
@@ -111,74 +122,68 @@ export default function Home() {
         </div>
 
         {/* Quiz Categories / Modes Section */}
-        <div className="space-y-6 text-center">
-          <div className="space-y-2">
+        <div className="space-y-8 text-center">
+          <div className="space-y-2.5">
             <h2 className="text-3xl font-extrabold text-zinc-900 tracking-tight">Choose Your Quiz Mode</h2>
             <p className="text-zinc-500 text-sm max-w-lg mx-auto">Explore multiplayer active competition or test your skills offline at your own pace.</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Mode 1: Live Event */}
-            <div className="bg-white border border-microsoft-border hover:border-microsoft-blue/40 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between text-left group">
+            <div className="bg-white border border-zinc-200/80 hover:border-microsoft-blue/30 rounded-2xl p-6 shadow-sm hover:shadow-soft-lg transition-all duration-300 flex flex-col justify-between text-left group cursor-pointer" onClick={() => navigate('/join')}>
               <div className="space-y-4">
-                <div className="w-12 h-12 bg-microsoft-lightBlue text-microsoft-blue rounded-xl flex items-center justify-center shadow-inner">
-                  <Play size={22} fill="currentColor" />
+                <div className="w-11 h-11 bg-gradient-to-br from-microsoft-lightBlue to-blue-100 text-microsoft-blue rounded-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-300">
+                  <Play size={20} fill="currentColor" />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <span className="text-[9px] font-bold text-microsoft-blue uppercase tracking-widest bg-microsoft-lightBlue px-2.5 py-0.5 rounded-full">Multiplayer</span>
-                  <h3 className="text-lg font-bold text-zinc-800">Live Sync Events</h3>
+                  <h3 className="text-lg font-bold text-zinc-800 group-hover:text-microsoft-blue transition-colors duration-200">Live Sync Events</h3>
                 </div>
                 <p className="text-xs text-zinc-500 leading-relaxed">
                   Compete live in real-time. Questions are pushed instantly by the admin host. Features speed bonuses and tab violations security.
                 </p>
               </div>
-              <button
-                onClick={() => navigate('/join')}
-                className="mt-6 w-full text-center border border-zinc-200 group-hover:border-microsoft-blue/50 group-hover:bg-microsoft-blue group-hover:text-white text-zinc-600 font-semibold py-2.5 rounded-lg text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm"
-              >
+              <div className="mt-6 w-full text-center border border-zinc-200/80 group-hover:border-microsoft-blue/30 group-hover:bg-gradient-to-b group-hover:from-[#0A84FF] group-hover:to-[#0068D6] group-hover:text-white text-zinc-500 font-semibold py-2.5 rounded-xl text-xs transition-all duration-300 flex items-center justify-center space-x-1.5 shadow-sm">
                 <span>Join Event Lobby</span>
-                <ArrowRight size={12} />
-              </button>
+                <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform duration-200" />
+              </div>
             </div>
 
             {/* Mode 2: Practice Arena */}
-            <div className="bg-white border border-microsoft-border hover:border-emerald-500/40 rounded-2xl p-6 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between text-left group">
+            <div className="bg-white border border-zinc-200/80 hover:border-emerald-400/40 rounded-2xl p-6 shadow-sm hover:shadow-soft-lg transition-all duration-300 flex flex-col justify-between text-left group cursor-pointer" onClick={() => navigate('/practice')}>
               <div className="space-y-4">
-                <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-xl flex items-center justify-center shadow-inner">
-                  <Trophy size={22} />
+                <div className="w-11 h-11 bg-gradient-to-br from-emerald-50 to-green-100 text-emerald-600 rounded-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-300">
+                  <Trophy size={20} />
                 </div>
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2.5 py-0.5 rounded-full">Self-Paced</span>
-                  <h3 className="text-lg font-bold text-zinc-800">Practice Arena</h3>
+                  <h3 className="text-lg font-bold text-zinc-800 group-hover:text-emerald-600 transition-colors duration-200">Practice Arena</h3>
                 </div>
                 <p className="text-xs text-zinc-500 leading-relaxed">
                   Solve quizzes at your own speed. Choose between Frontend Mastery, Algorithms, or Cloud Infrastructure. Features explanation scorecards.
                 </p>
               </div>
-              <button
-                onClick={() => navigate('/practice')}
-                className="mt-6 w-full text-center border border-zinc-200 group-hover:border-emerald-500/50 group-hover:bg-emerald-600 group-hover:text-white text-zinc-600 font-semibold py-2.5 rounded-lg text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm"
-              >
+              <div className="mt-6 w-full text-center border border-zinc-200/80 group-hover:border-emerald-400/30 group-hover:bg-gradient-to-b group-hover:from-emerald-500 group-hover:to-emerald-600 group-hover:text-white text-zinc-500 font-semibold py-2.5 rounded-xl text-xs transition-all duration-300 flex items-center justify-center space-x-1.5 shadow-sm">
                 <span>Start Practice Test</span>
-                <ArrowRight size={12} />
-              </button>
+                <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform duration-200" />
+              </div>
             </div>
 
             {/* Mode 3: Challenges */}
-            <div className="bg-white border border-microsoft-border opacity-90 rounded-2xl p-6 shadow-sm text-left flex flex-col justify-between select-none">
+            <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-sm text-left flex flex-col justify-between select-none opacity-80">
               <div className="space-y-4">
-                <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center shadow-inner">
-                  <BookOpen size={22} />
+                <div className="w-11 h-11 bg-gradient-to-br from-purple-50 to-violet-100 text-purple-500 rounded-xl flex items-center justify-center shadow-inner">
+                  <BookOpen size={20} />
                 </div>
-                <div className="space-y-1">
-                  <span className="text-[9px] font-bold text-purple-600 uppercase tracking-widest bg-purple-50 px-2.5 py-0.5 rounded-full">Offline Challenges</span>
+                <div className="space-y-1.5">
+                  <span className="text-[9px] font-bold text-purple-500 uppercase tracking-widest bg-purple-50 px-2.5 py-0.5 rounded-full">Offline Challenges</span>
                   <h3 className="text-lg font-bold text-zinc-800">Skill Challenges</h3>
                 </div>
                 <p className="text-xs text-zinc-500 leading-relaxed">
                   Unlock weekly competitive assignments, challenge topics, and download assignments. 
                 </p>
               </div>
-              <div className="mt-6 w-full text-center border border-dashed border-zinc-250 bg-zinc-50 text-zinc-400 font-semibold py-2.5 rounded-lg text-xs">
+              <div className="mt-6 w-full text-center border border-dashed border-zinc-200 bg-zinc-50/80 text-zinc-400 font-semibold py-2.5 rounded-xl text-xs">
                 Coming Soon in Next Release
               </div>
             </div>
@@ -186,10 +191,10 @@ export default function Home() {
         </div>
 
         {/* Feature Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left border-t border-zinc-150 pt-12">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-left border-t border-zinc-100 pt-12 pb-4">
           {/* Card 1 */}
-          <div className="flex space-x-4">
-            <div className="w-10 h-10 bg-microsoft-lightBlue text-microsoft-blue rounded-lg flex items-center justify-center flex-shrink-0">
+          <div className="flex space-x-4 group">
+            <div className="w-10 h-10 bg-gradient-to-br from-microsoft-lightBlue to-blue-100 text-microsoft-blue rounded-xl flex items-center justify-center flex-shrink-0 shadow-inner group-hover:scale-110 transition-transform duration-200">
               <Layers size={20} />
             </div>
             <div>
@@ -201,8 +206,8 @@ export default function Home() {
           </div>
 
           {/* Card 2 */}
-          <div className="flex space-x-4">
-            <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center flex-shrink-0">
+          <div className="flex space-x-4 group">
+            <div className="w-10 h-10 bg-gradient-to-br from-emerald-50 to-green-100 text-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-inner group-hover:scale-110 transition-transform duration-200">
               <Award size={20} />
             </div>
             <div>
@@ -214,8 +219,8 @@ export default function Home() {
           </div>
 
           {/* Card 3 */}
-          <div className="flex space-x-4">
-            <div className="w-10 h-10 bg-red-50 text-microsoft-error rounded-lg flex items-center justify-center flex-shrink-0">
+          <div className="flex space-x-4 group">
+            <div className="w-10 h-10 bg-gradient-to-br from-red-50 to-rose-100 text-red-500 rounded-xl flex items-center justify-center flex-shrink-0 shadow-inner group-hover:scale-110 transition-transform duration-200">
               <ShieldAlert size={20} />
             </div>
             <div>

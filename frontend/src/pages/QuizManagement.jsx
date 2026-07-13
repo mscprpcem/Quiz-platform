@@ -34,12 +34,20 @@ export default function QuizManagement() {
   const [showQRModal, setShowQRModal] = useState(false);
   const [copyFeedback, setCopyFeedback] = useState(false);
   
+  // Delete Confirmation States
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteTargetQuiz, setDeleteTargetQuiz] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
   // Form States
   const [quizForm, setQuizForm] = useState({ title: '', event_name: '', description: '', scheduled_start: '' });
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadErrors, setUploadErrors] = useState([]);
   const [uploadSuccess, setUploadSuccess] = useState('');
   const [formError, setFormError] = useState('');
+
+  // Branding config
+  const [branding, setBranding] = useState(null);
 
   const loadQuizzes = async () => {
     try {
@@ -53,8 +61,18 @@ export default function QuizManagement() {
     }
   };
 
+  const loadBranding = async () => {
+    try {
+      const res = await api.get('/api/branding');
+      setBranding(res.data);
+    } catch (err) {
+      console.error('Error loading branding:', err);
+    }
+  };
+
   useEffect(() => {
     loadQuizzes();
+    loadBranding();
   }, []);
 
   const handleOpenCreate = (quiz = null) => {
@@ -102,14 +120,23 @@ export default function QuizManagement() {
     }
   };
 
-  const handleDeleteQuiz = async (id) => {
-    if (confirm('Are you sure you want to delete this quiz? All questions, participant scores, and logs will be permanently erased.')) {
-      try {
-        await api.delete(`/api/quizzes/${id}`);
-        loadQuizzes();
-      } catch (err) {
-        alert('Error deleting quiz session.');
-      }
+  const handleOpenDeleteModal = (quiz) => {
+    setDeleteTargetQuiz(quiz);
+    setShowDeleteModal(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTargetQuiz) return;
+    try {
+      setDeleteLoading(true);
+      await api.delete(`/api/quizzes/${deleteTargetQuiz.id}`);
+      setShowDeleteModal(false);
+      setDeleteTargetQuiz(null);
+      loadQuizzes();
+    } catch (err) {
+      alert('Error deleting quiz session. Please try again.');
+    } finally {
+      setDeleteLoading(false);
     }
   };
 
@@ -138,7 +165,7 @@ export default function QuizManagement() {
     }
   };
 
-  // Download QR Code Helper
+  // Download QR Code Helper (branded)
   const handleDownloadQR = (elementId) => {
     if (!qrQuiz) return;
     const svgElement = document.getElementById(elementId);
@@ -148,113 +175,177 @@ export default function QuizManagement() {
     const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
     const URL = window.URL || window.webkitURL || window;
     const blobURL = URL.createObjectURL(svgBlob);
-    
+
+    const primaryColor = branding?.primary_color || '#0078d4';
+    const clubName = (branding?.club_name || 'Microsoft Student Club').toUpperCase();
+    const chapterName = (branding?.chapter_name || 'MSC-PRPCEM Chapter').toUpperCase();
+    const footerText = branding?.footer_text || 'Powered by Microsoft Student Club Quiz Platform';
+    const logoSrc = branding?.logo_path ? `/${branding.logo_path}` : null;
+
     const image = new Image();
     image.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 400;
-      canvas.height = 620;
-      const ctx = canvas.getContext('2d');
-      
-      // Draw card background
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Draw top gradient border
-      const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
-      grad.addColorStop(0, '#0078d4');
-      grad.addColorStop(1, '#005a9e');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, canvas.width, 8);
-      
-      // Draw Microsoft 4-square logo
-      ctx.fillStyle = '#f25022';
-      ctx.fillRect(187, 30, 12, 12);
-      ctx.fillStyle = '#7fba00';
-      ctx.fillRect(201, 30, 12, 12);
-      ctx.fillStyle = '#00a4ef';
-      ctx.fillRect(187, 44, 12, 12);
-      ctx.fillStyle = '#ffb900';
-      ctx.fillRect(201, 44, 12, 12);
-      
-      // MSC text header
-      ctx.fillStyle = '#323130';
-      ctx.font = 'bold 13px "Segoe UI", "Segoe UI Semibold", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('MICROSOFT STUDENT CLUB', 200, 75);
-      
-      // MSC-PRPCEM text
-      ctx.fillStyle = '#0078d4';
-      ctx.font = 'bold 11px "Segoe UI", sans-serif';
-      ctx.fillText('MSC-PRPCEM CHAPTER', 200, 95);
-      
-      // Separator line
-      ctx.strokeStyle = '#edebe9';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(40, 115);
-      ctx.lineTo(360, 115);
-      ctx.stroke();
-      
-      // Quiz Title
-      ctx.fillStyle = '#201f1e';
-      ctx.font = 'bold 16px "Segoe UI", sans-serif';
-      ctx.fillText(qrQuiz.title.toUpperCase(), 200, 140);
-      
-      // Event name
-      ctx.fillStyle = '#605e5c';
-      ctx.font = '600 10px "Segoe UI", sans-serif';
-      ctx.fillText(qrQuiz.event_name.toUpperCase(), 200, 158);
-      
-      // Draw QR Code frame/inner shadow box
-      ctx.fillStyle = '#f8f8f8';
-      ctx.fillRect(80, 185, 240, 240);
-      ctx.strokeStyle = '#edebe9';
-      ctx.strokeRect(80, 185, 240, 240);
-      
-      // Draw the QR Code image
-      ctx.drawImage(image, 90, 195, 220, 220);
-      
-      // Scan instructions
-      ctx.fillStyle = '#605e5c';
-      ctx.font = '600 11px "Segoe UI", sans-serif';
-      ctx.fillText('Scan with camera or visit:', 200, 455);
-      
-      // Join URL
-      ctx.fillStyle = '#005a9e';
-      ctx.font = 'bold 12px "Segoe UI", sans-serif';
-      const joinUrl = `${window.location.protocol}//${window.location.host}/join/${qrQuiz.join_code}`;
-      ctx.fillText(joinUrl, 200, 475);
-      
-      // Code background box
-      ctx.fillStyle = '#f3f2f1';
-      ctx.fillRect(80, 505, 240, 65);
-      ctx.strokeStyle = '#edebe9';
-      ctx.strokeRect(80, 505, 240, 65);
-      
-      // Code label
-      ctx.fillStyle = '#605e5c';
-      ctx.font = 'bold 9px "Segoe UI", sans-serif';
-      ctx.fillText('UNIQUE JOIN CODE', 200, 523);
-      
-      // Big Code text
-      ctx.fillStyle = '#0078d4';
-      ctx.font = 'black 28px "Segoe UI", sans-serif';
-      ctx.fillText(qrQuiz.join_code, 200, 555);
-      
-      // Footnote
-      ctx.fillStyle = '#a19f9d';
-      ctx.font = 'bold 8px "Segoe UI", sans-serif';
-      ctx.fillText('Powered by Microsoft Student Club Quiz Platform', 200, 600);
-      
-      // Export as PNG
-      const png = canvas.toDataURL('image/png');
-      const downloadLink = document.createElement('a');
-      downloadLink.href = png;
-      downloadLink.download = `msc-prpcem-quiz-${qrQuiz.join_code}.png`;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
+      const drawCard = (logoImg) => {
+        const canvas = document.createElement('canvas');
+        const W = 400;
+        const H = 650;
+        canvas.width = W;
+        canvas.height = H;
+        const ctx = canvas.getContext('2d');
+
+        // Background
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, W, H);
+
+        // Flowing wave/grid pattern (Azure AI style)
+        ctx.strokeStyle = primaryColor + '12'; // very light opacity
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(0, 150);
+        ctx.bezierCurveTo(100, 50, 300, 250, W, 150);
+        ctx.stroke();
+
+        ctx.strokeStyle = primaryColor + '08';
+        ctx.beginPath();
+        ctx.moveTo(0, 480);
+        ctx.bezierCurveTo(100, 550, 300, 380, W, 480);
+        ctx.stroke();
+
+        // Decorative dot grid pattern
+        ctx.globalAlpha = 0.03;
+        for (let x = 0; x < W; x += 16) {
+          for (let y = 0; y < H; y += 16) {
+            ctx.beginPath();
+            ctx.arc(x, y, 1, 0, Math.PI * 2);
+            ctx.fillStyle = primaryColor;
+            ctx.fill();
+          }
+        }
+        ctx.globalAlpha = 1;
+
+        // Stylized background nodes
+        ctx.fillStyle = primaryColor + '10';
+        ctx.beginPath();
+        ctx.arc(40, 180, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(360, 520, 12, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(330, 220, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Top bar
+        const grad = ctx.createLinearGradient(0, 0, W, 0);
+        grad.addColorStop(0, primaryColor);
+        grad.addColorStop(0.5, primaryColor + 'CC');
+        grad.addColorStop(1, primaryColor);
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, 0, W, 8);
+
+        // Logo
+        if (logoImg) {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.beginPath();
+          ctx.arc(200, 34, 22, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.drawImage(logoImg, 178, 12, 44, 44);
+        } else {
+          ctx.fillStyle = '#f25022';
+          ctx.fillRect(188, 18, 11, 11);
+          ctx.fillStyle = '#7fba00';
+          ctx.fillRect(201, 18, 11, 11);
+          ctx.fillStyle = '#00a4ef';
+          ctx.fillRect(188, 31, 11, 11);
+          ctx.fillStyle = '#ffb900';
+          ctx.fillRect(201, 31, 11, 11);
+        }
+
+        ctx.fillStyle = '#323130';
+        ctx.font = 'bold 13px Inter, "Segoe UI", sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(clubName, 200, 75);
+
+        ctx.fillStyle = primaryColor;
+        ctx.font = 'bold 11px Inter, "Segoe UI", sans-serif';
+        ctx.fillText(chapterName, 200, 95);
+
+        ctx.strokeStyle = '#edebe9';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(40, 115);
+        ctx.lineTo(360, 115);
+        ctx.stroke();
+
+        ctx.fillStyle = '#201f1e';
+        ctx.font = 'bold 16px Inter, "Segoe UI", sans-serif';
+        const titleText = qrQuiz.title.toUpperCase();
+        ctx.fillText(titleText.length > 35 ? titleText.slice(0, 35) + '...' : titleText, 200, 140);
+
+        ctx.fillStyle = '#605e5c';
+        ctx.font = '600 10px Inter, "Segoe UI", sans-serif';
+        ctx.fillText(qrQuiz.event_name.toUpperCase(), 200, 160);
+
+        ctx.fillStyle = '#f8f8f8';
+        ctx.fillRect(80, 185, 240, 240);
+        ctx.strokeStyle = '#edebe9';
+        ctx.strokeRect(80, 185, 240, 240);
+        ctx.drawImage(image, 90, 195, 220, 220);
+
+        // Center Logo in QR code
+        if (logoImg) {
+          ctx.fillStyle = '#FFFFFF';
+          ctx.beginPath();
+          ctx.arc(200, 305, 22, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.drawImage(logoImg, 182, 287, 36, 36);
+        }
+
+        ctx.fillStyle = '#605e5c';
+        ctx.font = '600 11px Inter, "Segoe UI", sans-serif';
+        ctx.fillText('Scan with camera or visit:', 200, 455);
+
+        ctx.fillStyle = primaryColor;
+        ctx.font = 'bold 12px Inter, "Segoe UI", sans-serif';
+        ctx.fillText(`${window.location.origin}/join/${qrQuiz.join_code}`, 200, 478);
+
+        ctx.fillStyle = '#f3f2f1';
+        ctx.fillRect(80, 505, 240, 70);
+        ctx.strokeStyle = '#edebe9';
+        ctx.strokeRect(80, 505, 240, 70);
+
+        ctx.fillStyle = '#605e5c';
+        ctx.font = 'bold 9px Inter, "Segoe UI", sans-serif';
+        ctx.fillText('UNIQUE JOIN CODE', 200, 525);
+
+        ctx.fillStyle = primaryColor;
+        ctx.font = '900 28px Inter, "Segoe UI", sans-serif';
+        ctx.fillText(qrQuiz.join_code, 200, 560);
+
+        ctx.fillStyle = '#a19f9d';
+        ctx.font = 'bold 8px Inter, "Segoe UI", sans-serif';
+        ctx.fillText(footerText, 200, 610);
+
+        ctx.fillStyle = grad;
+        ctx.fillRect(0, H - 4, W, 4);
+
+        const png = canvas.toDataURL('image/png');
+        const downloadLink = document.createElement('a');
+        downloadLink.href = png;
+        downloadLink.download = `quiz-${qrQuiz.join_code}.png`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+      };
+
+      if (logoSrc) {
+        const logoImg = new Image();
+        logoImg.crossOrigin = 'anonymous';
+        logoImg.onload = () => drawCard(logoImg);
+        logoImg.onerror = () => drawCard(null);
+        logoImg.src = logoSrc;
+      } else {
+        drawCard(null);
+      }
     };
     image.src = blobURL;
   };
@@ -314,17 +405,19 @@ export default function QuizManagement() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in space-y-6">
+    <>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in space-y-6">
       
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-microsoft-border p-6 rounded-xl shadow-sm gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-zinc-200/80 p-6 rounded-2xl shadow-soft gap-4 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-microsoft-blue via-[#00a4ef] to-microsoft-darkBlue"></div>
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight">Quiz Catalog</h1>
           <p className="text-xs sm:text-sm text-zinc-500 mt-1">Configure draft sheets, launch sessions, or read telemetry analytical logs.</p>
         </div>
         <button
           onClick={() => handleOpenCreate()}
-          className="flex items-center space-x-1.5 bg-microsoft-blue hover:bg-microsoft-darkBlue text-white px-4 py-2.5 rounded-lg text-sm font-semibold shadow-sm transition-all cursor-pointer flex-shrink-0"
+          className="flex items-center space-x-1.5 bg-gradient-to-b from-[#0A84FF] to-[#0068D6] hover:from-[#007AE6] hover:to-[#005FC0] text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.97] cursor-pointer flex-shrink-0"
         >
           <Plus size={16} />
           <span>Create Quiz</span>
@@ -341,7 +434,7 @@ export default function QuizManagement() {
           {quizzes.map((quiz) => (
             <div
               key={quiz.id}
-              className="bg-white border border-microsoft-border rounded-xl p-6 shadow-sm flex flex-col justify-between hover:shadow-md transition-all"
+              className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between hover:shadow-soft-lg hover:-translate-y-0.5 transition-all duration-300 group relative overflow-hidden"
             >
               {/* Header Text */}
               <div className="space-y-2">
@@ -362,7 +455,7 @@ export default function QuizManagement() {
                     {/* Edit */}
                     <button
                       onClick={() => handleOpenCreate(quiz)}
-                      className="p-1 hover:bg-zinc-200 text-zinc-400 hover:text-zinc-700 rounded transition-all cursor-pointer"
+                      className="p-1.5 hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 rounded-lg transition-all duration-200 cursor-pointer"
                       title="Edit Metadata"
                     >
                       <Edit2 size={13} />
@@ -371,7 +464,7 @@ export default function QuizManagement() {
                     {/* Share QR */}
                     <button
                       onClick={() => handleOpenQR(quiz)}
-                      className="p-1 hover:bg-zinc-200 text-zinc-400 hover:text-microsoft-blue rounded transition-all cursor-pointer"
+                      className="p-1.5 hover:bg-blue-50 text-zinc-400 hover:text-microsoft-blue rounded-lg transition-all duration-200 cursor-pointer"
                       title="Share & QR Code Card"
                     >
                       <QrCode size={13} />
@@ -379,8 +472,8 @@ export default function QuizManagement() {
 
                     {/* Delete */}
                     <button
-                      onClick={() => handleDeleteQuiz(quiz.id)}
-                      className="p-1 hover:bg-zinc-200 text-zinc-400 hover:text-red-600 rounded transition-all cursor-pointer"
+                      onClick={() => handleOpenDeleteModal(quiz)}
+                      className="p-1.5 hover:bg-red-50 text-zinc-400 hover:text-red-500 rounded-lg transition-all duration-200 cursor-pointer"
                       title="Delete Quiz"
                     >
                       <Trash2 size={13} />
@@ -451,6 +544,7 @@ export default function QuizManagement() {
           )}
         </div>
       )}
+      </div>
 
       {/* CREATE / EDIT MODAL */}
       {showCreateModal && (
@@ -660,50 +754,78 @@ export default function QuizManagement() {
             </button>
 
             {/* Branded Card Container */}
-            <div className="bg-white text-zinc-850 p-4 rounded-xl shadow-inner border-2 border-microsoft-blue/15 max-w-xs mx-auto space-y-3.5 text-center relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue"></div>
+            <div className="bg-white bg-azure-mesh text-zinc-800 p-4 rounded-xl shadow-inner border-2 border-zinc-200 max-w-xs mx-auto space-y-3.5 text-center relative overflow-hidden">
+              <div
+                className="absolute top-0 left-0 w-full h-1.5 animate-[azureFlow_4s_ease_infinite]"
+                style={{
+                  background: `linear-gradient(90deg, ${branding?.primary_color || '#0078d4'}, ${branding?.primary_color || '#0078d4'}CC, ${branding?.primary_color || '#0078d4'})`,
+                  backgroundSize: '200% 200%'
+                }}
+              ></div>
               
-              {/* Microsoft Logo Icon */}
-              <div className="flex flex-col items-center space-y-1 pt-1">
-                <div className="grid grid-cols-2 gap-0.5 w-5 h-5">
-                  <div className="bg-[#f25022]"></div>
-                  <div className="bg-[#7fba00]"></div>
-                  <div className="bg-[#00a4ef]"></div>
-                  <div className="bg-[#ffb900]"></div>
-                </div>
-                <h2 className="text-[10px] font-extrabold tracking-wider uppercase text-zinc-500">Microsoft Student Club</h2>
-                <span className="text-[9px] font-bold text-microsoft-blue bg-microsoft-lightBlue px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  MSC-PRPCEM CHAPTER
+              {/* Decorative dot pattern */}
+              <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
+                backgroundImage: `radial-gradient(${branding?.primary_color || '#0078d4'} 1px, transparent 1px)`,
+                backgroundSize: '16px 16px'
+              }}></div>
+
+              {/* Floating Azure AI styled nodes */}
+              <div className="absolute top-8 left-4 w-2 h-2 rounded-full pointer-events-none decor-node opacity-20" style={{ backgroundColor: branding?.primary_color || '#0078d4' }}></div>
+              <div className="absolute bottom-16 right-8 w-3 h-3 rounded-full pointer-events-none decor-node-delay-1 opacity-20" style={{ backgroundColor: branding?.primary_color || '#0078d4' }}></div>
+
+              {/* Logo / Club Name */}
+              <div className="flex flex-col items-center space-y-1 pt-1 relative z-10">
+                {branding?.logo_path ? (
+                  <img src={`/${branding.logo_path}`} alt="Logo" className="w-10 h-10 object-contain" />
+                ) : (
+                  <div className="grid grid-cols-2 gap-0.5 w-5 h-5">
+                    <div className="bg-[#f25022]"></div>
+                    <div className="bg-[#7fba00]"></div>
+                    <div className="bg-[#00a4ef]"></div>
+                    <div className="bg-[#ffb900]"></div>
+                  </div>
+                )}
+                <h2 className="text-[10px] font-extrabold tracking-wider uppercase text-zinc-500">{branding?.club_name || 'Microsoft Student Club'}</h2>
+                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider" style={{ color: branding?.primary_color || '#0078d4', backgroundColor: (branding?.primary_color || '#0078d4') + '14' }}>
+                  {branding?.chapter_name || 'MSC-PRPCEM CHAPTER'}
                 </span>
               </div>
 
-              <div className="border-t border-b border-zinc-100 py-2 my-0.5 text-zinc-750">
-                <h1 className="text-sm font-black text-zinc-850 leading-tight uppercase truncate" title={qrQuiz.title}>{qrQuiz.title}</h1>
+              <div className="border-t border-b border-zinc-100 py-2 my-0.5 relative z-10">
+                <h1 className="text-sm font-black text-zinc-800 leading-tight uppercase truncate" title={qrQuiz.title}>{qrQuiz.title}</h1>
                 <p className="text-[8px] text-zinc-450 font-bold uppercase tracking-widest mt-0.5 truncate" title={qrQuiz.event_name}>{qrQuiz.event_name}</p>
               </div>
 
               {/* QR Code Container */}
-              <div className="inline-block bg-zinc-50 p-2.5 rounded-lg border border-zinc-100">
+              <div className="inline-block bg-zinc-50 p-2.5 rounded-lg border border-zinc-100 relative z-10">
                 <QRCodeSVG
                   id="catalog-qr-svg"
                   value={`${window.location.protocol}//${window.location.host}/join/${qrQuiz.join_code}`}
                   size={130}
                   level="H"
                   includeMargin={false}
+                  imageSettings={branding?.logo_path ? {
+                    src: `/${branding.logo_path}`,
+                    x: undefined,
+                    y: undefined,
+                    height: 26,
+                    width: 26,
+                    excavate: true,
+                  } : undefined}
                 />
               </div>
 
-              <div className="space-y-1.5 text-zinc-700">
+              <div className="space-y-1.5 text-zinc-700 relative z-10">
                 <div className="text-[10px] font-semibold text-zinc-500">
                   <p>Scan with camera or visit:</p>
-                  <p className="text-microsoft-darkBlue font-bold underline select-all mt-0.5 break-all">
+                  <p className="font-bold underline select-all mt-0.5 break-all" style={{ color: branding?.primary_color || '#005a9e' }}>
                     {window.location.origin}/join/{qrQuiz.join_code}
                   </p>
                 </div>
                 
                 <div className="bg-zinc-50 border border-zinc-100 p-2.5 rounded-lg">
                   <span className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest text-center">Unique Join Code</span>
-                  <span className="block text-xl font-black text-microsoft-blue tracking-widest select-all mt-0.5 text-center">{qrQuiz.join_code}</span>
+                  <span className="block text-xl font-black tracking-widest select-all mt-0.5 text-center" style={{ color: branding?.primary_color || '#0078d4' }}>{qrQuiz.join_code}</span>
                 </div>
               </div>
             </div>
@@ -737,6 +859,63 @@ export default function QuizManagement() {
           </div>
         </div>
       )}
-    </div>
+
+      {/* DELETE CONFIRMATION MODAL */}
+      {showDeleteModal && deleteTargetQuiz && (
+        <div
+          onClick={() => { setShowDeleteModal(false); setDeleteTargetQuiz(null); }}
+          className="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex justify-center items-center cursor-pointer"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-zinc-200 animate-fade-in-scale cursor-default space-y-4"
+          >
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Trash2 size={20} />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-zinc-800">Delete Quiz?</h3>
+                <p className="text-xs text-zinc-500 mt-0.5">This action cannot be undone.</p>
+              </div>
+            </div>
+
+            <div className="bg-zinc-50 border border-zinc-100 rounded-xl p-3">
+              <p className="text-sm font-semibold text-zinc-700">{deleteTargetQuiz.title}</p>
+              <p className="text-[11px] text-zinc-400 mt-0.5">All questions, participant scores, and logs will be permanently erased.</p>
+            </div>
+
+            <div className="flex space-x-3 pt-1">
+              <button
+                onClick={() => { setShowDeleteModal(false); setDeleteTargetQuiz(null); }}
+                className="flex-1 py-2.5 rounded-xl border border-zinc-200 text-sm font-semibold text-zinc-600 hover:bg-zinc-50 hover:border-zinc-300 transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                disabled={deleteLoading}
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-b from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white text-sm font-semibold transition-all cursor-pointer disabled:opacity-50 active:scale-[0.97] shadow-md flex items-center justify-center space-x-1.5"
+              >
+                {deleteLoading ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                    </svg>
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 size={14} />
+                    <span>Delete Quiz</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

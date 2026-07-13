@@ -62,6 +62,9 @@ export default function AdminDashboard() {
   const [showCatalogQRModal, setShowCatalogQRModal] = useState(false);
   const [catalogCopyFeedback, setCatalogCopyFeedback] = useState(false);
 
+  // Branding config
+  const [branding, setBranding] = useState(null);
+
   // Load quizzes on mount
   const loadQuizzes = async () => {
     try {
@@ -83,8 +86,19 @@ export default function AdminDashboard() {
     }
   };
 
+  // Load branding config
+  const loadBranding = async () => {
+    try {
+      const res = await api.get('/api/branding');
+      setBranding(res.data);
+    } catch (err) {
+      console.error('Error loading branding:', err);
+    }
+  };
+
   useEffect(() => {
     loadQuizzes();
+    loadBranding();
   }, []);
 
   // Set up WebSocket events when active quiz changes
@@ -143,6 +157,168 @@ export default function AdminDashboard() {
     });
   };
 
+  // Helper: draw a branded QR card on a canvas and export as PNG download
+  const drawBrandedCard = (ctx, qrImage, quizData, brandData, logoImg) => {
+    const W = 400;
+    const H = 650;
+    const primaryColor = brandData?.primary_color || '#0078d4';
+    const clubName = (brandData?.club_name || 'Microsoft Student Club').toUpperCase();
+    const chapterName = (brandData?.chapter_name || 'MSC-PRPCEM Chapter').toUpperCase();
+    const footerText = brandData?.footer_text || 'Powered by Microsoft Student Club Quiz Platform';
+
+    // Background
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, W, H);
+
+    // Flowing wave/grid pattern (Azure AI style)
+    ctx.strokeStyle = primaryColor + '12'; // very light opacity
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(0, 150);
+    ctx.bezierCurveTo(100, 50, 300, 250, W, 150);
+    ctx.stroke();
+
+    ctx.strokeStyle = primaryColor + '08';
+    ctx.beginPath();
+    ctx.moveTo(0, 480);
+    ctx.bezierCurveTo(100, 550, 300, 380, W, 480);
+    ctx.stroke();
+
+    // Decorative dot grid pattern
+    ctx.globalAlpha = 0.03;
+    for (let x = 0; x < W; x += 16) {
+      for (let y = 0; y < H; y += 16) {
+        ctx.beginPath();
+        ctx.arc(x, y, 1, 0, Math.PI * 2);
+        ctx.fillStyle = primaryColor;
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+
+    // Stylized background nodes
+    ctx.fillStyle = primaryColor + '10';
+    ctx.beginPath();
+    ctx.arc(40, 180, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(360, 520, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(330, 220, 6, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Top gradient bar
+    const grad = ctx.createLinearGradient(0, 0, W, 0);
+    grad.addColorStop(0, primaryColor);
+    grad.addColorStop(0.5, primaryColor + 'CC');
+    grad.addColorStop(1, primaryColor);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, W, 8);
+
+    // Logo
+    if (logoImg) {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(200, 34, 22, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.drawImage(logoImg, 178, 12, 44, 44);
+    } else {
+      ctx.fillStyle = '#f25022';
+      ctx.fillRect(188, 18, 11, 11);
+      ctx.fillStyle = '#7fba00';
+      ctx.fillRect(201, 18, 11, 11);
+      ctx.fillStyle = '#00a4ef';
+      ctx.fillRect(188, 31, 11, 11);
+      ctx.fillStyle = '#ffb900';
+      ctx.fillRect(201, 31, 11, 11);
+    }
+
+    // Club name
+    ctx.fillStyle = '#323130';
+    ctx.font = 'bold 13px Inter, "Segoe UI", sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(clubName, 200, 75);
+
+    // Chapter name
+    ctx.fillStyle = primaryColor;
+    ctx.font = 'bold 11px Inter, "Segoe UI", sans-serif';
+    ctx.fillText(chapterName, 200, 95);
+
+    // Separator
+    ctx.strokeStyle = '#edebe9';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(40, 115);
+    ctx.lineTo(360, 115);
+    ctx.stroke();
+
+    // Quiz Title
+    ctx.fillStyle = '#201f1e';
+    ctx.font = 'bold 16px Inter, "Segoe UI", sans-serif';
+    const titleText = quizData.title.toUpperCase();
+    ctx.fillText(titleText.length > 35 ? titleText.slice(0, 35) + '...' : titleText, 200, 140);
+
+    // Event name
+    ctx.fillStyle = '#605e5c';
+    ctx.font = '600 10px Inter, "Segoe UI", sans-serif';
+    ctx.fillText(quizData.event_name.toUpperCase(), 200, 160);
+
+    // QR frame
+    ctx.fillStyle = '#f8f8f8';
+    ctx.fillRect(80, 185, 240, 240);
+    ctx.strokeStyle = '#edebe9';
+    ctx.strokeRect(80, 185, 240, 240);
+
+    // QR image
+    ctx.drawImage(qrImage, 90, 195, 220, 220);
+
+    // Logo embedded inside the QR code center
+    if (logoImg) {
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(200, 305, 22, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.drawImage(logoImg, 182, 287, 36, 36);
+    }
+
+    // Scan instructions
+    ctx.fillStyle = '#605e5c';
+    ctx.font = '600 11px Inter, "Segoe UI", sans-serif';
+    ctx.fillText('Scan with camera or visit:', 200, 455);
+
+    // Join URL
+    ctx.fillStyle = primaryColor;
+    ctx.font = 'bold 12px Inter, "Segoe UI", sans-serif';
+    const joinUrl = `${window.location.origin}/join/${quizData.join_code}`;
+    ctx.fillText(joinUrl, 200, 478);
+
+    // Code box
+    ctx.fillStyle = '#f3f2f1';
+    ctx.fillRect(80, 505, 240, 70);
+    ctx.strokeStyle = '#edebe9';
+    ctx.strokeRect(80, 505, 240, 70);
+
+    // Code label
+    ctx.fillStyle = '#605e5c';
+    ctx.font = 'bold 9px Inter, "Segoe UI", sans-serif';
+    ctx.fillText('UNIQUE JOIN CODE', 200, 525);
+
+    // Big code
+    ctx.fillStyle = primaryColor;
+    ctx.font = '900 28px Inter, "Segoe UI", sans-serif';
+    ctx.fillText(quizData.join_code, 200, 560);
+
+    // Footer
+    ctx.fillStyle = '#a19f9d';
+    ctx.font = 'bold 8px Inter, "Segoe UI", sans-serif';
+    ctx.fillText(footerText, 200, 610);
+
+    // Bottom gradient bar
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, H - 4, W, 4);
+  };
+
   // Download QR Code Helper
   const handleDownloadQR = (elementId) => {
     if (!activeQuiz) return;
@@ -154,111 +330,36 @@ export default function AdminDashboard() {
     const URL = window.URL || window.webkitURL || window;
     const blobURL = URL.createObjectURL(svgBlob);
     
+    const logoSrc = branding?.logo_path ? `/${branding.logo_path}` : null;
+
     const image = new Image();
     image.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 400;
-      canvas.height = 620;
-      const ctx = canvas.getContext('2d');
-      
-      // Draw card background
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Draw top gradient border
-      const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
-      grad.addColorStop(0, '#0078d4');
-      grad.addColorStop(1, '#005a9e');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, canvas.width, 8);
-      
-      // Draw Microsoft 4-square logo
-      ctx.fillStyle = '#f25022';
-      ctx.fillRect(187, 30, 12, 12);
-      ctx.fillStyle = '#7fba00';
-      ctx.fillRect(201, 30, 12, 12);
-      ctx.fillStyle = '#00a4ef';
-      ctx.fillRect(187, 44, 12, 12);
-      ctx.fillStyle = '#ffb900';
-      ctx.fillRect(201, 44, 12, 12);
-      
-      // MSC text header
-      ctx.fillStyle = '#323130';
-      ctx.font = 'bold 13px "Segoe UI", "Segoe UI Semibold", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('MICROSOFT STUDENT CLUB', 200, 75);
-      
-      // MSC-PRPCEM text
-      ctx.fillStyle = '#0078d4';
-      ctx.font = 'bold 11px "Segoe UI", sans-serif';
-      ctx.fillText('MSC-PRPCEM CHAPTER', 200, 95);
-      
-      // Separator line
-      ctx.strokeStyle = '#edebe9';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(40, 115);
-      ctx.lineTo(360, 115);
-      ctx.stroke();
-      
-      // Quiz Title
-      ctx.fillStyle = '#201f1e';
-      ctx.font = 'bold 16px "Segoe UI", sans-serif';
-      ctx.fillText(activeQuiz.title.toUpperCase(), 200, 140);
-      
-      // Event name
-      ctx.fillStyle = '#605e5c';
-      ctx.font = '600 10px "Segoe UI", sans-serif';
-      ctx.fillText(activeQuiz.event_name.toUpperCase(), 200, 158);
-      
-      // Draw QR Code frame/inner shadow box
-      ctx.fillStyle = '#f8f8f8';
-      ctx.fillRect(80, 185, 240, 240);
-      ctx.strokeStyle = '#edebe9';
-      ctx.strokeRect(80, 185, 240, 240);
-      
-      // Draw the QR Code image
-      ctx.drawImage(image, 90, 195, 220, 220);
-      
-      // Scan instructions
-      ctx.fillStyle = '#605e5c';
-      ctx.font = '600 11px "Segoe UI", sans-serif';
-      ctx.fillText('Scan with camera or visit:', 200, 455);
-      
-      // Join URL
-      ctx.fillStyle = '#005a9e';
-      ctx.font = 'bold 12px "Segoe UI", sans-serif';
-      ctx.fillText(`${window.location.origin}/join/${activeQuiz.join_code}`, 200, 475);
-      
-      // Code background box
-      ctx.fillStyle = '#f3f2f1';
-      ctx.fillRect(80, 505, 240, 65);
-      ctx.strokeStyle = '#edebe9';
-      ctx.strokeRect(80, 505, 240, 65);
-      
-      // Code label
-      ctx.fillStyle = '#605e5c';
-      ctx.font = 'bold 9px "Segoe UI", sans-serif';
-      ctx.fillText('UNIQUE JOIN CODE', 200, 523);
-      
-      // Big Code text
-      ctx.fillStyle = '#0078d4';
-      ctx.font = 'black 28px "Segoe UI", sans-serif';
-      ctx.fillText(activeQuiz.join_code, 200, 555);
-      
-      // Footnote
-      ctx.fillStyle = '#a19f9d';
-      ctx.font = 'bold 8px "Segoe UI", sans-serif';
-      ctx.fillText('Powered by Microsoft Student Club Quiz Platform', 200, 600);
-      
-      // Export as PNG
-      const png = canvas.toDataURL('image/png');
-      const downloadLink = document.createElement('a');
-      downloadLink.href = png;
-      downloadLink.download = `msc-prpcem-quiz-${activeQuiz.join_code}.png`;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
+      const drawCard = (logoImg) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 400;
+        canvas.height = 650;
+        const ctx = canvas.getContext('2d');
+
+        drawBrandedCard(ctx, image, activeQuiz, branding, logoImg);
+
+        const png = canvas.toDataURL('image/png');
+        const downloadLink = document.createElement('a');
+        downloadLink.href = png;
+        downloadLink.download = `quiz-${activeQuiz.join_code}.png`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+      };
+
+      if (logoSrc) {
+        const logoImg = new Image();
+        logoImg.crossOrigin = 'anonymous';
+        logoImg.onload = () => drawCard(logoImg);
+        logoImg.onerror = () => drawCard(null);
+        logoImg.src = logoSrc;
+      } else {
+        drawCard(null);
+      }
     };
     image.src = blobURL;
   };
@@ -374,113 +475,37 @@ export default function AdminDashboard() {
     const svgBlob = new Blob([svgString], { type: 'image/svg+xml;charset=utf-8' });
     const URL = window.URL || window.webkitURL || window;
     const blobURL = URL.createObjectURL(svgBlob);
-    
+
+    const logoSrc = branding?.logo_path ? `/${branding.logo_path}` : null;
+
     const image = new Image();
     image.onload = () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = 400;
-      canvas.height = 620;
-      const ctx = canvas.getContext('2d');
-      
-      // Draw card background
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      
-      // Draw top gradient border
-      const grad = ctx.createLinearGradient(0, 0, canvas.width, 0);
-      grad.addColorStop(0, '#0078d4');
-      grad.addColorStop(1, '#005a9e');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, canvas.width, 8);
-      
-      // Draw Microsoft 4-square logo
-      ctx.fillStyle = '#f25022';
-      ctx.fillRect(187, 30, 12, 12);
-      ctx.fillStyle = '#7fba00';
-      ctx.fillRect(201, 30, 12, 12);
-      ctx.fillStyle = '#00a4ef';
-      ctx.fillRect(187, 44, 12, 12);
-      ctx.fillStyle = '#ffb900';
-      ctx.fillRect(201, 44, 12, 12);
-      
-      // MSC text header
-      ctx.fillStyle = '#323130';
-      ctx.font = 'bold 13px "Segoe UI", "Segoe UI Semibold", sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('MICROSOFT STUDENT CLUB', 200, 75);
-      
-      // MSC-PRPCEM text
-      ctx.fillStyle = '#0078d4';
-      ctx.font = 'bold 11px "Segoe UI", sans-serif';
-      ctx.fillText('MSC-PRPCEM CHAPTER', 200, 95);
-      
-      // Separator line
-      ctx.strokeStyle = '#edebe9';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(40, 115);
-      ctx.lineTo(360, 115);
-      ctx.stroke();
-      
-      // Quiz Title
-      ctx.fillStyle = '#201f1e';
-      ctx.font = 'bold 16px "Segoe UI", sans-serif';
-      ctx.fillText(qrQuiz.title.toUpperCase(), 200, 140);
-      
-      // Event name
-      ctx.fillStyle = '#605e5c';
-      ctx.font = '600 10px "Segoe UI", sans-serif';
-      ctx.fillText(qrQuiz.event_name.toUpperCase(), 200, 158);
-      
-      // Draw QR Code frame/inner shadow box
-      ctx.fillStyle = '#f8f8f8';
-      ctx.fillRect(80, 185, 240, 240);
-      ctx.strokeStyle = '#edebe9';
-      ctx.strokeRect(80, 185, 240, 240);
-      
-      // Draw the QR Code image
-      ctx.drawImage(image, 90, 195, 220, 220);
-      
-      // Scan instructions
-      ctx.fillStyle = '#605e5c';
-      ctx.font = '600 11px "Segoe UI", sans-serif';
-      ctx.fillText('Scan with camera or visit:', 200, 455);
-      
-      // Join URL
-      ctx.fillStyle = '#005a9e';
-      ctx.font = 'bold 12px "Segoe UI", sans-serif';
-      const joinUrl = `${window.location.protocol}//${window.location.host}/join/${qrQuiz.join_code}`;
-      ctx.fillText(joinUrl, 200, 475);
-      
-      // Code background box
-      ctx.fillStyle = '#f3f2f1';
-      ctx.fillRect(80, 505, 240, 65);
-      ctx.strokeStyle = '#edebe9';
-      ctx.strokeRect(80, 505, 240, 65);
-      
-      // Code label
-      ctx.fillStyle = '#605e5c';
-      ctx.font = 'bold 9px "Segoe UI", sans-serif';
-      ctx.fillText('UNIQUE JOIN CODE', 200, 523);
-      
-      // Big Code text
-      ctx.fillStyle = '#0078d4';
-      ctx.font = 'black 28px "Segoe UI", sans-serif';
-      ctx.fillText(qrQuiz.join_code, 200, 555);
-      
-      // Footnote
-      ctx.fillStyle = '#a19f9d';
-      ctx.font = 'bold 8px "Segoe UI", sans-serif';
-      ctx.fillText('Powered by Microsoft Student Club Quiz Platform', 200, 600);
-      
-      // Export as PNG
-      const png = canvas.toDataURL('image/png');
-      const downloadLink = document.createElement('a');
-      downloadLink.href = png;
-      downloadLink.download = `msc-prpcem-quiz-${qrQuiz.join_code}.png`;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
+      const drawCard = (logoImg) => {
+        const canvas = document.createElement('canvas');
+        canvas.width = 400;
+        canvas.height = 650;
+        const ctx = canvas.getContext('2d');
+
+        drawBrandedCard(ctx, image, qrQuiz, branding, logoImg);
+
+        const png = canvas.toDataURL('image/png');
+        const downloadLink = document.createElement('a');
+        downloadLink.href = png;
+        downloadLink.download = `quiz-${qrQuiz.join_code}.png`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+      };
+
+      if (logoSrc) {
+        const logoImg = new Image();
+        logoImg.crossOrigin = 'anonymous';
+        logoImg.onload = () => drawCard(logoImg);
+        logoImg.onerror = () => drawCard(null);
+        logoImg.src = logoSrc;
+      } else {
+        drawCard(null);
+      }
     };
     image.src = blobURL;
   };
@@ -614,7 +639,8 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in space-y-6">
+    <>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in space-y-6">
       
       {/* Title Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-zinc-200/80 p-6 rounded-2xl shadow-lg shadow-zinc-150/30 gap-4 relative overflow-hidden">
@@ -1088,6 +1114,7 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
+      </div>
 
       {/* FULLSCREEN QR CODE MODAL FOR PROJECTORS */}
       {activeQuiz && showQRModal && (
@@ -1107,50 +1134,79 @@ export default function AdminDashboard() {
             </button>
 
             {/* Branded Card Container */}
-            <div className="bg-white text-zinc-800 p-8 rounded-2xl shadow-2xl border-4 border-microsoft-blue/20 max-w-sm mx-auto space-y-5 text-center relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-2 bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue"></div>
+            <div className="bg-white bg-azure-mesh text-zinc-800 p-8 rounded-2xl shadow-2xl border border-zinc-200 max-w-sm mx-auto space-y-5 text-center relative overflow-hidden">
+              <div
+                className="absolute top-0 left-0 w-full h-2 animate-[azureFlow_4s_ease_infinite]"
+                style={{
+                  background: `linear-gradient(90deg, ${branding?.primary_color || '#0078d4'}, ${branding?.primary_color || '#0078d4'}CC, ${branding?.primary_color || '#0078d4'})`,
+                  backgroundSize: '200% 200%'
+                }}
+              ></div>
               
-              {/* Microsoft Logo Icon */}
-              <div className="flex flex-col items-center space-y-1.5 pt-2">
-                <div className="grid grid-cols-2 gap-0.5 w-6 h-6">
-                  <div className="bg-[#f25022]"></div>
-                  <div className="bg-[#7fba00]"></div>
-                  <div className="bg-[#00a4ef]"></div>
-                  <div className="bg-[#ffb900]"></div>
-                </div>
-                <h2 className="text-[11px] font-extrabold tracking-wider uppercase text-zinc-650">Microsoft Student Club</h2>
-                <span className="text-[10px] font-bold text-microsoft-blue bg-microsoft-lightBlue px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                  MSC-PRPCEM CHAPTER
+              {/* Decorative dot pattern */}
+              <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
+                backgroundImage: `radial-gradient(${branding?.primary_color || '#0078d4'} 1px, transparent 1px)`,
+                backgroundSize: '16px 16px'
+              }}></div>
+
+              {/* Floating Azure AI styled nodes */}
+              <div className="absolute top-12 left-6 w-2.5 h-2.5 rounded-full pointer-events-none decor-node opacity-20" style={{ backgroundColor: branding?.primary_color || '#0078d4' }}></div>
+              <div className="absolute bottom-20 right-10 w-4 h-4 rounded-full pointer-events-none decor-node-delay-1 opacity-20" style={{ backgroundColor: branding?.primary_color || '#0078d4' }}></div>
+              <div className="absolute top-1/2 right-4 w-2 h-2 rounded-full pointer-events-none decor-node-delay-2 opacity-20" style={{ backgroundColor: branding?.primary_color || '#0078d4' }}></div>
+
+              {/* Logo / Club Name */}
+              <div className="flex flex-col items-center space-y-1.5 pt-2 relative z-10">
+                {branding?.logo_path ? (
+                  <img src={`/${branding.logo_path}`} alt="Logo" className="w-12 h-12 object-contain" />
+                ) : (
+                  <div className="grid grid-cols-2 gap-0.5 w-6 h-6">
+                    <div className="bg-[#f25022]"></div>
+                    <div className="bg-[#7fba00]"></div>
+                    <div className="bg-[#00a4ef]"></div>
+                    <div className="bg-[#ffb900]"></div>
+                  </div>
+                )}
+                <h2 className="text-[11px] font-extrabold tracking-wider uppercase text-zinc-600">{branding?.club_name || 'Microsoft Student Club'}</h2>
+                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider" style={{ color: branding?.primary_color || '#0078d4', backgroundColor: (branding?.primary_color || '#0078d4') + '14' }}>
+                  {branding?.chapter_name || 'MSC-PRPCEM CHAPTER'}
                 </span>
               </div>
 
-              <div className="border-t border-b border-zinc-100 py-3 my-2">
-                <h1 className="text-lg font-black text-zinc-850 leading-tight uppercase">{activeQuiz.title}</h1>
-                <p className="text-[9px] text-zinc-450 font-bold uppercase tracking-widest mt-1">{activeQuiz.event_name}</p>
+              <div className="border-t border-b border-zinc-100 py-3 my-2 relative z-10">
+                <h1 className="text-lg font-black text-zinc-800 leading-tight uppercase">{activeQuiz.title}</h1>
+                <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest mt-1">{activeQuiz.event_name}</p>
               </div>
 
               {/* QR Code Container */}
-              <div className="inline-block bg-zinc-50 p-4 rounded-xl border border-zinc-100 shadow-inner">
+              <div className="inline-block bg-zinc-50 p-4 rounded-xl border border-zinc-100 shadow-inner relative z-10">
                 <QRCodeSVG
                   id="modal-qr-svg"
                   value={`${window.location.protocol}//${window.location.host}/join/${activeQuiz.join_code}`}
                   size={200}
                   level="H"
                   includeMargin={false}
+                  imageSettings={branding?.logo_path ? {
+                    src: `/${branding.logo_path}`,
+                    x: undefined,
+                    y: undefined,
+                    height: 40,
+                    width: 40,
+                    excavate: true,
+                  } : undefined}
                 />
               </div>
 
-              <div className="space-y-3.5 text-zinc-700">
+              <div className="space-y-3.5 text-zinc-700 relative z-10">
                 <div className="text-xs font-semibold text-zinc-500">
                   <p>Scan with camera or visit:</p>
-                  <p className="text-microsoft-darkBlue font-bold underline select-all mt-0.5">
+                  <p className="font-bold underline select-all mt-0.5" style={{ color: branding?.primary_color || '#005a9e' }}>
                     {window.location.origin}/join/{activeQuiz.join_code}
                   </p>
                 </div>
                 
                 <div className="bg-zinc-50 border border-zinc-100 p-3 rounded-xl">
                   <span className="block text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Unique Join Code</span>
-                  <span className="block text-2xl font-black text-microsoft-blue tracking-widest select-all mt-0.5">{activeQuiz.join_code}</span>
+                  <span className="block text-2xl font-black tracking-widest select-all mt-0.5" style={{ color: branding?.primary_color || '#0078d4' }}>{activeQuiz.join_code}</span>
                 </div>
               </div>
             </div>
@@ -1293,50 +1349,78 @@ export default function AdminDashboard() {
             </button>
 
             {/* Branded Card Container */}
-            <div className="bg-white text-zinc-850 p-4 rounded-xl shadow-inner border-2 border-microsoft-blue/15 max-w-xs mx-auto space-y-3.5 text-center relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue"></div>
+            <div className="bg-white bg-azure-mesh text-zinc-800 p-4 rounded-xl shadow-inner border-2 border-zinc-200 max-w-xs mx-auto space-y-3.5 text-center relative overflow-hidden">
+              <div
+                className="absolute top-0 left-0 w-full h-1.5 animate-[azureFlow_4s_ease_infinite]"
+                style={{
+                  background: `linear-gradient(90deg, ${branding?.primary_color || '#0078d4'}, ${branding?.primary_color || '#0078d4'}CC, ${branding?.primary_color || '#0078d4'})`,
+                  backgroundSize: '200% 200%'
+                }}
+              ></div>
               
-              {/* Microsoft Logo Icon */}
-              <div className="flex flex-col items-center space-y-1 pt-1">
-                <div className="grid grid-cols-2 gap-0.5 w-5 h-5">
-                  <div className="bg-[#f25022]"></div>
-                  <div className="bg-[#7fba00]"></div>
-                  <div className="bg-[#00a4ef]"></div>
-                  <div className="bg-[#ffb900]"></div>
-                </div>
-                <h2 className="text-[10px] font-extrabold tracking-wider uppercase text-zinc-500">Microsoft Student Club</h2>
-                <span className="text-[9px] font-bold text-microsoft-blue bg-microsoft-lightBlue px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  MSC-PRPCEM CHAPTER
+              {/* Decorative dot pattern */}
+              <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
+                backgroundImage: `radial-gradient(${branding?.primary_color || '#0078d4'} 1px, transparent 1px)`,
+                backgroundSize: '16px 16px'
+              }}></div>
+
+              {/* Floating Azure AI styled nodes */}
+              <div className="absolute top-8 left-4 w-2 h-2 rounded-full pointer-events-none decor-node opacity-20" style={{ backgroundColor: branding?.primary_color || '#0078d4' }}></div>
+              <div className="absolute bottom-16 right-8 w-3 h-3 rounded-full pointer-events-none decor-node-delay-1 opacity-20" style={{ backgroundColor: branding?.primary_color || '#0078d4' }}></div>
+
+              {/* Logo / Club Name */}
+              <div className="flex flex-col items-center space-y-1 pt-1 relative z-10">
+                {branding?.logo_path ? (
+                  <img src={`/${branding.logo_path}`} alt="Logo" className="w-10 h-10 object-contain" />
+                ) : (
+                  <div className="grid grid-cols-2 gap-0.5 w-5 h-5">
+                    <div className="bg-[#f25022]"></div>
+                    <div className="bg-[#7fba00]"></div>
+                    <div className="bg-[#00a4ef]"></div>
+                    <div className="bg-[#ffb900]"></div>
+                  </div>
+                )}
+                <h2 className="text-[10px] font-extrabold tracking-wider uppercase text-zinc-500">{branding?.club_name || 'Microsoft Student Club'}</h2>
+                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider" style={{ color: branding?.primary_color || '#0078d4', backgroundColor: (branding?.primary_color || '#0078d4') + '14' }}>
+                  {branding?.chapter_name || 'MSC-PRPCEM CHAPTER'}
                 </span>
               </div>
 
-              <div className="border-t border-b border-zinc-100 py-2 my-0.5 text-zinc-750">
-                <h1 className="text-sm font-black text-zinc-850 leading-tight uppercase truncate" title={qrQuiz.title}>{qrQuiz.title}</h1>
-                <p className="text-[8px] text-zinc-450 font-bold uppercase tracking-widest mt-0.5 truncate" title={qrQuiz.event_name}>{qrQuiz.event_name}</p>
+              <div className="border-t border-b border-zinc-100 py-2 my-0.5 relative z-10">
+                <h1 className="text-sm font-black text-zinc-800 leading-tight uppercase truncate" title={qrQuiz.title}>{qrQuiz.title}</h1>
+                <p className="text-[8px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5 truncate" title={qrQuiz.event_name}>{qrQuiz.event_name}</p>
               </div>
 
               {/* QR Code Container */}
-              <div className="inline-block bg-zinc-50 p-2.5 rounded-lg border border-zinc-100">
+              <div className="inline-block bg-zinc-50 p-2.5 rounded-lg border border-zinc-100 relative z-10">
                 <QRCodeSVG
                   id="dashboard-catalog-qr-svg"
                   value={`${window.location.protocol}//${window.location.host}/join/${qrQuiz.join_code}`}
                   size={130}
                   level="H"
                   includeMargin={false}
+                  imageSettings={branding?.logo_path ? {
+                    src: `/${branding.logo_path}`,
+                    x: undefined,
+                    y: undefined,
+                    height: 26,
+                    width: 26,
+                    excavate: true,
+                  } : undefined}
                 />
               </div>
 
-              <div className="space-y-1.5 text-zinc-700">
+              <div className="space-y-1.5 text-zinc-700 relative z-10">
                 <div className="text-[10px] font-semibold text-zinc-500">
                   <p>Scan with camera or visit:</p>
-                  <p className="text-microsoft-darkBlue font-bold underline select-all mt-0.5 break-all">
+                  <p className="font-bold underline select-all mt-0.5 break-all" style={{ color: branding?.primary_color || '#005a9e' }}>
                     {window.location.origin}/join/{qrQuiz.join_code}
                   </p>
                 </div>
                 
                 <div className="bg-zinc-50 border border-zinc-100 p-2.5 rounded-lg">
                   <span className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest text-center">Unique Join Code</span>
-                  <span className="block text-xl font-black text-microsoft-blue tracking-widest select-all mt-0.5 text-center">{qrQuiz.join_code}</span>
+                  <span className="block text-xl font-black tracking-widest select-all mt-0.5 text-center" style={{ color: branding?.primary_color || '#0078d4' }}>{qrQuiz.join_code}</span>
                 </div>
               </div>
             </div>
@@ -1370,6 +1454,6 @@ export default function AdminDashboard() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

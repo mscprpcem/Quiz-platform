@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const ExcelJS = require('exceljs');
-const { Quiz, Question, Participant, Answer } = require('../models');
+const { Quiz, Question, Participant, Answer, Violation } = require('../models');
 const authMiddleware = require('../middleware/auth');
 
 // Multer memory storage configuration for Excel uploads
@@ -154,6 +154,35 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Quiz not found' });
     }
 
+    // Manually cascade-delete all child records since SQLite doesn't
+    // reliably enforce ON DELETE CASCADE foreign key constraints.
+
+    // 1. Get all question IDs and participant IDs for this quiz
+    const questions = await Question.findAll({ where: { quiz_id: quiz.id }, attributes: ['id'] });
+    const questionIds = questions.map(q => q.id);
+
+    const participants = await Participant.findAll({ where: { quiz_id: quiz.id }, attributes: ['id'] });
+    const participantIds = participants.map(p => p.id);
+
+    // 2. Delete Answers (linked to both questions and participants)
+    if (questionIds.length > 0) {
+      await Answer.destroy({ where: { question_id: questionIds } });
+    }
+    if (participantIds.length > 0) {
+      // Also delete any answers linked by participant_id that weren't caught above
+      await Answer.destroy({ where: { participant_id: participantIds } });
+    }
+
+    // 3. Delete Violations
+    await Violation.destroy({ where: { quiz_id: quiz.id } });
+
+    // 4. Delete Participants
+    await Participant.destroy({ where: { quiz_id: quiz.id } });
+
+    // 5. Delete Questions
+    await Question.destroy({ where: { quiz_id: quiz.id } });
+
+    // 6. Finally delete the Quiz itself
     await quiz.destroy();
     return res.json({ message: 'Quiz deleted successfully' });
   } catch (error) {
