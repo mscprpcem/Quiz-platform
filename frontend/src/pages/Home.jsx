@@ -59,12 +59,11 @@ export default function Home() {
 
             <div className="flex flex-col xs:flex-row flex-wrap gap-3 pt-1">
               <button
-                onClick={() => navigate('/practice')}
-                className="group flex items-center justify-center space-x-2 bg-gradient-to-b from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold py-3 px-6 rounded-xl shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.97] cursor-pointer text-sm"
+                disabled
+                className="flex items-center justify-center space-x-2 bg-zinc-150 border border-zinc-200 text-zinc-400 font-semibold py-3 px-6 rounded-xl cursor-not-allowed text-sm"
               >
-                <Trophy size={18} />
-                <span>Enter Practice Arena</span>
-                <ArrowRight size={15} className="opacity-0 -ml-2 group-hover:opacity-100 group-hover:ml-0 transition-all duration-200" />
+                <Trophy size={18} className="opacity-40" />
+                <span>Practice Arena (Future Coming)</span>
               </button>
               <button
                 onClick={() => navigate('/admin/login')}
@@ -153,26 +152,22 @@ export default function Home() {
             </div>
 
             {/* Mode 2: Practice Arena */}
-            <div className="bg-white border border-zinc-200/80 hover:border-emerald-400/40 rounded-2xl p-5 sm:p-6 shadow-sm hover:shadow-soft-lg transition-all duration-300 flex flex-col justify-between text-left group">
+            <div className="bg-white border border-zinc-200/80 rounded-2xl p-5 sm:p-6 shadow-sm text-left flex flex-col justify-between opacity-75 select-none">
               <div className="space-y-4">
-                <div className="w-11 h-11 bg-gradient-to-br from-emerald-50 to-green-100 text-emerald-600 rounded-xl flex items-center justify-center shadow-inner group-hover:scale-110 transition-transform duration-300">
+                <div className="w-11 h-11 bg-gradient-to-br from-emerald-50 to-green-100 text-emerald-650 rounded-xl flex items-center justify-center shadow-inner">
                   <Trophy size={20} />
                 </div>
                 <div className="space-y-1.5">
-                  <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2.5 py-0.5 rounded-full">Self-Paced</span>
+                  <span className="text-[9px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2.5 py-0.5 rounded-full">Future Coming</span>
                   <h3 className="text-base sm:text-lg font-bold text-zinc-800 mt-1.5">Practice Arena</h3>
                   <p className="text-xs text-zinc-500 leading-relaxed mt-1">
                     Solve quizzes at your own speed. Choose from Frontend, Algorithms, or Cloud tracks with detailed explanation scorecards.
                   </p>
                 </div>
               </div>
-              <button
-                onClick={() => navigate('/practice')}
-                className="mt-5 w-full text-center border border-zinc-200 group-hover:border-emerald-400/30 group-hover:bg-gradient-to-b group-hover:from-emerald-500 group-hover:to-emerald-600 group-hover:text-white text-zinc-500 font-semibold py-2.5 rounded-xl text-xs transition-all duration-300 flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
-              >
-                Start Practice Test
-                <ArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform duration-200" />
-              </button>
+              <div className="mt-6 w-full text-center border border-dashed border-zinc-200 bg-zinc-50/80 text-zinc-400 font-semibold py-2.5 rounded-xl text-xs">
+                Available in Next Release
+              </div>
             </div>
 
             {/* Mode 3: Challenges */}

@@ -120,12 +120,6 @@ export default function Navbar() {
                   label="Home"
                 />
                 <NavButton
-                  onClick={() => navTo('/practice')}
-                  isActive={isActive('/practice')}
-                  icon={Trophy}
-                  label="Practice Arena"
-                />
-                <NavButton
                   onClick={() => navTo('/join')}
                   isActive={isActive('/join')}
                   icon={Play}
@@ -170,15 +164,7 @@ export default function Navbar() {
                 <Home size={16} />
                 Home
               </button>
-              <button
-                onClick={() => navTo('/practice')}
-                className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all ${
-                  isActive('/practice') ? 'text-microsoft-blue bg-microsoft-lightBlue' : 'text-zinc-600 hover:bg-zinc-100'
-                }`}
-              >
-                <Trophy size={16} />
-                Practice Arena
-              </button>
+
               <button
                 onClick={() => navTo('/join')}
                 className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all ${

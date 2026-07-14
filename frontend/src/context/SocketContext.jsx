@@ -8,8 +8,9 @@ export const SocketProvider = ({ children }) => {
   const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    // Create socket instance pointing to root (proxied to port 5000 in dev)
-    const socketInstance = io({
+    // Create socket instance pointing to production API URL or root host
+    const socketUrl = import.meta.env.VITE_API_URL || '';
+    const socketInstance = io(socketUrl, {
       autoConnect: false,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,
