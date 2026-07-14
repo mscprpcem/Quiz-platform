@@ -495,13 +495,14 @@ const initializeSocket = (io) => {
 
           points = question.marks + speedBonus;
 
-          // Deduct points for tab switching / window violations
-          // Rule: 1st switch = warning, 2nd switch = deduct 20% points, 3rd switch = auto-submit 0 pts
+          // Deduct points for tab switching / window violations - Disabled for now
+          /*
           if (participant.tab_switch_count === 2) {
             points = Math.round(points * 0.8); // 20% points deduction
           } else if (participant.tab_switch_count >= 3) {
             points = 0; // Disqualified from points for this question
           }
+          */
         }
 
         // Save answer to database
@@ -546,6 +547,8 @@ const initializeSocket = (io) => {
 
     // Participant reports a violation (tab switch, exit fullscreen, etc.)
     socket.on('report_violation', async ({ violationType }) => {
+      // Disabled for now
+      return;
       try {
         const participantId = socket.participantId;
         const quizId = socket.quizId;

@@ -1,0 +1,82 @@
+name: Platform Load & Stress Testing
+
+on:
+  workflow_dispatch:
+    inputs:
+      baseUrl:
+        description: 'Target API/Server URL'
+        required: true
+        default: 'https://quiz-api-dhhvcqg2gjapfkbm.centralindia-01.azurewebsites.net'
+      joinCode:
+        description: 'Quiz Join Code for Artillery Participants'
+        required: true
+        default: 'ABC123'
+      testType:
+        description: 'k6 Test Profile (load, stress, spike, endurance)'
+        required: true
+        default: 'load'
+
+jobs:
+  k6-api-test:
+    name: Run k6 REST API Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup k6 Load Tester
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD19442217C061
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install k6
+
+      - name: Run k6 Test Scenario
+        env:
+          BASE_URL: ${{ github.event.inputs.baseUrl }}
+          TEST_TYPE: ${{ github.event.inputs.testType }}
+        run: |
+          k6 run --summary-export=k6-summary.json load-tests/k6/admin_flow.js
+
+      - name: Upload k6 Summary Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-load-test-summary
+          path: k6-summary.json
+
+  artillery-socket-test:
+    name: Run Artillery Socket.IO Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js Environment
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Artillery
+        run: |
+          npm install -g artillery
+
+      - name: Run Artillery Participant Load Simulation
+        env:
+          JOIN_CODE: ${{ github.event.inputs.joinCode }}
+        run: |
+          # We point target to the base API URL (e.g. from inputs)
+          # Artillery allows overriding targets using --target parameter
+          artillery run --target "${{ github.event.inputs.baseUrl }}" --output artillery-report.json load-tests/artillery/participant_flow.yml
+
+      - name: Generate HTML Report
+        run: |
+          artillery report artillery-report.json --output artillery-report.html
+
+      - name: Upload Artillery Reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: artillery-load-test-reports
+          path: |
+            artillery-report.json
+            artillery-report.html

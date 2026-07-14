@@ -90,12 +90,17 @@ app.use(
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  max: 100000, // For load testing only
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     error: "Too many requests. Please try again later."
   }
+});
+
+app.use((req, res, next) => {
+  console.log(`${req.method} ${req.originalUrl}`);
+  next();
 });
 
 app.use("/api", limiter);
