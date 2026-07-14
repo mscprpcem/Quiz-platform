@@ -1319,124 +1319,80 @@ export default function AdminDashboard() {
             setShowCatalogQRModal(false);
             setQrQuiz(null);
           }}
-          className="fixed inset-0 bg-zinc-950/80 z-50 overflow-y-auto py-6 flex justify-center items-start cursor-pointer"
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-zinc-900 text-white rounded-2xl p-5 max-w-sm w-full shadow-2xl border border-zinc-800 relative animate-fade-in text-center space-y-4 cursor-default my-auto"
+            className="bg-white rounded-2xl shadow-2xl max-w-[280px] w-full relative cursor-default overflow-hidden animate-fade-in"
           >
+            {/* Top accent bar */}
+            <div className="h-1 w-full" style={{ background: branding?.primary_color || '#0078d4' }} />
+
+            {/* Close button */}
             <button
               onClick={() => {
                 setShowCatalogQRModal(false);
                 setQrQuiz(null);
               }}
-              className="absolute top-4 right-4 bg-zinc-850 border border-zinc-700 hover:bg-zinc-700 text-zinc-400 hover:text-white p-2 rounded-full transition-all cursor-pointer"
-              title="Close Modal"
+              className="absolute top-2.5 right-2.5 w-6 h-6 flex items-center justify-center rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 hover:text-zinc-800 transition-all cursor-pointer z-20"
             >
-              <X size={16} />
+              <X size={12} strokeWidth={3} />
             </button>
 
-            {/* Branded Card Container */}
-            <div className="bg-white bg-azure-mesh text-zinc-800 p-4 rounded-xl shadow-inner border-2 border-zinc-200 max-w-xs mx-auto space-y-3.5 text-center relative overflow-hidden">
-              <div
-                className="absolute top-0 left-0 w-full h-1.5 animate-[azureFlow_4s_ease_infinite]"
-                style={{
-                  background: `linear-gradient(90deg, ${branding?.primary_color || '#0078d4'}, ${branding?.primary_color || '#0078d4'}CC, ${branding?.primary_color || '#0078d4'})`,
-                  backgroundSize: '200% 200%'
-                }}
-              ></div>
-              
-              {/* Decorative dot pattern */}
-              <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
-                backgroundImage: `radial-gradient(${branding?.primary_color || '#0078d4'} 1px, transparent 1px)`,
-                backgroundSize: '16px 16px'
-              }}></div>
+            {/* Content */}
+            <div className="px-4 pt-4 pb-3 text-center space-y-3">
+              {/* Event name */}
+              <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest truncate pr-6">{qrQuiz.event_name}</p>
 
-              {/* Floating Azure AI styled nodes */}
-              <div className="absolute top-8 left-4 w-2 h-2 rounded-full pointer-events-none decor-node opacity-20" style={{ backgroundColor: branding?.primary_color || '#0078d4' }}></div>
-              <div className="absolute bottom-16 right-8 w-3 h-3 rounded-full pointer-events-none decor-node-delay-1 opacity-20" style={{ backgroundColor: branding?.primary_color || '#0078d4' }}></div>
-
-              {/* Logo / Club Name */}
-              <div className="flex flex-col items-center space-y-1 pt-1 relative z-10">
-                {branding?.logo_path ? (
-                  <img src={`/${branding.logo_path}`} alt="Logo" className="w-10 h-10 object-contain" />
-                ) : (
-                  <div className="grid grid-cols-2 gap-0.5 w-5 h-5">
-                    <div className="bg-[#f25022]"></div>
-                    <div className="bg-[#7fba00]"></div>
-                    <div className="bg-[#00a4ef]"></div>
-                    <div className="bg-[#ffb900]"></div>
-                  </div>
-                )}
-                <h2 className="text-[10px] font-extrabold tracking-wider uppercase text-zinc-500">{branding?.club_name || 'Microsoft Student Club'}</h2>
-                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider" style={{ color: branding?.primary_color || '#0078d4', backgroundColor: (branding?.primary_color || '#0078d4') + '14' }}>
-                  {branding?.chapter_name || 'MSC-PRPCEM CHAPTER'}
-                </span>
-              </div>
-
-              <div className="border-t border-b border-zinc-100 py-2 my-0.5 relative z-10">
-                <h1 className="text-sm font-black text-zinc-800 leading-tight uppercase truncate" title={qrQuiz.title}>{qrQuiz.title}</h1>
-                <p className="text-[8px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5 truncate" title={qrQuiz.event_name}>{qrQuiz.event_name}</p>
-              </div>
-
-              {/* QR Code Container */}
-              <div className="inline-block bg-zinc-50 p-2.5 rounded-lg border border-zinc-100 relative z-10">
+              {/* QR Code */}
+              <div className="inline-block bg-zinc-50 p-2.5 rounded-lg border border-zinc-100">
                 <QRCodeSVG
                   id="dashboard-catalog-qr-svg"
                   value={`${window.location.protocol}//${window.location.host}/join/${qrQuiz.join_code}`}
-                  size={130}
+                  size={160}
                   level="H"
                   includeMargin={false}
                   imageSettings={branding?.logo_path ? {
                     src: `/${branding.logo_path}`,
                     x: undefined,
                     y: undefined,
-                    height: 26,
-                    width: 26,
+                    height: branding?.qr_logo_size || 28,
+                    width: branding?.qr_logo_size || 28,
                     excavate: true,
                   } : undefined}
                 />
               </div>
 
-              <div className="space-y-1.5 text-zinc-700 relative z-10">
-                <div className="text-[10px] font-semibold text-zinc-500">
-                  <p>Scan with camera or visit:</p>
-                  <p className="font-bold underline select-all mt-0.5 break-all" style={{ color: branding?.primary_color || '#005a9e' }}>
-                    {window.location.origin}/join/{qrQuiz.join_code}
-                  </p>
-                </div>
-                
-                <div className="bg-zinc-50 border border-zinc-100 p-2.5 rounded-lg">
-                  <span className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest text-center">Unique Join Code</span>
-                  <span className="block text-xl font-black tracking-widest select-all mt-0.5 text-center" style={{ color: branding?.primary_color || '#0078d4' }}>{qrQuiz.join_code}</span>
-                </div>
+              {/* Join Code */}
+              <div className="bg-zinc-50 border border-zinc-100 rounded-lg py-2 px-3">
+                <span className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest">Code</span>
+                <span className="block text-2xl font-black tracking-[0.25em] mt-0.5 select-all" style={{ color: branding?.primary_color || '#0078d4' }}>{qrQuiz.join_code}</span>
               </div>
             </div>
 
-            {/* Actions for Modal */}
-            <div className="flex flex-col space-y-2.5 max-w-xs mx-auto">
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={handleCatalogCopyLink}
-                  className="flex items-center justify-center space-x-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white font-bold py-2.5 rounded-lg text-xs transition-all cursor-pointer shadow-md border border-zinc-750"
-                >
-                  {catalogCopyFeedback ? <Check size={14} className="text-microsoft-success animate-scale-up" /> : <Copy size={14} />}
-                  <span>{catalogCopyFeedback ? 'Copied' : 'Copy URL'}</span>
-                </button>
-                <button
-                  onClick={() => handleCatalogDownloadQR('dashboard-catalog-qr-svg')}
-                  className="flex items-center justify-center space-x-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white font-bold py-2.5 rounded-lg text-xs transition-all cursor-pointer shadow-md border border-zinc-750"
-                >
-                  <Download size={14} />
-                  <span>Download Card</span>
-                </button>
-              </div>
+            {/* Action buttons */}
+            <div className="border-t border-zinc-100 px-3 py-2.5 grid grid-cols-3 gap-1.5">
+              <button
+                onClick={handleCatalogCopyLink}
+                className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-zinc-500 hover:text-zinc-700 transition-all text-[9px] font-bold cursor-pointer"
+              >
+                {catalogCopyFeedback ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                {catalogCopyFeedback ? 'Copied' : 'Copy'}
+              </button>
+              <button
+                onClick={() => handleCatalogDownloadQR('dashboard-catalog-qr-svg')}
+                className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-zinc-500 hover:text-zinc-700 transition-all text-[9px] font-bold cursor-pointer"
+              >
+                <Download size={13} />
+                Save
+              </button>
               <button
                 onClick={handleCatalogShareSession}
-                className="w-full flex items-center justify-center space-x-2 bg-microsoft-blue hover:bg-microsoft-darkBlue text-white font-bold py-3 rounded-lg text-xs transition-all cursor-pointer shadow-lg"
+                className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-white transition-all text-[9px] font-bold cursor-pointer"
+                style={{ backgroundColor: branding?.primary_color || '#0078d4' }}
               >
-                <Share2 size={14} />
-                <span>Share Join Details</span>
+                <Share2 size={13} />
+                Share
               </button>
             </div>
           </div>
