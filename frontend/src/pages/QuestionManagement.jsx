@@ -8,9 +8,14 @@ import {
   Trash2,
   Clock,
   Award,
-  CheckCircle,
-  X
+  CheckCircle2,
+  AlertCircle,
+  HelpCircle,
+  X,
 } from 'lucide-react';
+
+/* ── Correct answer option key → label ── */
+const OPTION_LABELS = { A: 'Option A', B: 'Option B', C: 'Option C', D: 'Option D' };
 
 export default function QuestionManagement() {
   const { id } = useParams();
@@ -18,13 +23,14 @@ export default function QuestionManagement() {
 
   const [quiz, setQuiz] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   // Modal states
   const [showModal, setShowModal] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState(null);
   const [formError, setFormError] = useState('');
 
-  // Form inputs state
+  // Form state
   const [form, setForm] = useState({
     question: '',
     option_a: '',
@@ -33,7 +39,7 @@ export default function QuestionManagement() {
     option_d: '',
     correct_answer: 'A',
     timer: 30,
-    marks: 500
+    marks: 500,
   });
 
   const loadQuizDetails = async () => {
@@ -49,9 +55,7 @@ export default function QuestionManagement() {
     }
   };
 
-  useEffect(() => {
-    loadQuizDetails();
-  }, [id]);
+  useEffect(() => { loadQuizDetails(); }, [id]);
 
   const handleOpenForm = (q = null) => {
     if (q) {
@@ -64,20 +68,11 @@ export default function QuestionManagement() {
         option_d: q.option_d,
         correct_answer: q.correct_answer,
         timer: q.timer,
-        marks: q.marks
+        marks: q.marks,
       });
     } else {
       setSelectedQuestion(null);
-      setForm({
-        question: '',
-        option_a: '',
-        option_b: '',
-        option_c: '',
-        option_d: '',
-        correct_answer: 'A',
-        timer: 30,
-        marks: 500
-      });
+      setForm({ question: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: 'A', timer: 30, marks: 500 });
     }
     setFormError('');
     setShowModal(true);
@@ -86,22 +81,22 @@ export default function QuestionManagement() {
   const handleSaveQuestion = async (e) => {
     e.preventDefault();
     if (!form.question || !form.option_a || !form.option_b || !form.option_c || !form.option_d) {
-      setFormError('Please fill in the question and all four option choices.');
+      setFormError('Please fill in the question text and all four answer options.');
       return;
     }
-
     try {
+      setSaving(true);
       if (selectedQuestion) {
-        // Edit Mode
         await api.put(`/api/quizzes/questions/${selectedQuestion.id}`, form);
       } else {
-        // Add Mode
         await api.post(`/api/quizzes/${id}/questions`, form);
       }
       setShowModal(false);
       loadQuizDetails();
     } catch (err) {
       setFormError(err.response?.data?.error || 'Failed to save question.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -117,258 +112,288 @@ export default function QuestionManagement() {
   };
 
   if (loading && !quiz) {
-    return (
-      <div className="text-center py-20 font-semibold text-zinc-500">
-        Loading question list...
-      </div>
-    );
+    return <div className="text-center py-24 font-semibold text-zinc-400 animate-pulse">Loading question sheet...</div>;
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center bg-white border border-microsoft-border p-6 rounded-xl shadow-sm">
-        <div className="flex items-center space-x-4">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 animate-fade-in space-y-6">
+
+      {/* ── Page Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-microsoft-border p-5 sm:p-6 rounded-2xl shadow-sm">
+        <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/admin/quizzes')}
-            className="p-2 border border-zinc-200 hover:bg-zinc-50 text-zinc-600 rounded-lg transition-all"
+            className="p-2 border border-zinc-200 hover:bg-zinc-100 text-zinc-600 rounded-xl transition-all flex-shrink-0"
+            aria-label="Go back"
           >
             <ArrowLeft size={18} />
           </button>
           <div>
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{quiz?.event_name}</span>
-            <h1 className="text-2xl font-extrabold text-zinc-900 tracking-tight mt-0.5">{quiz?.title} Question Sheet</h1>
+            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{quiz?.event_name}</p>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight leading-tight mt-0.5">
+              {quiz?.title}
+            </h1>
           </div>
         </div>
-        
+
         <button
           onClick={() => handleOpenForm()}
-          className="flex items-center space-x-1.5 bg-microsoft-blue hover:bg-microsoft-darkBlue text-white px-4 py-2.5 rounded-lg text-sm font-semibold shadow-sm transition-all cursor-pointer"
+          className="flex items-center justify-center gap-2 bg-microsoft-blue hover:bg-microsoft-darkBlue text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer flex-shrink-0"
         >
           <Plus size={16} />
-          <span>Add Question</span>
+          Add Question
         </button>
       </div>
 
-      {/* Questions list */}
+      {/* ── Questions List ── */}
       <div className="space-y-4">
         {quiz?.questions?.map((q, idx) => (
           <div
             key={q.id}
-            className="bg-white border border-microsoft-border rounded-xl p-6 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center space-y-4 md:space-y-0"
+            className="bg-white border border-microsoft-border rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden"
           >
-            <div className="space-y-3 flex-grow max-w-3xl pr-4">
-              <div className="flex items-center space-x-3 text-xs font-semibold text-zinc-400">
-                <span className="bg-zinc-100 px-2.5 py-0.5 rounded text-zinc-700 font-bold"># {idx + 1}</span>
-                <span className="flex items-center"><Clock size={12} className="mr-1" /> {q.timer}s timer</span>
-                <span className="flex items-center"><Award size={12} className="mr-1" /> {q.marks} pts</span>
+            {/* Question header bar */}
+            <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-100 bg-zinc-50/70">
+              <div className="flex items-center gap-3 text-xs font-semibold text-zinc-500">
+                <span className="bg-microsoft-lightBlue text-microsoft-blue font-bold px-2.5 py-0.5 rounded-full">
+                  Q{idx + 1}
+                </span>
+                <span className="flex items-center gap-1">
+                  <Clock size={12} />
+                  {q.timer}s
+                </span>
+                <span className="flex items-center gap-1">
+                  <Award size={12} />
+                  {q.marks} pts
+                </span>
               </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleOpenForm(q)}
+                  className="flex items-center gap-1.5 border border-zinc-200 hover:bg-zinc-100 text-zinc-600 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                >
+                  <Edit2 size={12} />
+                  Edit
+                </button>
+                <button
+                  onClick={() => handleDeleteQuestion(q.id)}
+                  className="flex items-center gap-1.5 bg-red-50 hover:bg-red-100 border border-red-100 text-red-600 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                >
+                  <Trash2 size={12} />
+                  Delete
+                </button>
+              </div>
+            </div>
 
-              <h3 className="text-lg font-bold text-zinc-800 leading-snug">{q.question}</h3>
+            {/* Question body */}
+            <div className="px-5 py-4 space-y-3">
+              <p className="text-sm sm:text-base font-bold text-zinc-800 leading-snug">{q.question}</p>
 
-              {/* Options mapping */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
-                {[
-                  { key: 'A', text: q.option_a },
-                  { key: 'B', text: q.option_b },
-                  { key: 'C', text: q.option_c },
-                  { key: 'D', text: q.option_d }
-                ].map((opt) => {
-                  const isCorrect = q.correct_answer === opt.key;
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {['A', 'B', 'C', 'D'].map((key) => {
+                  const text = q[`option_${key.toLowerCase()}`];
+                  const isCorrect = q.correct_answer === key;
                   return (
                     <div
-                      key={opt.key}
-                      className={`p-2 rounded border flex items-center space-x-2 ${
+                      key={key}
+                      className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-xs font-medium transition-all ${
                         isCorrect
-                          ? 'bg-emerald-50 border-emerald-200 text-emerald-800 font-bold'
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
                           : 'bg-zinc-50 border-zinc-100 text-zinc-600'
                       }`}
                     >
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                        isCorrect ? 'bg-microsoft-success text-white' : 'bg-zinc-200 text-zinc-700'
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-extrabold flex-shrink-0 ${
+                        isCorrect ? 'bg-emerald-500 text-white' : 'bg-zinc-200 text-zinc-600'
                       }`}>
-                        {opt.key}
-                      </div>
-                      <span className="truncate">{opt.text}</span>
+                        {key}
+                      </span>
+                      <span className="truncate">{text}</span>
+                      {isCorrect && <CheckCircle2 size={13} className="ml-auto text-emerald-500 flex-shrink-0" />}
                     </div>
                   );
                 })}
               </div>
             </div>
-
-            {/* Actions panel */}
-            <div className="flex space-x-2 flex-shrink-0">
-              <button
-                onClick={() => handleOpenForm(q)}
-                className="flex items-center space-x-1 border border-zinc-200 hover:bg-zinc-50 text-zinc-600 px-3.5 py-2 rounded text-xs font-semibold transition-all"
-              >
-                <Edit2 size={12} />
-                <span>Edit</span>
-              </button>
-              <button
-                onClick={() => handleDeleteQuestion(q.id)}
-                className="flex items-center space-x-1 bg-red-50 hover:bg-red-100 border border-red-100 text-red-600 px-3.5 py-2 rounded text-xs font-semibold transition-all"
-              >
-                <Trash2 size={12} />
-                <span>Delete</span>
-              </button>
-            </div>
           </div>
         ))}
 
         {quiz?.questions?.length === 0 && (
-          <div className="text-center py-20 bg-white border border-dashed border-zinc-200 rounded-xl text-zinc-400 text-sm">
-            This quiz is currently empty. Click "Add Question" or import an Excel template to get started.
+          <div className="py-20 flex flex-col items-center gap-3 text-zinc-400 bg-white border-2 border-dashed border-zinc-200 rounded-2xl">
+            <HelpCircle size={36} className="opacity-30" />
+            <p className="text-sm font-semibold">No questions yet</p>
+            <p className="text-xs">Click <span className="font-bold text-zinc-500">Add Question</span> or import an Excel sheet to get started.</p>
           </div>
         )}
       </div>
 
-      {/* CREATE / EDIT MODAL */}
+      {/* ══════════════════════════════════════════
+          ADD / EDIT QUESTION MODAL
+          pt-16 on overlay = clears sticky navbar (h-16 = 64px)
+      ══════════════════════════════════════════ */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl border border-microsoft-border max-w-xl w-full shadow-2xl p-6 relative animate-fade-in max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600"
-            >
-              <X size={20} />
-            </button>
-
-            <h3 className="text-xl font-bold text-zinc-800 border-b border-zinc-100 pb-3">
-              {selectedQuestion ? 'Edit Question Details' : 'Add New Question'}
-            </h3>
-
-            {formError && (
-              <div className="mt-4 bg-red-50 text-red-700 p-2.5 rounded text-xs">
-                {formError}
+        <div
+          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-16 px-4 pb-6 animate-fade-in"
+          onClick={() => setShowModal(false)}
+        >
+          <div
+            className="max-w-xl w-full my-auto bg-white rounded-2xl shadow-2xl border border-zinc-100 overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal header */}
+            <div className="relative bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue px-6 py-5 flex items-start gap-3">
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                <HelpCircle size={20} className="text-white" />
               </div>
-            )}
-
-            <form onSubmit={handleSaveQuestion} className="mt-4 space-y-4 text-xs">
               <div>
-                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
-                  Question Text
-                </label>
-                <textarea
-                  rows={2}
-                  required
-                  value={form.question}
-                  onChange={(e) => setForm((prev) => ({ ...prev, question: e.target.value }))}
-                  placeholder="Which Microsoft Azure service is used for serverless computing?"
-                  className="w-full px-3 py-2 border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-microsoft-blue"
-                ></textarea>
+                <h2 className="text-lg font-extrabold text-white leading-tight">
+                  {selectedQuestion ? 'Edit Question' : 'Add New Question'}
+                </h2>
+                <p className="text-xs text-white/70 mt-0.5">
+                  {selectedQuestion ? 'Update the question details below.' : 'Fill in the question, options, and correct answer.'}
+                </p>
               </div>
-
-              {/* Options */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
-                    Option A
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={form.option_a}
-                    onChange={(e) => setForm((prev) => ({ ...prev, option_a: e.target.value }))}
-                    placeholder="Azure VM"
-                    className="w-full px-3 py-2 border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-microsoft-blue"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
-                    Option B
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={form.option_b}
-                    onChange={(e) => setForm((prev) => ({ ...prev, option_b: e.target.value }))}
-                    placeholder="Azure Functions"
-                    className="w-full px-3 py-2 border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-microsoft-blue"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
-                    Option C
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={form.option_c}
-                    onChange={(e) => setForm((prev) => ({ ...prev, option_c: e.target.value }))}
-                    placeholder="Azure Kubernetes Service"
-                    className="w-full px-3 py-2 border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-microsoft-blue"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
-                    Option D
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    value={form.option_d}
-                    onChange={(e) => setForm((prev) => ({ ...prev, option_d: e.target.value }))}
-                    placeholder="Azure Virtual Desktop"
-                    className="w-full px-3 py-2 border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-microsoft-blue"
-                  />
-                </div>
-              </div>
-
-              {/* Details (Answers, Timers, Marks) */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
-                    Correct Option
-                  </label>
-                  <select
-                    value={form.correct_answer}
-                    onChange={(e) => setForm((prev) => ({ ...prev, correct_answer: e.target.value }))}
-                    className="w-full px-3 py-2 border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-microsoft-blue"
-                  >
-                    <option value="A">Option A</option>
-                    <option value="B">Option B</option>
-                    <option value="C">Option C</option>
-                    <option value="D">Option D</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
-                    Timer (Seconds)
-                  </label>
-                  <input
-                    type="number"
-                    min={5}
-                    max={300}
-                    required
-                    value={form.timer}
-                    onChange={(e) => setForm((prev) => ({ ...prev, timer: parseInt(e.target.value, 10) }))}
-                    className="w-full px-3 py-2 border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-microsoft-blue"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
-                    Points Weight
-                  </label>
-                  <input
-                    type="number"
-                    min={10}
-                    max={5000}
-                    required
-                    value={form.marks}
-                    onChange={(e) => setForm((prev) => ({ ...prev, marks: parseInt(e.target.value, 10) }))}
-                    className="w-full px-3 py-2 border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-microsoft-blue"
-                  />
-                </div>
-              </div>
-
               <button
-                type="submit"
-                className="w-full bg-microsoft-blue hover:bg-microsoft-darkBlue text-white font-semibold py-2.5 rounded transition-all shadow-sm active:scale-98 cursor-pointer"
+                onClick={() => setShowModal(false)}
+                className="ml-auto w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all flex-shrink-0"
+                aria-label="Close"
               >
-                Save Question Specs
+                <X size={16} />
               </button>
-            </form>
+            </div>
+
+            {/* Modal form body */}
+            <div className="px-6 py-5 space-y-4">
+              {formError && (
+                <div className="flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+                  <AlertCircle size={15} className="mt-0.5 flex-shrink-0" />
+                  <span>{formError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSaveQuestion} className="space-y-4">
+                {/* Question text */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest">
+                    Question Text <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    rows={2}
+                    required
+                    value={form.question}
+                    onChange={(e) => setForm((p) => ({ ...p, question: e.target.value }))}
+                    placeholder="e.g. Which Azure service is used for serverless computing?"
+                    className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl bg-zinc-50/50 text-zinc-800 placeholder-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-microsoft-blue focus:border-transparent transition-all text-sm resize-none"
+                  />
+                </div>
+
+                {/* Answer options */}
+                <div>
+                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">
+                    Answer Options <span className="text-red-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {['A', 'B', 'C', 'D'].map((key) => {
+                      const field = `option_${key.toLowerCase()}`;
+                      const isCorrect = form.correct_answer === key;
+                      return (
+                        <div
+                          key={key}
+                          className={`relative rounded-xl border transition-all ${
+                            isCorrect ? 'border-emerald-300 bg-emerald-50/50' : 'border-zinc-200 bg-zinc-50/50'
+                          }`}
+                        >
+                          <span className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold ${
+                            isCorrect ? 'bg-emerald-500 text-white' : 'bg-zinc-200 text-zinc-600'
+                          }`}>
+                            {key}
+                          </span>
+                          <input
+                            type="text"
+                            required
+                            value={form[field]}
+                            onChange={(e) => setForm((p) => ({ ...p, [field]: e.target.value }))}
+                            placeholder={`Option ${key}`}
+                            className="w-full pl-10 pr-3 py-2.5 bg-transparent text-zinc-800 placeholder-zinc-400 focus:outline-none text-sm rounded-xl"
+                          />
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Correct answer, timer, marks row */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest">
+                      Correct Option
+                    </label>
+                    <select
+                      value={form.correct_answer}
+                      onChange={(e) => setForm((p) => ({ ...p, correct_answer: e.target.value }))}
+                      className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl bg-zinc-50/50 text-zinc-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-microsoft-blue focus:border-transparent transition-all text-sm"
+                    >
+                      <option value="A">Option A</option>
+                      <option value="B">Option B</option>
+                      <option value="C">Option C</option>
+                      <option value="D">Option D</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest">
+                      Timer (s)
+                    </label>
+                    <input
+                      type="number"
+                      min={5}
+                      max={300}
+                      required
+                      value={form.timer}
+                      onChange={(e) => setForm((p) => ({ ...p, timer: parseInt(e.target.value, 10) }))}
+                      className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl bg-zinc-50/50 text-zinc-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-microsoft-blue focus:border-transparent transition-all text-sm"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest">
+                      Points
+                    </label>
+                    <input
+                      type="number"
+                      min={10}
+                      max={5000}
+                      required
+                      value={form.marks}
+                      onChange={(e) => setForm((p) => ({ ...p, marks: parseInt(e.target.value, 10) }))}
+                      className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl bg-zinc-50/50 text-zinc-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-microsoft-blue focus:border-transparent transition-all text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowModal(false)}
+                    className="flex-1 py-2.5 rounded-xl border border-zinc-200 text-zinc-600 font-semibold text-sm hover:bg-zinc-50 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="flex-1 flex items-center justify-center gap-2 bg-microsoft-blue hover:bg-microsoft-darkBlue disabled:opacity-60 text-white font-bold py-2.5 rounded-xl transition-all shadow-md active:scale-95 cursor-pointer text-sm"
+                  >
+                    {saving ? (
+                      <span>Saving...</span>
+                    ) : (
+                      <>
+                        <CheckCircle2 size={15} />
+                        {selectedQuestion ? 'Save Changes' : 'Add Question'}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
       )}
