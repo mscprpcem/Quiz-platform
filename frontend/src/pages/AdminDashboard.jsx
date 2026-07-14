@@ -161,7 +161,27 @@ export default function AdminDashboard() {
   const drawBrandedCard = (ctx, qrImage, quizData, brandData, logoImg) => {
     const W = 400;
     const H = 650;
-    const primaryColor = brandData?.primary_color || '#0078d4';
+
+    const getValidColor = (hex, fallback = '#0078d4') => {
+      if (!hex || typeof hex !== 'string') return fallback;
+      const cleaned = hex.trim();
+      const isValid = /^#[0-9A-F]{6}$/i.test(cleaned) || /^#[0-9A-F]{3}$/i.test(cleaned);
+      return isValid ? cleaned : fallback;
+    };
+
+    const colorToRgba = (hex, alpha, fallback = '#0078d4') => {
+      const color = getValidColor(hex, fallback);
+      let c = color.substring(1);
+      if (c.length === 3) {
+        c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2];
+      }
+      const r = parseInt(c.substring(0, 2), 16);
+      const g = parseInt(c.substring(2, 4), 16);
+      const b = parseInt(c.substring(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    };
+
+    const primaryColor = getValidColor(brandData?.primary_color);
     const clubName = (brandData?.club_name || 'Microsoft Student Club').toUpperCase();
     const chapterName = (brandData?.chapter_name || 'MSC-PRPCEM Chapter').toUpperCase();
     const footerText = brandData?.footer_text || 'Powered by Microsoft Student Club Quiz Platform';
@@ -171,14 +191,14 @@ export default function AdminDashboard() {
     ctx.fillRect(0, 0, W, H);
 
     // Flowing wave/grid pattern (Azure AI style)
-    ctx.strokeStyle = primaryColor + '12'; // very light opacity
+    ctx.strokeStyle = colorToRgba(primaryColor, 0.07); // very light opacity
     ctx.lineWidth = 1.5;
     ctx.beginPath();
     ctx.moveTo(0, 150);
     ctx.bezierCurveTo(100, 50, 300, 250, W, 150);
     ctx.stroke();
 
-    ctx.strokeStyle = primaryColor + '08';
+    ctx.strokeStyle = colorToRgba(primaryColor, 0.03);
     ctx.beginPath();
     ctx.moveTo(0, 480);
     ctx.bezierCurveTo(100, 550, 300, 380, W, 480);
@@ -197,7 +217,7 @@ export default function AdminDashboard() {
     ctx.globalAlpha = 1;
 
     // Stylized background nodes
-    ctx.fillStyle = primaryColor + '10';
+    ctx.fillStyle = colorToRgba(primaryColor, 0.06);
     ctx.beginPath();
     ctx.arc(40, 180, 8, 0, Math.PI * 2);
     ctx.fill();
@@ -211,7 +231,7 @@ export default function AdminDashboard() {
     // Top gradient bar
     const grad = ctx.createLinearGradient(0, 0, W, 0);
     grad.addColorStop(0, primaryColor);
-    grad.addColorStop(0.5, primaryColor + 'CC');
+    grad.addColorStop(0.5, colorToRgba(primaryColor, 0.8));
     grad.addColorStop(1, primaryColor);
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, W, 8);
@@ -275,11 +295,14 @@ export default function AdminDashboard() {
 
     // Logo embedded inside the QR code center
     if (logoImg) {
+      const logoSize = brandData?.qr_logo_size !== undefined ? brandData.qr_logo_size : 28;
+      const L = Math.round(logoSize * 1.375);
+      const radius = Math.round(L / 2) + 3;
       ctx.fillStyle = '#FFFFFF';
       ctx.beginPath();
-      ctx.arc(200, 305, 22, 0, Math.PI * 2);
+      ctx.arc(200, 305, radius, 0, Math.PI * 2);
       ctx.fill();
-      ctx.drawImage(logoImg, 182, 287, 36, 36);
+      ctx.drawImage(logoImg, 200 - Math.round(L / 2), 305 - Math.round(L / 2), L, L);
     }
 
     // Scan instructions
@@ -1116,116 +1139,81 @@ export default function AdminDashboard() {
       )}
       </div>
 
-      {/* FULLSCREEN QR CODE MODAL FOR PROJECTORS */}
+      {/* QR CODE SHARE MODAL */}
       {activeQuiz && showQRModal && (
         <div
           onClick={() => setShowQRModal(false)}
-          className="fixed inset-0 bg-zinc-950/90 z-50 overflow-y-auto py-8 flex justify-center items-start cursor-pointer text-white"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 cursor-pointer"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="max-w-md w-full text-center space-y-6 animate-fade-in text-sm cursor-default my-auto"
+            className="bg-white rounded-2xl shadow-2xl max-w-[280px] w-full relative cursor-default overflow-hidden animate-fade-in"
           >
+            {/* Top accent bar */}
+            <div className="h-1 w-full" style={{ background: branding?.primary_color || '#0078d4' }} />
+
+            {/* Close button — fixed top-right inside the card */}
             <button
               onClick={() => setShowQRModal(false)}
-              className="absolute top-6 right-6 bg-zinc-900 border border-zinc-800 hover:bg-zinc-800 hover:border-zinc-700 text-zinc-400 hover:text-white p-3 rounded-full transition-all cursor-pointer shadow-lg"
+              className="absolute top-2.5 right-2.5 w-6 h-6 flex items-center justify-center rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 hover:text-zinc-800 transition-all cursor-pointer z-20"
             >
-              <X size={24} />
+              <X size={12} strokeWidth={3} />
             </button>
 
-            {/* Branded Card Container */}
-            <div className="bg-white bg-azure-mesh text-zinc-800 p-8 rounded-2xl shadow-2xl border border-zinc-200 max-w-sm mx-auto space-y-5 text-center relative overflow-hidden">
-              <div
-                className="absolute top-0 left-0 w-full h-2 animate-[azureFlow_4s_ease_infinite]"
-                style={{
-                  background: `linear-gradient(90deg, ${branding?.primary_color || '#0078d4'}, ${branding?.primary_color || '#0078d4'}CC, ${branding?.primary_color || '#0078d4'})`,
-                  backgroundSize: '200% 200%'
-                }}
-              ></div>
-              
-              {/* Decorative dot pattern */}
-              <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
-                backgroundImage: `radial-gradient(${branding?.primary_color || '#0078d4'} 1px, transparent 1px)`,
-                backgroundSize: '16px 16px'
-              }}></div>
+            {/* Content */}
+            <div className="px-4 pt-4 pb-3 text-center space-y-3">
+              {/* Event name */}
+              <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest truncate pr-6">{activeQuiz.event_name}</p>
 
-              {/* Floating Azure AI styled nodes */}
-              <div className="absolute top-12 left-6 w-2.5 h-2.5 rounded-full pointer-events-none decor-node opacity-20" style={{ backgroundColor: branding?.primary_color || '#0078d4' }}></div>
-              <div className="absolute bottom-20 right-10 w-4 h-4 rounded-full pointer-events-none decor-node-delay-1 opacity-20" style={{ backgroundColor: branding?.primary_color || '#0078d4' }}></div>
-              <div className="absolute top-1/2 right-4 w-2 h-2 rounded-full pointer-events-none decor-node-delay-2 opacity-20" style={{ backgroundColor: branding?.primary_color || '#0078d4' }}></div>
-
-              {/* Logo / Club Name */}
-              <div className="flex flex-col items-center space-y-1.5 pt-2 relative z-10">
-                {branding?.logo_path ? (
-                  <img src={`/${branding.logo_path}`} alt="Logo" className="w-12 h-12 object-contain" />
-                ) : (
-                  <div className="grid grid-cols-2 gap-0.5 w-6 h-6">
-                    <div className="bg-[#f25022]"></div>
-                    <div className="bg-[#7fba00]"></div>
-                    <div className="bg-[#00a4ef]"></div>
-                    <div className="bg-[#ffb900]"></div>
-                  </div>
-                )}
-                <h2 className="text-[11px] font-extrabold tracking-wider uppercase text-zinc-600">{branding?.club_name || 'Microsoft Student Club'}</h2>
-                <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider" style={{ color: branding?.primary_color || '#0078d4', backgroundColor: (branding?.primary_color || '#0078d4') + '14' }}>
-                  {branding?.chapter_name || 'MSC-PRPCEM CHAPTER'}
-                </span>
-              </div>
-
-              <div className="border-t border-b border-zinc-100 py-3 my-2 relative z-10">
-                <h1 className="text-lg font-black text-zinc-800 leading-tight uppercase">{activeQuiz.title}</h1>
-                <p className="text-[9px] text-zinc-400 font-bold uppercase tracking-widest mt-1">{activeQuiz.event_name}</p>
-              </div>
-
-              {/* QR Code Container */}
-              <div className="inline-block bg-zinc-50 p-4 rounded-xl border border-zinc-100 shadow-inner relative z-10">
+              {/* QR Code */}
+              <div className="inline-block bg-zinc-50 p-2.5 rounded-lg border border-zinc-100">
                 <QRCodeSVG
                   id="modal-qr-svg"
                   value={`${window.location.protocol}//${window.location.host}/join/${activeQuiz.join_code}`}
-                  size={200}
+                  size={160}
                   level="H"
                   includeMargin={false}
                   imageSettings={branding?.logo_path ? {
                     src: `/${branding.logo_path}`,
                     x: undefined,
                     y: undefined,
-                    height: 40,
-                    width: 40,
+                    height: branding?.qr_logo_size || 28,
+                    width: branding?.qr_logo_size || 28,
                     excavate: true,
                   } : undefined}
                 />
               </div>
 
-              <div className="space-y-3.5 text-zinc-700 relative z-10">
-                <div className="text-xs font-semibold text-zinc-500">
-                  <p>Scan with camera or visit:</p>
-                  <p className="font-bold underline select-all mt-0.5" style={{ color: branding?.primary_color || '#005a9e' }}>
-                    {window.location.origin}/join/{activeQuiz.join_code}
-                  </p>
-                </div>
-                
-                <div className="bg-zinc-50 border border-zinc-100 p-3 rounded-xl">
-                  <span className="block text-[9px] font-bold text-zinc-400 uppercase tracking-widest">Unique Join Code</span>
-                  <span className="block text-2xl font-black tracking-widest select-all mt-0.5" style={{ color: branding?.primary_color || '#0078d4' }}>{activeQuiz.join_code}</span>
-                </div>
+              {/* Join Code */}
+              <div className="bg-zinc-50 border border-zinc-100 rounded-lg py-2 px-3">
+                <span className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest">Code</span>
+                <span className="block text-2xl font-black tracking-[0.25em] mt-0.5 select-all" style={{ color: branding?.primary_color || '#0078d4' }}>{activeQuiz.join_code}</span>
               </div>
             </div>
 
-            {/* Projector-level Actions */}
-            <div className="flex justify-center space-x-4 max-w-sm mx-auto pt-2">
+            {/* Action buttons */}
+            <div className="border-t border-zinc-100 px-3 py-2.5 grid grid-cols-3 gap-1.5">
               <button
                 onClick={handleCopyLink}
-                className="flex-grow flex items-center justify-center space-x-2 bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white font-bold py-3 rounded-xl text-xs transition-all cursor-pointer shadow-md"
+                className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-zinc-500 hover:text-zinc-700 transition-all text-[9px] font-bold cursor-pointer"
               >
-                {copyFeedback ? <Check size={14} className="text-microsoft-success" /> : <Copy size={14} />}
-                <span>{copyFeedback ? 'Copied Link' : 'Copy Join Link'}</span>
+                {copyFeedback ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                {copyFeedback ? 'Copied' : 'Copy'}
               </button>
               <button
                 onClick={() => handleDownloadQR('modal-qr-svg')}
-                className="flex-grow flex items-center justify-center space-x-2 bg-zinc-900 hover:bg-zinc-850 border border-zinc-800 hover:border-zinc-700 text-zinc-300 hover:text-white font-bold py-3 rounded-xl text-xs transition-all cursor-pointer shadow-md"
+                className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-zinc-500 hover:text-zinc-700 transition-all text-[9px] font-bold cursor-pointer"
               >
-                <Download size={14} />
-                <span>Download Card</span>
+                <Download size={13} />
+                Save
+              </button>
+              <button
+                onClick={handleShareSession}
+                className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-white transition-all text-[9px] font-bold cursor-pointer"
+                style={{ backgroundColor: branding?.primary_color || '#0078d4' }}
+              >
+                <Share2 size={13} />
+                Share
               </button>
             </div>
           </div>

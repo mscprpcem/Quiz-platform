@@ -9,7 +9,6 @@ import {
   FileSpreadsheet,
   BarChart2,
   ListCollapse,
-  Eye,
   Calendar,
   AlertCircle,
   FileUp,
@@ -18,8 +17,46 @@ import {
   Copy,
   Download,
   Check,
-  QrCode
+  QrCode,
+  BookOpen,
+  Users,
+  Clock,
+  CheckCircle2,
+  Sparkles,
 } from 'lucide-react';
+
+/* ── Status badge helper ── */
+function StatusBadge({ status }) {
+  const map = {
+    draft: 'bg-blue-50 text-microsoft-blue border border-blue-100',
+    in_progress: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
+    completed: 'bg-zinc-100 text-zinc-500 border border-zinc-200',
+  };
+  const cls = map[status] || map.draft;
+  return (
+    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${cls}`}>
+      {status === 'in_progress' ? 'Live' : status}
+    </span>
+  );
+}
+
+/* ── Modal overlay wrapper ── */
+/* pt-16 = navbar height so the modal never hides behind the sticky bar */
+function Modal({ onClose, children }) {
+  return (
+    <div
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-16 px-4 pb-6 animate-fade-in"
+      onClick={onClose}
+    >
+      <div
+        className="relative w-full my-auto"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
 export default function QuizManagement() {
   const navigate = useNavigate();
@@ -45,6 +82,7 @@ export default function QuizManagement() {
   const [uploadErrors, setUploadErrors] = useState([]);
   const [uploadSuccess, setUploadSuccess] = useState('');
   const [formError, setFormError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   // Branding config
   const [branding, setBranding] = useState(null);
@@ -84,12 +122,7 @@ export default function QuizManagement() {
         const pad = (n) => n.toString().padStart(2, '0');
         formattedDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
       }
-      setQuizForm({
-        title: quiz.title,
-        event_name: quiz.event_name,
-        description: quiz.description || '',
-        scheduled_start: formattedDate
-      });
+      setQuizForm({ title: quiz.title, event_name: quiz.event_name, description: quiz.description || '', scheduled_start: formattedDate });
     } else {
       setSelectedQuiz(null);
       setQuizForm({ title: '', event_name: '', description: '', scheduled_start: '' });
@@ -101,22 +134,22 @@ export default function QuizManagement() {
   const handleSaveQuiz = async (e) => {
     e.preventDefault();
     if (!quizForm.title || !quizForm.event_name) {
-      setFormError('Title and Event Name are required.');
+      setFormError('Quiz Title and Event Name are required fields.');
       return;
     }
-
     try {
+      setSaving(true);
       if (selectedQuiz) {
-        // Edit Mode
         await api.put(`/api/quizzes/${selectedQuiz.id}`, quizForm);
       } else {
-        // Create Mode
         await api.post('/api/quizzes', quizForm);
       }
       setShowCreateModal(false);
       loadQuizzes();
     } catch (err) {
-      setFormError(err.response?.data?.error || 'Failed to save quiz details.');
+      setFormError(err.response?.data?.error || 'Failed to save quiz. Please try again.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -176,7 +209,26 @@ export default function QuizManagement() {
     const URL = window.URL || window.webkitURL || window;
     const blobURL = URL.createObjectURL(svgBlob);
 
-    const primaryColor = branding?.primary_color || '#0078d4';
+    const getValidColor = (hex, fallback = '#0078d4') => {
+      if (!hex || typeof hex !== 'string') return fallback;
+      const cleaned = hex.trim();
+      const isValid = /^#[0-9A-F]{6}$/i.test(cleaned) || /^#[0-9A-F]{3}$/i.test(cleaned);
+      return isValid ? cleaned : fallback;
+    };
+
+    const colorToRgba = (hex, alpha, fallback = '#0078d4') => {
+      const color = getValidColor(hex, fallback);
+      let c = color.substring(1);
+      if (c.length === 3) {
+        c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2];
+      }
+      const r = parseInt(c.substring(0, 2), 16);
+      const g = parseInt(c.substring(2, 4), 16);
+      const b = parseInt(c.substring(4, 6), 16);
+      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    };
+
+    const primaryColor = getValidColor(branding?.primary_color);
     const clubName = (branding?.club_name || 'Microsoft Student Club').toUpperCase();
     const chapterName = (branding?.chapter_name || 'MSC-PRPCEM Chapter').toUpperCase();
     const footerText = branding?.footer_text || 'Powered by Microsoft Student Club Quiz Platform';
@@ -197,14 +249,14 @@ export default function QuizManagement() {
         ctx.fillRect(0, 0, W, H);
 
         // Flowing wave/grid pattern (Azure AI style)
-        ctx.strokeStyle = primaryColor + '12'; // very light opacity
+        ctx.strokeStyle = colorToRgba(primaryColor, 0.07); // very light opacity
         ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(0, 150);
         ctx.bezierCurveTo(100, 50, 300, 250, W, 150);
         ctx.stroke();
 
-        ctx.strokeStyle = primaryColor + '08';
+        ctx.strokeStyle = colorToRgba(primaryColor, 0.03);
         ctx.beginPath();
         ctx.moveTo(0, 480);
         ctx.bezierCurveTo(100, 550, 300, 380, W, 480);
@@ -223,7 +275,7 @@ export default function QuizManagement() {
         ctx.globalAlpha = 1;
 
         // Stylized background nodes
-        ctx.fillStyle = primaryColor + '10';
+        ctx.fillStyle = colorToRgba(primaryColor, 0.06);
         ctx.beginPath();
         ctx.arc(40, 180, 8, 0, Math.PI * 2);
         ctx.fill();
@@ -237,7 +289,7 @@ export default function QuizManagement() {
         // Top bar
         const grad = ctx.createLinearGradient(0, 0, W, 0);
         grad.addColorStop(0, primaryColor);
-        grad.addColorStop(0.5, primaryColor + 'CC');
+        grad.addColorStop(0.5, colorToRgba(primaryColor, 0.8));
         grad.addColorStop(1, primaryColor);
         ctx.fillStyle = grad;
         ctx.fillRect(0, 0, W, 8);
@@ -293,11 +345,14 @@ export default function QuizManagement() {
 
         // Center Logo in QR code
         if (logoImg) {
+          const logoSize = branding?.qr_logo_size !== undefined ? branding.qr_logo_size : 28;
+          const L = Math.round(logoSize * 1.375);
+          const radius = Math.round(L / 2) + 3;
           ctx.fillStyle = '#FFFFFF';
           ctx.beginPath();
-          ctx.arc(200, 305, 22, 0, Math.PI * 2);
+          ctx.arc(200, 305, radius, 0, Math.PI * 2);
           ctx.fill();
-          ctx.drawImage(logoImg, 182, 287, 36, 36);
+          ctx.drawImage(logoImg, 200 - Math.round(L / 2), 305 - Math.round(L / 2), L, L);
         }
 
         ctx.fillStyle = '#605e5c';
@@ -357,7 +412,6 @@ export default function QuizManagement() {
     setShowQRModal(true);
   };
 
-  // Excel Import Operations
   const handleOpenImport = (quiz) => {
     setSelectedQuiz(quiz);
     setUploadFile(null);
@@ -374,31 +428,19 @@ export default function QuizManagement() {
 
   const handleUploadExcel = async (e) => {
     e.preventDefault();
-    if (!uploadFile) {
-      setUploadErrors(['Please select an Excel file first.']);
-      return;
-    }
-
+    if (!uploadFile) { setUploadErrors(['Please select an Excel file first.']); return; }
     const formData = new FormData();
     formData.append('file', uploadFile);
-
     try {
       setLoading(true);
-      const res = await api.post(`/api/quizzes/${selectedQuiz.id}/import`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      const res = await api.post(`/api/quizzes/${selectedQuiz.id}/import`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       setUploadSuccess(res.data.message);
       setUploadFile(null);
       loadQuizzes();
     } catch (err) {
       const errRes = err.response?.data;
-      if (errRes && errRes.details) {
-        setUploadErrors(errRes.details);
-      } else {
-        setUploadErrors([errRes?.error || 'Failed to upload spreadsheet file. Check layout configuration.']);
-      }
+      if (errRes?.details) { setUploadErrors(errRes.details); }
+      else { setUploadErrors([errRes?.error || 'Failed to upload spreadsheet.']); }
     } finally {
       setLoading(false);
     }
@@ -406,10 +448,10 @@ export default function QuizManagement() {
 
   return (
     <>
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in space-y-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 animate-fade-in space-y-6">
       
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-zinc-200/80 p-6 rounded-2xl shadow-soft gap-4 relative overflow-hidden">
+      {/* Page Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-zinc-200/80 p-5 sm:p-6 rounded-2xl shadow-soft gap-4 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-microsoft-blue via-[#00a4ef] to-microsoft-darkBlue"></div>
         <div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight">Quiz Catalog</h1>
@@ -417,443 +459,453 @@ export default function QuizManagement() {
         </div>
         <button
           onClick={() => handleOpenCreate()}
-          className="flex items-center space-x-1.5 bg-gradient-to-b from-[#0A84FF] to-[#0068D6] hover:from-[#007AE6] hover:to-[#005FC0] text-white px-5 py-2.5 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.97] cursor-pointer flex-shrink-0"
+          className="flex items-center justify-center gap-1.5 bg-gradient-to-b from-[#0A84FF] to-[#0068D6] hover:from-[#007AE6] hover:to-[#005FC0] text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.97] cursor-pointer flex-shrink-0"
         >
           <Plus size={16} />
-          <span>Create Quiz</span>
+          Create Quiz
         </button>
       </div>
 
-      {/* Grid List */}
+      {/* Quiz Grid */}
       {loading && quizzes.length === 0 ? (
-        <div className="text-center py-20 text-zinc-500 font-semibold">
-          Loading catalog...
-        </div>
+        <div className="text-center py-20 text-zinc-400 font-semibold animate-pulse">Loading quizzes...</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {quizzes.map((quiz) => (
             <div
               key={quiz.id}
-              className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-sm flex flex-col justify-between hover:shadow-soft-lg hover:-translate-y-0.5 transition-all duration-300 group relative overflow-hidden"
+              className="bg-white border border-zinc-200/80 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group relative overflow-hidden flex flex-col"
             >
-              {/* Header Text */}
-              <div className="space-y-2">
-                <div className="flex justify-between items-start">
-                  <div className="flex flex-col space-y-1">
-                    <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest truncate max-w-[120px]">{quiz.event_name}</span>
-                    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase w-max ${
-                      quiz.status === 'completed'
-                        ? 'bg-zinc-100 text-zinc-600'
-                        : quiz.status === 'draft'
-                        ? 'bg-blue-50 text-microsoft-blue'
-                        : 'bg-emerald-50 text-microsoft-success animate-pulse'
-                    }`}>
-                      {quiz.status.replace('_', ' ')}
-                    </span>
+              {/* Card top accent bar by status */}
+              <div className={`h-1 w-full ${quiz.status === 'in_progress' ? 'bg-emerald-500 animate-pulse' : quiz.status === 'completed' ? 'bg-zinc-300' : 'bg-microsoft-blue'}`} />
+
+              <div className="p-5 flex flex-col flex-1 gap-3">
+                {/* Header */}
+                <div className="flex justify-between items-start gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest truncate">{quiz.event_name}</p>
+                    <h3 className="text-base font-bold text-zinc-800 leading-snug truncate mt-0.5">{quiz.title}</h3>
                   </div>
-                  <div className="flex space-x-1">
-                    {/* Edit */}
+                  <StatusBadge status={quiz.status} />
+                </div>
+
+                {/* Description */}
+                <p className="text-xs text-zinc-400 leading-relaxed line-clamp-2">
+                  {quiz.description || 'No description provided.'}
+                </p>
+
+                {/* Date */}
+                <div className="flex items-center gap-1.5 text-xs text-zinc-400">
+                  <Calendar size={12} className="flex-shrink-0" />
+                  <span>{quiz.scheduled_start ? new Date(quiz.scheduled_start).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Not scheduled'}</span>
+                </div>
+
+                {/* Stats */}
+                <div className="grid grid-cols-2 gap-2 border-t border-zinc-100 pt-3 text-center text-xs">
+                  <div>
+                    <span className="block text-lg font-extrabold text-zinc-700">{quiz.questionCount || 0}</span>
+                    <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider">Questions</span>
+                  </div>
+                  <div>
+                    <span className="block text-lg font-extrabold text-zinc-700">{quiz.participantCount || 0}</span>
+                    <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider">Plays</span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-col gap-2 border-t border-zinc-100 pt-3 mt-auto">
+                  <div className="grid grid-cols-3 gap-1.5">
                     <button
-                      onClick={() => handleOpenCreate(quiz)}
-                      className="p-1.5 hover:bg-zinc-100 text-zinc-400 hover:text-zinc-700 rounded-lg transition-all duration-200 cursor-pointer"
-                      title="Edit Metadata"
+                      onClick={() => navigate(`/admin/quizzes/${quiz.id}`)}
+                      title="Manage Questions"
+                      className="flex flex-col items-center gap-0.5 py-2 rounded-lg border border-zinc-200 hover:bg-zinc-50 hover:border-zinc-300 text-zinc-500 hover:text-zinc-700 transition-all text-[10px] font-bold cursor-pointer"
                     >
-                      <Edit2 size={13} />
+                      <ListCollapse size={14} />
+                      Sheet
                     </button>
-                    
-                    {/* Share QR */}
+                    <button
+                      onClick={() => navigate(`/admin/analytics/${quiz.id}`)}
+                      title="View Analytics"
+                      className="flex flex-col items-center gap-0.5 py-2 rounded-lg border border-zinc-200 hover:bg-zinc-50 hover:border-zinc-300 text-zinc-500 hover:text-zinc-700 transition-all text-[10px] font-bold cursor-pointer"
+                    >
+                      <BarChart2 size={14} />
+                      Report
+                    </button>
                     <button
                       onClick={() => handleOpenQR(quiz)}
-                      className="p-1.5 hover:bg-blue-50 text-zinc-400 hover:text-microsoft-blue rounded-lg transition-all duration-200 cursor-pointer"
-                      title="Share & QR Code Card"
+                      title="Share QR Code"
+                      className="flex flex-col items-center gap-0.5 py-2 rounded-lg border border-zinc-200 hover:bg-blue-50 hover:border-microsoft-blue/30 text-zinc-500 hover:text-microsoft-blue transition-all text-[10px] font-bold cursor-pointer"
                     >
-                      <QrCode size={13} />
+                      <QrCode size={14} />
+                      Share
                     </button>
+                  </div>
 
-                    {/* Delete */}
+                  <div className="grid grid-cols-2 gap-1.5">
                     <button
-                      onClick={() => handleOpenDeleteModal(quiz)}
-                      className="p-1.5 hover:bg-red-50 text-zinc-400 hover:text-red-500 rounded-lg transition-all duration-200 cursor-pointer"
-                      title="Delete Quiz"
+                      onClick={() => handleOpenImport(quiz)}
+                      className="flex items-center justify-center gap-1.5 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-lg transition-all text-[10px] font-bold cursor-pointer"
                     >
-                      <Trash2 size={13} />
+                      <FileSpreadsheet size={13} />
+                      Import .xlsx
+                    </button>
+                    <button
+                      onClick={() => handleOpenCreate(quiz)}
+                      className="flex items-center justify-center gap-1.5 py-2 border border-zinc-200 hover:bg-zinc-50 text-zinc-500 hover:text-zinc-700 rounded-lg transition-all text-[10px] font-bold cursor-pointer"
+                    >
+                      <Edit2 size={13} />
+                      Edit Info
                     </button>
                   </div>
                 </div>
-                <h3 className="text-lg font-bold text-zinc-800 leading-tight truncate">{quiz.title}</h3>
-                <p className="text-xs text-zinc-400 line-clamp-3">{quiz.description || 'No description added yet.'}</p>
-                <div className="flex items-center space-x-1.5 mt-2.5 text-xs text-zinc-400 font-medium">
-                  <Calendar size={12} />
-                  <span>{quiz.scheduled_start ? new Date(quiz.scheduled_start).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Not scheduled'}</span>
-                </div>
-              </div>
-
-              {/* Counts section */}
-              <div className="border-t border-b border-zinc-100 my-4 py-3 grid grid-cols-2 text-center text-xs">
-                <div className="border-r border-zinc-100">
-                  <span className="font-bold text-zinc-500">{quiz.questionCount || 0}</span>
-                  <p className="text-[10px] text-zinc-400 uppercase">Questions</p>
-                </div>
-                <div>
-                  <span className="font-bold text-zinc-500">{quiz.participantCount || 0}</span>
-                  <p className="text-[10px] text-zinc-400 uppercase">Plays</p>
-                </div>
-              </div>
-
-              {/* Action buttons */}
-              <div className="flex flex-col space-y-2">
-                <div className="grid grid-cols-2 gap-2">
-                  {/* Questions Sheet */}
-                  <button
-                    onClick={() => navigate(`/admin/quizzes/${quiz.id}`)}
-                    className="flex justify-center items-center py-2 border border-zinc-200 hover:bg-zinc-100 text-zinc-600 rounded-lg transition-all text-xs font-semibold"
-                    title="Manage Questions"
-                  >
-                    <ListCollapse size={13} className="mr-1" />
-                    <span>Sheet</span>
-                  </button>
-
-                  {/* Analytics */}
-                  <button
-                    onClick={() => navigate(`/admin/analytics/${quiz.id}`)}
-                    className="flex justify-center items-center py-2 border border-zinc-200 hover:bg-zinc-100 text-zinc-600 rounded-lg transition-all text-xs font-semibold"
-                    title="View Analytics"
-                  >
-                    <BarChart2 size={13} className="mr-1" />
-                    <span>Report</span>
-                  </button>
-                </div>
-
-                {/* Import Spreadsheet */}
-                <button
-                  onClick={() => handleOpenImport(quiz)}
-                  className="w-full flex justify-center items-center py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-100 text-microsoft-success rounded-lg transition-all text-xs font-bold cursor-pointer"
-                  title="Import Questions via Excel"
-                >
-                  <FileSpreadsheet size={13} className="mr-1.5" />
-                  <span>Import Spreadsheet</span>
-                </button>
               </div>
             </div>
           ))}
 
           {quizzes.length === 0 && !loading && (
-            <div className="col-span-full py-16 text-center text-zinc-400 text-sm bg-white border border-dashed border-zinc-200 rounded-xl">
-              No quizzes in the database catalog. Create a quiz structure above to begin.
+            <div className="col-span-full py-20 flex flex-col items-center text-zinc-400 bg-white border-2 border-dashed border-zinc-200 rounded-2xl gap-3">
+              <BookOpen size={36} className="opacity-30" />
+              <p className="text-sm font-semibold">No quizzes yet</p>
+              <p className="text-xs">Click <span className="font-bold text-zinc-500">Create Quiz</span> above to get started.</p>
             </div>
           )}
         </div>
       )}
       </div>
 
-      {/* CREATE / EDIT MODAL */}
+      {/* ── CREATE / EDIT QUIZ MODAL ── */}
       {showCreateModal && (
-        <div
-          onClick={() => setShowCreateModal(false)}
-          className="fixed inset-0 bg-zinc-950/60 z-50 overflow-y-auto py-8 flex justify-center items-start cursor-pointer"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-xl border border-microsoft-border max-w-md w-full shadow-2xl p-6 relative animate-fade-in cursor-default my-auto text-zinc-700"
-          >
-            <button
-              onClick={() => setShowCreateModal(false)}
-              className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600"
-            >
-              <X size={20} />
-            </button>
-
-            <h3 className="text-xl font-bold text-zinc-800 border-b border-zinc-100 pb-3">
-              {selectedQuiz ? 'Edit Quiz Metadata' : 'Create New Quiz'}
-            </h3>
-
-            {formError && (
-              <div className="mt-4 bg-red-50 text-red-700 p-2.5 rounded text-xs">
-                {formError}
+        <Modal onClose={() => setShowCreateModal(false)}>
+          <div className="max-w-lg mx-auto bg-white rounded-2xl shadow-2xl border border-zinc-150 overflow-hidden text-zinc-750">
+            {/* Modal header */}
+            <div className="relative bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue px-6 py-5">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <Sparkles size={20} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-extrabold text-white leading-tight">
+                    {selectedQuiz ? 'Edit Quiz' : 'Create New Quiz'}
+                  </h2>
+                  <p className="text-xs text-white/70 mt-0.5">
+                    {selectedQuiz ? 'Update the quiz metadata below.' : 'Fill in the details to set up a new quiz session.'}
+                  </p>
+                </div>
               </div>
-            )}
-
-            <form onSubmit={handleSaveQuiz} className="mt-4 space-y-4 text-sm">
-              <div>
-                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
-                  Quiz Title
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={quizForm.title}
-                  onChange={(e) => setQuizForm((prev) => ({ ...prev, title: e.target.value }))}
-                  placeholder="Cloud Infrastructure Trivia"
-                  className="w-full px-3 py-2 border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-microsoft-blue"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
-                  Event Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={quizForm.event_name}
-                  onChange={(e) => setQuizForm((prev) => ({ ...prev, event_name: e.target.value }))}
-                  placeholder="Azure Seminar 2026"
-                  className="w-full px-3 py-2 border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-microsoft-blue"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
-                  Description
-                </label>
-                <textarea
-                  rows={3}
-                  value={quizForm.description}
-                  onChange={(e) => setQuizForm((prev) => ({ ...prev, description: e.target.value }))}
-                  placeholder="Enter a brief summary details about this quiz..."
-                  className="w-full px-3 py-2 border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-microsoft-blue"
-                ></textarea>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
-                  Scheduled Start Date & Time
-                </label>
-                <input
-                  type="datetime-local"
-                  value={quizForm.scheduled_start}
-                  onChange={(e) => setQuizForm((prev) => ({ ...prev, scheduled_start: e.target.value }))}
-                  className="w-full px-3 py-2 border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-microsoft-blue"
-                />
-              </div>
-
               <button
-                type="submit"
-                className="w-full bg-microsoft-blue hover:bg-microsoft-darkBlue text-white font-semibold py-2.5 rounded transition-all shadow-sm active:scale-98 cursor-pointer"
+                onClick={() => setShowCreateModal(false)}
+                className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all"
+                aria-label="Close"
               >
-                Save Quiz Details
+                <X size={16} />
               </button>
-            </form>
+            </div>
+
+            {/* Modal body */}
+            <div className="px-6 py-5">
+              {formError && (
+                <div className="mb-4 flex items-start gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl text-sm">
+                  <AlertCircle size={15} className="mt-0.5 flex-shrink-0" />
+                  <span>{formError}</span>
+                </div>
+              )}
+
+              <form onSubmit={handleSaveQuiz} className="space-y-4">
+                {/* Quiz Title */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-zinc-550 uppercase tracking-widest">
+                    Quiz Title <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={quizForm.title}
+                    onChange={(e) => setQuizForm((p) => ({ ...p, title: e.target.value }))}
+                    placeholder="e.g. Cloud Infrastructure Trivia"
+                    className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl bg-zinc-50/50 text-zinc-800 placeholder-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-microsoft-blue focus:border-transparent transition-all text-sm"
+                  />
+                </div>
+
+                {/* Event Name */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-zinc-550 uppercase tracking-widest">
+                    Event Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={quizForm.event_name}
+                    onChange={(e) => setQuizForm((p) => ({ ...p, event_name: e.target.value }))}
+                    placeholder="e.g. Azure Seminar 2026"
+                    className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl bg-zinc-50/50 text-zinc-800 placeholder-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-microsoft-blue focus:border-transparent transition-all text-sm"
+                  />
+                </div>
+
+                {/* Description */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-zinc-555 uppercase tracking-widest">
+                    Description <span className="text-zinc-400 font-normal normal-case">(Optional)</span>
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={quizForm.description}
+                    onChange={(e) => setQuizForm((p) => ({ ...p, description: e.target.value }))}
+                    placeholder="A short summary of what this quiz covers..."
+                    className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl bg-zinc-50/50 text-zinc-800 placeholder-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-microsoft-blue focus:border-transparent transition-all text-sm resize-none"
+                  />
+                </div>
+
+                {/* Scheduled Start */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-zinc-550 uppercase tracking-widest">
+                    Scheduled Start <span className="text-zinc-400 font-normal normal-case">(Optional)</span>
+                  </label>
+                  <div className="relative">
+                    <Calendar size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-400 pointer-events-none" />
+                    <input
+                      type="datetime-local"
+                      value={quizForm.scheduled_start}
+                      onChange={(e) => setQuizForm((p) => ({ ...p, scheduled_start: e.target.value }))}
+                      className="w-full pl-10 pr-4 py-2.5 border border-zinc-200 rounded-xl bg-zinc-50/50 text-zinc-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-microsoft-blue focus:border-transparent transition-all text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(false)}
+                    className="flex-1 py-2.5 rounded-xl border border-zinc-200 text-zinc-650 font-semibold text-sm hover:bg-zinc-50 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={saving}
+                    className="flex-1 flex items-center justify-center gap-1.5 bg-microsoft-blue hover:bg-microsoft-darkBlue disabled:opacity-60 text-white font-bold py-2.5 rounded-xl transition-all shadow-md active:scale-95 cursor-pointer text-sm"
+                  >
+                    {saving ? (
+                      <span>Saving...</span>
+                    ) : (
+                      <>
+                        <CheckCircle2 size={15} />
+                        {selectedQuiz ? 'Save Changes' : 'Create Quiz'}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </Modal>
       )}
 
-      {/* EXCEL IMPORT MODAL */}
+      {/* ── EXCEL IMPORT MODAL ── */}
       {showImportModal && (
-        <div
-          onClick={() => setShowImportModal(false)}
-          className="fixed inset-0 bg-zinc-950/60 z-50 overflow-y-auto py-8 flex justify-center items-start cursor-pointer"
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-xl border border-microsoft-border max-w-lg w-full shadow-2xl p-6 relative animate-fade-in cursor-default my-auto text-zinc-700"
-          >
-            <button
-              onClick={() => setShowImportModal(false)}
-              className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-600"
-            >
-              <X size={20} />
-            </button>
-
-            <h3 className="text-xl font-bold text-zinc-800 border-b border-zinc-100 pb-3 flex items-center">
-              <FileSpreadsheet className="text-microsoft-success mr-2 animate-bounce" size={24} />
-              <span>Import Questions ({selectedQuiz?.title})</span>
-            </h3>
-
-            {/* Error Listing panel */}
-            {uploadErrors.length > 0 && (
-              <div className="mt-4 bg-red-50 text-red-700 p-3 rounded text-xs border border-red-200 max-h-48 overflow-y-auto space-y-1">
-                <h4 className="font-bold flex items-center mb-1">
-                  <AlertCircle size={14} className="mr-1" />
-                  <span>Validation Errors Found:</span>
-                </h4>
-                {uploadErrors.map((err, i) => (
-                  <p key={i}>{err}</p>
-                ))}
+        <Modal onClose={() => setShowImportModal(false)}>
+          <div className="max-w-lg mx-auto bg-white rounded-2xl shadow-2xl border border-zinc-150 overflow-hidden text-zinc-750">
+            {/* Modal header */}
+            <div className="relative bg-gradient-to-r from-emerald-650 to-emerald-700 px-6 py-5 text-white">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <FileSpreadsheet size={20} className="text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-extrabold text-white leading-tight">Import Questions</h2>
+                  <p className="text-xs text-white/70 mt-0.5 line-clamp-1">
+                    For: <span className="font-semibold">{selectedQuiz?.title}</span>
+                  </p>
+                </div>
               </div>
-            )}
+              <button
+                onClick={() => setShowImportModal(false)}
+                className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all"
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
 
-            {/* Success panel */}
-            {uploadSuccess && (
-              <div className="mt-4 bg-emerald-50 text-emerald-800 p-3 rounded text-xs border border-emerald-200 font-semibold animate-fade-in">
-                {uploadSuccess}
-              </div>
-            )}
+            {/* Modal body */}
+            <div className="px-6 py-5 space-y-4">
+              {/* Error panel */}
+              {uploadErrors.length > 0 && (
+                <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-xs space-y-1 max-h-36 overflow-y-auto">
+                  <p className="font-bold flex items-center gap-1.5 mb-2">
+                    <AlertCircle size={14} /> Validation Errors ({uploadErrors.length})
+                  </p>
+                  {uploadErrors.map((err, i) => <p key={i} className="leading-relaxed">• {err}</p>)}
+                </div>
+              )}
 
-            <form onSubmit={handleUploadExcel} className="mt-4 space-y-5 text-sm">
-              <div className="border-2 border-dashed border-zinc-200 rounded-lg p-6 text-center hover:border-microsoft-blue/50 transition-colors">
-                <FileUp className="mx-auto text-zinc-400 mb-2" size={32} />
-                <input
-                  type="file"
-                  id="excelFile"
-                  accept=".xlsx, .xls"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
+              {/* Success panel */}
+              {uploadSuccess && (
+                <div className="bg-emerald-50 border border-emerald-250 text-emerald-800 p-4 rounded-xl text-sm font-semibold flex items-center gap-2 animate-fade-in">
+                  <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />
+                  {uploadSuccess}
+                </div>
+              )}
+
+              <form onSubmit={handleUploadExcel} className="space-y-4">
+                {/* File drop zone */}
                 <label
                   htmlFor="excelFile"
-                  className="cursor-pointer bg-zinc-100 hover:bg-zinc-200 text-zinc-700 px-3 py-1.5 rounded font-semibold text-xs border border-zinc-200 inline-block transition-colors"
+                  className={`block border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition-colors ${
+                    uploadFile
+                      ? 'border-emerald-400 bg-emerald-50/50'
+                      : 'border-zinc-200 hover:border-microsoft-blue/50 bg-zinc-50/50 hover:bg-zinc-50'
+                  }`}
                 >
-                  Choose Excel Sheet
+                  <input
+                    type="file"
+                    id="excelFile"
+                    accept=".xlsx,.xls"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  {uploadFile ? (
+                    <>
+                      <CheckCircle2 size={32} className="mx-auto mb-2 text-emerald-500" />
+                      <p className="text-sm font-bold text-emerald-750">{uploadFile.name}</p>
+                      <p className="text-xs text-emerald-650 mt-1">Click to change file</p>
+                    </>
+                  ) : (
+                    <>
+                      <FileUp size={32} className="mx-auto mb-2 text-zinc-450" />
+                      <p className="text-sm font-semibold text-zinc-650">Drop your Excel file here</p>
+                      <p className="text-xs text-zinc-450 mt-1">or <span className="text-microsoft-blue font-bold underline">browse to upload</span></p>
+                      <p className="text-[10px] text-zinc-400 mt-2">Supports .xlsx and .xls files</p>
+                    </>
+                  )}
                 </label>
-                <p className="text-[11px] text-zinc-400 mt-2">
-                  {uploadFile ? `Selected: ${uploadFile.name}` : 'Support Excel spreadsheets (.xlsx)'}
-                </p>
-              </div>
 
-              {/* Sample columns overview */}
-              <div className="bg-zinc-50 border border-zinc-200 rounded p-3 text-[10px] text-zinc-500 space-y-1.5">
-                <p className="font-bold uppercase tracking-wider text-zinc-700">Required Column Layout (Row 2+):</p>
-                <div className="grid grid-cols-4 gap-1 text-center font-bold">
-                  <div className="bg-zinc-200 py-0.5 rounded">A: Question</div>
-                  <div className="bg-zinc-200 py-0.5 rounded">B: Option A</div>
-                  <div className="bg-zinc-200 py-0.5 rounded">C: Option B</div>
-                  <div className="bg-zinc-200 py-0.5 rounded">D: Option C</div>
-                  <div className="bg-zinc-200 py-0.5 rounded">E: Option D</div>
-                  <div className="bg-zinc-200 py-0.5 rounded">F: Correct Ans</div>
-                  <div className="bg-zinc-200 py-0.5 rounded">G: Timer (s)</div>
-                  <div className="bg-zinc-200 py-0.5 rounded">H: Marks</div>
+                {/* Column format guide */}
+                <div className="bg-zinc-50 border border-zinc-200 rounded-xl p-4">
+                  <p className="text-xs font-bold text-zinc-650 uppercase tracking-wider mb-3">
+                    Required Column Format (Row 2 onwards)
+                  </p>
+                  <div className="grid grid-cols-4 gap-1.5 text-center">
+                    {[
+                      { col: 'A', label: 'Question' },
+                      { col: 'B', label: 'Option A' },
+                      { col: 'C', label: 'Option B' },
+                      { col: 'D', label: 'Option C' },
+                      { col: 'E', label: 'Option D' },
+                      { col: 'F', label: 'Correct Ans' },
+                      { col: 'G', label: 'Timer (s)' },
+                      { col: 'H', label: 'Marks' },
+                    ].map(({ col, label }) => (
+                      <div key={col} className="bg-white border border-zinc-200 rounded-lg py-1.5 px-1">
+                        <span className="block text-[10px] font-extrabold text-microsoft-blue">{col}</span>
+                        <span className="block text-[9px] text-zinc-500 font-medium leading-tight mt-0.5">{label}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[10px] text-zinc-400 mt-2.5">
+                    ⚠ Correct Answer column must contain: <strong>A</strong>, <strong>B</strong>, <strong>C</strong>, or <strong>D</strong>
+                  </p>
                 </div>
-                <p className="text-[9px] text-zinc-400">Correct Answer column values must be letter: A, B, C, or D.</p>
-              </div>
 
-              <button
-                type="submit"
-                disabled={!uploadFile}
-                className="w-full bg-microsoft-blue hover:bg-microsoft-darkBlue disabled:bg-zinc-300 text-white font-semibold py-2.5 rounded transition-all shadow-sm cursor-pointer"
-              >
-                Upload Question Spreadsheet
-              </button>
-            </form>
+                {/* Actions */}
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowImportModal(false)}
+                    className="flex-1 py-2.5 rounded-xl border border-zinc-200 text-zinc-650 font-semibold text-sm hover:bg-zinc-50 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!uploadFile || loading}
+                    className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-2.5 rounded-xl transition-all shadow-md active:scale-95 cursor-pointer text-sm"
+                  >
+                    <FileUp size={15} />
+                    {loading ? 'Uploading...' : 'Upload Sheet'}
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
+        </Modal>
       )}
 
-      {/* FULLSCREEN QR CODE / SHARE MODAL */}
+      {/* QR CODE SHARE MODAL */}
       {qrQuiz && showQRModal && (
         <div
-          onClick={() => {
-            setShowQRModal(false);
-            setQrQuiz(null);
-          }}
-          className="fixed inset-0 bg-zinc-950/80 z-50 overflow-y-auto py-6 flex justify-center items-start cursor-pointer"
+          onClick={() => { setShowQRModal(false); setQrQuiz(null); }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 cursor-pointer"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-zinc-900 text-white rounded-2xl p-5 max-w-sm w-full shadow-2xl border border-zinc-800 relative animate-fade-in text-center space-y-4 cursor-default my-auto"
+            className="bg-white rounded-2xl shadow-2xl max-w-[280px] w-full relative cursor-default overflow-hidden animate-fade-in"
           >
+            {/* Top accent bar */}
+            <div className="h-1 w-full" style={{ background: branding?.primary_color || '#0078d4' }} />
+
+            {/* Close button */}
             <button
-              onClick={() => {
-                setShowQRModal(false);
-                setQrQuiz(null);
-              }}
-              className="absolute top-4 right-4 bg-zinc-850 border border-zinc-700 hover:bg-zinc-700 text-zinc-400 hover:text-white p-2 rounded-full transition-all cursor-pointer"
-              title="Close Modal"
+              onClick={() => { setShowQRModal(false); setQrQuiz(null); }}
+              className="absolute top-2.5 right-2.5 w-6 h-6 flex items-center justify-center rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 hover:text-zinc-800 transition-all cursor-pointer z-20"
             >
-              <X size={16} />
+              <X size={12} strokeWidth={3} />
             </button>
 
-            {/* Branded Card Container */}
-            <div className="bg-white bg-azure-mesh text-zinc-800 p-4 rounded-xl shadow-inner border-2 border-zinc-200 max-w-xs mx-auto space-y-3.5 text-center relative overflow-hidden">
-              <div
-                className="absolute top-0 left-0 w-full h-1.5 animate-[azureFlow_4s_ease_infinite]"
-                style={{
-                  background: `linear-gradient(90deg, ${branding?.primary_color || '#0078d4'}, ${branding?.primary_color || '#0078d4'}CC, ${branding?.primary_color || '#0078d4'})`,
-                  backgroundSize: '200% 200%'
-                }}
-              ></div>
-              
-              {/* Decorative dot pattern */}
-              <div className="absolute inset-0 pointer-events-none opacity-[0.03]" style={{
-                backgroundImage: `radial-gradient(${branding?.primary_color || '#0078d4'} 1px, transparent 1px)`,
-                backgroundSize: '16px 16px'
-              }}></div>
+            {/* Content */}
+            <div className="px-4 pt-4 pb-3 text-center space-y-3">
+              {/* Event name */}
+              <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest truncate pr-6">{qrQuiz.event_name}</p>
 
-              {/* Floating Azure AI styled nodes */}
-              <div className="absolute top-8 left-4 w-2 h-2 rounded-full pointer-events-none decor-node opacity-20" style={{ backgroundColor: branding?.primary_color || '#0078d4' }}></div>
-              <div className="absolute bottom-16 right-8 w-3 h-3 rounded-full pointer-events-none decor-node-delay-1 opacity-20" style={{ backgroundColor: branding?.primary_color || '#0078d4' }}></div>
-
-              {/* Logo / Club Name */}
-              <div className="flex flex-col items-center space-y-1 pt-1 relative z-10">
-                {branding?.logo_path ? (
-                  <img src={`/${branding.logo_path}`} alt="Logo" className="w-10 h-10 object-contain" />
-                ) : (
-                  <div className="grid grid-cols-2 gap-0.5 w-5 h-5">
-                    <div className="bg-[#f25022]"></div>
-                    <div className="bg-[#7fba00]"></div>
-                    <div className="bg-[#00a4ef]"></div>
-                    <div className="bg-[#ffb900]"></div>
-                  </div>
-                )}
-                <h2 className="text-[10px] font-extrabold tracking-wider uppercase text-zinc-500">{branding?.club_name || 'Microsoft Student Club'}</h2>
-                <span className="text-[9px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider" style={{ color: branding?.primary_color || '#0078d4', backgroundColor: (branding?.primary_color || '#0078d4') + '14' }}>
-                  {branding?.chapter_name || 'MSC-PRPCEM CHAPTER'}
-                </span>
-              </div>
-
-              <div className="border-t border-b border-zinc-100 py-2 my-0.5 relative z-10">
-                <h1 className="text-sm font-black text-zinc-800 leading-tight uppercase truncate" title={qrQuiz.title}>{qrQuiz.title}</h1>
-                <p className="text-[8px] text-zinc-450 font-bold uppercase tracking-widest mt-0.5 truncate" title={qrQuiz.event_name}>{qrQuiz.event_name}</p>
-              </div>
-
-              {/* QR Code Container */}
-              <div className="inline-block bg-zinc-50 p-2.5 rounded-lg border border-zinc-100 relative z-10">
+              {/* QR Code */}
+              <div className="inline-block bg-zinc-50 p-2.5 rounded-lg border border-zinc-100">
                 <QRCodeSVG
                   id="catalog-qr-svg"
                   value={`${window.location.protocol}//${window.location.host}/join/${qrQuiz.join_code}`}
-                  size={130}
+                  size={160}
                   level="H"
                   includeMargin={false}
                   imageSettings={branding?.logo_path ? {
                     src: `/${branding.logo_path}`,
                     x: undefined,
                     y: undefined,
-                    height: 26,
-                    width: 26,
+                    height: branding?.qr_logo_size || 28,
+                    width: branding?.qr_logo_size || 28,
                     excavate: true,
                   } : undefined}
                 />
               </div>
 
-              <div className="space-y-1.5 text-zinc-700 relative z-10">
-                <div className="text-[10px] font-semibold text-zinc-500">
-                  <p>Scan with camera or visit:</p>
-                  <p className="font-bold underline select-all mt-0.5 break-all" style={{ color: branding?.primary_color || '#005a9e' }}>
-                    {window.location.origin}/join/{qrQuiz.join_code}
-                  </p>
-                </div>
-                
-                <div className="bg-zinc-50 border border-zinc-100 p-2.5 rounded-lg">
-                  <span className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest text-center">Unique Join Code</span>
-                  <span className="block text-xl font-black tracking-widest select-all mt-0.5 text-center" style={{ color: branding?.primary_color || '#0078d4' }}>{qrQuiz.join_code}</span>
-                </div>
+              {/* Join Code */}
+              <div className="bg-zinc-50 border border-zinc-100 rounded-lg py-2 px-3">
+                <span className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest">Code</span>
+                <span className="block text-2xl font-black tracking-[0.25em] mt-0.5 select-all" style={{ color: branding?.primary_color || '#0078d4' }}>{qrQuiz.join_code}</span>
               </div>
             </div>
 
-            {/* Actions for Modal */}
-            <div className="flex flex-col space-y-2.5 max-w-xs mx-auto">
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={handleCopyLink}
-                  className="flex items-center justify-center space-x-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white font-bold py-2.5 rounded-lg text-xs transition-all cursor-pointer shadow-md border border-zinc-750"
-                >
-                  {copyFeedback ? <Check size={14} className="text-microsoft-success animate-scale-up" /> : <Copy size={14} />}
-                  <span>{copyFeedback ? 'Copied' : 'Copy URL'}</span>
-                </button>
-                <button
-                  onClick={() => handleDownloadQR('catalog-qr-svg')}
-                  className="flex items-center justify-center space-x-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-200 hover:text-white font-bold py-2.5 rounded-lg text-xs transition-all cursor-pointer shadow-md border border-zinc-750"
-                >
-                  <Download size={14} />
-                  <span>Download Card</span>
-                </button>
-              </div>
+            {/* Action buttons */}
+            <div className="border-t border-zinc-100 px-3 py-2.5 grid grid-cols-3 gap-1.5">
+              <button
+                onClick={handleCopyLink}
+                className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-zinc-500 hover:text-zinc-700 transition-all text-[9px] font-bold cursor-pointer"
+              >
+                {copyFeedback ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+                {copyFeedback ? 'Copied' : 'Copy'}
+              </button>
+              <button
+                onClick={() => handleDownloadQR('catalog-qr-svg')}
+                className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-zinc-500 hover:text-zinc-700 transition-all text-[9px] font-bold cursor-pointer"
+              >
+                <Download size={13} />
+                Save
+              </button>
               <button
                 onClick={handleShareSession}
-                className="w-full flex items-center justify-center space-x-2 bg-microsoft-blue hover:bg-microsoft-darkBlue text-white font-bold py-3 rounded-lg text-xs transition-all cursor-pointer shadow-lg"
+                className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-white transition-all text-[9px] font-bold cursor-pointer"
+                style={{ backgroundColor: branding?.primary_color || '#0078d4' }}
               >
-                <Share2 size={14} />
-                <span>Share Join Details</span>
+                <Share2 size={13} />
+                Share
               </button>
             </div>
           </div>
@@ -868,7 +920,7 @@ export default function QuizManagement() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-zinc-200 animate-fade-in-scale cursor-default space-y-4"
+            className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-zinc-200 animate-fade-in-scale cursor-default space-y-4 text-zinc-750"
           >
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -880,8 +932,8 @@ export default function QuizManagement() {
               </div>
             </div>
 
-            <div className="bg-zinc-50 border border-zinc-100 rounded-xl p-3">
-              <p className="text-sm font-semibold text-zinc-700">{deleteTargetQuiz.title}</p>
+            <div className="bg-zinc-50 border border-zinc-100 rounded-xl p-3 text-left">
+              <p className="text-sm font-semibold text-zinc-705">{deleteTargetQuiz.title}</p>
               <p className="text-[11px] text-zinc-400 mt-0.5">All questions, participant scores, and logs will be permanently erased.</p>
             </div>
 

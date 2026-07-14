@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,9 +8,6 @@
    GLOBAL DESIGN SYSTEM
    Microsoft Student Club Quiz Platform
    ============================================ */
-
-/* Google Fonts — Loaded via CDN in index.html */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 @layer base {
   *,
@@ -28,6 +27,13 @@
     @apply bg-zinc-50 text-zinc-900;
     font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
     line-height: 1.6;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* Prevent horizontal scroll on all pages */
+  html, body {
+    overflow-x: hidden;
+    width: 100%;
   }
 
   /* Selection Color */
@@ -41,24 +47,20 @@
    CUSTOM SCROLLBAR — Sleek & Modern
    ============================================ */
 ::-webkit-scrollbar {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
 }
-
 ::-webkit-scrollbar-track {
   background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
   background: rgba(0, 0, 0, 0.15);
   border-radius: 999px;
   transition: background 0.2s;
 }
-
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(0, 0, 0, 0.28);
 }
-
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
@@ -313,8 +315,6 @@
 /* ============================================
    COMPONENT ENHANCEMENTS
    ============================================ */
-
-/* Premium Card Hover Effect */
 @layer components {
   .card-hover {
     @apply transition-all duration-300 ease-out;
@@ -467,5 +467,26 @@ main {
   body {
     background: white;
     color: black;
+  }
+}
+
+/* ── Responsive helpers ── */
+
+/* Ensure inputs don't zoom on iOS (font-size >= 16px) */
+@media (max-width: 640px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
+
+/* Better tap targets on mobile */
+@media (max-width: 768px) {
+  button, a {
+    min-height: 40px;
   }
 }

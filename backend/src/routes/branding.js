@@ -64,14 +64,15 @@ router.get('/', async (req, res) => {
 // ----------------------------------------------------
 router.put('/', authMiddleware, async (req, res) => {
   try {
-    const { club_name, chapter_name, primary_color, footer_text } = req.body;
+    const { club_name, chapter_name, primary_color, footer_text, qr_logo_size } = req.body;
     const settings = await getOrCreateSettings();
 
     await settings.update({
       club_name: club_name !== undefined ? club_name : settings.club_name,
       chapter_name: chapter_name !== undefined ? chapter_name : settings.chapter_name,
       primary_color: primary_color !== undefined ? primary_color : settings.primary_color,
-      footer_text: footer_text !== undefined ? footer_text : settings.footer_text
+      footer_text: footer_text !== undefined ? footer_text : settings.footer_text,
+      qr_logo_size: qr_logo_size !== undefined ? parseInt(qr_logo_size, 10) : settings.qr_logo_size
     });
 
     return res.json(settings);

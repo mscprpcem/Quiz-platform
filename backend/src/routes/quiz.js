@@ -286,6 +286,33 @@ router.delete('/questions/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// Bulk update timer for all questions of a quiz
+router.put('/:id/questions/timer', authMiddleware, async (req, res) => {
+  try {
+    const { timer } = req.body;
+    const quizId = req.params.id;
+
+    if (timer === undefined || isNaN(timer) || timer < 5 || timer > 300) {
+      return res.status(400).json({ error: 'Timer must be between 5 and 300 seconds' });
+    }
+
+    const quiz = await Quiz.findByPk(quizId);
+    if (!quiz) {
+      return res.status(404).json({ error: 'Quiz not found' });
+    }
+
+    await Question.update(
+      { timer: parseInt(timer, 10) },
+      { where: { quiz_id: quizId } }
+    );
+
+    return res.json({ message: `Successfully updated timer to ${timer}s for all questions.` });
+  } catch (error) {
+    console.error('Bulk update timer error:', error);
+    return res.status(500).json({ error: 'Server error updating bulk timer' });
+  }
+});
+
 // ----------------------------------------------------
 // EXCEL QUESTION IMPORT ROUTE
 // ----------------------------------------------------

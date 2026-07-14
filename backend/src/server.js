@@ -81,7 +81,7 @@ initializeSocket(io);
 const startServer = async () => {
   try {
     // Sync models
-    await sequelize.sync();
+    await sequelize.sync({ alter: true });
     console.log('Database synced successfully.');
 
     // Seed default admin if none exists

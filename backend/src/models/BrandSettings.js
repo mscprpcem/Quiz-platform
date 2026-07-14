@@ -31,6 +31,11 @@ const BrandSettings = sequelize.define('BrandSettings', {
     type: DataTypes.STRING,
     allowNull: false,
     defaultValue: 'Powered by Microsoft Student Club Quiz Platform'
+  },
+  qr_logo_size: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 28
   }
 });
 

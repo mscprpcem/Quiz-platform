@@ -28,7 +28,8 @@ export default function BrandSettings() {
     club_name: '',
     chapter_name: '',
     primary_color: '#0078d4',
-    footer_text: ''
+    footer_text: '',
+    qr_logo_size: 28
   });
 
   const fileInputRef = useRef(null);
@@ -43,7 +44,8 @@ export default function BrandSettings() {
         club_name: res.data.club_name || '',
         chapter_name: res.data.chapter_name || '',
         primary_color: res.data.primary_color || '#0078d4',
-        footer_text: res.data.footer_text || ''
+        footer_text: res.data.footer_text || '',
+        qr_logo_size: res.data.qr_logo_size !== undefined ? res.data.qr_logo_size : 28
       });
     } catch (err) {
       console.error('Error loading branding settings:', err);
@@ -343,6 +345,27 @@ export default function BrandSettings() {
                 </div>
               </div>
 
+              {logoUrl && (
+                <div>
+                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">
+                    QR Code Center Logo Size
+                  </label>
+                  <div className="flex items-center space-x-3 bg-zinc-50 border border-zinc-200 rounded-xl p-3">
+                    <input
+                      type="range"
+                      min={16}
+                      max={50}
+                      value={form.qr_logo_size}
+                      onChange={(e) => setForm(prev => ({ ...prev, qr_logo_size: parseInt(e.target.value, 10) }))}
+                      className="flex-grow h-1.5 bg-zinc-200 rounded-lg appearance-none cursor-pointer accent-purple-650"
+                    />
+                    <span className="text-xs font-mono font-bold text-zinc-700 w-8 text-right">
+                      {form.qr_logo_size}px
+                    </span>
+                  </div>
+                </div>
+              )}
+
               <button
                 type="submit"
                 disabled={saving}
@@ -437,8 +460,8 @@ export default function BrandSettings() {
                       src: logoUrl,
                       x: undefined,
                       y: undefined,
-                      height: 20,
-                      width: 20,
+                      height: Math.round(form.qr_logo_size * (100 / 140)),
+                      width: Math.round(form.qr_logo_size * (100 / 140)),
                       excavate: true,
                     } : undefined}
                   />
