@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import Navbar from './components/Navbar';
+import Footer from './components/Footer';
 
 // Page Imports
 import Home from './pages/Home';
@@ -24,7 +25,7 @@ const AdminRoute = ({ children }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-zinc-500 font-semibold">
+      <div className="min-h-screen flex items-center justify-center text-brand-textMuted font-semibold">
         Validating session token...
       </div>
     );
@@ -38,7 +39,7 @@ export default function App() {
     <AuthProvider>
       <SocketProvider>
         <Router>
-          <div className="min-h-screen bg-zinc-50 flex flex-col font-segoe">
+          <div className="min-h-screen flex flex-col font-segoe" style={{ backgroundColor: '#F5FAFF' }}>
             {/* Header navbar is shown globally */}
             <Navbar />
 
@@ -104,6 +105,9 @@ export default function App() {
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </main>
+
+            {/* Footer */}
+            <Footer />
           </div>
         </Router>
       </SocketProvider>

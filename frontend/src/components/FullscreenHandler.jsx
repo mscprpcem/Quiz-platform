@@ -119,7 +119,7 @@ export default function FullscreenHandler({ quizStarted, participantId, quizId, 
           </p>
           <button
             onClick={enterFullscreen}
-            className="w-full bg-microsoft-blue hover:bg-microsoft-darkBlue text-white font-medium py-3 px-6 rounded-md transition-all shadow-md active:scale-95"
+            className="w-full bg-brand-blue hover:bg-brand-dark text-white font-medium py-3 px-6 rounded-md transition-all shadow-md active:scale-95"
           >
             Enter Fullscreen Mode
           </button>

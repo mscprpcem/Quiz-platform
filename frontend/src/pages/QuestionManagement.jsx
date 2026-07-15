@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import {
@@ -14,7 +14,7 @@ import {
   X,
 } from 'lucide-react';
 
-/* ── Correct answer option key → label ── */
+/* â”€â”€ Correct answer option key â†’ label â”€â”€ */
 const OPTION_LABELS = { A: 'Option A', B: 'Option B', C: 'Option C', D: 'Option D' };
 
 export default function QuestionManagement() {
@@ -131,26 +131,26 @@ export default function QuestionManagement() {
   };
 
   if (loading && !quiz) {
-    return <div className="text-center py-24 font-semibold text-zinc-400 animate-pulse">Loading question sheet...</div>;
+    return <div className="text-center py-24 font-semibold text-brand-textMuted animate-pulse">Loading question sheet...</div>;
   }
 
   return (
     <>
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 animate-fade-in space-y-6">
 
-      {/* ── Page Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-microsoft-border p-5 sm:p-6 rounded-2xl shadow-sm">
+      {/* â”€â”€ Page Header â”€â”€ */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-brand-border p-5 sm:p-6 rounded-2xl shadow-sm">
         <div className="flex items-center gap-3">
           <button
             onClick={() => navigate('/admin/quizzes')}
-            className="p-2 border border-zinc-200 hover:bg-zinc-100 text-zinc-600 rounded-xl transition-all flex-shrink-0"
+            className="p-2 border border-brand-border hover:bg-zinc-100 text-zinc-600 rounded-xl transition-all flex-shrink-0"
             aria-label="Go back"
           >
             <ArrowLeft size={18} />
           </button>
           <div>
-            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{quiz?.event_name}</p>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-zinc-900 tracking-tight leading-tight mt-0.5">
+            <p className="text-[10px] font-bold text-brand-textMuted uppercase tracking-widest">{quiz?.event_name}</p>
+            <h1 className="text-xl sm:text-2xl font-extrabold text-brand-textMain tracking-tight leading-tight mt-0.5">
               {quiz?.title}
             </h1>
           </div>
@@ -160,7 +160,7 @@ export default function QuestionManagement() {
           {quiz?.questions?.length > 0 && (
             <button
               onClick={() => setShowBulkTimerModal(true)}
-              className="flex items-center justify-center gap-2 border border-zinc-250 hover:bg-zinc-50 text-zinc-650 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
+              className="flex items-center justify-center gap-2 border border-zinc-250 hover:bg-brand-bgLight text-zinc-650 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
             >
               <Clock size={16} />
               Set All Timers
@@ -168,7 +168,7 @@ export default function QuestionManagement() {
           )}
           <button
             onClick={() => handleOpenForm()}
-            className="flex items-center justify-center gap-2 bg-microsoft-blue hover:bg-microsoft-darkBlue text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer flex-shrink-0"
+            className="flex items-center justify-center gap-2 bg-brand-blue hover:bg-brand-dark text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer flex-shrink-0"
           >
             <Plus size={16} />
             Add Question
@@ -176,17 +176,17 @@ export default function QuestionManagement() {
         </div>
       </div>
 
-      {/* ── Questions List ── */}
+      {/* â”€â”€ Questions List â”€â”€ */}
       <div className="space-y-4">
         {quiz?.questions?.map((q, idx) => (
           <div
             key={q.id}
-            className="bg-white border border-microsoft-border rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden"
+            className="bg-white border border-brand-border rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden"
           >
             {/* Question header bar */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-100 bg-zinc-50/70">
-              <div className="flex items-center gap-3 text-xs font-semibold text-zinc-500">
-                <span className="bg-microsoft-lightBlue text-microsoft-blue font-bold px-2.5 py-0.5 rounded-full">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-100 bg-brand-bgLight/70">
+              <div className="flex items-center gap-3 text-xs font-semibold text-brand-textMuted">
+                <span className="bg-brand-lightBlue text-brand-blue font-bold px-2.5 py-0.5 rounded-full">
                   Q{idx + 1}
                 </span>
                 <span className="flex items-center gap-1">
@@ -201,7 +201,7 @@ export default function QuestionManagement() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleOpenForm(q)}
-                  className="flex items-center gap-1.5 border border-zinc-200 hover:bg-zinc-100 text-zinc-600 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                  className="flex items-center gap-1.5 border border-brand-border hover:bg-zinc-100 text-zinc-600 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
                 >
                   <Edit2 size={12} />
                   Edit
@@ -218,7 +218,7 @@ export default function QuestionManagement() {
 
             {/* Question body */}
             <div className="px-5 py-4 space-y-3">
-              <p className="text-sm sm:text-base font-bold text-zinc-800 leading-snug">{q.question}</p>
+              <p className="text-sm sm:text-base font-bold text-brand-textMain leading-snug">{q.question}</p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {['A', 'B', 'C', 'D'].map((key) => {
@@ -230,7 +230,7 @@ export default function QuestionManagement() {
                       className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-xs font-medium transition-all ${
                         isCorrect
                           ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                          : 'bg-zinc-50 border-zinc-100 text-zinc-600'
+                          : 'bg-brand-bgLight border-zinc-100 text-zinc-600'
                       }`}
                     >
                       <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-extrabold flex-shrink-0 ${
@@ -249,18 +249,18 @@ export default function QuestionManagement() {
         ))}
 
         {quiz?.questions?.length === 0 && (
-          <div className="py-20 flex flex-col items-center gap-3 text-zinc-400 bg-white border-2 border-dashed border-zinc-200 rounded-2xl">
+          <div className="py-20 flex flex-col items-center gap-3 text-brand-textMuted bg-white border-2 border-dashed border-brand-border rounded-2xl">
             <HelpCircle size={36} className="opacity-30" />
             <p className="text-sm font-semibold">No questions yet</p>
-            <p className="text-xs">Click <span className="font-bold text-zinc-500">Add Question</span> or import an Excel sheet to get started.</p>
+            <p className="text-xs">Click <span className="font-bold text-brand-textMuted">Add Question</span> or import an Excel sheet to get started.</p>
           </div>
         )}
       </div>
     </div>
 
-      {/* ══════════════════════════════════════════
+      {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
           ADD / EDIT QUESTION MODAL
-      ══════════════════════════════════════════ */}
+      â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {showModal && (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
@@ -272,7 +272,7 @@ export default function QuestionManagement() {
               className="max-w-xl w-full bg-white rounded-2xl shadow-2xl border border-zinc-100 overflow-hidden flex flex-col max-h-[85vh]"
             >
               {/* Modal header (fixed) */}
-              <div className="relative bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue px-6 py-4 flex items-start gap-3 flex-shrink-0">
+              <div className="relative bg-gradient-to-r from-brand-blue to-brand-dark px-6 py-4 flex items-start gap-3 flex-shrink-0">
                 <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
                   <HelpCircle size={20} className="text-white" />
                 </div>
@@ -305,7 +305,7 @@ export default function QuestionManagement() {
 
                 {/* Question text */}
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest">
+                  <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-widest">
                     Question Text <span className="text-red-500">*</span>
                   </label>
                   <textarea
@@ -314,13 +314,13 @@ export default function QuestionManagement() {
                     value={form.question}
                     onChange={(e) => setForm((p) => ({ ...p, question: e.target.value }))}
                     placeholder="e.g. Which Azure service is used for serverless computing?"
-                    className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl bg-zinc-50/50 text-zinc-800 placeholder-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-microsoft-blue focus:border-transparent transition-all text-sm resize-none"
+                    className="w-full px-4 py-2.5 border border-brand-border rounded-xl bg-brand-bgLight/50 text-brand-textMain placeholder-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all text-sm resize-none"
                   />
                 </div>
 
                 {/* Answer options */}
                 <div>
-                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest mb-2">
+                  <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-widest mb-2">
                     Answer Options <span className="text-red-500">*</span>
                   </label>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -331,7 +331,7 @@ export default function QuestionManagement() {
                         <div
                           key={key}
                           className={`relative rounded-xl border transition-all ${
-                            isCorrect ? 'border-emerald-300 bg-emerald-50/50' : 'border-zinc-200 bg-zinc-50/50'
+                            isCorrect ? 'border-emerald-300 bg-emerald-50/50' : 'border-brand-border bg-brand-bgLight/50'
                           }`}
                         >
                           <span className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold ${
@@ -345,7 +345,7 @@ export default function QuestionManagement() {
                             value={form[field]}
                             onChange={(e) => setForm((p) => ({ ...p, [field]: e.target.value }))}
                             placeholder={`Option ${key}`}
-                            className="w-full pl-10 pr-3 py-2.5 bg-transparent text-zinc-800 placeholder-zinc-400 focus:outline-none text-sm rounded-xl"
+                            className="w-full pl-10 pr-3 py-2.5 bg-transparent text-brand-textMain placeholder-zinc-400 focus:outline-none text-sm rounded-xl"
                           />
                         </div>
                       );
@@ -356,13 +356,13 @@ export default function QuestionManagement() {
                 {/* Correct answer, timer, marks row */}
                 <div className="grid grid-cols-3 gap-3">
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest">
+                    <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-widest">
                       Correct Option
                     </label>
                     <select
                       value={form.correct_answer}
                       onChange={(e) => setForm((p) => ({ ...p, correct_answer: e.target.value }))}
-                      className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl bg-zinc-50/50 text-zinc-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-microsoft-blue focus:border-transparent transition-all text-sm"
+                      className="w-full px-3 py-2.5 border border-brand-border rounded-xl bg-brand-bgLight/50 text-brand-textMain focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all text-sm"
                     >
                       <option value="A">Option A</option>
                       <option value="B">Option B</option>
@@ -371,7 +371,7 @@ export default function QuestionManagement() {
                     </select>
                   </div>
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest">
+                    <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-widest">
                       Timer (s)
                     </label>
                     <input
@@ -381,11 +381,11 @@ export default function QuestionManagement() {
                       required
                       value={form.timer}
                       onChange={(e) => setForm((p) => ({ ...p, timer: parseInt(e.target.value, 10) }))}
-                      className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl bg-zinc-50/50 text-zinc-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-microsoft-blue focus:border-transparent transition-all text-sm"
+                      className="w-full px-3 py-2.5 border border-brand-border rounded-xl bg-brand-bgLight/50 text-brand-textMain focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all text-sm"
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest">
+                    <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-widest">
                       Points
                     </label>
                     <input
@@ -395,25 +395,25 @@ export default function QuestionManagement() {
                       required
                       value={form.marks}
                       onChange={(e) => setForm((p) => ({ ...p, marks: parseInt(e.target.value, 10) }))}
-                      className="w-full px-3 py-2.5 border border-zinc-200 rounded-xl bg-zinc-50/50 text-zinc-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-microsoft-blue focus:border-transparent transition-all text-sm"
+                      className="w-full px-3 py-2.5 border border-brand-border rounded-xl bg-brand-bgLight/50 text-brand-textMain focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all text-sm"
                     />
                   </div>
                 </div>
               </div>
 
               {/* Modal footer / actions (fixed) */}
-              <div className="flex gap-3 px-6 py-4 border-t border-zinc-100 bg-zinc-50 flex-shrink-0">
+              <div className="flex gap-3 px-6 py-4 border-t border-zinc-100 bg-brand-bgLight flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-zinc-200 text-zinc-600 font-semibold text-sm hover:bg-zinc-50 transition-all"
+                  className="flex-1 py-2.5 rounded-xl border border-brand-border text-zinc-600 font-semibold text-sm hover:bg-brand-bgLight transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 flex items-center justify-center gap-2 bg-microsoft-blue hover:bg-microsoft-darkBlue disabled:opacity-60 text-white font-bold py-2.5 rounded-xl transition-all shadow-md active:scale-95 cursor-pointer text-sm"
+                  className="flex-1 flex items-center justify-center gap-2 bg-brand-blue hover:bg-brand-dark disabled:opacity-60 text-white font-bold py-2.5 rounded-xl transition-all shadow-md active:scale-95 cursor-pointer text-sm"
                 >
                   {saving ? (
                     <span>Saving...</span>
@@ -429,7 +429,7 @@ export default function QuestionManagement() {
         </div>
       )}
 
-      {/* ── BULK TIMER MODAL ── */}
+      {/* â”€â”€ BULK TIMER MODAL â”€â”€ */}
       {showBulkTimerModal && (
         <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
@@ -440,7 +440,7 @@ export default function QuestionManagement() {
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal header */}
-            <div className="relative bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue px-6 py-5 flex items-start gap-3">
+            <div className="relative bg-gradient-to-r from-brand-blue to-brand-dark px-6 py-5 flex items-start gap-3">
               <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center flex-shrink-0">
                 <Clock size={20} className="text-white" />
               </div>
@@ -465,7 +465,7 @@ export default function QuestionManagement() {
             <div className="px-6 py-5">
               <form onSubmit={handleBulkTimerUpdate} className="space-y-4">
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-500 uppercase tracking-widest">
+                  <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-widest">
                     Timer Duration (Seconds)
                   </label>
                   <input
@@ -475,7 +475,7 @@ export default function QuestionManagement() {
                     required
                     value={bulkTimerVal}
                     onChange={(e) => setBulkTimerVal(parseInt(e.target.value, 10))}
-                    className="w-full px-4 py-2.5 border border-zinc-200 rounded-xl bg-zinc-50/50 text-zinc-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-microsoft-blue focus:border-transparent transition-all text-sm"
+                    className="w-full px-4 py-2.5 border border-brand-border rounded-xl bg-brand-bgLight/50 text-brand-textMain focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all text-sm"
                   />
                 </div>
 
@@ -483,14 +483,14 @@ export default function QuestionManagement() {
                   <button
                     type="button"
                     onClick={() => setShowBulkTimerModal(false)}
-                    className="flex-1 py-2.5 rounded-xl border border-zinc-200 text-zinc-650 font-semibold text-sm hover:bg-zinc-50 transition-all"
+                    className="flex-1 py-2.5 rounded-xl border border-brand-border text-zinc-650 font-semibold text-sm hover:bg-brand-bgLight transition-all"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={bulkTimerSaving}
-                    className="flex-1 flex items-center justify-center gap-2 bg-microsoft-blue hover:bg-microsoft-darkBlue disabled:opacity-60 text-white font-bold py-2.5 rounded-xl transition-all shadow-md active:scale-95 cursor-pointer text-sm"
+                    className="flex-1 flex items-center justify-center gap-2 bg-brand-blue hover:bg-brand-dark disabled:opacity-60 text-white font-bold py-2.5 rounded-xl transition-all shadow-md active:scale-95 cursor-pointer text-sm"
                   >
                     {bulkTimerSaving ? 'Updating...' : 'Set for All'}
                   </button>

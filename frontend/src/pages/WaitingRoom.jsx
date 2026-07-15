@@ -93,8 +93,8 @@ export default function WaitingRoom() {
   }, [socket, navigate, initialData]);
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-zinc-50">
-      <div className="max-w-md w-full space-y-8 bg-white border border-microsoft-border p-8 rounded-xl shadow-sm text-center animate-fade-in">
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8" style={{ backgroundColor: '#F5FAFF' }}>
+      <div className="max-w-md w-full space-y-8 bg-white border border-brand-border p-8 rounded-xl shadow-soft text-center animate-fade-in">
         {!connected && (
           <div className="bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold py-2.5 px-3 rounded-lg flex items-center justify-center space-x-2 animate-pulse mb-4">
             <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
@@ -110,10 +110,10 @@ export default function WaitingRoom() {
         {/* Animated loader */}
         <div className="flex justify-center">
           <div className="relative">
-            <Loader2 className="animate-spin text-microsoft-blue" size={60} />
+            <Loader2 className="animate-spin text-brand-blue" size={60} />
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-6 h-6 rounded-full bg-microsoft-lightBlue flex items-center justify-center">
-                <span className="w-2.5 h-2.5 rounded-full bg-microsoft-blue animate-ping"></span>
+              <div className="w-6 h-6 rounded-full bg-brand-lightBlue flex items-center justify-center">
+                <span className="w-2.5 h-2.5 rounded-full bg-brand-blue animate-ping"></span>
               </div>
             </div>
           </div>
@@ -121,37 +121,37 @@ export default function WaitingRoom() {
 
         {/* Text Details */}
         <div className="space-y-3 flex flex-col items-center">
-          <span className="text-xs font-semibold text-microsoft-blue bg-microsoft-lightBlue px-3 py-1 rounded-full uppercase tracking-wider">
+          <span className="text-xs font-semibold text-brand-blue bg-brand-lightBlue px-3 py-1 rounded-full uppercase tracking-wider">
             Lobby Active
           </span>
-          <h2 className="text-3xl font-extrabold text-zinc-900 tracking-tight">Waiting for Host...</h2>
-          <p className="text-zinc-500 font-medium">{initialData.eventName}</p>
-          <p className="text-zinc-400 text-sm">{initialData.title}</p>
+          <h2 className="text-3xl font-extrabold text-brand-textMain tracking-tight">Waiting for Host...</h2>
+          <p className="text-brand-textMuted font-medium">{initialData.eventName}</p>
+          <p className="text-brand-textMuted text-sm">{initialData.title}</p>
           {initialData.scheduledStart && (
-            <div className="bg-microsoft-lightBlue text-microsoft-darkBlue rounded-lg px-3 py-2 text-xs font-semibold flex items-center space-x-1.5 mt-2 border border-microsoft-blue/10">
+            <div className="bg-brand-lightBlue text-brand-dark rounded-lg px-3 py-2 text-xs font-semibold flex items-center space-x-1.5 mt-2 border border-brand-blue/10">
               <Calendar size={14} />
               <span>Starts at: {new Date(initialData.scheduledStart).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
             </div>
           )}
         </div>
 
-        <div className="border-t border-zinc-100 my-6 pt-6 grid grid-cols-2 gap-4">
+        <div className="border-t border-brand-border my-6 pt-6 grid grid-cols-2 gap-4">
           {/* Card 1 */}
-          <div className="bg-zinc-50 p-4 rounded-lg border border-microsoft-border flex flex-col items-center">
-            <Users className="text-microsoft-blue mb-1" size={20} />
-            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Joined</span>
-            <span className="text-xl font-bold text-zinc-800">{totalParticipants} Players</span>
+          <div className="bg-brand-bgLight p-4 rounded-lg border border-brand-border flex flex-col items-center">
+            <Users className="text-brand-blue mb-1" size={20} />
+            <span className="text-xs font-semibold text-brand-textMuted uppercase tracking-wider">Joined</span>
+            <span className="text-xl font-bold text-brand-textMain">{totalParticipants} Players</span>
           </div>
 
           {/* Card 2 */}
-          <div className="bg-zinc-50 p-4 rounded-lg border border-microsoft-border flex flex-col items-center">
-            <HelpCircle className="text-zinc-500 mb-1" size={20} />
-            <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">Scoring</span>
-            <span className="text-xs font-bold text-zinc-700 leading-tight">Speed Bonus Active</span>
+          <div className="bg-brand-bgLight p-4 rounded-lg border border-brand-border flex flex-col items-center">
+            <HelpCircle className="text-brand-textMuted mb-1" size={20} />
+            <span className="text-xs font-semibold text-brand-textMuted uppercase tracking-wider">Scoring</span>
+            <span className="text-xs font-bold text-brand-textMain leading-tight">Speed Bonus Active</span>
           </div>
         </div>
 
-        <p className="text-xs text-zinc-400">
+        <p className="text-xs text-brand-textMuted">
           Tip: Once the quiz starts, you must enter and remain in fullscreen. Tab switching or exiting fullscreen will result in warnings and score penalties!
         </p>
       </div>

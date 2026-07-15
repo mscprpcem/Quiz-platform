@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
-import { Keyboard, User, School, Mail, ArrowRight } from 'lucide-react';
+import { Keyboard, User, School, Mail, ArrowRight, Zap } from 'lucide-react';
 
 export default function JoinQuiz() {
   const { code } = useParams();
@@ -17,7 +17,6 @@ export default function JoinQuiz() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Re-fill code if present in URL
   useEffect(() => {
     if (code) {
       setFormData((prev) => ({ ...prev, joinCode: code.toUpperCase() }));
@@ -27,10 +26,8 @@ export default function JoinQuiz() {
   useEffect(() => {
     if (!socket) return;
 
-    // Handle join success
     socket.on('join_success', (data) => {
       setLoading(false);
-      // Save session details to sessionStorage for persistence on page refresh
       sessionStorage.setItem('msc_participant_id', data.participantId);
       sessionStorage.setItem('msc_quiz_id', data.quizId);
       sessionStorage.setItem('msc_quiz_title', data.title);
@@ -55,7 +52,6 @@ export default function JoinQuiz() {
       });
     });
 
-    // Handle join error
     socket.on('join_error', (data) => {
       setLoading(false);
       setError(data.message);
@@ -84,7 +80,6 @@ export default function JoinQuiz() {
       setError('Please fill in all required fields.');
       return;
     }
-
     if (joinCode.length !== 6) {
       setError('Join code must be exactly 6 characters.');
       return;
@@ -92,11 +87,8 @@ export default function JoinQuiz() {
 
     setLoading(true);
     setError('');
-
-    // Ensure socket is connected before sending join event
     connectSocket();
 
-    // Small delay to ensure connection state is synchronized
     setTimeout(() => {
       if (socket) {
         socket.emit('join_quiz', { name, college, email, joinCode });
@@ -107,125 +99,97 @@ export default function JoinQuiz() {
     }, 500);
   };
 
-  return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-microsoft-lightBlue/20 via-zinc-50 to-white">
-      <div className="max-w-md w-full bg-white border border-microsoft-border p-8 rounded-2xl shadow-xl space-y-6 relative overflow-hidden group animate-fade-in">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue"></div>
-
-        {/* Title */}
-        <div className="text-center space-y-1">
-          <h2 className="text-2xl font-extrabold text-zinc-850 tracking-tight">Join Live Quiz</h2>
-          <p className="text-xs text-zinc-400">
-            Enter your details and the event code to join the lobby.
-          </p>
+  const InputRow = ({ id, name, icon: Icon, label, required, type = 'text', placeholder, value, className = '' }) => (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="block text-[10px] font-bold text-brand-textMuted uppercase tracking-widest">
+        {label} {required && <span className="text-red-400">*</span>}
+      </label>
+      <div className="relative group">
+        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-brand-textMuted/60 group-focus-within:text-brand-blue transition-colors duration-200">
+          <Icon size={17} />
         </div>
+        <input
+          id={id}
+          name={name}
+          type={type}
+          required={required}
+          maxLength={name === 'joinCode' ? 6 : undefined}
+          value={value}
+          onChange={handleChange}
+          placeholder={placeholder}
+          className={`input-enhanced pl-10 ${className}`}
+        />
+      </div>
+    </div>
+  );
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-700 px-3 py-2.5 rounded-lg text-xs font-semibold">
-            {error}
-          </div>
-        )}
+  return (
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+      {/* Ambient bg */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_60%_50%_at_30%_20%,_rgba(37,99,235,0.06)_0%,_transparent_55%)]"></div>
+        <div className="absolute bottom-0 right-0 w-full h-full bg-[radial-gradient(ellipse_50%_40%_at_75%_80%,_rgba(139,92,246,0.04)_0%,_transparent_55%)]"></div>
+      </div>
 
-        <form className="space-y-5" onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            {/* Join Code */}
-            <div className="space-y-1.5">
-              <label htmlFor="joinCode" className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-                Join Code <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
-                  <Keyboard size={18} />
-                </div>
-                <input
-                  id="joinCode"
-                  name="joinCode"
-                  type="text"
-                  required
-                  maxLength={6}
-                  value={formData.joinCode}
-                  onChange={handleChange}
-                  placeholder="ABC123"
-                  className="block w-full pl-10 pr-3 py-3 border border-zinc-200 rounded-lg bg-zinc-50/50 text-zinc-800 placeholder-zinc-400 font-bold uppercase tracking-widest text-center text-lg focus:bg-white focus:outline-none focus:ring-2 focus:ring-microsoft-blue focus:border-transparent transition-all"
-                />
-              </div>
+      <div className="max-w-md w-full relative z-10 animate-fade-in">
+        <div className="form-card p-8 sm:p-9 rounded-2xl space-y-7 relative overflow-hidden">
+          {/* Accent stripe */}
+          <div className="absolute top-0 left-0 w-full h-[3px]" style={{ background: 'linear-gradient(90deg, #2563EB, #0EA5E9, #8B5CF6)' }}></div>
+
+          {/* Title */}
+          <div className="text-center space-y-1.5 pt-1">
+            <div className="inline-flex items-center space-x-1.5 bg-brand-lightBlue text-brand-blue text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-2">
+              <Zap size={10} />
+              <span>Live Session</span>
             </div>
-
-            {/* Full Name */}
-            <div className="space-y-1.5">
-              <label htmlFor="name" className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-                Full Name <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
-                  <User size={18} />
-                </div>
-                <input
-                  id="name"
-                  name="name"
-                  type="text"
-                  required
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="Amit Yadav"
-                  className="block w-full pl-10 pr-3 py-2.5 border border-zinc-200 rounded-lg bg-zinc-50/50 text-zinc-850 placeholder-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-microsoft-blue focus:border-transparent transition-all"
-                />
-              </div>
-            </div>
-
-            {/* College Name */}
-            <div className="space-y-1.5">
-              <label htmlFor="college" className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-                College / Institution <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
-                  <School size={18} />
-                </div>
-                <input
-                  id="college"
-                  name="college"
-                  type="text"
-                  required
-                  value={formData.college}
-                  onChange={handleChange}
-                  placeholder="PRPCEM"
-                  className="block w-full pl-10 pr-3 py-2.5 border border-zinc-200 rounded-lg bg-zinc-50/50 text-zinc-850 placeholder-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-microsoft-blue focus:border-transparent transition-all"
-                />
-              </div>
-            </div>
-
-            {/* Email Address */}
-            <div className="space-y-1.5">
-              <label htmlFor="email" className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-                Email Address <span className="text-zinc-400">(Optional)</span>
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-zinc-400">
-                  <Mail size={18} />
-                </div>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="amit@example.com"
-                  className="block w-full pl-10 pr-3 py-2.5 border border-zinc-200 rounded-lg bg-zinc-50/50 text-zinc-850 placeholder-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-microsoft-blue focus:border-transparent transition-all"
-                />
-              </div>
-            </div>
+            <h2 className="text-2xl font-extrabold text-brand-textMain tracking-tight">Join Live Quiz</h2>
+            <p className="text-[13px] text-brand-textMuted">
+              Enter your details and the event code to join the lobby.
+            </p>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue hover:brightness-105 disabled:bg-zinc-450 text-white font-bold py-3.5 rounded-lg transition-all active:scale-98 shadow-md cursor-pointer"
-          >
-            <span>{loading ? 'Joining Lobby...' : 'Join Quiz Lobby'}</span>
-            {!loading && <ArrowRight size={18} />}
-          </button>
-        </form>
+          {error && (
+            <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-2.5 rounded-xl text-xs font-semibold animate-fade-in"
+                 style={{ boxShadow: '0 2px 8px rgba(239,68,68,0.05)' }}>
+              {error}
+            </div>
+          )}
+
+          <form className="space-y-5" onSubmit={handleSubmit}>
+            <div className="space-y-4">
+              <InputRow
+                id="joinCode" name="joinCode" icon={Keyboard}
+                label="Join Code" required placeholder="ABC123"
+                value={formData.joinCode}
+                className="text-center font-bold uppercase tracking-[0.2em] text-lg"
+              />
+              <InputRow
+                id="name" name="name" icon={User}
+                label="Full Name" required placeholder="Amit Yadav"
+                value={formData.name}
+              />
+              <InputRow
+                id="college" name="college" icon={School}
+                label="College / Institution" required placeholder="PRPCEM"
+                value={formData.college}
+              />
+              <InputRow
+                id="email" name="email" icon={Mail} type="email"
+                label="Email Address (Optional)" required={false} placeholder="amit@example.com"
+                value={formData.email}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="btn-primary w-full py-3.5 rounded-xl group disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <span>{loading ? 'Joining Lobby...' : 'Join Quiz Lobby'}</span>
+              {!loading && <ArrowRight size={17} className="group-hover:translate-x-0.5 transition-transform" />}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   );

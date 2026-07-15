@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+﻿import React, { useEffect, useState, useRef } from 'react';
 import api from '../services/api';
 import { QRCodeSVG } from 'qrcode.react';
 import {
@@ -27,7 +27,7 @@ export default function BrandSettings() {
   const [form, setForm] = useState({
     club_name: '',
     chapter_name: '',
-    primary_color: '#0078d4',
+    primary_color: '#2563EB',
     footer_text: '',
     qr_logo_size: 28
   });
@@ -43,7 +43,7 @@ export default function BrandSettings() {
       setForm({
         club_name: res.data.club_name || '',
         chapter_name: res.data.chapter_name || '',
-        primary_color: res.data.primary_color || '#0078d4',
+        primary_color: res.data.primary_color || '#2563EB',
         footer_text: res.data.footer_text || '',
         qr_logo_size: res.data.qr_logo_size !== undefined ? res.data.qr_logo_size : 28
       });
@@ -147,12 +147,12 @@ export default function BrandSettings() {
   };
 
   const logoUrl = settings?.logo_path ? `/${settings.logo_path}` : null;
-  const previewColor = form.primary_color || '#0078d4';
+  const previewColor = form.primary_color || '#2563EB';
   const previewDarkColor = getDarkerColor(previewColor);
 
   if (loading) {
     return (
-      <div className="min-h-[60vh] flex items-center justify-center text-zinc-400 font-semibold">
+      <div className="min-h-[60vh] flex items-center justify-center text-brand-textMuted font-semibold">
         <RefreshCw size={18} className="animate-spin mr-2" />
         Loading branding settings...
       </div>
@@ -163,15 +163,15 @@ export default function BrandSettings() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in space-y-8">
 
       {/* Page Header */}
-      <div className="bg-white border border-zinc-200/80 p-6 rounded-2xl shadow-soft relative overflow-hidden">
+      <div className="bg-white border border-brand-border/80 p-6 rounded-2xl shadow-soft relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 via-violet-500 to-indigo-500"></div>
         <div className="flex items-center space-x-3">
           <div className="w-10 h-10 bg-gradient-to-br from-purple-50 to-violet-100 text-purple-600 rounded-xl flex items-center justify-center">
             <Palette size={20} />
           </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight">Branding Settings</h1>
-            <p className="text-xs sm:text-sm text-zinc-500 mt-0.5">Customize your logo, club name, and QR share card appearance.</p>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-brand-textMain tracking-tight">Branding Settings</h1>
+            <p className="text-xs sm:text-sm text-brand-textMuted mt-0.5">Customize your logo, club name, and QR share card appearance.</p>
           </div>
         </div>
       </div>
@@ -195,20 +195,20 @@ export default function BrandSettings() {
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         
-        {/* Left Column — Settings Form */}
+        {/* Left Column â€” Settings Form */}
         <div className="lg:col-span-3 space-y-6">
 
           {/* Logo Upload Section */}
-          <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-soft space-y-5">
+          <div className="bg-white border border-brand-border/80 rounded-2xl p-6 shadow-soft space-y-5">
             <div className="flex items-center space-x-2">
-              <ImageIcon size={18} className="text-zinc-500" />
-              <h2 className="text-lg font-bold text-zinc-800 tracking-tight">Organization Logo</h2>
+              <ImageIcon size={18} className="text-brand-textMuted" />
+              <h2 className="text-lg font-bold text-brand-textMain tracking-tight">Organization Logo</h2>
             </div>
 
             <div className="flex items-start space-x-6">
               {/* Current Logo Preview */}
               <div className="flex-shrink-0">
-                <div className="w-28 h-28 rounded-2xl border-2 border-dashed border-zinc-200 bg-zinc-50 flex items-center justify-center overflow-hidden">
+                <div className="w-28 h-28 rounded-2xl border-2 border-dashed border-brand-border bg-brand-bgLight flex items-center justify-center overflow-hidden">
                   {logoUrl ? (
                     <img
                       src={logoUrl}
@@ -216,7 +216,7 @@ export default function BrandSettings() {
                       className="w-full h-full object-contain p-2"
                     />
                   ) : (
-                    <div className="text-center text-zinc-400">
+                    <div className="text-center text-brand-textMuted">
                       <ImageIcon size={28} className="mx-auto mb-1 opacity-40" />
                       <span className="text-[10px] font-semibold">No Logo</span>
                     </div>
@@ -226,9 +226,9 @@ export default function BrandSettings() {
 
               {/* Upload Controls */}
               <div className="flex-grow space-y-3">
-                <p className="text-xs text-zinc-500 leading-relaxed">
+                <p className="text-xs text-brand-textMuted leading-relaxed">
                   Upload your club or organization logo. It will appear in QR share cards and download exports.
-                  Recommended: square image, at least 200×200px. Max 2MB.
+                  Recommended: square image, at least 200Ã—200px. Max 2MB.
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <input
@@ -243,8 +243,8 @@ export default function BrandSettings() {
                     htmlFor="logo-upload"
                     className={`inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl text-xs font-semibold cursor-pointer transition-all duration-200 shadow-sm ${
                       uploading
-                        ? 'bg-zinc-100 text-zinc-400 cursor-not-allowed'
-                        : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200'
+                        ? 'bg-zinc-100 text-brand-textMuted cursor-not-allowed'
+                        : 'bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-brand-border'
                     }`}
                   >
                     <Upload size={14} />
@@ -262,7 +262,7 @@ export default function BrandSettings() {
                     </button>
                   )}
                 </div>
-                <p className="text-[10px] text-zinc-400">
+                <p className="text-[10px] text-brand-textMuted">
                   Accepted formats: PNG, JPG, SVG, WebP
                 </p>
               </div>
@@ -271,15 +271,15 @@ export default function BrandSettings() {
 
           {/* Text Configuration Section */}
           <form onSubmit={handleSaveSettings}>
-            <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-soft space-y-5">
+            <div className="bg-white border border-brand-border/80 rounded-2xl p-6 shadow-soft space-y-5">
               <div className="flex items-center space-x-2">
-                <Type size={18} className="text-zinc-500" />
-                <h2 className="text-lg font-bold text-zinc-800 tracking-tight">Card Text & Colors</h2>
+                <Type size={18} className="text-brand-textMuted" />
+                <h2 className="text-lg font-bold text-brand-textMain tracking-tight">Card Text & Colors</h2>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">
+                  <label className="block text-[10px] font-bold text-brand-textMuted uppercase tracking-widest mb-1.5">
                     Club / Organization Name
                   </label>
                   <input
@@ -288,12 +288,12 @@ export default function BrandSettings() {
                     value={form.club_name}
                     onChange={(e) => setForm(prev => ({ ...prev, club_name: e.target.value }))}
                     placeholder="Microsoft Student Club"
-                    className="w-full px-3.5 py-2.5 border border-zinc-200 rounded-xl bg-white text-sm text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all duration-200 hover:border-zinc-300"
+                    className="w-full px-3.5 py-2.5 border border-brand-border rounded-xl bg-white text-sm text-brand-textMain placeholder:text-brand-textMuted focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all duration-200 hover:border-zinc-300"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">
+                  <label className="block text-[10px] font-bold text-brand-textMuted uppercase tracking-widest mb-1.5">
                     Chapter / Subtitle
                   </label>
                   <input
@@ -302,13 +302,13 @@ export default function BrandSettings() {
                     value={form.chapter_name}
                     onChange={(e) => setForm(prev => ({ ...prev, chapter_name: e.target.value }))}
                     placeholder="MSC-PRPCEM Chapter"
-                    className="w-full px-3.5 py-2.5 border border-zinc-200 rounded-xl bg-white text-sm text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all duration-200 hover:border-zinc-300"
+                    className="w-full px-3.5 py-2.5 border border-brand-border rounded-xl bg-white text-sm text-brand-textMain placeholder:text-brand-textMuted focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all duration-200 hover:border-zinc-300"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">
+                <label className="block text-[10px] font-bold text-brand-textMuted uppercase tracking-widest mb-1.5">
                   Footer Text
                 </label>
                 <input
@@ -316,12 +316,12 @@ export default function BrandSettings() {
                   value={form.footer_text}
                   onChange={(e) => setForm(prev => ({ ...prev, footer_text: e.target.value }))}
                   placeholder="Powered by Microsoft Student Club Quiz Platform"
-                  className="w-full px-3.5 py-2.5 border border-zinc-200 rounded-xl bg-white text-sm text-zinc-800 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all duration-200 hover:border-zinc-300"
+                  className="w-full px-3.5 py-2.5 border border-brand-border rounded-xl bg-white text-sm text-brand-textMain placeholder:text-brand-textMuted focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all duration-200 hover:border-zinc-300"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">
+                <label className="block text-[10px] font-bold text-brand-textMuted uppercase tracking-widest mb-1.5">
                   Primary Brand Color
                 </label>
                 <div className="flex items-center space-x-3">
@@ -329,14 +329,14 @@ export default function BrandSettings() {
                     type="color"
                     value={form.primary_color}
                     onChange={(e) => setForm(prev => ({ ...prev, primary_color: e.target.value }))}
-                    className="w-10 h-10 rounded-xl border border-zinc-200 cursor-pointer shadow-sm"
+                    className="w-10 h-10 rounded-xl border border-brand-border cursor-pointer shadow-sm"
                   />
                   <input
                     type="text"
                     value={form.primary_color}
                     onChange={(e) => setForm(prev => ({ ...prev, primary_color: e.target.value }))}
                     maxLength={7}
-                    className="w-28 px-3 py-2.5 border border-zinc-200 rounded-xl bg-white text-sm text-zinc-700 font-mono font-semibold tracking-wider focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all duration-200"
+                    className="w-28 px-3 py-2.5 border border-brand-border rounded-xl bg-white text-sm text-zinc-700 font-mono font-semibold tracking-wider focus:outline-none focus:ring-2 focus:ring-purple-500/20 focus:border-purple-400 transition-all duration-200"
                   />
                   <div
                     className="h-10 flex-grow rounded-xl border border-zinc-100 shadow-inner"
@@ -347,10 +347,10 @@ export default function BrandSettings() {
 
               {logoUrl && (
                 <div>
-                  <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1.5">
+                  <label className="block text-[10px] font-bold text-brand-textMuted uppercase tracking-widest mb-1.5">
                     QR Code Center Logo Size
                   </label>
-                  <div className="flex items-center space-x-3 bg-zinc-50 border border-zinc-200 rounded-xl p-3">
+                  <div className="flex items-center space-x-3 bg-brand-bgLight border border-brand-border rounded-xl p-3">
                     <input
                       type="range"
                       min={16}
@@ -378,15 +378,15 @@ export default function BrandSettings() {
           </form>
         </div>
 
-        {/* Right Column — Live QR Card Preview */}
+        {/* Right Column â€” Live QR Card Preview */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-soft space-y-4 sticky top-24">
+          <div className="bg-white border border-brand-border/80 rounded-2xl p-6 shadow-soft space-y-4 sticky top-24">
             <div className="flex items-center space-x-2">
-              <Eye size={18} className="text-zinc-500" />
-              <h2 className="text-lg font-bold text-zinc-800 tracking-tight">Live Card Preview</h2>
+              <Eye size={18} className="text-brand-textMuted" />
+              <h2 className="text-lg font-bold text-brand-textMain tracking-tight">Live Card Preview</h2>
             </div>
 
-            <p className="text-[11px] text-zinc-400 leading-relaxed">
+            <p className="text-[11px] text-brand-textMuted leading-relaxed">
               This is how your QR share card will look when downloaded or displayed in modals.
             </p>
 
@@ -429,7 +429,7 @@ export default function BrandSettings() {
                       <div className="bg-[#ffb900] rounded-[1px]"></div>
                     </div>
                   )}
-                  <h3 className="text-[9px] font-extrabold tracking-wider uppercase text-zinc-500">
+                  <h3 className="text-[9px] font-extrabold tracking-wider uppercase text-brand-textMuted">
                     {form.club_name || 'Club Name'}
                   </h3>
                   <span
@@ -445,12 +445,12 @@ export default function BrandSettings() {
 
                 {/* Sample quiz info */}
                 <div>
-                  <h2 className="text-xs font-black text-zinc-800 uppercase leading-tight">SAMPLE QUIZ TITLE</h2>
-                  <p className="text-[7px] text-zinc-400 font-bold uppercase tracking-widest mt-0.5">Event Name Preview</p>
+                  <h2 className="text-xs font-black text-brand-textMain uppercase leading-tight">SAMPLE QUIZ TITLE</h2>
+                  <p className="text-[7px] text-brand-textMuted font-bold uppercase tracking-widest mt-0.5">Event Name Preview</p>
                 </div>
 
                 {/* QR Code */}
-                <div className="inline-block bg-zinc-50 p-2 rounded-lg border border-zinc-100">
+                <div className="inline-block bg-brand-bgLight p-2 rounded-lg border border-zinc-100">
                   <QRCodeSVG
                     value="https://example.com/join/ABC123"
                     size={100}
@@ -468,7 +468,7 @@ export default function BrandSettings() {
                 </div>
 
                 {/* Scan text */}
-                <div className="text-[9px] font-semibold text-zinc-400">
+                <div className="text-[9px] font-semibold text-brand-textMuted">
                   <p>Scan with camera or visit:</p>
                   <p className="font-bold underline mt-0.5" style={{ color: previewDarkColor }}>
                     example.com/join/ABC123
@@ -476,8 +476,8 @@ export default function BrandSettings() {
                 </div>
 
                 {/* Join Code Box */}
-                <div className="bg-zinc-50 border border-zinc-100 p-2 rounded-lg">
-                  <span className="block text-[7px] font-bold text-zinc-400 uppercase tracking-widest">Unique Join Code</span>
+                <div className="bg-brand-bgLight border border-zinc-100 p-2 rounded-lg">
+                  <span className="block text-[7px] font-bold text-brand-textMuted uppercase tracking-widest">Unique Join Code</span>
                   <span className="block text-base font-black tracking-widest mt-0.5" style={{ color: previewColor }}>
                     ABC123
                   </span>
@@ -490,7 +490,7 @@ export default function BrandSettings() {
               </div>
             </div>
 
-            <p className="text-[10px] text-zinc-400 text-center">
+            <p className="text-[10px] text-brand-textMuted text-center">
               Actual card will use real quiz data and full-size QR code.
             </p>
           </div>

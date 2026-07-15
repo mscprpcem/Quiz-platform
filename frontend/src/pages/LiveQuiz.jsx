@@ -303,7 +303,7 @@ export default function LiveQuiz() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-zinc-50 py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-[calc(100vh-4rem)] py-8 px-4 sm:px-6 lg:px-8" style={{ backgroundColor: '#F5FAFF' }}>
       {/* Security Fullscreen Enforcer Hook - Disabled for now */}
       {/*
       <FullscreenHandler
@@ -352,15 +352,15 @@ export default function LiveQuiz() {
         {!disqualified && (
           <>
             {/* Header info */}
-            <div className="flex justify-between items-center bg-white border border-microsoft-border px-6 py-4 rounded-xl shadow-sm">
+            <div className="flex justify-between items-center bg-white border border-brand-border px-6 py-4 rounded-xl shadow-sm">
               <div>
-                <h3 className="text-sm font-semibold text-zinc-400 uppercase tracking-wider">Playing</h3>
-                <h1 className="text-lg font-bold text-zinc-800">{initialData.title}</h1>
+                <h3 className="text-sm font-semibold text-brand-textMuted uppercase tracking-wider">Playing</h3>
+                <h1 className="text-lg font-bold text-brand-textMain">{initialData.title}</h1>
               </div>
               <div className="flex items-center space-x-4">
                 {/* Timer Clock */}
                 {currentQuestion && !showFeedback && (
-                  <div className="flex items-center space-x-2 bg-microsoft-lightBlue text-microsoft-darkBlue px-4 py-2 rounded-lg font-bold">
+                  <div className="flex items-center space-x-2 bg-brand-lightBlue text-brand-dark px-4 py-2 rounded-lg font-bold">
                     <Clock size={20} className={timer <= 5 ? 'text-red-600 animate-pulse' : ''} />
                     <span className={timer <= 5 ? 'text-red-600 font-extrabold text-xl' : 'text-xl'}>
                       {isPaused ? 'Paused' : `${timer}s`}
@@ -373,30 +373,30 @@ export default function LiveQuiz() {
             {/* Main Stage Panel */}
             {currentQuestion === null ? (
               /* Standby Card */
-              <div className="bg-white border border-microsoft-border rounded-xl p-12 text-center shadow-sm space-y-4 animate-fade-in">
-                <div className="w-16 h-16 bg-microsoft-lightBlue text-microsoft-blue rounded-full flex items-center justify-center mx-auto animate-pulse">
+              <div className="bg-white border border-brand-border rounded-xl p-12 text-center shadow-sm space-y-4 animate-fade-in">
+                <div className="w-16 h-16 bg-brand-lightBlue text-brand-blue rounded-full flex items-center justify-center mx-auto animate-pulse">
                   <Clock size={32} />
                 </div>
-                <h2 className="text-2xl font-bold text-zinc-800">Prepare for the next question</h2>
-                <p className="text-zinc-500 max-w-sm mx-auto text-sm">
+                <h2 className="text-2xl font-bold text-brand-textMain">Prepare for the next question</h2>
+                <p className="text-brand-textMuted max-w-sm mx-auto text-sm">
                   The host has not released the next question. Please remain focused and wait in fullscreen.
                 </p>
               </div>
             ) : showFeedback ? (
               /* Question Feedback Phase */
-              <div className="bg-white border border-microsoft-border rounded-xl p-8 shadow-sm space-y-6 animate-fade-in">
+              <div className="bg-white border border-brand-border rounded-xl p-8 shadow-sm space-y-6 animate-fade-in">
                 <div className="text-center space-y-2">
                   <div className="inline-block px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-zinc-100 text-zinc-600">
                     Question Completed
                   </div>
-                  <h2 className="text-2xl font-bold text-zinc-800">{currentQuestion.question}</h2>
+                  <h2 className="text-2xl font-bold text-brand-textMain">{currentQuestion.question}</h2>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
                   {/* Correct Answer Display */}
-                  <div className="bg-zinc-50 p-6 rounded-lg border border-microsoft-border text-center space-y-1">
-                    <span className="text-xs font-semibold text-zinc-400 uppercase">Correct Option</span>
-                    <h3 className="text-2xl font-extrabold text-microsoft-success">
+                  <div className="bg-brand-bgLight p-6 rounded-lg border border-brand-border text-center space-y-1">
+                    <span className="text-xs font-semibold text-brand-textMuted uppercase">Correct Option</span>
+                    <h3 className="text-2xl font-extrabold text-brand-success">
                       Option {feedbackData?.correctAnswer}
                     </h3>
                   </div>
@@ -407,7 +407,7 @@ export default function LiveQuiz() {
                       ? 'bg-emerald-50 border-emerald-100 text-emerald-800' 
                       : 'bg-red-50 border-red-100 text-red-800'
                   }`}>
-                    <span className="text-xs font-semibold text-zinc-400 uppercase">Your Result</span>
+                    <span className="text-xs font-semibold text-brand-textMuted uppercase">Your Result</span>
                     <h3 className="text-2xl font-extrabold">
                       {feedbackData?.isCorrect 
                         ? `+${feedbackData?.points} Points` 
@@ -419,13 +419,13 @@ export default function LiveQuiz() {
                 {/* Score and rank display */}
                 <div className="border-t border-zinc-100 pt-6 flex justify-around text-center">
                   <div>
-                    <span className="text-xs font-semibold text-zinc-400 uppercase">Current Score</span>
-                    <p className="text-xl font-bold text-zinc-800 mt-1">{feedbackData?.totalScore || 0}</p>
+                    <span className="text-xs font-semibold text-brand-textMuted uppercase">Current Score</span>
+                    <p className="text-xl font-bold text-brand-textMain mt-1">{feedbackData?.totalScore || 0}</p>
                   </div>
                   <div className="w-px bg-zinc-200"></div>
                   <div>
-                    <span className="text-xs font-semibold text-zinc-400 uppercase">Current Standings</span>
-                    <p className="text-xl font-bold text-microsoft-blue mt-1">Rank #{feedbackData?.rank || 'N/A'}</p>
+                    <span className="text-xs font-semibold text-brand-textMuted uppercase">Current Standings</span>
+                    <p className="text-xl font-bold text-brand-blue mt-1">Rank #{feedbackData?.rank || 'N/A'}</p>
                   </div>
                 </div>
 
@@ -437,12 +437,12 @@ export default function LiveQuiz() {
               /* Active Gameplay Question Card */
               <div className="space-y-6 animate-fade-in">
                 {/* Question */}
-                <div className="bg-white border border-microsoft-border p-8 rounded-xl shadow-sm space-y-4">
-                  <div className="flex justify-between items-center text-zinc-400 text-xs font-semibold uppercase tracking-wider">
+                <div className="bg-white border border-brand-border p-8 rounded-xl shadow-sm space-y-4">
+                  <div className="flex justify-between items-center text-brand-textMuted text-xs font-semibold uppercase tracking-wider">
                     <span>Question {currentQuestion.questionIndex + 1}</span>
                     <span>{currentQuestion.marks} Points</span>
                   </div>
-                  <h2 className="text-2xl font-bold text-zinc-800 leading-tight">
+                  <h2 className="text-2xl font-bold text-brand-textMain leading-tight">
                     {currentQuestion.question}
                   </h2>
                 </div>
@@ -465,17 +465,17 @@ export default function LiveQuiz() {
                         disabled={!canSelect}
                         className={`w-full text-left p-5 rounded-xl border transition-all relative flex items-center space-x-4 ${
                           isSelected
-                            ? 'bg-microsoft-lightBlue border-microsoft-blue text-microsoft-darkBlue ring-2 ring-microsoft-blue/20'
+                            ? 'bg-brand-lightBlue border-brand-blue text-brand-dark ring-2 ring-brand-blue/20'
                             : canSelect
-                            ? 'bg-white border-zinc-200 hover:border-microsoft-blue/50 hover:bg-zinc-50/50'
-                            : 'bg-zinc-50 border-zinc-200 text-zinc-400 cursor-not-allowed'
+                            ? 'bg-white border-brand-border hover:border-brand-blue/50 hover:bg-brand-bgLight'
+                            : 'bg-brand-bgLight border-brand-border text-brand-textMuted cursor-not-allowed'
                         }`}
                       >
                         {/* Option tag circle */}
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
                           isSelected
-                            ? 'bg-microsoft-blue text-white'
-                            : 'bg-zinc-100 text-zinc-700'
+                            ? 'bg-brand-blue text-white'
+                            : 'bg-brand-lightBlue text-brand-textMain'
                         }`}>
                           {option.key}
                         </div>
@@ -487,8 +487,8 @@ export default function LiveQuiz() {
 
                 {/* Submission State Info overlay */}
                 {submitted && (
-                  <div className="bg-microsoft-lightBlue border border-microsoft-blue/10 rounded-xl p-4 text-center text-microsoft-darkBlue font-semibold animate-fade-in flex items-center justify-center space-x-2">
-                    <Loader2 className="animate-spin text-microsoft-blue" size={18} />
+                  <div className="bg-brand-lightBlue border border-brand-blue/10 rounded-xl p-4 text-center text-brand-dark font-semibold animate-fade-in flex items-center justify-center space-x-2">
+                    <Loader2 className="animate-spin text-brand-blue" size={18} />
                     <span>Answer submitted! Waiting for other participants or timer to finish.</span>
                   </div>
                 )}

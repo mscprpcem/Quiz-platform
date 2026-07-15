@@ -11,10 +11,17 @@ export default function Navbar() {
 
   const isAdminPath = location.pathname.startsWith('/admin');
 
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const confirmLogout = () => {
+    setShowConfirm(true);
+    setMobileOpen(false);
+  };
+
   const handleLogout = () => {
     logout();
-    navigate('/admin/login');
-    setMobileOpen(false);
+    navigate('/');
+    setShowConfirm(false);
   };
 
   const navTo = (path) => {
@@ -32,8 +39,8 @@ export default function Navbar() {
       onClick={onClick}
       className={`flex items-center space-x-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
         isActive
-          ? 'text-microsoft-blue bg-microsoft-lightBlue shadow-sm'
-          : 'text-zinc-500 hover:text-zinc-800 hover:bg-zinc-100'
+          ? 'text-brand-blue bg-brand-lightBlue shadow-sm'
+          : 'text-brand-textMuted hover:text-brand-textMain hover:bg-brand-lightBlue/60'
       } ${className}`}
     >
       <Icon size={16} strokeWidth={isActive ? 2.5 : 2} />
@@ -42,7 +49,7 @@ export default function Navbar() {
   );
 
   return (
-    <nav className="bg-white/85 backdrop-blur-xl border-b border-zinc-200/60 sticky top-0 z-40 shadow-[0_1px_3px_rgba(0,0,0,0.04)]">
+    <nav className="bg-white/85 backdrop-blur-xl border-b border-brand-border sticky top-0 z-40 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-[60px] items-center">
           {/* Logo Section */}
@@ -50,17 +57,16 @@ export default function Navbar() {
             className="flex items-center space-x-3 cursor-pointer group"
             onClick={() => navTo('/')}
           >
-            {/* Microsoft Logo Icon */}
-            <div className="grid grid-cols-2 gap-[3px] w-[18px] h-[18px] flex-shrink-0 group-hover:scale-110 transition-transform duration-200">
-              <div className="bg-[#f25022] rounded-[1px]"></div>
-              <div className="bg-[#7fba00] rounded-[1px]"></div>
-              <div className="bg-[#00a4ef] rounded-[1px]"></div>
-              <div className="bg-[#ffb900] rounded-[1px]"></div>
-            </div>
-            <span className="font-bold text-base text-zinc-800 tracking-tight flex items-center">
-              Microsoft <span className="font-normal text-zinc-400 ml-1.5 hidden xs:inline">Student Club</span>
-              <span className="font-normal text-zinc-400 ml-1.5 xs:hidden"> MSC</span>
-            </span>
+            {/* MSC-PRPCEM Logo */}
+            <img
+              src="/logo.png"
+              alt="MSC-PRPCEM Logo"
+              className="w-8 h-8 rounded-md object-contain group-hover:scale-110 transition-transform duration-200"
+            />
+          
+              MSC-PRPCEM
+              <span className="font-normal text-brand-textMuted ml-1.5 xs:hidden"> MSC</span>
+
           </div>
 
           {/* Navigation Items (Desktop) */}
@@ -86,14 +92,14 @@ export default function Navbar() {
                   label="Branding"
                 />
 
-                <div className="h-5 w-px bg-zinc-200/80 mx-2"></div>
+                <div className="h-5 w-px bg-brand-border mx-2"></div>
 
-                <div className="text-sm font-medium text-zinc-600 px-2">
+                <div className="text-sm font-medium text-brand-textMuted px-2">
                   Hi, {user.name}
                 </div>
 
                 <button
-                  onClick={handleLogout}
+                  onClick={confirmLogout}
                   className="flex items-center space-x-1.5 px-3 py-2 rounded-lg text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200"
                 >
                   <LogOut size={16} />
@@ -105,7 +111,8 @@ export default function Navbar() {
             {!user && isAdminPath && location.pathname !== '/admin/login' && (
               <button
                 onClick={() => navTo('/admin/login')}
-                className="bg-gradient-to-b from-[#0A84FF] to-[#0068D6] text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm hover:shadow-md active:scale-[0.97]"
+                className="text-white px-4 py-2 rounded-lg text-sm font-semibold transition-all shadow-sm hover:shadow-glow-blue active:scale-[0.97]"
+                style={{ background: 'linear-gradient(to bottom, #2563EB, #1E3A8A)' }}
               >
                 Admin Access
               </button>
@@ -126,11 +133,11 @@ export default function Navbar() {
                   label="Join Live"
                 />
 
-                <div className="h-5 w-px bg-zinc-200/80 mx-2"></div>
+                <div className="h-5 w-px bg-brand-border mx-2"></div>
 
                 <button
                   onClick={() => navTo('/admin/login')}
-                  className="flex items-center space-x-1.5 px-3 py-2 border border-zinc-200/80 hover:border-zinc-300 hover:bg-zinc-50 rounded-lg text-sm font-semibold text-zinc-600 hover:text-zinc-800 transition-all duration-200 cursor-pointer shadow-sm"
+                  className="flex items-center space-x-1.5 px-3 py-2 border border-brand-border hover:border-blue-200 hover:bg-brand-lightBlue/60 rounded-lg text-sm font-semibold text-brand-textMuted hover:text-brand-textMain transition-all duration-200 cursor-pointer shadow-sm"
                 >
                   <User size={15} />
                   <span className="hidden md:inline">Admin Portal</span>
@@ -141,7 +148,7 @@ export default function Navbar() {
 
           {/* Mobile hamburger */}
           <button
-            className="md:hidden p-2 rounded-md text-zinc-600 hover:bg-zinc-100 transition-all"
+            className="md:hidden p-2 rounded-md text-brand-textMuted hover:bg-brand-lightBlue transition-all"
             onClick={() => setMobileOpen((o) => !o)}
             aria-label="Toggle menu"
           >
@@ -152,13 +159,13 @@ export default function Navbar() {
 
       {/* Mobile Drawer */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-zinc-200 bg-white px-4 py-3 space-y-1 shadow-lg animate-fade-in">
+        <div className="md:hidden border-t border-brand-border bg-white px-4 py-3 space-y-1 shadow-lg animate-fade-in">
           {!isAdminPath && (
             <>
               <button
                 onClick={() => navTo('/')}
                 className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all ${
-                  isActive('/') ? 'text-microsoft-blue bg-microsoft-lightBlue' : 'text-zinc-600 hover:bg-zinc-100'
+                  isActive('/') ? 'text-brand-blue bg-brand-lightBlue' : 'text-brand-textMuted hover:bg-brand-lightBlue/60'
                 }`}
               >
                 <Home size={16} />
@@ -168,16 +175,16 @@ export default function Navbar() {
               <button
                 onClick={() => navTo('/join')}
                 className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all ${
-                  isActive('/join') ? 'text-microsoft-blue bg-microsoft-lightBlue' : 'text-zinc-600 hover:bg-zinc-100'
+                  isActive('/join') ? 'text-brand-blue bg-brand-lightBlue' : 'text-brand-textMuted hover:bg-brand-lightBlue/60'
                 }`}
               >
                 <Play size={16} />
                 Join Live
               </button>
-              <div className="border-t border-zinc-100 pt-2 mt-2">
+              <div className="border-t border-brand-border pt-2 mt-2">
                 <button
                   onClick={() => navTo('/admin/login')}
-                  className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold text-zinc-600 hover:bg-zinc-100 transition-all"
+                  className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold text-brand-textMuted hover:bg-brand-lightBlue/60 transition-all"
                 >
                   <User size={15} />
                   Admin Portal
@@ -191,7 +198,7 @@ export default function Navbar() {
               <button
                 onClick={() => navTo('/admin/dashboard')}
                 className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all ${
-                  isActive('/admin/dashboard') ? 'text-microsoft-blue bg-microsoft-lightBlue' : 'text-zinc-600 hover:bg-zinc-100'
+                  isActive('/admin/dashboard') ? 'text-brand-blue bg-brand-lightBlue' : 'text-brand-textMuted hover:bg-brand-lightBlue/60'
                 }`}
               >
                 <Home size={16} />
@@ -200,7 +207,7 @@ export default function Navbar() {
               <button
                 onClick={() => navTo('/admin/quizzes')}
                 className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all ${
-                  isActive('/admin/quizzes') ? 'text-microsoft-blue bg-microsoft-lightBlue' : 'text-zinc-600 hover:bg-zinc-100'
+                  isActive('/admin/quizzes') ? 'text-brand-blue bg-brand-lightBlue' : 'text-brand-textMuted hover:bg-brand-lightBlue/60'
                 }`}
               >
                 <BookOpen size={16} />
@@ -209,16 +216,16 @@ export default function Navbar() {
               <button
                 onClick={() => navTo('/admin/branding')}
                 className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all ${
-                  isActive('/admin/branding') ? 'text-microsoft-blue bg-microsoft-lightBlue' : 'text-zinc-600 hover:bg-zinc-100'
+                  isActive('/admin/branding') ? 'text-brand-blue bg-brand-lightBlue' : 'text-brand-textMuted hover:bg-brand-lightBlue/60'
                 }`}
               >
                 <Palette size={16} />
                 Branding
               </button>
-              <div className="border-t border-zinc-100 pt-2 mt-2">
-                <p className="text-xs text-zinc-400 px-3 mb-1">Signed in as {user.name}</p>
+              <div className="border-t border-brand-border pt-2 mt-2">
+                <p className="text-xs text-brand-textMuted px-3 mb-1">Signed in as {user.name}</p>
                 <button
-                  onClick={handleLogout}
+                  onClick={confirmLogout}
                   className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold text-red-600 hover:bg-red-50 transition-all"
                 >
                   <LogOut size={15} />
@@ -231,11 +238,40 @@ export default function Navbar() {
           {!user && isAdminPath && location.pathname !== '/admin/login' && (
             <button
               onClick={() => navTo('/admin/login')}
-              className="w-full bg-gradient-to-b from-[#0A84FF] to-[#0068D6] text-white px-4 py-2.5 rounded-md text-sm font-semibold transition-all"
+              className="w-full text-white px-4 py-2.5 rounded-md text-sm font-semibold transition-all"
+              style={{ background: 'linear-gradient(to bottom, #2563EB, #1E3A8A)' }}
             >
               Admin Access
             </button>
           )}
+        </div>
+      )}
+      {/* Custom Logout Confirmation Dialog */}
+      {showConfirm && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white border border-brand-border rounded-2xl shadow-soft-lg max-w-sm w-full p-6 animate-scale-up space-y-4">
+            <div className="flex items-center space-x-3 text-red-500 font-bold text-lg">
+              <LogOut size={20} />
+              <span>Confirm Logout</span>
+            </div>
+            <p className="text-sm text-brand-textMuted leading-relaxed">
+              Are you sure you want to log out of the MSC-PRPCEM administration portal?
+            </p>
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => setShowConfirm(false)}
+                className="btn-secondary flex-1 py-2"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogout}
+                className="btn-danger flex-1 py-2"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </nav>

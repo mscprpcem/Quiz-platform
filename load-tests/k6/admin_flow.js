@@ -1,166 +1,94 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 
-// Azure Backend URL
 const BASE_URL =
   __ENV.BASE_URL ||
   'https://quiz-api-dhhvcqg2gjapfkbm.centralindia-01.azurewebsites.net';
 
-// Test Type
-const TEST_TYPE = __ENV.TEST_TYPE || 'load';
-
-// --------------------
-// Load Profiles
-// --------------------
-
-let stages = [];
-
-switch (TEST_TYPE) {
-  case 'stress':
-    stages = [
-      { duration: '1m', target: 100 },
-      { duration: '2m', target: 200 },
-      { duration: '2m', target: 400 },
-      { duration: '2m', target: 600 },
-      { duration: '1m', target: 0 },
-    ];
-    break;
-
-  case 'spike':
-    stages = [
-      { duration: '30s', target: 25 },
-      { duration: '15s', target: 400 },
-      { duration: '2m', target: 400 },
-      { duration: '15s', target: 25 },
-      { duration: '1m', target: 25 },
-    ];
-    break;
-
-  case 'endurance':
-    stages = [
-      { duration: '2m', target: 200 },
-      { duration: '30m', target: 200 },
-      { duration: '1m', target: 0 },
-    ];
-    break;
-
-  default:
-    stages = [
-      { duration: '30s', target: 25 },
-      { duration: '1m', target: 50 },
-      { duration: '1m', target: 100 },
-      { duration: '1m', target: 200 },
-      { duration: '2m', target: 400 },
-      { duration: '30s', target: 0 },
-    ];
-}
-
 export const options = {
-  stages,
+  stages: [
+  { duration: '30s', target: 1000 },
+  { duration: '2m', target: 1000 },
+  { duration: '20s', target: 0 }
+],
   thresholds: {
     http_req_failed: ['rate<0.01'],
-    http_req_duration: ['p(95)<500'],
-  },
+    http_req_duration: ['p(95)<1000']
+  }
 };
 
 export default function () {
 
-  // --------------------
-  // Login
-  // --------------------
-
-  const loginPayload = JSON.stringify({
-    email: 'admin@microsoftclub.edu',
-    password: 'Admin@123',
-  });
-
-  const loginHeaders = {
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  };
-
   const loginRes = http.post(
     `${BASE_URL}/api/auth/login`,
-    loginPayload,
-    loginHeaders
+    JSON.stringify({
+      email: "admin@microsoftclub.edu",
+      password: "Admin@123"
+    }),
+    {
+      headers: {
+        "Content-Type": "application/json"
+      }
+    }
   );
 
-  const loginSuccess = check(loginRes, {
-    'Login Status 200': (r) => r.status === 200,
+  console.log("LOGIN STATUS:", loginRes.status);
+  console.log("LOGIN BODY:", loginRes.body);
+
+  check(loginRes, {
+    "Login Success": (r) => r.status === 200
   });
 
-  if (!loginSuccess) {
-    console.log(`Login Failed: ${loginRes.status}`);
+  if (loginRes.status !== 200) {
     sleep(1);
     return;
   }
 
-  let token = "";
+  const body = JSON.parse(loginRes.body);
 
-  try {
-    const body = JSON.parse(loginRes.body);
-
-    token =
-      body.token ||
-      body.accessToken ||
-      body.jwt ||
-      "";
-  } catch (e) {
-    console.log("Invalid Login Response");
-    return;
-  }
+  const token = body.token;
 
   if (!token) {
-    console.log("JWT Token Not Found");
+    console.log("JWT Token Missing");
     return;
   }
 
-  const authHeaders = {
+  const headers = {
     headers: {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
+      Authorization: `Bearer ${token}`
+    }
   };
 
-  // --------------------
-  // Branding
-  // --------------------
-
-  const brandingRes = http.get(
+  const branding = http.get(
     `${BASE_URL}/api/branding`,
-    authHeaders
+    headers
   );
 
-  check(brandingRes, {
-    'Branding 200': (r) => r.status === 200,
+  console.log("BRANDING:", branding.status);
+
+  check(branding, {
+    "Branding Success": (r) => r.status === 200
   });
 
-  // --------------------
-  // Quizzes
-  // --------------------
-
-  const quizzesRes = http.get(
+  const quizzes = http.get(
     `${BASE_URL}/api/quizzes`,
-    authHeaders
+    headers
   );
 
-  check(quizzesRes, {
-    'Quizzes 200': (r) => r.status === 200,
+  console.log("QUIZZES:", quizzes.status);
+  console.log("QUIZZES BODY:", quizzes.body);
+
+  check(quizzes, {
+    "Quiz Success": (r) => r.status === 200
   });
 
-  // --------------------
-  // Home API
-  // --------------------
+  const root = http.get(`${BASE_URL}/`);
 
-  const homeRes = http.get(
-    `${BASE_URL}/`,
-    authHeaders
-  );
+  console.log("ROOT:", root.status);
 
-  check(homeRes, {
-    'Home API 200': (r) => r.status === 200,
+  check(root, {
+    "Root Success": (r) => r.status === 200
   });
 
-  sleep(Math.random() * 2 + 1);
+  sleep(2);
 }

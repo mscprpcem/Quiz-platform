@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useSocket } from '../context/SocketContext';
@@ -162,14 +162,14 @@ export default function AdminDashboard() {
     const W = 400;
     const H = 650;
 
-    const getValidColor = (hex, fallback = '#0078d4') => {
+    const getValidColor = (hex, fallback = '#2563EB') => {
       if (!hex || typeof hex !== 'string') return fallback;
       const cleaned = hex.trim();
       const isValid = /^#[0-9A-F]{6}$/i.test(cleaned) || /^#[0-9A-F]{3}$/i.test(cleaned);
       return isValid ? cleaned : fallback;
     };
 
-    const colorToRgba = (hex, alpha, fallback = '#0078d4') => {
+    const colorToRgba = (hex, alpha, fallback = '#2563EB') => {
       const color = getValidColor(hex, fallback);
       let c = color.substring(1);
       if (c.length === 3) {
@@ -666,21 +666,17 @@ export default function AdminDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in space-y-6">
       
       {/* Title Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-zinc-200/80 p-6 rounded-2xl shadow-lg shadow-zinc-150/30 gap-4 relative overflow-hidden">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-brand-border/80 p-6 rounded-2xl shadow-lg shadow-zinc-150/30 gap-4 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#f25022] via-[#7fba00] via-[#00a4ef] to-[#ffb900]"></div>
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-zinc-900 tracking-tight flex items-center gap-2">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-brand-textMain tracking-tight flex items-center gap-2">
             <span>Quiz Control Center</span>
-            <span className="flex h-2.5 w-2.5 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-microsoft-blue opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-microsoft-blue"></span>
-            </span>
           </h1>
-          <p className="text-xs sm:text-sm text-zinc-500 mt-1">Manage live quiz sessions, monitor participants, and release questions.</p>
+          <p className="text-xs sm:text-sm text-brand-textMuted mt-1">Manage live quiz sessions, monitor participants, and release questions.</p>
         </div>
         <button
           onClick={() => navigate('/admin/quizzes')}
-          className="flex items-center space-x-1.5 bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue hover:from-microsoft-darkBlue hover:to-microsoft-darkBlue text-white px-5 py-3 rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer flex-shrink-0"
+          className="flex items-center space-x-1.5 bg-gradient-to-r from-brand-blue to-brand-dark hover:from-brand-dark hover:to-brand-dark text-white px-5 py-3 rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer flex-shrink-0"
         >
           <Plus size={16} />
           <span>Manage Quizzes</span>
@@ -691,15 +687,15 @@ export default function AdminDashboard() {
       {activeQuiz ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Controls Section */}
-          <div className="lg:col-span-2 bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-md space-y-6">
+          <div className="lg:col-span-2 bg-white border border-brand-border/80 rounded-2xl p-6 shadow-md space-y-6">
             <div className="flex justify-between items-start border-b border-zinc-150 pb-4">
               <div>
-                <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-microsoft-lightBlue text-microsoft-darkBlue border border-microsoft-blue/10">
-                  <span className="w-1.5 h-1.5 rounded-full bg-microsoft-blue animate-pulse"></span>
+                <span className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-brand-lightBlue text-brand-dark border border-brand-blue/10">
+                  <span className="w-1.5 h-1.5 rounded-full bg-brand-blue animate-pulse"></span>
                   <span>Live: {activeQuiz.status.replace('_', ' ')}</span>
                 </span>
-                <h2 className="text-xl font-black text-zinc-800 tracking-tight mt-2">{activeQuiz.title}</h2>
-                <p className="text-xs text-zinc-500 mt-0.5">Join Code: <span className="font-extrabold text-microsoft-blue select-all bg-microsoft-lightBlue px-2 py-0.5 rounded ml-1">{activeQuiz.join_code}</span></p>
+                <h2 className="text-xl font-black text-brand-textMain tracking-tight mt-2">{activeQuiz.title}</h2>
+                <p className="text-xs text-brand-textMuted mt-0.5">Join Code: <span className="font-extrabold text-brand-blue select-all bg-brand-lightBlue px-2 py-0.5 rounded ml-1">{activeQuiz.join_code}</span></p>
               </div>
 
               {/* Abort Session */}
@@ -707,44 +703,44 @@ export default function AdminDashboard() {
                 onClick={endQuiz}
                 className="bg-red-50 hover:bg-red-100 border border-red-150 text-red-600 hover:text-red-700 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-sm cursor-pointer"
               >
-                Abort Session
+                End Quiz
               </button>
             </div>
 
             {/* Dashboard status indicators */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-zinc-50/50 p-4 rounded-xl border border-zinc-150 text-center shadow-sm">
-                <Users className="text-microsoft-blue mx-auto mb-1.5" size={20} />
-                <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest block">Joined Players</span>
-                <p className="text-2xl font-black text-zinc-800 mt-1">{participants.length}</p>
+              <div className="bg-brand-bgLight/50 p-4 rounded-xl border border-zinc-150 text-center shadow-sm">
+                <Users className="text-brand-blue mx-auto mb-1.5" size={20} />
+                <span className="text-[9px] font-bold text-brand-textMuted uppercase tracking-widest block">Joined Players</span>
+                <p className="text-2xl font-black text-brand-textMain mt-1">{participants.length}</p>
               </div>
 
-              <div className="bg-zinc-50/50 p-4 rounded-xl border border-zinc-150 text-center shadow-sm">
-                <BookOpen className="text-zinc-500 mx-auto mb-1.5" size={20} />
-                <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest block">Question Progress</span>
-                <p className="text-2xl font-black text-zinc-800 mt-1">
+              <div className="bg-brand-bgLight/50 p-4 rounded-xl border border-zinc-150 text-center shadow-sm">
+                <BookOpen className="text-brand-textMuted mx-auto mb-1.5" size={20} />
+                <span className="text-[9px] font-bold text-brand-textMuted uppercase tracking-widest block">Question Progress</span>
+                <p className="text-2xl font-black text-brand-textMain mt-1">
                   {currentQuestionIndex >= 0 ? `${currentQuestionIndex + 1}/${activeQuiz.questions.length}` : `0/${activeQuiz.questions.length}`}
                 </p>
               </div>
 
-              <div className="bg-zinc-50/50 p-4 rounded-xl border border-zinc-150 text-center shadow-sm">
-                <Award className="text-microsoft-success mx-auto mb-1.5" size={20} />
-                <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest block">Gameplay Status</span>
-                <p className="text-sm font-black text-microsoft-success mt-2 uppercase tracking-wide bg-emerald-50 border border-emerald-100 py-1.5 rounded-lg">
+              <div className="bg-brand-bgLight/50 p-4 rounded-xl border border-zinc-150 text-center shadow-sm">
+                <Award className="text-brand-success mx-auto mb-1.5" size={20} />
+                <span className="text-[9px] font-bold text-brand-textMuted uppercase tracking-widest block">Gameplay Status</span>
+                <p className="text-sm font-black text-brand-success mt-2 uppercase tracking-wide bg-emerald-50 border border-emerald-100 py-1.5 rounded-lg">
                   {currentQuestionStatus.replace('_', ' ')}
                 </p>
               </div>
             </div>
 
             {/* Session Actions Panel */}
-            <div className="bg-zinc-50/50 border border-zinc-150 rounded-2xl p-5 space-y-4">
-              <h3 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">Quiz Control Console</h3>
+            <div className="bg-brand-bgLight/50 border border-zinc-150 rounded-2xl p-5 space-y-4">
+              <h3 className="text-xs font-bold text-brand-textMuted uppercase tracking-wider">Quiz Control Console</h3>
               
               <div className="flex flex-wrap gap-3">
                 {activeQuiz.status === 'draft' && (
                   <button
                     onClick={startLobby}
-                    className="flex items-center space-x-2 bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue text-white px-5 py-3 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
+                    className="flex items-center space-x-2 bg-gradient-to-r from-brand-blue to-brand-dark text-white px-5 py-3 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
                   >
                     <Play size={16} fill="currentColor" />
                     <span>Start Session Lobby</span>
@@ -754,7 +750,7 @@ export default function AdminDashboard() {
                 {activeQuiz.status === 'waiting_lobby' && (
                   <button
                     onClick={startQuiz}
-                    className="flex items-center space-x-2 bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue text-white px-5 py-3 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
+                    className="flex items-center space-x-2 bg-gradient-to-r from-brand-blue to-brand-dark text-white px-5 py-3 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
                   >
                     <Play size={16} fill="currentColor" />
                     <span>Start Quiz Gameplay</span>
@@ -813,7 +809,7 @@ export default function AdminDashboard() {
                     {/* Skip question */}
                     <button
                       onClick={skipQuestion}
-                      className="flex items-center space-x-2 bg-white hover:bg-zinc-100 text-zinc-700 border border-zinc-200 px-5 py-3 rounded-xl text-sm font-bold transition-all active:scale-95 shadow-sm cursor-pointer"
+                      className="flex items-center space-x-2 bg-white hover:bg-zinc-100 text-zinc-700 border border-brand-border px-5 py-3 rounded-xl text-sm font-bold transition-all active:scale-95 shadow-sm cursor-pointer"
                     >
                       <SkipForward size={16} />
                       <span>Skip Question</span>
@@ -824,14 +820,14 @@ export default function AdminDashboard() {
 
               {/* Submissions feedback progress */}
               {currentQuestionStatus === 'released' && (
-                <div className="border-t border-zinc-200/80 pt-4 space-y-2 animate-fade-in">
-                  <div className="flex justify-between text-xs font-semibold text-zinc-500">
+                <div className="border-t border-brand-border/80 pt-4 space-y-2 animate-fade-in">
+                  <div className="flex justify-between text-xs font-semibold text-brand-textMuted">
                     <span>Active Timer: <span className="font-extrabold text-red-655 animate-pulse">{timerCount}s</span></span>
                     <span>Submissions: <span className="font-extrabold text-zinc-850">{submissionStats.submittedCount} / {submissionStats.totalCount}</span></span>
                   </div>
                   <div className="w-full bg-zinc-200 h-2.5 rounded-full overflow-hidden shadow-inner">
                     <div
-                      className="bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue h-full transition-all duration-300 shadow-[0_0_8px_rgba(0,120,212,0.4)]"
+                      className="bg-gradient-to-r from-brand-blue to-brand-dark h-full transition-all duration-300 shadow-[0_0_8px_rgba(0,120,212,0.4)]"
                       style={{
                         width: `${submissionStats.totalCount > 0 ? (submissionStats.submittedCount / submissionStats.totalCount) * 100 : 0}%`
                       }}
@@ -845,31 +841,31 @@ export default function AdminDashboard() {
           {/* Right Column (Active Question details & Session QR Code) */}
           <div className="lg:col-span-1 space-y-6">
             {/* Active Question Spec Sheet */}
-            <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-md flex flex-col justify-between">
-              <h3 className="text-md font-extrabold text-zinc-800 border-b border-zinc-100 pb-3 tracking-tight">Active Question Details</h3>
+            <div className="bg-white border border-brand-border/80 rounded-2xl p-6 shadow-md flex flex-col justify-between">
+              <h3 className="text-md font-extrabold text-brand-textMain border-b border-zinc-100 pb-3 tracking-tight">Active Question Details</h3>
               
               {currentQuestionIndex >= 0 && activeQuiz.questions[currentQuestionIndex] ? (
                 <div className="space-y-4 py-4 flex-grow animate-fade-in text-sm">
                   <div>
-                    <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest block">Question Text</span>
-                    <p className="font-bold text-zinc-800 leading-snug mt-1.5">
+                    <span className="text-[9px] font-bold text-brand-textMuted uppercase tracking-widest block">Question Text</span>
+                    <p className="font-bold text-brand-textMain leading-snug mt-1.5">
                       {activeQuiz.questions[currentQuestionIndex].question}
                     </p>
                   </div>
                   <div className="grid grid-cols-2 gap-3 text-xs">
-                    <div className={`p-2.5 border rounded-xl ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'a' ? 'border-emerald-505 bg-emerald-50/50' : 'border-zinc-150 bg-zinc-50/50'}`}>
+                    <div className={`p-2.5 border rounded-xl ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'a' ? 'border-emerald-505 bg-emerald-50/50' : 'border-zinc-150 bg-brand-bgLight/50'}`}>
                       <span className={`font-bold uppercase tracking-wider text-[9px] block ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'a' ? 'text-emerald-700' : 'text-zinc-450'}`}>Option A</span>
                       <p className={`font-semibold mt-0.5 truncate ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'a' ? 'text-emerald-800' : 'text-zinc-650'}`}>{activeQuiz.questions[currentQuestionIndex].option_a}</p>
                     </div>
-                    <div className={`p-2.5 border rounded-xl ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'b' ? 'border-emerald-505 bg-emerald-50/50' : 'border-zinc-150 bg-zinc-50/50'}`}>
+                    <div className={`p-2.5 border rounded-xl ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'b' ? 'border-emerald-505 bg-emerald-50/50' : 'border-zinc-150 bg-brand-bgLight/50'}`}>
                       <span className={`font-bold uppercase tracking-wider text-[9px] block ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'b' ? 'text-emerald-700' : 'text-zinc-450'}`}>Option B</span>
                       <p className={`font-semibold mt-0.5 truncate ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'b' ? 'text-emerald-800' : 'text-zinc-650'}`}>{activeQuiz.questions[currentQuestionIndex].option_b}</p>
                     </div>
-                    <div className={`p-2.5 border rounded-xl ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'c' ? 'border-emerald-505 bg-emerald-50/50' : 'border-zinc-150 bg-zinc-50/50'}`}>
+                    <div className={`p-2.5 border rounded-xl ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'c' ? 'border-emerald-505 bg-emerald-50/50' : 'border-zinc-150 bg-brand-bgLight/50'}`}>
                       <span className={`font-bold uppercase tracking-wider text-[9px] block ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'c' ? 'text-emerald-700' : 'text-zinc-450'}`}>Option C</span>
                       <p className={`font-semibold mt-0.5 truncate ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'c' ? 'text-emerald-800' : 'text-zinc-650'}`}>{activeQuiz.questions[currentQuestionIndex].option_c}</p>
                     </div>
-                    <div className={`p-2.5 border rounded-xl ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'd' ? 'border-emerald-505 bg-emerald-50/50' : 'border-zinc-150 bg-zinc-50/50'}`}>
+                    <div className={`p-2.5 border rounded-xl ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'd' ? 'border-emerald-505 bg-emerald-50/50' : 'border-zinc-150 bg-brand-bgLight/50'}`}>
                       <span className={`font-bold uppercase tracking-wider text-[9px] block ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'd' ? 'text-emerald-700' : 'text-zinc-450'}`}>Option D</span>
                       <p className={`font-semibold mt-0.5 truncate ${activeQuiz.questions[currentQuestionIndex].correct_answer === 'd' ? 'text-emerald-800' : 'text-zinc-650'}`}>{activeQuiz.questions[currentQuestionIndex].option_d}</p>
                     </div>
@@ -880,24 +876,24 @@ export default function AdminDashboard() {
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-16 text-zinc-400 text-sm flex-grow flex items-center justify-center">
+                <div className="text-center py-16 text-brand-textMuted text-sm flex-grow flex items-center justify-center">
                   Release first question to show details.
                 </div>
               )}
 
               <button
                 onClick={() => navigate(`/admin/quizzes/${activeQuiz.id}`)}
-                className="w-full text-center border border-zinc-200 hover:border-zinc-350 hover:bg-zinc-50 text-zinc-600 font-bold py-2.5 rounded-xl text-xs transition-all mt-4 cursor-pointer"
+                className="w-full text-center border border-brand-border hover:border-zinc-350 hover:bg-brand-bgLight text-zinc-600 font-bold py-2.5 rounded-xl text-xs transition-all mt-4 cursor-pointer"
               >
                 Configure Question Sheet
               </button>
             </div>
 
             {/* Session Share Link */}
-            <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-md space-y-4 text-center">
-              <h3 className="text-md font-extrabold text-zinc-800 border-b border-zinc-100 pb-3 tracking-tight">Session Share Link</h3>
+            <div className="bg-white border border-brand-border/80 rounded-2xl p-6 shadow-md space-y-4 text-center">
+              <h3 className="text-md font-extrabold text-brand-textMain border-b border-zinc-100 pb-3 tracking-tight">Session Share Link</h3>
               <div className="flex flex-col items-center space-y-3.5">
-                <div className="bg-zinc-50 p-4 rounded-xl border border-zinc-100 shadow-inner">
+                <div className="bg-brand-bgLight p-4 rounded-xl border border-zinc-100 shadow-inner">
                   <QRCodeSVG
                     id="sidebar-qr-svg"
                     value={`${window.location.protocol}//${window.location.host}/join/${activeQuiz.join_code}`}
@@ -908,7 +904,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="w-full">
                   <p className="text-[9px] font-bold text-zinc-450 uppercase tracking-widest">Join URL</p>
-                  <p className="text-xs text-zinc-550 font-bold select-all truncate max-w-[200px] mx-auto bg-zinc-50 border border-zinc-155 rounded-xl px-2.5 py-1.5 mt-1 leading-snug">
+                  <p className="text-xs text-zinc-550 font-bold select-all truncate max-w-[200px] mx-auto bg-brand-bgLight border border-zinc-155 rounded-xl px-2.5 py-1.5 mt-1 leading-snug">
                     {window.location.origin}/join/{activeQuiz.join_code}
                   </p>
                 </div>
@@ -916,15 +912,15 @@ export default function AdminDashboard() {
                   <button
                     onClick={handleCopyLink}
                     title="Copy Link"
-                    className="flex flex-col items-center justify-center border border-zinc-200 hover:border-microsoft-blue/40 hover:bg-zinc-50 text-zinc-600 hover:text-microsoft-blue p-2.5 rounded-xl text-[10px] font-bold transition-all shadow-sm cursor-pointer"
+                    className="flex flex-col items-center justify-center border border-brand-border hover:border-brand-blue/40 hover:bg-brand-bgLight text-zinc-600 hover:text-brand-blue p-2.5 rounded-xl text-[10px] font-bold transition-all shadow-sm cursor-pointer"
                   >
-                    {copyFeedback ? <Check size={14} className="text-microsoft-success" /> : <Copy size={14} />}
+                    {copyFeedback ? <Check size={14} className="text-brand-success" /> : <Copy size={14} />}
                     <span className="mt-1">{copyFeedback ? 'Copied' : 'Copy'}</span>
                   </button>
                   <button
                     onClick={() => handleDownloadQR('sidebar-qr-svg')}
                     title="Download PNG"
-                    className="flex flex-col items-center justify-center border border-zinc-200 hover:border-microsoft-blue/40 hover:bg-zinc-50 text-zinc-600 hover:text-microsoft-blue p-2.5 rounded-xl text-[10px] font-bold transition-all shadow-sm cursor-pointer"
+                    className="flex flex-col items-center justify-center border border-brand-border hover:border-brand-blue/40 hover:bg-brand-bgLight text-zinc-600 hover:text-brand-blue p-2.5 rounded-xl text-[10px] font-bold transition-all shadow-sm cursor-pointer"
                   >
                     <Download size={14} />
                     <span className="mt-1">Download</span>
@@ -932,7 +928,7 @@ export default function AdminDashboard() {
                   <button
                     onClick={handleShareSession}
                     title="Share Link"
-                    className="flex flex-col items-center justify-center border border-zinc-200 hover:border-microsoft-blue/40 hover:bg-zinc-50 text-zinc-600 hover:text-microsoft-blue p-2.5 rounded-xl text-[10px] font-bold transition-all shadow-sm cursor-pointer"
+                    className="flex flex-col items-center justify-center border border-brand-border hover:border-brand-blue/40 hover:bg-brand-bgLight text-zinc-600 hover:text-brand-blue p-2.5 rounded-xl text-[10px] font-bold transition-all shadow-sm cursor-pointer"
                   >
                     <Share2 size={14} />
                     <span className="mt-1">Share</span>
@@ -941,11 +937,11 @@ export default function AdminDashboard() {
                 <div className="w-full h-px bg-zinc-100"></div>
                 <div className="w-full">
                   <p className="text-[9px] font-bold text-zinc-450 uppercase tracking-widest">Join Code</p>
-                  <h2 className="text-3xl font-black text-microsoft-blue tracking-widest select-all mt-0.5">{activeQuiz.join_code}</h2>
+                  <h2 className="text-3xl font-black text-brand-blue tracking-widest select-all mt-0.5">{activeQuiz.join_code}</h2>
                 </div>
                 <button
                   onClick={() => setShowQRModal(true)}
-                  className="w-full text-center border border-microsoft-blue/20 bg-microsoft-blue/5 hover:bg-microsoft-blue hover:text-white text-microsoft-blue font-extrabold py-3 rounded-xl text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm active:scale-95"
+                  className="w-full text-center border border-brand-blue/20 bg-brand-blue/5 hover:bg-brand-blue hover:text-white text-brand-blue font-extrabold py-3 rounded-xl text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-sm active:scale-95"
                 >
                   <Eye size={13} />
                   <span>Project Fullscreen QR</span>
@@ -955,17 +951,17 @@ export default function AdminDashboard() {
           </div>
 
           {/* Participant Monitoring Table */}
-          <div className="lg:col-span-3 bg-white border border-zinc-200/80 rounded-2xl p-6 shadow-md">
+          <div className="lg:col-span-3 bg-white border border-brand-border/80 rounded-2xl p-6 shadow-md">
             <div className="flex justify-between items-center border-b border-zinc-100 pb-4 mb-4">
-              <h3 className="text-lg font-black text-zinc-800 tracking-tight">Connected Participants Telemetry</h3>
-              <span className="bg-microsoft-blue/5 border border-microsoft-blue/10 text-microsoft-blue text-xs font-bold px-3 py-1 rounded-full">
+              <h3 className="text-lg font-black text-brand-textMain tracking-tight">Connected Participants Telemetry</h3>
+              <span className="bg-brand-blue/5 border border-brand-blue/10 text-brand-blue text-xs font-bold px-3 py-1 rounded-full">
                 {participants.length} Active Players
               </span>
             </div>
 
             <div className="overflow-x-auto rounded-xl border border-zinc-150">
               <table className="min-w-full divide-y divide-zinc-250 text-sm text-left">
-                <thead className="bg-zinc-50 text-zinc-500 uppercase text-[9px] font-bold tracking-wider">
+                <thead className="bg-brand-bgLight text-brand-textMuted uppercase text-[9px] font-bold tracking-wider">
                   <tr>
                     <th className="px-6 py-3.5">Rank</th>
                     <th className="px-6 py-3.5">Name</th>
@@ -978,25 +974,25 @@ export default function AdminDashboard() {
                 </thead>
                 <tbody className="divide-y divide-zinc-150 text-zinc-700 bg-white">
                   {participants.map((p, idx) => (
-                    <tr key={p.id} className="hover:bg-zinc-50/30 transition-colors">
-                      <td className="px-6 py-4 font-bold text-zinc-500">#{p.score ? idx + 1 : 'N/A'}</td>
+                    <tr key={p.id} className="hover:bg-brand-bgLight/30 transition-colors">
+                      <td className="px-6 py-4 font-bold text-brand-textMuted">#{p.score ? idx + 1 : 'N/A'}</td>
                       <td className="px-6 py-4">
                         <div className="flex items-center space-x-2.5">
-                          <div className="w-8 h-8 rounded-full bg-microsoft-blue/5 text-microsoft-blue border border-microsoft-blue/10 font-bold flex items-center justify-center text-xs flex-shrink-0">
+                          <div className="w-8 h-8 rounded-full bg-brand-blue/5 text-brand-blue border border-brand-blue/10 font-bold flex items-center justify-center text-xs flex-shrink-0">
                             {p.name.charAt(0).toUpperCase()}
                           </div>
-                          <span className="font-semibold text-zinc-800">{p.name}</span>
+                          <span className="font-semibold text-brand-textMain">{p.name}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-zinc-500">{p.college}</td>
-                      <td className="px-6 py-4 font-extrabold text-microsoft-blue">{p.score || 0} pts</td>
+                      <td className="px-6 py-4 text-brand-textMuted">{p.college}</td>
+                      <td className="px-6 py-4 font-extrabold text-brand-blue">{p.score || 0} pts</td>
                       <td className="px-6 py-4">
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold tracking-wide uppercase ${
                           p.tab_switch_count >= 3
                             ? 'bg-red-50 text-red-655 border border-red-100 animate-pulse'
                             : p.tab_switch_count >= 1
                             ? 'bg-amber-50 text-amber-600 border border-amber-100'
-                            : 'bg-zinc-50 text-zinc-400 border border-zinc-100'
+                            : 'bg-brand-bgLight text-brand-textMuted border border-zinc-100'
                         }`}>
                           {p.tab_switch_count || 0} switches
                         </span>
@@ -1024,7 +1020,7 @@ export default function AdminDashboard() {
 
                   {participants.length === 0 && (
                     <tr>
-                      <td colSpan={7} className="px-6 py-12 text-center text-zinc-400">
+                      <td colSpan={7} className="px-6 py-12 text-center text-brand-textMuted">
                         No participants joined yet. Share the code and wait.
                       </td>
                     </tr>
@@ -1036,10 +1032,10 @@ export default function AdminDashboard() {
         </div>
       ) : (
         /* Quiz Selector / Inactive Session Center */
-        <div className="bg-white border border-zinc-200/80 rounded-2xl p-6 md:p-8 shadow-lg shadow-zinc-150/30 space-y-6">
+        <div className="bg-white border border-brand-border/80 rounded-2xl p-6 md:p-8 shadow-lg shadow-zinc-150/30 space-y-6">
           <div className="border-b border-zinc-100 pb-4">
-            <h2 className="text-xl sm:text-2xl font-black text-zinc-800 tracking-tight">Launch Quiz Session</h2>
-            <p className="text-xs sm:text-sm text-zinc-500 mt-1">Select an existing quiz below to open the session waiting lobby for participants.</p>
+            <h2 className="text-xl sm:text-2xl font-black text-brand-textMain tracking-tight">Launch Quiz Session</h2>
+            <p className="text-xs sm:text-sm text-brand-textMuted mt-1">Select an existing quiz below to open the session waiting lobby for participants.</p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
@@ -1048,19 +1044,19 @@ export default function AdminDashboard() {
               return (
                 <div
                   key={quiz.id}
-                  className="bg-white border border-zinc-200 hover:border-microsoft-blue/30 rounded-2xl p-5 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between relative overflow-hidden group"
+                  className="bg-white border border-brand-border hover:border-brand-blue/30 rounded-2xl p-5 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between relative overflow-hidden group"
                 >
                   {/* Hover glow effect background */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-microsoft-lightBlue/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
+                  <div className="absolute inset-0 bg-gradient-to-br from-brand-lightBlue/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"></div>
                   
                   <div className="space-y-3.5 relative z-10">
                     <div className="flex justify-between items-start">
-                      <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest bg-zinc-100 px-2 py-0.5 rounded-full truncate max-w-[120px]">{quiz.event_name}</span>
-                      <div className="flex space-x-1 bg-zinc-50 border border-zinc-100 p-0.5 rounded-lg shadow-sm">
+                      <span className="text-[9px] font-bold text-brand-textMuted uppercase tracking-widest bg-zinc-100 px-2 py-0.5 rounded-full truncate max-w-[120px]">{quiz.event_name}</span>
+                      <div className="flex space-x-1 bg-brand-bgLight border border-zinc-100 p-0.5 rounded-lg shadow-sm">
                         {/* Edit */}
                         <button
                           onClick={() => handleOpenCreate(quiz)}
-                          className="p-1.5 hover:bg-white text-zinc-400 hover:text-zinc-700 rounded-md transition-all cursor-pointer"
+                          className="p-1.5 hover:bg-white text-brand-textMuted hover:text-zinc-700 rounded-md transition-all cursor-pointer"
                           title="Edit Metadata"
                         >
                           <Edit2 size={12} />
@@ -1069,7 +1065,7 @@ export default function AdminDashboard() {
                         {/* Share QR */}
                         <button
                           onClick={() => handleOpenCatalogQR(quiz)}
-                          className="p-1.5 hover:bg-white text-zinc-400 hover:text-microsoft-blue rounded-md transition-all cursor-pointer"
+                          className="p-1.5 hover:bg-white text-brand-textMuted hover:text-brand-blue rounded-md transition-all cursor-pointer"
                           title="Share & QR Code Card"
                         >
                           <QrCode size={12} />
@@ -1078,7 +1074,7 @@ export default function AdminDashboard() {
                         {/* Delete */}
                         <button
                           onClick={() => handleDeleteQuiz(quiz.id)}
-                          className="p-1.5 hover:bg-white text-zinc-400 hover:text-red-650 rounded-md transition-all cursor-pointer"
+                          className="p-1.5 hover:bg-white text-brand-textMuted hover:text-red-650 rounded-md transition-all cursor-pointer"
                           title="Delete Quiz"
                         >
                           <Trash2 size={12} />
@@ -1086,20 +1082,20 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <div>
-                      <h3 className="text-lg font-bold text-zinc-800 leading-snug group-hover:text-microsoft-blue transition-colors duration-200 truncate" title={quiz.title}>{quiz.title}</h3>
+                      <h3 className="text-lg font-bold text-brand-textMain leading-snug group-hover:text-brand-blue transition-colors duration-200 truncate" title={quiz.title}>{quiz.title}</h3>
                       <p className="text-xs text-zinc-550 line-clamp-2 mt-1 leading-relaxed">{quiz.description || 'No description provided.'}</p>
                     </div>
                   </div>
 
                   {/* Counts section pill */}
-                  <div className="bg-zinc-50/50 border border-zinc-100/80 rounded-xl my-4 py-2.5 grid grid-cols-2 text-center text-xs relative z-10">
+                  <div className="bg-brand-bgLight/50 border border-zinc-100/80 rounded-xl my-4 py-2.5 grid grid-cols-2 text-center text-xs relative z-10">
                     <div className="border-r border-zinc-150">
                       <span className="font-extrabold text-zinc-755 text-sm block">{quiz.questionCount || 0}</span>
-                      <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider">Questions</span>
+                      <span className="text-[9px] text-brand-textMuted font-bold uppercase tracking-wider">Questions</span>
                     </div>
                     <div>
                       <span className="font-extrabold text-zinc-755 text-sm block">{quiz.participantCount || 0}</span>
-                      <span className="text-[9px] text-zinc-400 font-bold uppercase tracking-wider">Plays</span>
+                      <span className="text-[9px] text-brand-textMuted font-bold uppercase tracking-wider">Plays</span>
                     </div>
                   </div>
 
@@ -1108,7 +1104,7 @@ export default function AdminDashboard() {
                     {/* Questions Sheet */}
                     <button
                       onClick={() => navigate(`/admin/quizzes/${quiz.id}`)}
-                      className="flex items-center space-x-1 px-3 py-2 bg-zinc-50 hover:bg-zinc-100 border border-zinc-200 text-zinc-650 hover:text-zinc-800 rounded-xl transition-all text-xs font-semibold select-none cursor-pointer"
+                      className="flex items-center space-x-1 px-3 py-2 bg-brand-bgLight hover:bg-zinc-100 border border-brand-border text-zinc-650 hover:text-brand-textMain rounded-xl transition-all text-xs font-semibold select-none cursor-pointer"
                       title="Manage Questions"
                     >
                       <ListCollapse size={13} />
@@ -1118,7 +1114,7 @@ export default function AdminDashboard() {
                     {/* Launch Lobby */}
                     <button
                       onClick={() => handleLoadActiveQuiz(quiz.id)}
-                      className="flex-grow flex items-center justify-center space-x-1.5 px-4 py-2 bg-gradient-to-r from-microsoft-blue to-microsoft-darkBlue hover:from-microsoft-darkBlue hover:to-microsoft-darkBlue text-white text-xs font-extrabold rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
+                      className="flex-grow flex items-center justify-center space-x-1.5 px-4 py-2 bg-gradient-to-r from-brand-blue to-brand-dark hover:from-brand-dark hover:to-brand-dark text-white text-xs font-extrabold rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
                       title="Launch Lobby"
                     >
                       <Play size={12} fill="currentColor" />
@@ -1130,7 +1126,7 @@ export default function AdminDashboard() {
             })}
 
             {quizzes.length === 0 && !loading && (
-              <div className="col-span-full py-16 text-center text-zinc-400 text-sm bg-zinc-50 border border-dashed border-zinc-200 rounded-2xl">
+              <div className="col-span-full py-16 text-center text-brand-textMuted text-sm bg-brand-bgLight border border-dashed border-brand-border rounded-2xl">
                 No quizzes created yet. Navigate to "Manage Quizzes" to create one.
               </div>
             )}
@@ -1150,12 +1146,12 @@ export default function AdminDashboard() {
             className="bg-white rounded-2xl shadow-2xl max-w-[280px] w-full relative cursor-default overflow-hidden animate-fade-in"
           >
             {/* Top accent bar */}
-            <div className="h-1 w-full" style={{ background: branding?.primary_color || '#0078d4' }} />
+            <div className="h-1 w-full" style={{ background: branding?.primary_color || '#2563EB' }} />
 
-            {/* Close button — fixed top-right inside the card */}
+            {/* Close button â€” fixed top-right inside the card */}
             <button
               onClick={() => setShowQRModal(false)}
-              className="absolute top-2.5 right-2.5 w-6 h-6 flex items-center justify-center rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 hover:text-zinc-800 transition-all cursor-pointer z-20"
+              className="absolute top-2.5 right-2.5 w-6 h-6 flex items-center justify-center rounded-full bg-zinc-100 hover:bg-zinc-200 text-brand-textMuted hover:text-brand-textMain transition-all cursor-pointer z-20"
             >
               <X size={12} strokeWidth={3} />
             </button>
@@ -1163,10 +1159,10 @@ export default function AdminDashboard() {
             {/* Content */}
             <div className="px-4 pt-4 pb-3 text-center space-y-3">
               {/* Event name */}
-              <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest truncate pr-6">{activeQuiz.event_name}</p>
+              <p className="text-[9px] font-bold text-brand-textMuted uppercase tracking-widest truncate pr-6">{activeQuiz.event_name}</p>
 
               {/* QR Code */}
-              <div className="inline-block bg-zinc-50 p-2.5 rounded-lg border border-zinc-100">
+              <div className="inline-block bg-brand-bgLight p-2.5 rounded-lg border border-zinc-100">
                 <QRCodeSVG
                   id="modal-qr-svg"
                   value={`${window.location.protocol}//${window.location.host}/join/${activeQuiz.join_code}`}
@@ -1185,9 +1181,9 @@ export default function AdminDashboard() {
               </div>
 
               {/* Join Code */}
-              <div className="bg-zinc-50 border border-zinc-100 rounded-lg py-2 px-3">
-                <span className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest">Code</span>
-                <span className="block text-2xl font-black tracking-[0.25em] mt-0.5 select-all" style={{ color: branding?.primary_color || '#0078d4' }}>{activeQuiz.join_code}</span>
+              <div className="bg-brand-bgLight border border-zinc-100 rounded-lg py-2 px-3">
+                <span className="block text-[8px] font-bold text-brand-textMuted uppercase tracking-widest">Code</span>
+                <span className="block text-2xl font-black tracking-[0.25em] mt-0.5 select-all" style={{ color: branding?.primary_color || '#2563EB' }}>{activeQuiz.join_code}</span>
               </div>
             </div>
 
@@ -1195,14 +1191,14 @@ export default function AdminDashboard() {
             <div className="border-t border-zinc-100 px-3 py-2.5 grid grid-cols-3 gap-1.5">
               <button
                 onClick={handleCopyLink}
-                className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-zinc-500 hover:text-zinc-700 transition-all text-[9px] font-bold cursor-pointer"
+                className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg border border-brand-border hover:bg-brand-bgLight text-brand-textMuted hover:text-zinc-700 transition-all text-[9px] font-bold cursor-pointer"
               >
                 {copyFeedback ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
                 {copyFeedback ? 'Copied' : 'Copy'}
               </button>
               <button
                 onClick={() => handleDownloadQR('modal-qr-svg')}
-                className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-zinc-500 hover:text-zinc-700 transition-all text-[9px] font-bold cursor-pointer"
+                className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg border border-brand-border hover:bg-brand-bgLight text-brand-textMuted hover:text-zinc-700 transition-all text-[9px] font-bold cursor-pointer"
               >
                 <Download size={13} />
                 Save
@@ -1210,7 +1206,7 @@ export default function AdminDashboard() {
               <button
                 onClick={handleShareSession}
                 className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-white transition-all text-[9px] font-bold cursor-pointer"
-                style={{ backgroundColor: branding?.primary_color || '#0078d4' }}
+                style={{ backgroundColor: branding?.primary_color || '#2563EB' }}
               >
                 <Share2 size={13} />
                 Share
@@ -1228,16 +1224,16 @@ export default function AdminDashboard() {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-xl border border-microsoft-border max-w-md w-full shadow-2xl p-6 relative animate-fade-in cursor-default my-auto text-zinc-700"
+            className="bg-white rounded-xl border border-brand-border max-w-md w-full shadow-2xl p-6 relative animate-fade-in cursor-default my-auto text-zinc-700"
           >
             <button
               onClick={() => setShowCreateModal(false)}
-              className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-650"
+              className="absolute top-4 right-4 text-brand-textMuted hover:text-zinc-650"
             >
               <X size={20} />
             </button>
 
-            <h3 className="text-xl font-bold text-zinc-800 border-b border-zinc-100 pb-3">
+            <h3 className="text-xl font-bold text-brand-textMain border-b border-zinc-100 pb-3">
               {selectedQuiz ? 'Edit Quiz Metadata' : 'Create New Quiz'}
             </h3>
 
@@ -1249,7 +1245,7 @@ export default function AdminDashboard() {
 
             <form onSubmit={handleSaveQuiz} className="mt-4 space-y-4 text-sm text-zinc-700">
               <div>
-                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-1">
                   Quiz Title
                 </label>
                 <input
@@ -1258,12 +1254,12 @@ export default function AdminDashboard() {
                   value={quizForm.title}
                   onChange={(e) => setQuizForm((prev) => ({ ...prev, title: e.target.value }))}
                   placeholder="Cloud Infrastructure Trivia"
-                  className="w-full px-3 py-2 border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-microsoft-blue"
+                  className="w-full px-3 py-2 border border-brand-border rounded focus:outline-none focus:ring-2 focus:ring-brand-blue"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-1">
                   Event Name
                 </label>
                 <input
@@ -1272,12 +1268,12 @@ export default function AdminDashboard() {
                   value={quizForm.event_name}
                   onChange={(e) => setQuizForm((prev) => ({ ...prev, event_name: e.target.value }))}
                   placeholder="Azure Seminar 2026"
-                  className="w-full px-3 py-2 border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-microsoft-blue"
+                  className="w-full px-3 py-2 border border-brand-border rounded focus:outline-none focus:ring-2 focus:ring-brand-blue"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-1">
                   Description
                 </label>
                 <textarea
@@ -1285,25 +1281,25 @@ export default function AdminDashboard() {
                   value={quizForm.description}
                   onChange={(e) => setQuizForm((prev) => ({ ...prev, description: e.target.value }))}
                   placeholder="Enter a brief summary details about this quiz..."
-                  className="w-full px-3 py-2 border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-microsoft-blue"
+                  className="w-full px-3 py-2 border border-brand-border rounded focus:outline-none focus:ring-2 focus:ring-brand-blue"
                 ></textarea>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-1">
+                <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-wider mb-1">
                   Scheduled Start Date & Time
                 </label>
                 <input
                   type="datetime-local"
                   value={quizForm.scheduled_start}
                   onChange={(e) => setQuizForm((prev) => ({ ...prev, scheduled_start: e.target.value }))}
-                  className="w-full px-3 py-2 border border-zinc-200 rounded focus:outline-none focus:ring-2 focus:ring-microsoft-blue"
+                  className="w-full px-3 py-2 border border-brand-border rounded focus:outline-none focus:ring-2 focus:ring-brand-blue"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full bg-microsoft-blue hover:bg-microsoft-darkBlue text-white font-semibold py-2.5 rounded transition-all shadow-sm active:scale-98 cursor-pointer"
+                className="w-full bg-brand-blue hover:bg-brand-dark text-white font-semibold py-2.5 rounded transition-all shadow-sm active:scale-98 cursor-pointer"
               >
                 Save Quiz Details
               </button>
@@ -1326,7 +1322,7 @@ export default function AdminDashboard() {
             className="bg-white rounded-2xl shadow-2xl max-w-[280px] w-full relative cursor-default overflow-hidden animate-fade-in"
           >
             {/* Top accent bar */}
-            <div className="h-1 w-full" style={{ background: branding?.primary_color || '#0078d4' }} />
+            <div className="h-1 w-full" style={{ background: branding?.primary_color || '#2563EB' }} />
 
             {/* Close button */}
             <button
@@ -1334,7 +1330,7 @@ export default function AdminDashboard() {
                 setShowCatalogQRModal(false);
                 setQrQuiz(null);
               }}
-              className="absolute top-2.5 right-2.5 w-6 h-6 flex items-center justify-center rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-500 hover:text-zinc-800 transition-all cursor-pointer z-20"
+              className="absolute top-2.5 right-2.5 w-6 h-6 flex items-center justify-center rounded-full bg-zinc-100 hover:bg-zinc-200 text-brand-textMuted hover:text-brand-textMain transition-all cursor-pointer z-20"
             >
               <X size={12} strokeWidth={3} />
             </button>
@@ -1342,10 +1338,10 @@ export default function AdminDashboard() {
             {/* Content */}
             <div className="px-4 pt-4 pb-3 text-center space-y-3">
               {/* Event name */}
-              <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest truncate pr-6">{qrQuiz.event_name}</p>
+              <p className="text-[9px] font-bold text-brand-textMuted uppercase tracking-widest truncate pr-6">{qrQuiz.event_name}</p>
 
               {/* QR Code */}
-              <div className="inline-block bg-zinc-50 p-2.5 rounded-lg border border-zinc-100">
+              <div className="inline-block bg-brand-bgLight p-2.5 rounded-lg border border-zinc-100">
                 <QRCodeSVG
                   id="dashboard-catalog-qr-svg"
                   value={`${window.location.protocol}//${window.location.host}/join/${qrQuiz.join_code}`}
@@ -1364,9 +1360,9 @@ export default function AdminDashboard() {
               </div>
 
               {/* Join Code */}
-              <div className="bg-zinc-50 border border-zinc-100 rounded-lg py-2 px-3">
-                <span className="block text-[8px] font-bold text-zinc-400 uppercase tracking-widest">Code</span>
-                <span className="block text-2xl font-black tracking-[0.25em] mt-0.5 select-all" style={{ color: branding?.primary_color || '#0078d4' }}>{qrQuiz.join_code}</span>
+              <div className="bg-brand-bgLight border border-zinc-100 rounded-lg py-2 px-3">
+                <span className="block text-[8px] font-bold text-brand-textMuted uppercase tracking-widest">Code</span>
+                <span className="block text-2xl font-black tracking-[0.25em] mt-0.5 select-all" style={{ color: branding?.primary_color || '#2563EB' }}>{qrQuiz.join_code}</span>
               </div>
             </div>
 
@@ -1374,14 +1370,14 @@ export default function AdminDashboard() {
             <div className="border-t border-zinc-100 px-3 py-2.5 grid grid-cols-3 gap-1.5">
               <button
                 onClick={handleCatalogCopyLink}
-                className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-zinc-500 hover:text-zinc-700 transition-all text-[9px] font-bold cursor-pointer"
+                className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg border border-brand-border hover:bg-brand-bgLight text-brand-textMuted hover:text-zinc-700 transition-all text-[9px] font-bold cursor-pointer"
               >
                 {catalogCopyFeedback ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
                 {catalogCopyFeedback ? 'Copied' : 'Copy'}
               </button>
               <button
                 onClick={() => handleCatalogDownloadQR('dashboard-catalog-qr-svg')}
-                className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg border border-zinc-200 hover:bg-zinc-50 text-zinc-500 hover:text-zinc-700 transition-all text-[9px] font-bold cursor-pointer"
+                className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg border border-brand-border hover:bg-brand-bgLight text-brand-textMuted hover:text-zinc-700 transition-all text-[9px] font-bold cursor-pointer"
               >
                 <Download size={13} />
                 Save
@@ -1389,7 +1385,7 @@ export default function AdminDashboard() {
               <button
                 onClick={handleCatalogShareSession}
                 className="flex flex-col items-center gap-0.5 py-1.5 rounded-lg text-white transition-all text-[9px] font-bold cursor-pointer"
-                style={{ backgroundColor: branding?.primary_color || '#0078d4' }}
+                style={{ backgroundColor: branding?.primary_color || '#2563EB' }}
               >
                 <Share2 size={13} />
                 Share
