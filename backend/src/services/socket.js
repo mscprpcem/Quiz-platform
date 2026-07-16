@@ -37,7 +37,8 @@ const initializeSocket = (io) => {
               activeQuestionId,
               questionStatus: quiz.current_question_status || 'closed',
               answersReceived: new Set(),
-              timerValue: 0
+              timerValue: 0,
+              leaderboardReleased: false
             };
           }
         }
@@ -49,6 +50,7 @@ const initializeSocket = (io) => {
         });
 
         socket.emit('lobby_participants_update', participants);
+        socket.emit('leaderboard_status', { released: activeQuizzes[quizId]?.leaderboardReleased || false });
       } catch (err) {
         console.error('admin_join_quiz error:', err);
       }
@@ -206,7 +208,7 @@ const initializeSocket = (io) => {
       io.to(`quiz_${quizId}`).emit('quiz_resumed');
     });
 
-    // Admin ends the entire quiz
+    // Admin ends the entire quiz (but does not release leaderboard yet)
     socket.on('end_quiz', async ({ quizId }) => {
       try {
         const quiz = await Quiz.findByPk(quizId);
@@ -215,12 +217,34 @@ const initializeSocket = (io) => {
         await quiz.update({ status: 'completed' });
         if (activeQuizzes[quizId]) {
           activeQuizzes[quizId].questionStatus = 'closed';
+          activeQuizzes[quizId].leaderboardReleased = false;
         }
 
+        // Notify admins that the leaderboard state is unreleased
+        io.to(`admin_${quizId}`).emit('leaderboard_status', { released: false });
+
+        // Broadcast to participants that the quiz is completed and to wait
+        io.to(`quiz_${quizId}`).emit('quiz_completed');
+      } catch (err) {
+        console.error('end_quiz error:', err);
+      }
+    });
+
+    // Admin manually releases the leaderboard to students
+    socket.on('release_leaderboard', async ({ quizId }) => {
+      try {
+        if (activeQuizzes[quizId]) {
+          activeQuizzes[quizId].leaderboardReleased = true;
+        }
+
+        // Notify admins
+        io.to(`admin_${quizId}`).emit('leaderboard_status', { released: true });
+
+        // Compile and release the leaderboard standings to all participant sockets
         const leaderboard = await getLiveLeaderboard(quizId);
         io.to(`quiz_${quizId}`).emit('quiz_ended', { leaderboard });
       } catch (err) {
-        console.error('end_quiz error:', err);
+        console.error('release_leaderboard error:', err);
       }
     });
 

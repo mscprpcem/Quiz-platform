@@ -49,7 +49,8 @@ export default function Navbar() {
   );
 
   return (
-    <nav className="bg-white/85 backdrop-blur-xl border-b border-brand-border sticky top-0 z-40 shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
+    <>
+      <nav className="sticky top-0 z-40 border-b transition-all duration-200 bg-white/85 backdrop-blur-xl border-brand-border text-brand-textMain shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-[60px] items-center">
           {/* Logo Section */}
@@ -64,8 +65,8 @@ export default function Navbar() {
               className="w-8 h-8 rounded-md object-contain group-hover:scale-110 transition-transform duration-200"
             />
           
-              MSC-PRPCEM
-              <span className="font-normal text-brand-textMuted ml-1.5 xs:hidden"> MSC</span>
+            <span className="font-black text-brand-textMain">MSC-PRPCEM</span>
+            <span className="font-normal text-brand-textMuted ml-1.5 xs:hidden"> MSC</span>
 
           </div>
 
@@ -92,15 +93,15 @@ export default function Navbar() {
                   label="Branding"
                 />
 
-                <div className="h-5 w-px bg-brand-border mx-2"></div>
+                <div className="h-5 w-px mx-2 bg-brand-border"></div>
 
-                <div className="text-sm font-medium text-brand-textMuted px-2">
+                <div className="text-sm font-medium px-2 text-brand-textMuted">
                   Hi, {user.name}
                 </div>
 
                 <button
                   onClick={confirmLogout}
-                  className="flex items-center space-x-1.5 px-3 py-2 rounded-lg text-sm font-medium text-red-500 hover:text-red-600 hover:bg-red-50 transition-all duration-200"
+                  className="flex items-center space-x-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 text-red-500 hover:text-red-650 hover:bg-red-50"
                 >
                   <LogOut size={16} />
                   <span className="hidden sm:inline">Logout</span>
@@ -148,7 +149,7 @@ export default function Navbar() {
 
           {/* Mobile hamburger */}
           <button
-            className="md:hidden p-2 rounded-md text-brand-textMuted hover:bg-brand-lightBlue transition-all"
+            className="md:hidden p-2 rounded-md transition-all text-brand-textMuted hover:bg-brand-lightBlue"
             onClick={() => setMobileOpen((o) => !o)}
             aria-label="Toggle menu"
           >
@@ -159,7 +160,7 @@ export default function Navbar() {
 
       {/* Mobile Drawer */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-brand-border bg-white px-4 py-3 space-y-1 shadow-lg animate-fade-in">
+        <div className="md:hidden border-t px-4 py-3 space-y-1 shadow-lg animate-fade-in bg-white border-brand-border text-brand-textMain">
           {!isAdminPath && (
             <>
               <button
@@ -226,7 +227,7 @@ export default function Navbar() {
                 <p className="text-xs text-brand-textMuted px-3 mb-1">Signed in as {user.name}</p>
                 <button
                   onClick={confirmLogout}
-                  className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold text-red-600 hover:bg-red-50 transition-all"
+                  className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold text-red-500 hover:bg-red-50 transition-all"
                 >
                   <LogOut size={15} />
                   Logout
@@ -246,34 +247,39 @@ export default function Navbar() {
           )}
         </div>
       )}
+      </nav>
+
       {/* Custom Logout Confirmation Dialog */}
       {showConfirm && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-brand-border rounded-2xl shadow-soft-lg max-w-sm w-full p-6 animate-scale-up space-y-4">
-            <div className="flex items-center space-x-3 text-red-500 font-bold text-lg">
-              <LogOut size={20} />
-              <span>Confirm Logout</span>
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white border border-brand-border rounded-3xl shadow-2xl max-w-sm w-full p-6 animate-scale-in space-y-5 text-zinc-800">
+            <div className="flex flex-col items-center text-center space-y-3">
+              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-600 shadow-inner">
+                <LogOut size={20} />
+              </div>
+              <h3 className="text-lg font-black tracking-tight text-brand-textMain">Confirm Sign Out</h3>
+              <p className="text-xs sm:text-sm text-brand-textMuted max-w-xs leading-relaxed">
+                Are you sure you want to end your active session and log out of the administration portal?
+              </p>
             </div>
-            <p className="text-sm text-brand-textMuted leading-relaxed">
-              Are you sure you want to log out of the MSC-PRPCEM administration portal?
-            </p>
+
             <div className="flex gap-3 pt-2">
               <button
                 onClick={() => setShowConfirm(false)}
-                className="btn-secondary flex-1 py-2"
+                className="flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer select-none active:scale-[0.98] bg-brand-bgLight hover:bg-zinc-100 border border-brand-border text-zinc-650 hover:text-brand-textMain"
               >
                 Cancel
               </button>
               <button
                 onClick={handleLogout}
-                className="btn-danger flex-1 py-2"
+                className="flex-grow flex-1 py-2.5 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-700 text-white rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all active:scale-[0.98] cursor-pointer select-none"
               >
-                Logout
+                Sign Out
               </button>
             </div>
           </div>
         </div>
       )}
-    </nav>
+    </>
   );
 }

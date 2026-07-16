@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { QRCodeSVG } from 'qrcode.react';
@@ -25,27 +25,28 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-/* â”€â”€ Status badge helper â”€â”€ */
+/* ── Status badge helper ── */
 function StatusBadge({ status }) {
   const map = {
-    draft: 'bg-blue-50 text-brand-blue border border-blue-100',
-    in_progress: 'bg-emerald-50 text-emerald-700 border border-emerald-100',
-    completed: 'bg-zinc-100 text-brand-textMuted border border-brand-border',
+    draft: 'bg-blue-50 text-blue-700 border border-blue-200',
+    in_progress: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+    completed: 'bg-zinc-150 text-zinc-650 border border-zinc-250',
+    waiting_lobby: 'bg-amber-50 text-amber-700 border border-amber-200',
   };
   const cls = map[status] || map.draft;
   return (
-    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${cls}`}>
-      {status === 'in_progress' ? 'Live' : status}
+    <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${cls}`}>
+      {status === 'in_progress' ? 'Live' : status === 'waiting_lobby' ? 'Lobby' : status.replace('_', ' ')}
     </span>
   );
 }
 
-/* â”€â”€ Modal overlay wrapper â”€â”€ */
+/* ── Modal overlay wrapper ── */
 /* pt-16 = navbar height so the modal never hides behind the sticky bar */
 function Modal({ onClose, children }) {
   return (
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-16 px-4 pb-6 animate-fade-in"
+      className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-16 px-4 pb-6 animate-fade-in"
       onClick={onClose}
     >
       <div
@@ -447,19 +448,19 @@ export default function QuizManagement() {
   };
 
   return (
-    <>
+    <div className="min-h-screen bg-slate-50 text-zinc-800 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 animate-fade-in space-y-6">
       
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-brand-border/80 p-5 sm:p-6 rounded-2xl shadow-soft gap-4 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-blue via-[#00a4ef] to-brand-dark"></div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-brand-border p-5 sm:p-6 rounded-2xl shadow-sm gap-4 relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-brand-blue via-brand-cyan to-brand-purple"></div>
         <div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-brand-textMain tracking-tight">Quiz Catalog</h1>
+          <h1 className="text-xl sm:text-2xl font-black text-brand-textMain tracking-tight">Quiz Catalog</h1>
           <p className="text-xs sm:text-sm text-brand-textMuted mt-1">Configure draft sheets, launch sessions, or read telemetry analytical logs.</p>
         </div>
         <button
           onClick={() => handleOpenCreate()}
-          className="flex items-center justify-center gap-1.5 bg-gradient-to-b from-[#2563EB] to-[#1E3A8A] hover:from-[#1D4ED8] hover:to-[#1E3A8A] text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.97] cursor-pointer flex-shrink-0"
+          className="flex items-center justify-center gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.97] cursor-pointer flex-shrink-0"
         >
           <Plus size={16} />
           Create Quiz
@@ -468,99 +469,109 @@ export default function QuizManagement() {
 
       {/* Quiz Grid */}
       {loading && quizzes.length === 0 ? (
-        <div className="text-center py-20 text-brand-textMuted font-semibold animate-pulse">Loading quizzes...</div>
+        <div className="text-center py-20 text-zinc-550 font-semibold animate-pulse">Loading quizzes...</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {quizzes.map((quiz) => (
-            <div
-              key={quiz.id}
-              className="bg-white border border-brand-border/80 rounded-2xl shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 group relative overflow-hidden flex flex-col"
-            >
-              {/* Card top accent bar by status */}
-              <div className={`h-1 w-full ${quiz.status === 'in_progress' ? 'bg-emerald-500 animate-pulse' : quiz.status === 'completed' ? 'bg-zinc-300' : 'bg-brand-blue'}`} />
+          {quizzes.map((quiz) => {
+            const isExpired = quiz.scheduled_start && new Date(quiz.scheduled_start) < new Date() && quiz.status === 'draft';
+            return (
+              <div
+                key={quiz.id}
+                className="bg-white border border-brand-border hover:border-brand-blue/30 rounded-2xl p-5 hover:shadow-soft-lg hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between relative overflow-hidden group min-h-[260px] text-zinc-800"
+              >
+                {/* Top status indicator strip */}
+                <div className={`absolute top-0 left-0 w-full h-[4px] ${
+                  quiz.status === 'in_progress' ? 'bg-emerald-500 animate-pulse' :
+                  quiz.status === 'waiting_lobby' ? 'bg-amber-500' :
+                  quiz.status === 'completed' ? 'bg-zinc-350' : 'bg-brand-blue'
+                }`} />
 
-              <div className="p-5 flex flex-col flex-1 gap-3">
-                {/* Header */}
-                <div className="flex justify-between items-start gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] font-bold text-brand-textMuted uppercase tracking-widest truncate">{quiz.event_name}</p>
-                    <h3 className="text-base font-bold text-brand-textMain leading-snug truncate mt-0.5">{quiz.title}</h3>
-                  </div>
-                  <StatusBadge status={quiz.status} />
-                </div>
-
-                {/* Description */}
-                <p className="text-xs text-brand-textMuted leading-relaxed line-clamp-2">
-                  {quiz.description || 'No description provided.'}
-                </p>
-
-                {/* Date */}
-                <div className="flex items-center gap-1.5 text-xs text-brand-textMuted">
-                  <Calendar size={12} className="flex-shrink-0" />
-                  <span>{quiz.scheduled_start ? new Date(quiz.scheduled_start).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Not scheduled'}</span>
-                </div>
-
-                {/* Stats */}
-                <div className="grid grid-cols-2 gap-2 border-t border-zinc-100 pt-3 text-center text-xs">
+                <div className="absolute inset-0 bg-gradient-to-br from-brand-blue/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
+                
+                <div className="space-y-4 relative z-10 flex-grow flex flex-col justify-between">
                   <div>
-                    <span className="block text-lg font-extrabold text-zinc-700">{quiz.questionCount || 0}</span>
-                    <span className="text-[9px] text-brand-textMuted font-bold uppercase tracking-wider">Questions</span>
+                    <div className="flex justify-between items-start gap-2 pt-1">
+                      <span className="text-[9px] font-extrabold text-zinc-550 uppercase tracking-widest bg-zinc-100 px-2.5 py-0.5 rounded-full truncate max-w-[120px]">{quiz.event_name}</span>
+                      <div className="flex gap-1.5 items-center">
+                        <StatusBadge status={quiz.status} />
+                      </div>
+                    </div>
+                    <div className="mt-3.5">
+                      <h3 className="text-base font-extrabold text-brand-textMain leading-snug group-hover:text-brand-blue transition-colors duration-200 truncate" title={quiz.title}>{quiz.title}</h3>
+                      <p className="text-xs text-brand-textMuted line-clamp-2 mt-1 leading-relaxed">{quiz.description || 'No description provided.'}</p>
+                    </div>
                   </div>
-                  <div>
-                    <span className="block text-lg font-extrabold text-zinc-700">{quiz.participantCount || 0}</span>
-                    <span className="text-[9px] text-brand-textMuted font-bold uppercase tracking-wider">Plays</span>
+
+                  <div className="space-y-2">
+                    {/* Date & Schedule */}
+                    <div className="flex items-center gap-1.5 text-[11px] text-brand-textMuted">
+                      <Calendar size={12} className="flex-shrink-0 text-brand-blue" />
+                      <span className="truncate">{quiz.scheduled_start ? new Date(quiz.scheduled_start).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Asynchronous Play'}</span>
+                    </div>
+
+                    {/* Counts section inline */}
+                    <div className="flex gap-4 items-center text-xs text-brand-textMuted border-t border-brand-border pt-2.5">
+                      <span className="flex items-center gap-1.5">
+                        <BookOpen size={13} className="text-brand-blue" />
+                        <span><strong>{quiz.questionCount || 0}</strong> Questions</span>
+                      </span>
+                      <span className="flex items-center gap-1.5">
+                        <Users size={13} className="text-brand-blue" />
+                        <span><strong>{quiz.participantCount || 0}</strong> Plays</span>
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {/* Actions */}
-                <div className="flex flex-col gap-2 border-t border-zinc-100 pt-3 mt-auto">
+                {/* Actions section */}
+                <div className="flex flex-col gap-2 mt-4 pt-3.5 border-t border-brand-border relative z-10">
                   <div className="grid grid-cols-3 gap-1.5">
                     <button
                       onClick={() => navigate(`/admin/quizzes/${quiz.id}`)}
                       title="Manage Questions"
-                      className="flex flex-col items-center gap-0.5 py-2 rounded-lg border border-brand-border hover:bg-brand-bgLight hover:border-zinc-300 text-brand-textMuted hover:text-zinc-700 transition-all text-[10px] font-bold cursor-pointer"
+                      className="flex items-center justify-center gap-1.5 py-2 bg-zinc-50 hover:bg-zinc-100 border border-brand-border text-zinc-650 hover:text-brand-textMain rounded-xl transition-all text-xs font-semibold select-none cursor-pointer active:scale-95"
                     >
-                      <ListCollapse size={14} />
-                      Sheet
+                      <ListCollapse size={13} />
+                      <span>Sheet</span>
                     </button>
                     <button
                       onClick={() => navigate(`/admin/analytics/${quiz.id}`)}
                       title="View Analytics"
-                      className="flex flex-col items-center gap-0.5 py-2 rounded-lg border border-brand-border hover:bg-brand-bgLight hover:border-zinc-300 text-brand-textMuted hover:text-zinc-700 transition-all text-[10px] font-bold cursor-pointer"
+                      className="flex items-center justify-center gap-1.5 py-2 bg-zinc-50 hover:bg-zinc-100 border border-brand-border text-zinc-650 hover:text-brand-textMain rounded-xl transition-all text-xs font-semibold select-none cursor-pointer active:scale-95"
                     >
-                      <BarChart2 size={14} />
-                      Report
+                      <BarChart2 size={13} />
+                      <span>Report</span>
                     </button>
                     <button
                       onClick={() => handleOpenQR(quiz)}
                       title="Share QR Code"
-                      className="flex flex-col items-center gap-0.5 py-2 rounded-lg border border-brand-border hover:bg-blue-50 hover:border-brand-blue/30 text-brand-textMuted hover:text-brand-blue transition-all text-[10px] font-bold cursor-pointer"
+                      className="flex items-center justify-center gap-1.5 py-2 bg-zinc-50 hover:bg-zinc-100 border border-brand-border text-zinc-650 hover:text-brand-textMain rounded-xl transition-all text-xs font-semibold select-none cursor-pointer active:scale-95"
                     >
-                      <QrCode size={14} />
-                      Share
+                      <QrCode size={13} />
+                      <span>Share</span>
                     </button>
                   </div>
 
                   <div className="grid grid-cols-2 gap-1.5">
                     <button
                       onClick={() => handleOpenImport(quiz)}
-                      className="flex items-center justify-center gap-1.5 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-lg transition-all text-[10px] font-bold cursor-pointer"
+                      className="flex items-center justify-center gap-1.5 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-xl transition-all text-xs font-bold cursor-pointer active:scale-95"
                     >
                       <FileSpreadsheet size={13} />
-                      Import .xlsx
+                      <span>Import .xlsx</span>
                     </button>
                     <button
                       onClick={() => handleOpenCreate(quiz)}
-                      className="flex items-center justify-center gap-1.5 py-2 border border-brand-border hover:bg-brand-bgLight text-brand-textMuted hover:text-zinc-700 rounded-lg transition-all text-[10px] font-bold cursor-pointer"
+                      className="flex items-center justify-center gap-1.5 py-2 border border-brand-border hover:bg-zinc-50 text-zinc-500 hover:text-brand-textMain rounded-xl transition-all text-xs font-bold cursor-pointer active:scale-95"
                     >
                       <Edit2 size={13} />
-                      Edit Info
+                      <span>Edit Info</span>
                     </button>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {quizzes.length === 0 && !loading && (
             <div className="col-span-full py-20 flex flex-col items-center text-brand-textMuted bg-white border-2 border-dashed border-brand-border rounded-2xl gap-3">
@@ -835,7 +846,7 @@ export default function QuizManagement() {
       {qrQuiz && showQRModal && (
         <div
           onClick={() => { setShowQRModal(false); setQrQuiz(null); }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 cursor-pointer"
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 cursor-pointer"
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -847,7 +858,7 @@ export default function QuizManagement() {
             {/* Close button */}
             <button
               onClick={() => { setShowQRModal(false); setQrQuiz(null); }}
-              className="absolute top-2.5 right-2.5 w-6 h-6 flex items-center justify-center rounded-full bg-zinc-100 hover:bg-zinc-200 text-brand-textMuted hover:text-brand-textMain transition-all cursor-pointer z-20"
+              className="absolute top-2.5 right-2.5 w-6 h-6 flex items-center justify-center rounded-full bg-zinc-50 hover:bg-zinc-150 text-brand-textMuted hover:text-brand-textMain transition-all cursor-pointer z-20"
             >
               <X size={12} strokeWidth={3} />
             </button>
@@ -858,7 +869,7 @@ export default function QuizManagement() {
               <p className="text-[9px] font-bold text-brand-textMuted uppercase tracking-widest truncate pr-6">{qrQuiz.event_name}</p>
 
               {/* QR Code */}
-              <div className="inline-block bg-brand-bgLight p-2.5 rounded-lg border border-zinc-100">
+              <div className="inline-block bg-brand-bgLight p-2.5 rounded-lg border border-zinc-100 shadow-sm">
                 <QRCodeSVG
                   id="catalog-qr-svg"
                   value={`${window.location.protocol}//${window.location.host}/join/${qrQuiz.join_code}`}
@@ -916,7 +927,7 @@ export default function QuizManagement() {
       {showDeleteModal && deleteTargetQuiz && (
         <div
           onClick={() => { setShowDeleteModal(false); setDeleteTargetQuiz(null); }}
-          className="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex justify-center items-center cursor-pointer"
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex justify-center items-center cursor-pointer"
         >
           <div
             onClick={(e) => e.stopPropagation()}
@@ -968,6 +979,6 @@ export default function QuizManagement() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

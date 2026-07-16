@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import {
@@ -135,15 +135,16 @@ export default function QuestionManagement() {
   }
 
   return (
-    <>
+    <div className="min-h-screen bg-slate-50 text-zinc-800 pb-12">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 animate-fade-in space-y-6">
 
-      {/* â”€â”€ Page Header â”€â”€ */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-brand-border p-5 sm:p-6 rounded-2xl shadow-sm">
-        <div className="flex items-center gap-3">
+      {/* ── Page Header ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white border border-brand-border p-5 sm:p-6 rounded-2xl shadow-sm relative overflow-hidden">
+        <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-brand-blue via-brand-cyan to-brand-purple"></div>
+        <div className="flex items-center gap-3 relative z-10">
           <button
             onClick={() => navigate('/admin/quizzes')}
-            className="p-2 border border-brand-border hover:bg-zinc-100 text-zinc-600 rounded-xl transition-all flex-shrink-0"
+            className="p-2 border border-brand-border hover:bg-zinc-50 text-zinc-650 hover:text-brand-textMain rounded-xl transition-all flex-shrink-0 cursor-pointer"
             aria-label="Go back"
           >
             <ArrowLeft size={18} />
@@ -156,11 +157,11 @@ export default function QuestionManagement() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap">
+        <div className="flex items-center gap-2.5 flex-wrap relative z-10">
           {quiz?.questions?.length > 0 && (
             <button
               onClick={() => setShowBulkTimerModal(true)}
-              className="flex items-center justify-center gap-2 border border-zinc-250 hover:bg-brand-bgLight text-zinc-650 px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
+              className="flex items-center justify-center gap-2 border border-brand-border bg-white hover:bg-zinc-50 text-zinc-650 hover:text-brand-textMain px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
             >
               <Clock size={16} />
               Set All Timers
@@ -168,7 +169,7 @@ export default function QuestionManagement() {
           )}
           <button
             onClick={() => handleOpenForm()}
-            className="flex items-center justify-center gap-2 bg-brand-blue hover:bg-brand-dark text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer flex-shrink-0"
+            className="flex items-center justify-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer flex-shrink-0"
           >
             <Plus size={16} />
             Add Question
@@ -176,39 +177,39 @@ export default function QuestionManagement() {
         </div>
       </div>
 
-      {/* â”€â”€ Questions List â”€â”€ */}
+      {/* ── Questions List ── */}
       <div className="space-y-4">
         {quiz?.questions?.map((q, idx) => (
           <div
             key={q.id}
-            className="bg-white border border-brand-border rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden"
+            className="bg-white border border-brand-border rounded-2xl shadow-sm overflow-hidden"
           >
             {/* Question header bar */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-zinc-100 bg-brand-bgLight/70">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-brand-border bg-zinc-50/50">
               <div className="flex items-center gap-3 text-xs font-semibold text-brand-textMuted">
                 <span className="bg-brand-lightBlue text-brand-blue font-bold px-2.5 py-0.5 rounded-full">
                   Q{idx + 1}
                 </span>
                 <span className="flex items-center gap-1">
-                  <Clock size={12} />
+                  <Clock size={12} className="text-brand-blue" />
                   {q.timer}s
                 </span>
                 <span className="flex items-center gap-1">
-                  <Award size={12} />
-                  {q.marks} pts
+                  <Award size={12} className="text-brand-blue" />
+                  {q.marks} points
                 </span>
               </div>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleOpenForm(q)}
-                  className="flex items-center gap-1.5 border border-brand-border hover:bg-zinc-100 text-zinc-600 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                  className="flex items-center gap-1.5 border border-brand-border bg-white hover:bg-zinc-50 text-zinc-650 hover:text-brand-textMain px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
                 >
                   <Edit2 size={12} />
                   Edit
                 </button>
                 <button
                   onClick={() => handleDeleteQuestion(q.id)}
-                  className="flex items-center gap-1.5 bg-red-50 hover:bg-red-100 border border-red-100 text-red-600 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all"
+                  className="flex items-center gap-1.5 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer"
                 >
                   <Trash2 size={12} />
                   Delete
@@ -229,17 +230,17 @@ export default function QuestionManagement() {
                       key={key}
                       className={`flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-xs font-medium transition-all ${
                         isCorrect
-                          ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                          : 'bg-brand-bgLight border-zinc-100 text-zinc-600'
+                          ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                          : 'bg-zinc-50 border-zinc-200 text-zinc-650'
                       }`}
                     >
                       <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-extrabold flex-shrink-0 ${
-                        isCorrect ? 'bg-emerald-500 text-white' : 'bg-zinc-200 text-zinc-600'
+                        isCorrect ? 'bg-emerald-600 text-white' : 'bg-zinc-200 text-zinc-550'
                       }`}>
                         {key}
                       </span>
                       <span className="truncate">{text}</span>
-                      {isCorrect && <CheckCircle2 size={13} className="ml-auto text-emerald-500 flex-shrink-0" />}
+                      {isCorrect && <CheckCircle2 size={13} className="ml-auto text-emerald-650 flex-shrink-0" />}
                     </div>
                   );
                 })}
@@ -249,7 +250,7 @@ export default function QuestionManagement() {
         ))}
 
         {quiz?.questions?.length === 0 && (
-          <div className="py-20 flex flex-col items-center gap-3 text-brand-textMuted bg-white border-2 border-dashed border-brand-border rounded-2xl">
+          <div className="py-20 flex flex-col items-center gap-3 text-brand-textMuted bg-white border border-dashed border-brand-border rounded-2xl">
             <HelpCircle size={36} className="opacity-30" />
             <p className="text-sm font-semibold">No questions yet</p>
             <p className="text-xs">Click <span className="font-bold text-brand-textMuted">Add Question</span> or import an Excel sheet to get started.</p>
@@ -263,7 +264,7 @@ export default function QuestionManagement() {
       â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
       {showModal && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
           onClick={() => setShowModal(false)}
         >
             <form
@@ -429,10 +430,10 @@ export default function QuestionManagement() {
         </div>
       )}
 
-      {/* â”€â”€ BULK TIMER MODAL â”€â”€ */}
+      {/* ── BULK TIMER MODAL ── */}
       {showBulkTimerModal && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
           onClick={() => setShowBulkTimerModal(false)}
         >
           <div
@@ -500,6 +501,6 @@ export default function QuestionManagement() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

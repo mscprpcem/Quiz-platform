@@ -80,11 +80,11 @@ export default function Footer() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Hide footer on live quiz, waiting room, and results pages
-  const hiddenPaths = ['/live-quiz', '/waiting-room', '/results'];
-  if (hiddenPaths.some((p) => location.pathname.startsWith(p))) {
+  // Show footer only on the Home page (exact path "/")
+  if (location.pathname !== '/') {
     return null;
   }
+
 
   return (
     <footer className="relative mt-auto border-t border-brand-border/60 overflow-hidden" style={{ background: 'linear-gradient(180deg, #FFFFFF 0%, #F5FAFF 100%)' }}>

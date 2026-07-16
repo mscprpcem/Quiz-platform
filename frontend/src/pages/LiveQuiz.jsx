@@ -25,6 +25,7 @@ export default function LiveQuiz() {
   const [feedbackData, setFeedbackData] = useState(null); // { isCorrect, points, correctAnswer }
   const [timer, setTimer] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
+  const [waitingForLeaderboard, setWaitingForLeaderboard] = useState(false);
 
   // Anti-Cheat State
   const [disqualified, setDisqualified] = useState(false);
@@ -215,6 +216,11 @@ export default function LiveQuiz() {
     });
 
     // 5. Handle complete quiz end
+    socket.on('quiz_completed', () => {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      setWaitingForLeaderboard(true);
+    });
+
     socket.on('quiz_ended', ({ leaderboard }) => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
       const playerStats = leaderboard.find((p) => p.id === initialData.participantId);
@@ -257,6 +263,7 @@ export default function LiveQuiz() {
       socket.off('answer_received');
       socket.off('quiz_paused');
       socket.off('quiz_resumed');
+      socket.off('quiz_completed');
       socket.off('quiz_ended');
       socket.off('question_skipped');
       socket.off('participant_kicked');
@@ -371,7 +378,20 @@ export default function LiveQuiz() {
             </div>
 
             {/* Main Stage Panel */}
-            {currentQuestion === null ? (
+            {waitingForLeaderboard ? (
+              <div className="bg-white border border-brand-border rounded-xl p-12 text-center shadow-sm space-y-4 animate-fade-in">
+                <div className="w-16 h-16 bg-brand-lightBlue text-brand-blue rounded-full flex items-center justify-center mx-auto animate-pulse">
+                  <Award size={32} />
+                </div>
+                <h2 className="text-2xl font-bold text-brand-textMain">Quiz Completed!</h2>
+                <p className="text-brand-textMuted max-w-sm mx-auto text-sm font-medium">
+                  The host is finalizing score standings. Please wait for the leaderboard to be released.
+                </p>
+                <div className="flex justify-center pt-2">
+                  <div className="w-6 h-6 border-2 border-brand-blue border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              </div>
+            ) : currentQuestion === null ? (
               /* Standby Card */
               <div className="bg-white border border-brand-border rounded-xl p-12 text-center shadow-sm space-y-4 animate-fade-in">
                 <div className="w-16 h-16 bg-brand-lightBlue text-brand-blue rounded-full flex items-center justify-center mx-auto animate-pulse">
