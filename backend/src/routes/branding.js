@@ -1,49 +1,80 @@
 const express = require('express');
 const router = express.Router();
-const multer = require('multer');
-const path = require('path');
-const fs = require('fs');
-const { BrandSettings } = require('../models');
-const authMiddleware = require('../middleware/auth');
+const https = require('https');
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, '..', '..', 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
+// Helper to fetch JSON from a URL
+const fetchJson = (url) => {
+  return new Promise((resolve, reject) => {
+    https.get(url, (res) => {
+      if (res.statusCode < 200 || res.statusCode >= 300) {
+        return reject(new Error(`Failed to fetch JSON, status code: ${res.statusCode}`));
+      }
+      let data = '';
+      res.on('data', (chunk) => { data += chunk; });
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(data));
+        } catch (e) {
+          reject(new Error('Invalid JSON received from URL'));
+        }
+      });
+    }).on('error', (err) => {
+      reject(err);
+    });
+  });
+};
 
-// Multer configuration for logo uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    // Always save as brand-logo with the original extension
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `brand-logo-${Date.now()}${ext}`);
+let cache = null;
+let cacheTime = 0;
+const CACHE_TTL = 60 * 1000; // 60 seconds cache
+
+const getBrandingSettings = async () => {
+  const url = process.env.AZURE_BRANDING_URL;
+  if (!url) {
+    return {
+      club_name: 'Microsoft Student Club',
+      chapter_name: 'MSC-PRPCEM Chapter',
+      logo_path: 'logo.png',
+      primary_color: '#0078d4',
+      footer_text: 'Powered by Microsoft Student Club Quiz Platform',
+      qr_logo_size: 28
+    };
   }
-});
 
-const upload = multer({
-  storage,
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB max
-  fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp'];
-    if (allowedTypes.includes(file.mimetype)) {
-      cb(null, true);
-    } else {
-      cb(new Error('Only PNG, JPG, SVG, and WebP images are allowed'));
+  // Return cached version if still valid
+  const now = Date.now();
+  if (cache && (now - cacheTime < CACHE_TTL)) {
+    return cache;
+  }
+
+  try {
+    const fetched = await fetchJson(url);
+    cache = {
+      club_name: fetched.club_name || 'Microsoft Student Club',
+      chapter_name: fetched.chapter_name || 'MSC-PRPCEM Chapter',
+      logo_path: fetched.logo_path || 'logo.png',
+      primary_color: fetched.primary_color || '#0078d4',
+      footer_text: fetched.footer_text || 'Powered by Microsoft Student Club Quiz Platform',
+      qr_logo_size: fetched.qr_logo_size !== undefined ? parseInt(fetched.qr_logo_size, 10) : 28
+    };
+    cacheTime = now;
+    return cache;
+  } catch (error) {
+    console.error("Error fetching branding from Azure Blob Storage:", error.message);
+    if (cache) {
+      console.log("Using expired cache as safety fallback.");
+      return cache; // return stale cache if fetch fails
     }
+    // Return hardcoded default if even cache is not available
+    return {
+      club_name: 'Microsoft Student Club',
+      chapter_name: 'MSC-PRPCEM Chapter',
+      logo_path: 'logo.png',
+      primary_color: '#0078d4',
+      footer_text: 'Powered by Microsoft Student Club Quiz Platform',
+      qr_logo_size: 28
+    };
   }
-});
-
-// Helper: Get or create the singleton branding settings row
-const getOrCreateSettings = async () => {
-  let settings = await BrandSettings.findOne();
-  if (!settings) {
-    settings = await BrandSettings.create({});
-  }
-  return settings;
 };
 
 // ----------------------------------------------------
@@ -51,7 +82,7 @@ const getOrCreateSettings = async () => {
 // ----------------------------------------------------
 router.get('/', async (req, res) => {
   try {
-    const settings = await getOrCreateSettings();
+    const settings = await getBrandingSettings();
     return res.json(settings);
   } catch (error) {
     console.error('Fetch branding error:', error);
@@ -59,83 +90,17 @@ router.get('/', async (req, res) => {
   }
 });
 
-// ----------------------------------------------------
-// PUT /api/branding — Update text fields (auth required)
-// ----------------------------------------------------
-router.put('/', authMiddleware, async (req, res) => {
-  try {
-    const { club_name, chapter_name, primary_color, footer_text, qr_logo_size } = req.body;
-    const settings = await getOrCreateSettings();
-
-    await settings.update({
-      club_name: club_name !== undefined ? club_name : settings.club_name,
-      chapter_name: chapter_name !== undefined ? chapter_name : settings.chapter_name,
-      primary_color: primary_color !== undefined ? primary_color : settings.primary_color,
-      footer_text: footer_text !== undefined ? footer_text : settings.footer_text,
-      qr_logo_size: qr_logo_size !== undefined ? parseInt(qr_logo_size, 10) : settings.qr_logo_size
-    });
-
-    return res.json(settings);
-  } catch (error) {
-    console.error('Update branding error:', error);
-    return res.status(500).json({ error: 'Server error updating branding settings' });
-  }
+// Disable all mutating endpoints
+router.put('/', (req, res) => {
+  return res.status(405).json({ error: 'Branding settings are read-only and configured in backend.' });
 });
 
-// ----------------------------------------------------
-// POST /api/branding/logo — Upload logo image (auth required)
-// ----------------------------------------------------
-router.post('/logo', authMiddleware, upload.single('logo'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'Logo image file is required' });
-    }
-
-    const settings = await getOrCreateSettings();
-
-    // Delete old logo file if one exists
-    if (settings.logo_path) {
-      const oldFilePath = path.join(__dirname, '..', '..', settings.logo_path);
-      if (fs.existsSync(oldFilePath)) {
-        fs.unlinkSync(oldFilePath);
-      }
-    }
-
-    // Save new logo path (relative path for serving)
-    const relativePath = `uploads/${req.file.filename}`;
-    await settings.update({ logo_path: relativePath });
-
-    return res.json({
-      message: 'Logo uploaded successfully',
-      logo_path: relativePath,
-      settings
-    });
-  } catch (error) {
-    console.error('Upload logo error:', error);
-    return res.status(500).json({ error: 'Server error uploading logo' });
-  }
+router.post('/logo', (req, res) => {
+  return res.status(405).json({ error: 'Logo upload is disabled. Logo path should be configured in backend.' });
 });
 
-// ----------------------------------------------------
-// DELETE /api/branding/logo — Remove uploaded logo (auth required)
-// ----------------------------------------------------
-router.delete('/logo', authMiddleware, async (req, res) => {
-  try {
-    const settings = await getOrCreateSettings();
-
-    if (settings.logo_path) {
-      const filePath = path.join(__dirname, '..', '..', settings.logo_path);
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-      await settings.update({ logo_path: null });
-    }
-
-    return res.json({ message: 'Logo removed successfully', settings });
-  } catch (error) {
-    console.error('Delete logo error:', error);
-    return res.status(500).json({ error: 'Server error removing logo' });
-  }
+router.delete('/logo', (req, res) => {
+  return res.status(405).json({ error: 'Logo deletion is disabled. Logo path should be configured in backend.' });
 });
 
 module.exports = router;

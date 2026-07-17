@@ -1,0 +1,196 @@
+/* ============================================
+   HOME PAGE STYLES
+   MSC-PRPCEM Quiz Platform Landing Page
+   ============================================ */
+
+.home-join-card-bg {
+  background-color: rgba(248, 251, 255, 0.8) !important;
+  border-color: rgba(229, 240, 255, 0.9) !important;
+}
+
+.home-step-number-watermark {
+  font-size: 4.5rem;
+  line-height: 1;
+}
+
+@media (min-width: 640px) {
+  .home-step-number-watermark {
+    font-size: 6rem;
+  }
+}
+
+/* ============================================
+   LEADERBOARD PREMIUM CARD STYLE
+   ============================================ */
+
+.leaderboard-grid-wrapper {
+  @apply grid grid-cols-1 lg:grid-cols-12 gap-6 items-start bg-white border border-brand-border rounded-2xl p-5 sm:p-6 shadow-soft;
+}
+
+.leaderboard-top3-container {
+  @apply lg:col-span-8 grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 items-stretch w-full;
+}
+
+/* Base Medalist Card */
+.medalist-card {
+  @apply bg-white border border-slate-100 rounded-2xl py-6 px-3 sm:px-4 text-center flex flex-col items-center justify-between transition-all duration-300 shadow-sm relative;
+}
+.medalist-card:hover {
+  @apply shadow-md -translate-y-1;
+}
+
+/* Rank specific overrides */
+.medalist-card-silver {
+  @apply border-slate-200/80 bg-gradient-to-b from-slate-50/50 via-white to-white;
+}
+
+.medalist-card-gold {
+  @apply border-amber-300/80 bg-gradient-to-b from-amber-50/30 via-white to-white shadow-[0_8px_20px_rgba(245,158,11,0.06)] scale-[1.03] sm:scale-105 z-10;
+}
+.medalist-card-gold:hover {
+  @apply shadow-[0_12px_28px_rgba(245,158,11,0.12)];
+}
+
+.medalist-card-bronze {
+  @apply border-orange-200/80 bg-gradient-to-b from-orange-50/30 via-white to-white;
+}
+
+/* Avatar Circles */
+.medalist-avatar-silver {
+  @apply w-11 h-11 sm:w-14 sm:h-14 rounded-full bg-gradient-to-tr from-slate-400 via-zinc-200 to-slate-500 p-[2px] shadow-sm;
+}
+
+.medalist-avatar-gold {
+  @apply w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-gradient-to-tr from-amber-400 via-yellow-300 to-amber-500 p-[2.5px] shadow-md;
+}
+
+.medalist-avatar-bronze {
+  @apply w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-gradient-to-tr from-orange-400 via-amber-200 to-orange-500 p-[1.5px] shadow-sm;
+}
+
+.medalist-avatar-inner {
+  @apply w-full h-full rounded-full bg-white flex items-center justify-center font-black text-slate-700 text-xs sm:text-sm;
+}
+.medalist-avatar-inner-gold {
+  @apply text-amber-700 text-xs sm:text-sm md:text-base;
+}
+.medalist-avatar-inner-bronze {
+  @apply text-orange-700 text-xs sm:text-sm;
+}
+
+/* Score Capsules */
+.score-capsule {
+  @apply text-[10px] sm:text-xs font-black px-2.5 py-1.5 rounded-full border mt-3;
+}
+.score-capsule-silver {
+  @apply bg-slate-50 text-slate-600 border-slate-200/80;
+}
+.score-capsule-gold {
+  @apply bg-amber-50 text-amber-600 border-amber-200/80;
+}
+.score-capsule-bronze {
+  @apply bg-orange-50 text-orange-600 border-orange-200/80;
+}
+
+/* Runner Ups Container & Rows */
+.leaderboard-runnerups-container {
+  @apply lg:col-span-4 bg-zinc-50/40 border border-brand-border rounded-2xl p-4 sm:p-5 flex flex-col gap-4 w-full shadow-sm;
+}
+
+.leaderboard-runnerup-row {
+  @apply bg-white border border-brand-border rounded-xl p-3 flex items-center justify-between shadow-sm hover:border-brand-blue/30 transition-all duration-300;
+}
+
+.leaderboard-runnerup-row:hover {
+  @apply border-brand-blue/30 shadow-md;
+}
+
+/* ============================================
+   RECENT EVENTS COMPONENT
+   ============================================ */
+
+.recent-events-grid {
+  @apply grid grid-cols-1 sm:grid-cols-2 gap-6;
+}
+
+.recent-event-card {
+  @apply bg-white border border-brand-border rounded-xl p-5 shadow-soft transition-all duration-300 relative flex justify-between items-center text-left;
+}
+.recent-event-card:hover {
+  @apply shadow-md border-brand-blue/30 -translate-y-0.5;
+}
+
+/* ============================================
+   CERTIFICATE VERIFICATION COMPONENT
+   ============================================ */
+
+.verify-cert-card {
+  @apply bg-white border border-brand-border p-6 sm:p-8 rounded-2xl shadow-soft transition-all duration-300;
+}
+.verify-cert-card:hover {
+  @apply shadow-md border-brand-blue/20;
+}
+
+.verify-cert-input {
+  @apply block w-full border border-slate-200 rounded-xl py-3 px-4 pl-9 text-sm font-mono text-brand-textMain transition-all bg-slate-50/50 focus:bg-white focus:border-brand-blue focus:outline-none;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.02);
+}
+.verify-cert-input:focus {
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08), inset 0 1px 2px rgba(15, 23, 42, 0.02);
+}
+
+.verify-cert-btn {
+  @apply w-full py-3 bg-gradient-to-r from-brand-blue to-indigo-600 hover:from-brand-dark hover:to-indigo-700 text-white font-extrabold rounded-xl shadow-sm hover:shadow transition-all active:scale-95 cursor-pointer text-xs uppercase tracking-wider;
+}
+
+.verify-result-success {
+  @apply mt-5 p-4 rounded-xl border border-emerald-100 bg-emerald-50/40 text-emerald-800 text-xs font-semibold animate-fade-in border-l-[4px] border-l-emerald-500 shadow-sm text-left;
+}
+
+.verify-result-error {
+  @apply mt-5 p-4 rounded-xl border border-red-100 bg-red-50/40 text-red-700 text-xs font-semibold animate-fade-in border-l-[4px] border-l-red-500 shadow-sm text-left;
+}
+
+/* ============================================
+   PREMIUM ACCORDION FAQ SYSTEM
+   ============================================ */
+
+.faq-list-container {
+  @apply space-y-4;
+}
+
+.faq-accordion-item {
+  @apply border border-slate-100 bg-white rounded-2xl transition-all duration-300 overflow-hidden shadow-sm;
+}
+.faq-accordion-item:hover {
+  @apply border-brand-blue/20 shadow-md;
+}
+.faq-accordion-item-active {
+  @apply border-brand-blue/25 shadow-md ring-1 ring-brand-blue/10 bg-gradient-to-b from-brand-lightBlue/5 via-white to-white;
+}
+
+.faq-question-btn {
+  @apply w-full flex items-center justify-between p-5 text-left transition-colors duration-300 cursor-pointer select-none;
+}
+.faq-question-btn:hover {
+  @apply bg-zinc-50/20;
+}
+
+.faq-question-text {
+  @apply font-extrabold text-sm sm:text-base text-slate-800 transition-colors duration-200;
+}
+.faq-accordion-item-active .faq-question-text {
+  @apply text-brand-blue;
+}
+
+.faq-answer-panel {
+  @apply p-5 pt-0 text-xs sm:text-sm text-slate-600 leading-relaxed font-medium animate-fade-in;
+}
+
+.faq-badge-q {
+  @apply w-6 h-6 rounded-full bg-brand-blue text-white flex items-center justify-center font-black text-[10px] sm:text-xs flex-shrink-0 shadow-sm mr-3.5;
+}
+
+.faq-badge-a {
+  @apply w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center font-black text-[10px] sm:text-xs flex-shrink-0 shadow-sm mr-3.5;
+}

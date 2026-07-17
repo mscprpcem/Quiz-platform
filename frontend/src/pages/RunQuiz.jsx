@@ -315,7 +315,7 @@ export default function RunQuiz() {
     const URL = window.URL || window.webkitURL || window;
     const blobURL = URL.createObjectURL(svgBlob);
     
-    const logoSrc = branding?.logo_path ? `/${branding.logo_path}` : null;
+    const logoSrc = branding?.logo_path ? (branding.logo_path.startsWith('http') ? branding.logo_path : `/${branding.logo_path}`) : null;
 
     const image = new Image();
     image.onload = () => {

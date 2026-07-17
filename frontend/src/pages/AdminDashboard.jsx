@@ -17,6 +17,7 @@ import {
   Share2,
   Check
 } from 'lucide-react';
+import './AdminDashboard.css';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -288,7 +289,7 @@ export default function AdminDashboard() {
     const URL = window.URL || window.webkitURL || window;
     const blobURL = URL.createObjectURL(svgBlob);
 
-    const logoSrc = branding?.logo_path ? `/${branding.logo_path}` : null;
+    const logoSrc = branding?.logo_path ? (branding.logo_path.startsWith('http') ? branding.logo_path : `/${branding.logo_path}`) : null;
 
     const image = new Image();
     image.onload = () => {
@@ -463,20 +464,10 @@ export default function AdminDashboard() {
 
                     {/* Actions section */}
                     <div className="flex justify-between items-center space-x-2 mt-4 pt-3.5 border-t border-brand-border relative z-10">
-                      {/* Questions Sheet */}
-                      <button
-                        onClick={() => navigate(`/admin/quizzes/${quiz.id}`)}
-                        className="flex items-center justify-center space-x-1 px-3 py-2 bg-zinc-50 hover:bg-zinc-100 border border-brand-border text-zinc-650 hover:text-brand-textMain rounded-xl transition-all text-xs font-semibold select-none cursor-pointer active:scale-95"
-                        title="Manage Questions"
-                      >
-                        <ListCollapse size={13} />
-                        <span>Sheet</span>
-                      </button>
-
                       {/* View Analytics / Report */}
                       <button
                         onClick={() => navigate(`/admin/analytics/${quiz.id}`)}
-                        className="flex items-center justify-center space-x-1 px-3 py-2 bg-zinc-50 hover:bg-zinc-100 border border-brand-border text-zinc-650 hover:text-brand-textMain rounded-xl transition-all text-xs font-semibold select-none cursor-pointer active:scale-95"
+                        className="flex items-center justify-center space-x-1 px-3.5 py-2 bg-zinc-50 hover:bg-zinc-100 border border-brand-border text-zinc-650 hover:text-brand-textMain rounded-xl transition-all text-xs font-semibold select-none cursor-pointer active:scale-95"
                         title="View Report"
                       >
                         <BarChart2 size={13} />
@@ -486,7 +477,7 @@ export default function AdminDashboard() {
                       {/* Launch Lobby / Run Quiz */}
                       <button
                         onClick={() => navigate(`/admin/run-quiz/${quiz.id}`)}
-                        className="flex-grow flex items-center justify-center space-x-1 px-3 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-extrabold rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
+                        className="flex-grow flex items-center justify-center space-x-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-extrabold rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
                         title="Run Quiz"
                       >
                         <Play size={11} fill="currentColor" />
@@ -543,7 +534,7 @@ export default function AdminDashboard() {
                   level="H"
                   includeMargin={false}
                   imageSettings={branding?.logo_path ? {
-                    src: `/${branding.logo_path}`,
+                    src: branding.logo_path.startsWith('http') ? branding.logo_path : `/${branding.logo_path}`,
                     x: undefined,
                     y: undefined,
                     height: branding?.qr_logo_size || 28,

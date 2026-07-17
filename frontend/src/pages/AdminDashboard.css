@@ -1,0 +1,11 @@
+/* ============================================
+   ADMIN DASHBOARD PAGE STYLES
+   MSC-PRPCEM Quiz Platform Control Board
+   ============================================ */
+
+.admin-code-highlight {
+  font-family: monospace;
+  font-size: 1.5rem;
+  letter-spacing: 0.25em;
+  user-select: all;
+}

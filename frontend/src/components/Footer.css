@@ -1,0 +1,27 @@
+/* ============================================
+   FOOTER COMPONENT STYLES
+   ============================================ */
+
+.app-footer {
+  @apply relative mt-auto border-t border-brand-border bg-white overflow-hidden;
+  background: linear-gradient(180deg, #ffffff 0%, #f8faff 100%) !important;
+}
+
+.footer-top-accent {
+  @apply absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-blue-600 via-indigo-600 to-brand-blue;
+}
+
+.footer-section-title {
+  @apply font-black text-xs uppercase tracking-widest text-zinc-400 mb-4 block;
+}
+
+.footer-link {
+  @apply text-xs text-brand-textMuted hover:text-brand-blue transition-colors duration-200 font-medium block;
+}
+
+.footer-contact-item {
+  @apply flex items-start gap-2.5 text-xs text-brand-textMuted transition-all duration-200;
+}
+.footer-contact-item:hover {
+  @apply text-brand-blue;
+}

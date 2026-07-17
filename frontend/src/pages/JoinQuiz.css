@@ -1,0 +1,12 @@
+/* ============================================
+   JOIN QUIZ PAGE STYLES
+   MSC-PRPCEM Quiz Platform Join Page
+   ============================================ */
+
+.join-quiz-gradient {
+  background: linear-gradient(90deg, #2563EB, #0EA5E9, #8B5CF6) !important;
+}
+
+.join-quiz-error-shadow {
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.05) !important;
+}

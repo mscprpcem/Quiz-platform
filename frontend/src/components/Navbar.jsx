@@ -86,12 +86,6 @@ export default function Navbar() {
                   icon={BookOpen}
                   label="Quizzes"
                 />
-                <NavButton
-                  onClick={() => navTo('/admin/branding')}
-                  isActive={isActive('/admin/branding')}
-                  icon={Palette}
-                  label="Branding"
-                />
 
                 <div className="h-5 w-px mx-2 bg-brand-border"></div>
 
@@ -213,15 +207,6 @@ export default function Navbar() {
               >
                 <BookOpen size={16} />
                 Quizzes
-              </button>
-              <button
-                onClick={() => navTo('/admin/branding')}
-                className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all ${
-                  isActive('/admin/branding') ? 'text-brand-blue bg-brand-lightBlue' : 'text-brand-textMuted hover:bg-brand-lightBlue/60'
-                }`}
-              >
-                <Palette size={16} />
-                Branding
               </button>
               <div className="border-t border-brand-border pt-2 mt-2">
                 <p className="text-xs text-brand-textMuted px-3 mb-1">Signed in as {user.name}</p>

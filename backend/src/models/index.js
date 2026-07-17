@@ -5,7 +5,6 @@ const Question = require('./Question');
 const Participant = require('./Participant');
 const Answer = require('./Answer');
 const Violation = require('./Violation');
-const BrandSettings = require('./BrandSettings');
 
 // Relationships
 
@@ -40,6 +39,5 @@ module.exports = {
   Question,
   Participant,
   Answer,
-  Violation,
-  BrandSettings
+  Violation
 };

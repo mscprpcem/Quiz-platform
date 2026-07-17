@@ -8,7 +8,7 @@ const rateLimit = require('express-rate-limit');
 
 require('dotenv').config();
 
-const { sequelize, Admin, BrandSettings } = require('./models');
+const { sequelize, Admin } = require('./models');
 const { initializeSocket } = require('./services/socket');
 
 // Routes
@@ -184,17 +184,6 @@ async function startServer() {
 
     }
 
-    // Seed Branding
-
-    const branding = await BrandSettings.findOne();
-
-    if (!branding) {
-
-      await BrandSettings.create({});
-
-      console.log("✅ Branding Created");
-
-    }
 
     server.listen(PORT, () => {
 

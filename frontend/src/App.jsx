@@ -17,8 +17,19 @@ import QuizManagement from './pages/QuizManagement';
 import QuestionManagement from './pages/QuestionManagement';
 import Analytics from './pages/Analytics';
 import PracticeQuiz from './pages/PracticeQuiz';
-import BrandSettings from './pages/BrandSettings';
 import RunQuiz from './pages/RunQuiz';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import TermsOfService from './pages/TermsOfService';
+import CookiePolicy from './pages/CookiePolicy';
+import CodeOfConduct from './pages/CodeOfConduct';
+import Disclaimer from './pages/Disclaimer';
+import AccessibilityStatement from './pages/AccessibilityStatement';
+import QuizRules from './pages/QuizRules';
+import FAQDetails from './pages/FAQDetails';
+import UserGuide from './pages/UserGuide';
+import SupportSLA from './pages/SupportSLA';
+import ReportIssue from './pages/ReportIssue';
+import Documentation from './pages/Documentation';
 
 // Private Route Enforcer for Admin pages
 const AdminRoute = ({ children }) => {
@@ -56,6 +67,18 @@ export default function App() {
                 <Route path="/results" element={<Results />} />
                 <Route path="/practice" element={<PracticeQuiz />} />
                 <Route path="/practice/:category" element={<PracticeQuiz />} />
+                <Route path="/privacy" element={<PrivacyPolicy />} />
+                <Route path="/terms" element={<TermsOfService />} />
+                <Route path="/cookies" element={<CookiePolicy />} />
+                <Route path="/code-of-conduct" element={<CodeOfConduct />} />
+                <Route path="/disclaimer" element={<Disclaimer />} />
+                <Route path="/accessibility" element={<AccessibilityStatement />} />
+                <Route path="/rules" element={<QuizRules />} />
+                <Route path="/faq-details" element={<FAQDetails />} />
+                <Route path="/user-guide" element={<UserGuide />} />
+                <Route path="/support-sla" element={<SupportSLA />} />
+                <Route path="/report-issue" element={<ReportIssue />} />
+                <Route path="/documentation" element={<Documentation />} />
 
                 {/* Admin Auth Routes */}
                 <Route path="/admin/login" element={<AdminLogin />} />
@@ -101,14 +124,7 @@ export default function App() {
                     </AdminRoute>
                   }
                 />
-                <Route
-                  path="/admin/branding"
-                  element={
-                    <AdminRoute>
-                      <BrandSettings />
-                    </AdminRoute>
-                  }
-                />
+
 
                 {/* Fallback route */}
                 <Route path="*" element={<Navigate to="/" replace />} />

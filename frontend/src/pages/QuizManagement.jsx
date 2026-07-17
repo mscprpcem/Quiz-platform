@@ -233,7 +233,7 @@ export default function QuizManagement() {
     const clubName = (branding?.club_name || 'Microsoft Student Club').toUpperCase();
     const chapterName = (branding?.chapter_name || 'MSC-PRPCEM Chapter').toUpperCase();
     const footerText = branding?.footer_text || 'Powered by Microsoft Student Club Quiz Platform';
-    const logoSrc = branding?.logo_path ? `/${branding.logo_path}` : null;
+    const logoSrc = branding?.logo_path ? (branding.logo_path.startsWith('http') ? branding.logo_path : `/${branding.logo_path}`) : null;
 
     const image = new Image();
     image.onload = () => {
@@ -525,7 +525,7 @@ export default function QuizManagement() {
 
                 {/* Actions section */}
                 <div className="flex flex-col gap-2 mt-4 pt-3.5 border-t border-brand-border relative z-10">
-                  <div className="grid grid-cols-3 gap-1.5">
+                  <div className="grid grid-cols-2 gap-1.5">
                     <button
                       onClick={() => navigate(`/admin/quizzes/${quiz.id}`)}
                       title="Manage Questions"
@@ -535,39 +535,22 @@ export default function QuizManagement() {
                       <span>Sheet</span>
                     </button>
                     <button
-                      onClick={() => navigate(`/admin/analytics/${quiz.id}`)}
-                      title="View Analytics"
-                      className="flex items-center justify-center gap-1.5 py-2 bg-zinc-50 hover:bg-zinc-100 border border-brand-border text-zinc-650 hover:text-brand-textMain rounded-xl transition-all text-xs font-semibold select-none cursor-pointer active:scale-95"
-                    >
-                      <BarChart2 size={13} />
-                      <span>Report</span>
-                    </button>
-                    <button
-                      onClick={() => handleOpenQR(quiz)}
-                      title="Share QR Code"
-                      className="flex items-center justify-center gap-1.5 py-2 bg-zinc-50 hover:bg-zinc-100 border border-brand-border text-zinc-650 hover:text-brand-textMain rounded-xl transition-all text-xs font-semibold select-none cursor-pointer active:scale-95"
-                    >
-                      <QrCode size={13} />
-                      <span>Share</span>
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <button
                       onClick={() => handleOpenImport(quiz)}
                       className="flex items-center justify-center gap-1.5 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-xl transition-all text-xs font-bold cursor-pointer active:scale-95"
+                      title="Import Questions from Excel"
                     >
                       <FileSpreadsheet size={13} />
                       <span>Import .xlsx</span>
                     </button>
-                    <button
-                      onClick={() => handleOpenCreate(quiz)}
-                      className="flex items-center justify-center gap-1.5 py-2 border border-brand-border hover:bg-zinc-50 text-zinc-500 hover:text-brand-textMain rounded-xl transition-all text-xs font-bold cursor-pointer active:scale-95"
-                    >
-                      <Edit2 size={13} />
-                      <span>Edit Info</span>
-                    </button>
                   </div>
+                  <button
+                    onClick={() => handleOpenCreate(quiz)}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 border border-brand-border hover:bg-zinc-50 text-zinc-500 hover:text-brand-textMain rounded-xl transition-all text-xs font-bold cursor-pointer active:scale-95"
+                    title="Edit Quiz Details"
+                  >
+                    <Edit2 size={13} />
+                    <span>Edit Info</span>
+                  </button>
                 </div>
               </div>
             );
@@ -877,7 +860,7 @@ export default function QuizManagement() {
                   level="H"
                   includeMargin={false}
                   imageSettings={branding?.logo_path ? {
-                    src: `/${branding.logo_path}`,
+                    src: branding.logo_path.startsWith('http') ? branding.logo_path : `/${branding.logo_path}`,
                     x: undefined,
                     y: undefined,
                     height: branding?.qr_logo_size || 28,

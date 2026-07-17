@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
 import FullscreenHandler from '../components/FullscreenHandler';
 import { Clock, ShieldAlert, Award, ArrowRight } from 'lucide-react';
+import './LiveQuiz.css';
 
 export default function LiveQuiz() {
   const navigate = useNavigate();
@@ -310,7 +311,7 @@ export default function LiveQuiz() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] py-8 px-4 sm:px-6 lg:px-8" style={{ backgroundColor: '#F5FAFF' }}>
+    <div className="min-h-[calc(100vh-4rem)] py-8 px-4 sm:px-6 lg:px-8 live-quiz-bg">
       {/* Security Fullscreen Enforcer Hook - Disabled for now */}
       {/*
       <FullscreenHandler

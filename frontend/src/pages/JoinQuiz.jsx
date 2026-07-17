@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
 import { Keyboard, User, School, Mail, ArrowRight, Zap } from 'lucide-react';
+import './JoinQuiz.css';
 
 export default function JoinQuiz() {
   const { code } = useParams();
@@ -134,7 +135,7 @@ export default function JoinQuiz() {
       <div className="max-w-md w-full relative z-10 animate-fade-in">
         <div className="form-card p-8 sm:p-9 rounded-2xl space-y-7 relative overflow-hidden">
           {/* Accent stripe */}
-          <div className="absolute top-0 left-0 w-full h-[3px]" style={{ background: 'linear-gradient(90deg, #2563EB, #0EA5E9, #8B5CF6)' }}></div>
+          <div className="absolute top-0 left-0 w-full h-[3px] join-quiz-gradient"></div>
 
           {/* Title */}
           <div className="text-center space-y-1.5 pt-1">
@@ -149,8 +150,7 @@ export default function JoinQuiz() {
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-2.5 rounded-xl text-xs font-semibold animate-fade-in"
-                 style={{ boxShadow: '0 2px 8px rgba(239,68,68,0.05)' }}>
+            <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-2.5 rounded-xl text-xs font-semibold animate-fade-in join-quiz-error-shadow">
               {error}
             </div>
           )}
