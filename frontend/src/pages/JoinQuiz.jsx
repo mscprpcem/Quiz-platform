@@ -4,6 +4,30 @@ import { useSocket } from '../context/SocketContext';
 import { Keyboard, User, School, Mail, ArrowRight, Zap } from 'lucide-react';
 import './JoinQuiz.css';
 
+const InputRow = ({ id, name, icon: Icon, label, required, type = 'text', placeholder, value, onChange, className = '' }) => (
+  <div className="space-y-1.5">
+    <label htmlFor={id} className="block text-[10px] font-bold text-brand-textMuted uppercase tracking-widest">
+      {label} {required && <span className="text-red-400">*</span>}
+    </label>
+    <div className="relative group">
+      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-brand-textMuted/60 group-focus-within:text-brand-blue transition-colors duration-200">
+        <Icon size={17} />
+      </div>
+      <input
+        id={id}
+        name={name}
+        type={type}
+        required={required}
+        maxLength={name === 'joinCode' ? 6 : undefined}
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        className={`input-enhanced pl-10 ${className}`}
+      />
+    </div>
+  </div>
+);
+
 export default function JoinQuiz() {
   const { code } = useParams();
   const navigate = useNavigate();
@@ -100,30 +124,6 @@ export default function JoinQuiz() {
     }, 500);
   };
 
-  const InputRow = ({ id, name, icon: Icon, label, required, type = 'text', placeholder, value, className = '' }) => (
-    <div className="space-y-1.5">
-      <label htmlFor={id} className="block text-[10px] font-bold text-brand-textMuted uppercase tracking-widest">
-        {label} {required && <span className="text-red-400">*</span>}
-      </label>
-      <div className="relative group">
-        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-brand-textMuted/60 group-focus-within:text-brand-blue transition-colors duration-200">
-          <Icon size={17} />
-        </div>
-        <input
-          id={id}
-          name={name}
-          type={type}
-          required={required}
-          maxLength={name === 'joinCode' ? 6 : undefined}
-          value={value}
-          onChange={handleChange}
-          placeholder={placeholder}
-          className={`input-enhanced pl-10 ${className}`}
-        />
-      </div>
-    </div>
-  );
-
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
       {/* Ambient bg */}
@@ -161,22 +161,26 @@ export default function JoinQuiz() {
                 id="joinCode" name="joinCode" icon={Keyboard}
                 label="Join Code" required placeholder="ABC123"
                 value={formData.joinCode}
+                onChange={handleChange}
                 className="text-center font-bold uppercase tracking-[0.2em] text-lg"
               />
               <InputRow
                 id="name" name="name" icon={User}
                 label="Full Name" required placeholder="Amit Yadav"
                 value={formData.name}
+                onChange={handleChange}
               />
               <InputRow
                 id="college" name="college" icon={School}
                 label="College / Institution" required placeholder="PRPCEM"
                 value={formData.college}
+                onChange={handleChange}
               />
               <InputRow
                 id="email" name="email" icon={Mail} type="email"
                 label="Email Address (Optional)" required={false} placeholder="amit@example.com"
                 value={formData.email}
+                onChange={handleChange}
               />
             </div>
 
