@@ -43,7 +43,7 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-6 sm:py-12 px-3.5 sm:px-6 lg:px-8 relative overflow-hidden">
       {/* Ambient bg */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 right-0 w-full h-full bg-[radial-gradient(ellipse_50%_40%_at_70%_20%,_rgba(37,99,235,0.06)_0%,_transparent_55%)]"></div>
@@ -51,7 +51,7 @@ export default function AdminLogin() {
       </div>
 
       <div className="max-w-md w-full relative z-10 animate-fade-in">
-        <div className="form-card p-8 sm:p-9 rounded-2xl space-y-7 relative overflow-hidden">
+        <div className="form-card p-5 sm:p-9 rounded-2xl space-y-6 sm:space-y-7 relative overflow-hidden">
           {/* Accent stripe */}
           <div className="absolute top-0 left-0 w-full h-[3px]" style={{ background: 'linear-gradient(90deg, #2563EB, #0EA5E9, #8B5CF6)' }}></div>
 

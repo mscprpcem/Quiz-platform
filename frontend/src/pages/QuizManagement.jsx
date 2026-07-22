@@ -46,7 +46,7 @@ function StatusBadge({ status }) {
 function Modal({ onClose, children }) {
   return (
     <div
-      className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-16 px-4 pb-6 animate-fade-in"
+      className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-14 xs:pt-16 px-3 sm:px-4 pb-6 animate-fade-in"
       onClick={onClose}
     >
       <div
@@ -529,14 +529,14 @@ export default function QuizManagement() {
                     <button
                       onClick={() => navigate(`/admin/quizzes/${quiz.id}`)}
                       title="Manage Questions"
-                      className="flex items-center justify-center gap-1.5 py-2 bg-zinc-50 hover:bg-zinc-100 border border-brand-border text-zinc-650 hover:text-brand-textMain rounded-xl transition-all text-xs font-semibold select-none cursor-pointer active:scale-95"
+                      className="flex items-center justify-center gap-1.5 px-2 py-2 bg-zinc-50 hover:bg-zinc-100 border border-brand-border text-zinc-650 hover:text-brand-textMain rounded-xl transition-all text-[11px] sm:text-xs font-semibold select-none cursor-pointer active:scale-95"
                     >
                       <ListCollapse size={13} />
                       <span>Sheet</span>
                     </button>
                     <button
                       onClick={() => handleOpenImport(quiz)}
-                      className="flex items-center justify-center gap-1.5 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-xl transition-all text-xs font-bold cursor-pointer active:scale-95"
+                      className="flex items-center justify-center gap-1.5 px-2 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-xl transition-all text-[11px] sm:text-xs font-bold cursor-pointer active:scale-95"
                       title="Import Questions from Excel"
                     >
                       <FileSpreadsheet size={13} />

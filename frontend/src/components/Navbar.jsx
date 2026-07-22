@@ -66,7 +66,7 @@ export default function Navbar() {
             />
           
             <span className="font-black text-brand-textMain">MSC-PRPCEM</span>
-            <span className="font-normal text-brand-textMuted ml-1.5 xs:hidden"> MSC</span>
+            <span className="font-normal text-brand-textMuted ml-1.5 hidden sm:inline">MSC</span>
 
           </div>
 

@@ -93,8 +93,8 @@ export default function WaitingRoom() {
   }, [socket, navigate, initialData]);
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8" style={{ backgroundColor: '#F5FAFF' }}>
-      <div className="max-w-md w-full space-y-8 bg-white border border-brand-border p-8 rounded-xl shadow-soft text-center animate-fade-in">
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-6 sm:py-12 px-3.5 sm:px-6 lg:px-8" style={{ backgroundColor: '#F5FAFF' }}>
+      <div className="max-w-md w-full space-y-6 sm:space-y-8 bg-white border border-brand-border p-5 sm:p-8 rounded-xl shadow-soft text-center animate-fade-in">
         {!connected && (
           <div className="bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold py-2.5 px-3 rounded-lg flex items-center justify-center space-x-2 animate-pulse mb-4">
             <span className="w-2 h-2 bg-amber-500 rounded-full"></span>
@@ -124,7 +124,7 @@ export default function WaitingRoom() {
           <span className="text-xs font-semibold text-brand-blue bg-brand-lightBlue px-3 py-1 rounded-full uppercase tracking-wider">
             Lobby Active
           </span>
-          <h2 className="text-3xl font-extrabold text-brand-textMain tracking-tight">Waiting for Host...</h2>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-brand-textMain tracking-tight">Waiting for Host...</h2>
           <p className="text-brand-textMuted font-medium">{initialData.eventName}</p>
           <p className="text-brand-textMuted text-sm">{initialData.title}</p>
           {initialData.scheduledStart && (

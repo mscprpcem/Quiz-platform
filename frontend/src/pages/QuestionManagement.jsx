@@ -185,8 +185,8 @@ export default function QuestionManagement() {
             className="bg-white border border-brand-border rounded-2xl shadow-sm overflow-hidden"
           >
             {/* Question header bar */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-brand-border bg-zinc-50/50">
-              <div className="flex items-center gap-3 text-xs font-semibold text-brand-textMuted">
+            <div className="flex flex-col xs:flex-row justify-between items-start xs:items-center gap-2.5 px-4 sm:px-5 py-3 border-b border-brand-border bg-zinc-50/50">
+              <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 text-xs font-semibold text-brand-textMuted">
                 <span className="bg-brand-lightBlue text-brand-blue font-bold px-2.5 py-0.5 rounded-full">
                   Q{idx + 1}
                 </span>

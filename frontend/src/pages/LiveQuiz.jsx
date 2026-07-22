@@ -311,7 +311,7 @@ export default function LiveQuiz() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] py-8 px-4 sm:px-6 lg:px-8 live-quiz-bg">
+    <div className="min-h-[calc(100vh-4rem)] py-4 sm:py-8 px-3.5 sm:px-6 lg:px-8 live-quiz-bg">
       {/* Security Fullscreen Enforcer Hook - Disabled for now */}
       {/*
       <FullscreenHandler
@@ -360,7 +360,7 @@ export default function LiveQuiz() {
         {!disqualified && (
           <>
             {/* Header info */}
-            <div className="flex justify-between items-center bg-white border border-brand-border px-6 py-4 rounded-xl shadow-sm">
+            <div className="flex flex-col xs:flex-row justify-between items-start xs:items-center gap-2 bg-white border border-brand-border px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-sm">
               <div>
                 <h3 className="text-sm font-semibold text-brand-textMuted uppercase tracking-wider">Playing</h3>
                 <h1 className="text-lg font-bold text-brand-textMain">{initialData.title}</h1>
@@ -404,13 +404,12 @@ export default function LiveQuiz() {
                 </p>
               </div>
             ) : showFeedback ? (
-              /* Question Feedback Phase */
-              <div className="bg-white border border-brand-border rounded-xl p-8 shadow-sm space-y-6 animate-fade-in">
+              <div className="bg-white border border-brand-border rounded-xl p-5 sm:p-8 shadow-sm space-y-5 sm:space-y-6 animate-fade-in">
                 <div className="text-center space-y-2">
                   <div className="inline-block px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-zinc-100 text-zinc-600">
                     Question Completed
                   </div>
-                  <h2 className="text-2xl font-bold text-brand-textMain">{currentQuestion.question}</h2>
+                  <h2 className="text-lg sm:text-2xl font-bold text-brand-textMain">{currentQuestion.question}</h2>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
@@ -458,18 +457,18 @@ export default function LiveQuiz() {
               /* Active Gameplay Question Card */
               <div className="space-y-6 animate-fade-in">
                 {/* Question */}
-                <div className="bg-white border border-brand-border p-8 rounded-xl shadow-sm space-y-4">
+                <div className="bg-white border border-brand-border p-5 sm:p-8 rounded-xl shadow-sm space-y-4">
                   <div className="flex justify-between items-center text-brand-textMuted text-xs font-semibold uppercase tracking-wider">
                     <span>Question {currentQuestion.questionIndex + 1}</span>
                     <span>{currentQuestion.marks} Points</span>
                   </div>
-                  <h2 className="text-2xl font-bold text-brand-textMain leading-tight">
+                  <h2 className="text-lg sm:text-2xl font-bold text-brand-textMain leading-tight">
                     {currentQuestion.question}
                   </h2>
                 </div>
 
                 {/* Options list */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
                   {[
                     { key: 'A', text: currentQuestion.option_a },
                     { key: 'B', text: currentQuestion.option_b },
@@ -484,7 +483,7 @@ export default function LiveQuiz() {
                         key={option.key}
                         onClick={() => handleSelectOption(option.key)}
                         disabled={!canSelect}
-                        className={`w-full text-left p-5 rounded-xl border transition-all relative flex items-center space-x-4 ${
+                        className={`w-full text-left p-3.5 sm:p-5 rounded-xl border transition-all relative flex items-center space-x-3 sm:space-x-4 ${
                           isSelected
                             ? 'bg-brand-lightBlue border-brand-blue text-brand-dark ring-2 ring-brand-blue/20'
                             : canSelect
@@ -493,14 +492,14 @@ export default function LiveQuiz() {
                         }`}
                       >
                         {/* Option tag circle */}
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
                           isSelected
                             ? 'bg-brand-blue text-white'
                             : 'bg-brand-lightBlue text-brand-textMain'
                         }`}>
                           {option.key}
                         </div>
-                        <span className="font-semibold text-lg">{option.text}</span>
+                        <span className="font-semibold text-sm sm:text-lg">{option.text}</span>
                       </button>
                     );
                   })}

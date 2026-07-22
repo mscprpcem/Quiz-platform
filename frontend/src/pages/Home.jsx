@@ -182,19 +182,19 @@ export default function Home() {
               <div className="grid grid-cols-3 border-b border-brand-border bg-zinc-50">
                 <button 
                   onClick={() => { setJoinTab('code'); setJoinError(''); }}
-                  className={`py-3 px-1 text-center text-[10px] sm:text-xs font-bold transition-all border-b-2 ${joinTab === 'code' ? 'border-brand-blue text-brand-blue bg-white' : 'border-transparent text-brand-textMuted hover:text-brand-textMain'}`}
+                  className={`py-2.5 sm:py-3 px-0.5 sm:px-1 text-center text-[9px] xs:text-[10px] sm:text-xs font-bold leading-tight transition-all border-b-2 ${joinTab === 'code' ? 'border-brand-blue text-brand-blue bg-white' : 'border-transparent text-brand-textMuted hover:text-brand-textMain'}`}
                 >
                   Enter Join Code
                 </button>
                 <button 
                   onClick={() => { setJoinTab('qr'); setJoinError(''); }}
-                  className={`py-3 px-1 text-center text-[10px] sm:text-xs font-bold transition-all border-b-2 ${joinTab === 'qr' ? 'border-brand-blue text-brand-blue bg-white' : 'border-transparent text-brand-textMuted hover:text-brand-textMain'}`}
+                  className={`py-2.5 sm:py-3 px-0.5 sm:px-1 text-center text-[9px] xs:text-[10px] sm:text-xs font-bold leading-tight transition-all border-b-2 ${joinTab === 'qr' ? 'border-brand-blue text-brand-blue bg-white' : 'border-transparent text-brand-textMuted hover:text-brand-textMain'}`}
                 >
                   Scan QR Code
                 </button>
                 <button 
                   onClick={() => { setJoinTab('login'); setJoinError(''); }}
-                  className={`py-3 px-1 text-center text-[10px] sm:text-xs font-bold transition-all border-b-2 ${joinTab === 'login' ? 'border-brand-blue text-brand-blue bg-white' : 'border-transparent text-brand-textMuted hover:text-brand-textMain'}`}
+                  className={`py-2.5 sm:py-3 px-0.5 sm:px-1 text-center text-[9px] xs:text-[10px] sm:text-xs font-bold leading-tight transition-all border-b-2 ${joinTab === 'login' ? 'border-brand-blue text-brand-blue bg-white' : 'border-transparent text-brand-textMuted hover:text-brand-textMain'}`}
                 >
                   Login and Join
                 </button>
@@ -385,16 +385,16 @@ export default function Home() {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {upcomingQuizzes.map((q, idx) => (
-                <div key={idx} className="bg-white border border-brand-border rounded-2xl shadow-soft hover:shadow-soft-lg hover:-translate-y-0.5 transition-all duration-300 flex overflow-hidden group">
+                <div key={idx} className="bg-white border border-brand-border rounded-2xl shadow-soft hover:shadow-soft-lg hover:-translate-y-0.5 transition-all duration-300 flex flex-col xs:flex-row overflow-hidden group">
                   
                   {/* Left Ticket Ribbon */}
-                  <div className={`w-20 sm:w-24 bg-gradient-to-br ${q.color === 'blue' ? 'from-blue-600 to-indigo-600' : 'from-indigo-600 to-purple-600'} flex flex-col justify-center items-center text-white shrink-0 border-r border-dashed border-zinc-200/30 relative`}>
+                  <div className={`w-full xs:w-20 sm:w-24 py-3 xs:py-0 bg-gradient-to-br ${q.color === 'blue' ? 'from-blue-600 to-indigo-600' : 'from-indigo-600 to-purple-600'} flex flex-row xs:flex-col justify-center items-center gap-2 xs:gap-0 text-white shrink-0 border-b xs:border-b-0 xs:border-r border-dashed border-zinc-200/30 relative`}>
                     {/* Decorative Ticket Notches */}
-                    <div className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-[#F5FAFF] rounded-full border border-brand-border/60"></div>
-                    <div className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-[#F5FAFF] rounded-full border border-brand-border/60"></div>
+                    <div className="hidden xs:block absolute -top-1.5 -right-1.5 w-3 h-3 bg-[#F5FAFF] rounded-full border border-brand-border/60"></div>
+                    <div className="hidden xs:block absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-[#F5FAFF] rounded-full border border-brand-border/60"></div>
                     
                     <span className="text-[10px] sm:text-xs font-black tracking-widest uppercase opacity-85">{q.month}</span>
-                    <span className="text-2xl sm:text-3xl font-black mt-1.5 leading-none">{q.day}</span>
+                    <span className="text-xl xs:text-2xl sm:text-3xl font-black xs:mt-1.5 leading-none">{q.day}</span>
                   </div>
 
                   {/* Right Content details */}
@@ -447,7 +447,7 @@ export default function Home() {
             <p className="text-brand-textMuted text-xs sm:text-sm">A simplified overview of key functionalities supporting our events.</p>
           </div>
           
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-5">
+          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-5">
             {features.map((feat, idx) => {
               const Icon = feat.icon;
               const configs = {
@@ -564,7 +564,7 @@ export default function Home() {
                     <div className="medalist-avatar-inner">BJ</div>
                   </div>
                   <div className="space-y-0.5">
-                    <h4 className="font-extrabold text-zinc-800 text-xs sm:text-sm truncate max-w-[80px] sm:max-w-none">Bob Johnson</h4>
+                    <h4 className="font-extrabold text-zinc-800 text-xs sm:text-sm truncate max-w-[150px] xs:max-w-[200px] sm:max-w-none">Bob Johnson</h4>
                     <p className="text-[9px] font-semibold text-zinc-400">PRPCEM</p>
                   </div>
                 </div>
@@ -579,7 +579,7 @@ export default function Home() {
                     <div className="medalist-avatar-inner medalist-avatar-inner-gold">AS</div>
                   </div>
                   <div className="space-y-0.5">
-                    <h4 className="font-extrabold text-zinc-800 text-xs sm:text-sm truncate max-w-[80px] sm:max-w-none">Alice Smith</h4>
+                    <h4 className="font-extrabold text-zinc-800 text-xs sm:text-sm truncate max-w-[150px] xs:max-w-[200px] sm:max-w-none">Alice Smith</h4>
                     <p className="text-[9px] font-semibold text-zinc-400">PRPCEM</p>
                   </div>
                 </div>
@@ -594,7 +594,7 @@ export default function Home() {
                     <div className="medalist-avatar-inner medalist-avatar-inner-bronze">CL</div>
                   </div>
                   <div className="space-y-0.5">
-                    <h4 className="font-extrabold text-zinc-800 text-xs sm:text-sm truncate max-w-[80px] sm:max-w-none">Charlie Lee</h4>
+                    <h4 className="font-extrabold text-zinc-800 text-xs sm:text-sm truncate max-w-[150px] xs:max-w-[200px] sm:max-w-none">Charlie Lee</h4>
                     <p className="text-[9px] font-semibold text-zinc-400">PRPCEM</p>
                   </div>
                 </div>

@@ -45,7 +45,7 @@
 }
 
 .medalist-card-gold {
-  @apply border-amber-300/80 bg-gradient-to-b from-amber-50/30 via-white to-white shadow-[0_8px_20px_rgba(245,158,11,0.06)] scale-[1.03] sm:scale-105 z-10;
+  @apply border-amber-300/80 bg-gradient-to-b from-amber-50/30 via-white to-white shadow-[0_8px_20px_rgba(245,158,11,0.06)] scale-100 sm:scale-105 z-10;
 }
 .medalist-card-gold:hover {
   @apply shadow-[0_12px_28px_rgba(245,158,11,0.12)];
@@ -114,7 +114,7 @@
 }
 
 .recent-event-card {
-  @apply bg-white border border-brand-border rounded-xl p-5 shadow-soft transition-all duration-300 relative flex justify-between items-center text-left;
+  @apply bg-white border border-brand-border rounded-xl p-5 shadow-soft transition-all duration-300 relative flex flex-col xs:flex-row justify-between items-start xs:items-center gap-3 text-left;
 }
 .recent-event-card:hover {
   @apply shadow-md border-brand-blue/30 -translate-y-0.5;

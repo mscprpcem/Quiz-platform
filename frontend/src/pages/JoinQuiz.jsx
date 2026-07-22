@@ -22,7 +22,7 @@ const InputRow = ({ id, name, icon: Icon, label, required, type = 'text', placeh
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        className={`input-enhanced pl-10 ${className}`}
+        className={`input-enhanced ${className.includes('text-center') ? 'px-10' : 'pl-10'} ${className}`}
       />
     </div>
   </div>
@@ -125,7 +125,7 @@ export default function JoinQuiz() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-6 sm:py-12 px-3.5 sm:px-6 lg:px-8 relative overflow-hidden">
       {/* Ambient bg */}
       <div className="absolute inset-0 pointer-events-none">
         <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_60%_50%_at_30%_20%,_rgba(37,99,235,0.06)_0%,_transparent_55%)]"></div>
@@ -133,7 +133,7 @@ export default function JoinQuiz() {
       </div>
 
       <div className="max-w-md w-full relative z-10 animate-fade-in">
-        <div className="form-card p-8 sm:p-9 rounded-2xl space-y-7 relative overflow-hidden">
+        <div className="form-card p-5 sm:p-9 rounded-2xl space-y-6 sm:space-y-7 relative overflow-hidden">
           {/* Accent stripe */}
           <div className="absolute top-0 left-0 w-full h-[3px] join-quiz-gradient"></div>
 

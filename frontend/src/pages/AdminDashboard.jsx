@@ -346,10 +346,10 @@ export default function AdminDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in space-y-6">
         
         {/* Title Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-brand-border p-6 rounded-2xl shadow-sm gap-4 relative overflow-hidden">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-brand-border p-4.5 sm:p-6 rounded-2xl shadow-sm gap-4 relative overflow-hidden">
           <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-brand-blue via-brand-cyan to-brand-purple"></div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-black text-brand-textMain tracking-tight">
+            <h1 className="text-lg sm:text-2xl font-black text-brand-textMain tracking-tight">
               Admin Session Center
             </h1>
             <p className="text-xs sm:text-sm text-brand-textMuted mt-1">

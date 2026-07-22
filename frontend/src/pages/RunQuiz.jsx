@@ -616,7 +616,7 @@ export default function RunQuiz() {
                 <div className="py-2.5 px-6 bg-brand-bgLight/60 border border-brand-border rounded-2xl inline-block relative group">
                   <span className="block text-[8px] font-bold text-brand-textMuted uppercase tracking-wider">Lobby Join Code</span>
                   <div className="flex items-center justify-center gap-2 mt-0.5">
-                    <span className="text-4xl font-black text-brand-blue tracking-wider select-all">{activeQuiz.join_code}</span>
+                    <span className="text-2xl xs:text-3xl sm:text-4xl font-black text-brand-blue tracking-wider select-all">{activeQuiz.join_code}</span>
                     <button
                       onClick={handleCopyCode}
                       className="p-1.5 hover:bg-zinc-150 text-zinc-500 hover:text-brand-blue rounded-lg border border-zinc-200 cursor-pointer transition-all active:scale-95 flex items-center justify-center bg-white"
@@ -730,7 +730,7 @@ export default function RunQuiz() {
               </div>
 
               {/* Visual Stats Row */}
-              <div className="grid grid-cols-2 gap-4 py-2">
+              <div className="grid grid-cols-1 xs:grid-cols-2 gap-3 sm:gap-4 py-2">
                 {/* Visual Timer */}
                 <div className="border border-brand-border/80 bg-brand-bgLight/40 rounded-2xl p-5 text-center flex flex-col justify-center items-center shadow-inner min-h-[140px]">
                   <Clock size={20} className="text-brand-blue opacity-85 mb-1" />
