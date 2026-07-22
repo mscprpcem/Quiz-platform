@@ -101,8 +101,8 @@ export default function JoinQuiz() {
     e.preventDefault();
     const { joinCode, name, college, email } = formData;
 
-    if (!joinCode || !name || !college) {
-      setError('Please fill in all required fields.');
+    if (!joinCode || !name || !college || !email) {
+      setError('Please fill in all fields (Email is required for certificate issuance).');
       return;
     }
     if (joinCode.length !== 6) {
@@ -141,9 +141,9 @@ export default function JoinQuiz() {
           <div className="text-center space-y-1.5 pt-1">
             <div className="inline-flex items-center space-x-1.5 bg-brand-lightBlue text-brand-blue text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-2">
               <Zap size={10} />
-              <span>Live Session</span>
+              <span>Event Session</span>
             </div>
-            <h2 className="text-2xl font-extrabold text-brand-textMain tracking-tight">Join Live Quiz</h2>
+            <h2 className="text-2xl font-extrabold text-brand-textMain tracking-tight">Join Quiz</h2>
             <p className="text-[13px] text-brand-textMuted">
               Enter your details and the event code to join the lobby.
             </p>
@@ -178,7 +178,7 @@ export default function JoinQuiz() {
               />
               <InputRow
                 id="email" name="email" icon={Mail} type="email"
-                label="Email Address (Optional)" required={false} placeholder="amit@example.com"
+                label="Email Address (For Certificate Issuance)" required={true} placeholder="student@example.com"
                 value={formData.email}
                 onChange={handleChange}
               />

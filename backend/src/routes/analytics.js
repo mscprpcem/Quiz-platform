@@ -4,6 +4,64 @@ const { Quiz, Question, Participant, Answer, Violation } = require('../models');
 const authMiddleware = require('../middleware/auth');
 const { Op } = require('sequelize');
 
+// Public endpoint for homepage leaderboard & recent events
+router.get('/public/leaderboard', async (req, res) => {
+  try {
+    const completedQuizzes = await Quiz.findAll({
+      where: { status: 'completed' },
+      order: [['updatedAt', 'DESC']],
+      limit: 5
+    });
+
+    const answers = await Answer.findAll({
+      attributes: ['participant_id', 'points', 'is_correct']
+    });
+
+    const participants = await Participant.findAll();
+
+    const pScores = {};
+    participants.forEach((p) => {
+      pScores[p.id] = {
+        id: p.id,
+        name: p.name,
+        college: p.college,
+        score: 0,
+        correctCount: 0
+      };
+    });
+
+    answers.forEach((a) => {
+      if (pScores[a.participant_id]) {
+        pScores[a.participant_id].score += a.points;
+        if (a.is_correct) pScores[a.participant_id].correctCount += 1;
+      }
+    });
+
+    const leaderboard = Object.values(pScores)
+      .filter((p) => p.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
+
+    const recentEvents = await Promise.all(
+      completedQuizzes.map(async (q) => {
+        const pCount = await Participant.count({ where: { quiz_id: q.id } });
+        return {
+          id: q.id,
+          title: q.title,
+          event_name: q.event_name,
+          date: q.updatedAt,
+          players: pCount
+        };
+      })
+    );
+
+    return res.json({ leaderboard, recentEvents });
+  } catch (error) {
+    console.error('Public leaderboard error:', error);
+    return res.status(500).json({ error: 'Server error fetching public leaderboard' });
+  }
+});
+
 router.get('/quiz/:id', authMiddleware, async (req, res) => {
   try {
     const quizId = req.params.id;

@@ -15,7 +15,7 @@ const docsContent = {
 1. Data Collection: We collect only minimal essential data, such as participant names, roll numbers, email IDs, and college affiliations, when checking into event lobbies.
 2. Active Quiz Sessions: Live quiz data, including question attempts, completion durations, and tab switch focus events, is stored to compile real-time leaderboard statistics.
 3. Third-Party Sharing: We do not sell or lease student details to any third-party databases. All verification records are held securely on Azure-hosted databases.
-4. Data Correction: Students can reach out to campus managers at support@mscprpcem.tech to update their registration details or request deletion of lobby check-in logs.`
+4. Data Correction: Students can reach out to campus managers at mlsc@prpotepatilengg.ac.in to update their registration details or request deletion of lobby check-in logs.`
   },
   terms: {
     group: 'Legal Policies',
@@ -53,7 +53,7 @@ const docsContent = {
 
 1. Mutual Respect: Harassment, hate speech, or derogatory handles in lobby lists are subject to immediate administrative block and session deletion.
 2. Collaborative Spirit: While live quizzes are competitive, collaboration during review workshops and bootcamps is highly encouraged.
-3. Integrity: Do not exploit platform bugs or latency windows. If you discover a security vulnerability, please disclose it responsibly to support@mscprpcem.tech.
+3. Integrity: Do not exploit platform bugs or latency windows. If you discover a security vulnerability, please disclose it responsibly to mlsc@prpotepatilengg.ac.in.
 4. Disciplinary Actions: Severe violations will be escalated to the campus department block.`
   },
   disclaimer: {
@@ -78,7 +78,7 @@ const docsContent = {
 
 1. Visual Access: Colors and button outlines are built with sufficient contrast to help read text clearly.
 2. Keyboard Navigation: We ensure core actions (joining lobbies, submitting answers) can be triggered via keyboard controls.
-3. Continuous Improvements: We regularly update focus borders and card indicators. For custom requests, mail us at support@mscprpcem.tech.`
+3. Continuous Improvements: We regularly update focus borders and card indicators. For custom requests, mail us at mlsc@prpotepatilengg.ac.in.`
   },
 
   // --- Group 2: Resources & Guides ---
@@ -134,7 +134,7 @@ A: You can join active lobbies at any point, but you will miss points for questi
     body: `Need assistance? Here is how to contact support:
 
 1. Live Event Support: If you experience session drops during a live campus workshop, visit the technical help booth at the venue for immediate help.
-2. Ticket SLA: Standard email queries (name corrections on credentials, registration issues) sent to support@mscprpcem.tech are answered within 24 to 48 hours.
+2. Ticket SLA: Standard email queries (name corrections on credentials, registration issues) sent to mlsc@prpotepatilengg.ac.in are answered within 24 to 48 hours.
 3. Escalations: Academic issues regarding quiz grading are routed to the department representative.`
   },
   report: {
@@ -145,7 +145,7 @@ A: You can join active lobbies at any point, but you will miss points for questi
     intro: 'Guidelines for reporting bugs, platform latency, and score validation failures.',
     body: `To report technical bugs or glitches:
 
-1. Submission Details: Email support@mscprpcem.tech with a clear title describing the issue.
+1. Submission Details: Email mlsc@prpotepatilengg.ac.in with a clear title describing the issue.
 2. Required Info: Provide your room code, roll number, device model/browser type, and screenshots of the bug.
 3. Exploit Reporting: If you discover a security vulnerability or exploit, please report it privately to avoid student disqualifications.`
   },

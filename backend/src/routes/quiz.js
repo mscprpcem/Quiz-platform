@@ -44,7 +44,40 @@ const generateJoinCode = async () => {
 // QUIZ ROUTES
 // ----------------------------------------------------
 
-// Get all quizzes
+// Public quizzes endpoint (for homepage without auth)
+router.get('/public', async (req, res) => {
+  try {
+    const quizzes = await Quiz.findAll({
+      order: [['createdAt', 'DESC']]
+    });
+
+    const quizzesWithCounts = await Promise.all(
+      quizzes.map(async (quiz) => {
+        const questionCount = await Question.count({ where: { quiz_id: quiz.id } });
+        const participantCount = await Participant.count({ where: { quiz_id: quiz.id } });
+        return {
+          id: quiz.id,
+          title: quiz.title,
+          event_name: quiz.event_name,
+          description: quiz.description,
+          join_code: quiz.join_code,
+          status: quiz.status,
+          scheduled_start: quiz.scheduled_start,
+          createdAt: quiz.createdAt,
+          questionCount,
+          participantCount
+        };
+      })
+    );
+
+    return res.json(quizzesWithCounts);
+  } catch (error) {
+    console.error('Fetch public quizzes error:', error);
+    return res.status(500).json({ error: 'Server error fetching public quizzes' });
+  }
+});
+
+// Get all quizzes (admin)
 router.get('/', authMiddleware, async (req, res) => {
   try {
     const quizzes = await Quiz.findAll({

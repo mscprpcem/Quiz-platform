@@ -58,7 +58,7 @@ export default function CodeOfConduct() {
             <section className="space-y-2">
               <h3 className="font-extrabold text-sm sm:text-base text-slate-800">3. Integrity</h3>
               <p>
-                Do not exploit platform bugs or latency windows. If you discover a security vulnerability, please disclose it responsibly to support@mscprpcem.tech.
+                Do not exploit platform bugs or latency windows. If you discover a security vulnerability, please disclose it responsibly to mlsc@prpotepatilengg.ac.in.
               </p>
             </section>
 

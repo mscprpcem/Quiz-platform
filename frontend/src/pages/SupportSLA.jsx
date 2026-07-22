@@ -51,7 +51,7 @@ export default function SupportSLA() {
             <section className="space-y-2">
               <h3 className="font-extrabold text-sm sm:text-base text-slate-800">2. Ticket SLA</h3>
               <p>
-                Standard email queries (name corrections on credentials, registration issues) sent to support@mscprpcem.tech are answered within 24 to 48 hours.
+                Standard email queries (name corrections on credentials, registration issues) sent to mlsc@prpotepatilengg.ac.in are answered within 24 to 48 hours.
               </p>
             </section>
 

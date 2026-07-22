@@ -65,7 +65,7 @@ export default function PrivacyPolicy() {
             <section className="space-y-2">
               <h3 className="font-extrabold text-sm sm:text-base text-slate-800">4. Data Security Rights</h3>
               <p>
-                Students have the right to inspect, correct, or request deletion of their records by mailing the compliance lead at support@mscprpcem.tech.
+                Students have the right to inspect, correct, or request deletion of their records by mailing the compliance lead at mlsc@prpotepatilengg.ac.in.
               </p>
             </section>
           </div>

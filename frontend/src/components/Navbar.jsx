@@ -125,18 +125,8 @@ export default function Navbar() {
                   onClick={() => navTo('/join')}
                   isActive={isActive('/join')}
                   icon={Play}
-                  label="Join Live"
+                  label="Join Quiz"
                 />
-
-                <div className="h-5 w-px bg-brand-border mx-2"></div>
-
-                <button
-                  onClick={() => navTo('/admin/login')}
-                  className="flex items-center space-x-1.5 px-3 py-2 border border-brand-border hover:border-blue-200 hover:bg-brand-lightBlue/60 rounded-lg text-sm font-semibold text-brand-textMuted hover:text-brand-textMain transition-all duration-200 cursor-pointer shadow-sm"
-                >
-                  <User size={15} />
-                  <span className="hidden md:inline">Admin Portal</span>
-                </button>
               </div>
             )}
           </div>
@@ -174,17 +164,8 @@ export default function Navbar() {
                 }`}
               >
                 <Play size={16} />
-                Join Live
+                Join Quiz
               </button>
-              <div className="border-t border-brand-border pt-2 mt-2">
-                <button
-                  onClick={() => navTo('/admin/login')}
-                  className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold text-brand-textMuted hover:bg-brand-lightBlue/60 transition-all"
-                >
-                  <User size={15} />
-                  Admin Portal
-                </button>
-              </div>
             </>
           )}
 
@@ -221,14 +202,40 @@ export default function Navbar() {
             </>
           )}
 
-          {!user && isAdminPath && location.pathname !== '/admin/login' && (
-            <button
-              onClick={() => navTo('/admin/login')}
-              className="w-full text-white px-4 py-2.5 rounded-md text-sm font-semibold transition-all"
-              style={{ background: 'linear-gradient(to bottom, #2563EB, #1E3A8A)' }}
-            >
-              Admin Access
-            </button>
+          {!user && isAdminPath && (
+            <>
+              <button
+                onClick={() => navTo('/')}
+                className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all ${
+                  isActive('/') ? 'text-brand-blue bg-brand-lightBlue' : 'text-brand-textMuted hover:bg-brand-lightBlue/60'
+                }`}
+              >
+                <Home size={16} />
+                Home
+              </button>
+
+              <button
+                onClick={() => navTo('/join')}
+                className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all ${
+                  isActive('/join') ? 'text-brand-blue bg-brand-lightBlue' : 'text-brand-textMuted hover:bg-brand-lightBlue/60'
+                }`}
+              >
+                <Play size={16} />
+                Join Quiz
+              </button>
+
+              <div className="border-t border-brand-border pt-2 mt-2">
+                <button
+                  onClick={() => navTo('/admin/login')}
+                  className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all ${
+                    isActive('/admin/login') ? 'text-brand-blue bg-brand-lightBlue' : 'text-brand-textMuted hover:bg-brand-lightBlue/60'
+                  }`}
+                >
+                  <User size={15} />
+                  Admin Portal
+                </button>
+              </div>
+            </>
           )}
         </div>
       )}

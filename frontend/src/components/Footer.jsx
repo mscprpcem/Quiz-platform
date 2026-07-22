@@ -31,11 +31,11 @@ export default function Footer() {
               </div>
               <div className="text-left">
                 <span className="font-black text-sm tracking-wide text-brand-textMain uppercase block leading-none">MSCPRPCEM</span>
-                <span className="font-extrabold text-[9px] text-brand-blue tracking-widest uppercase block mt-1">Live Quiz Platform</span>
+                <span className="font-extrabold text-[9px] text-brand-blue tracking-widest uppercase block mt-1">Quiz Platform</span>
               </div>
             </div>
             <p className="text-xs text-brand-textMuted leading-relaxed max-w-xs">
-              A secure platform for conducting live quizzes during club events.
+              A secure platform for conducting quizzes during club events.
             </p>
             <div className="inline-flex items-center space-x-2 bg-blue-50 text-blue-700 border border-blue-100 text-[9px] font-bold uppercase tracking-wider px-3 py-1 rounded-full">
               <ShieldCheck size={12} className="text-blue-600" />
@@ -54,10 +54,18 @@ export default function Footer() {
                 </a>
               </li>
               <li>
-                <Link to="/" className="footer-link">Live Quiz</Link>
+                <Link to="/" className="footer-link">Quiz Platform</Link>
               </li>
               <li>
-                <a href="#cert-verify" className="footer-link">Certificate Verify</a>
+                <a 
+                  href={import.meta.env.VITE_VERIFICATION_URL || 'https://verify.mscprpcem.tech'} 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="footer-link flex items-center gap-1"
+                >
+                  <span>Certificate Verify</span>
+                  <ExternalLink size={10} className="text-zinc-400" />
+                </a>
               </li>
             </ul>
           </div>
@@ -138,16 +146,22 @@ export default function Footer() {
 
         {/* Bottom bar section */}
         <div className="pt-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 text-[10px] text-zinc-400 font-semibold uppercase tracking-wider">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <div className="flex items-center gap-1">
-              <Mail size={12} className="text-zinc-400" />
-              <span>Technical Support:</span>
-              <a href="mailto:support@mscprpcem.tech" className="text-zinc-500 hover:text-brand-blue normal-case font-bold transition-colors">support@mscprpcem.tech</a>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-1.5">
+              <div className="flex items-center gap-1.5 flex-shrink-0">
+                <Mail size={12} className="text-zinc-400" />
+                <span>Technical Support:</span>
+              </div>
+              <a href="mailto:mlsc@prpotepatilengg.ac.in" className="text-zinc-500 hover:text-brand-blue normal-case font-bold transition-colors break-all pl-4 sm:pl-0">
+                mlsc@prpotepatilengg.ac.in
+              </a>
             </div>
             <span className="hidden md:inline text-zinc-200">|</span>
-            <span>Version 1.0.0</span>
-            <span className="hidden md:inline text-zinc-200">|</span>
-            <span className="text-zinc-500 font-bold">Powered by Azure</span>
+            <div className="flex items-center gap-x-3">
+              <span>Version 1.0.0</span>
+              <span className="text-zinc-200">|</span>
+              <span className="text-zinc-500 font-bold">Powered by Azure</span>
+            </div>
           </div>
           <p className="text-zinc-400">© {new Date().getFullYear()} MSCPRPCEM. All Rights Reserved.</p>
         </div>

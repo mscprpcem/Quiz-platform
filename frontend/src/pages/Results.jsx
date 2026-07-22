@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Award, CheckCircle, Clock, Home, RotateCcw } from 'lucide-react';
+import { Award, CheckCircle, Clock, Home, ExternalLink } from 'lucide-react';
 
 export default function Results() {
   const navigate = useNavigate();
@@ -79,10 +79,25 @@ export default function Results() {
           </div>
         </div>
 
-        {/* Participation mock certificate or note */}
-        <p className="text-xs text-brand-textMuted leading-normal max-w-xs mx-auto">
-          Thank you for participating! Results have been recorded for the MSC-PRPCEM leaderboards.
-        </p>
+        {/* Certificate of Participation Banner */}
+        <div className="bg-emerald-50/90 border border-emerald-200/80 p-4 rounded-xl text-center space-y-2.5 shadow-sm">
+          <div className="flex items-center justify-center gap-1.5 text-emerald-800 font-extrabold text-xs uppercase tracking-wider">
+            <Award size={16} className="text-emerald-600" />
+            <span>Certificate of Participation</span>
+          </div>
+          <p className="text-xs text-emerald-700 font-medium leading-relaxed">
+            Certificates are issued to your registered email. Visit the official verification portal to claim and verify your certificate.
+          </p>
+          <a
+            href={import.meta.env.VITE_VERIFICATION_URL || 'https://verify.mscprpcem.tech'}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-lg transition-all shadow-sm cursor-pointer"
+          >
+            <span>Claim & Verify Certificate</span>
+            <ExternalLink size={13} />
+          </a>
+        </div>
 
         {/* Go home buttons */}
         <button

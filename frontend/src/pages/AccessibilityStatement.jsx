@@ -58,7 +58,7 @@ export default function AccessibilityStatement() {
             <section className="space-y-2">
               <h3 className="font-extrabold text-sm sm:text-base text-slate-800">3. Continuous Improvements</h3>
               <p>
-                We regularly update focus borders and card indicators. For custom requests, mail us at support@mscprpcem.tech.
+                We regularly update focus borders and card indicators. For custom requests, mail us at mlsc@prpotepatilengg.ac.in.
               </p>
             </section>
           </div>

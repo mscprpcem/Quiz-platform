@@ -44,7 +44,7 @@ export default function ReportIssue() {
             <section className="space-y-2">
               <h3 className="font-extrabold text-sm sm:text-base text-slate-800">1. Submission Details</h3>
               <p>
-                Email support@mscprpcem.tech with a clear title describing the issue. Specify the room code and registration details.
+                Email mlsc@prpotepatilengg.ac.in with a clear title describing the issue. Specify the room code and registration details.
               </p>
             </section>
 
