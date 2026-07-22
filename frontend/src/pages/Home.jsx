@@ -25,6 +25,7 @@ import {
   Search
 } from 'lucide-react';
 import api from '../services/api';
+import QRScanner from '../components/QRScanner';
 import './Home.css';
 
 export default function Home() {
@@ -131,10 +132,11 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col bg-[#F5FAFF] relative overflow-hidden pb-12">
       
-      {/* Background radial effects */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(ellipse_70%_50%_at_15%_15%,_rgba(37,99,235,0.06)_0%,_transparent_55%)]"></div>
-        <div className="absolute bottom-0 right-0 w-full h-full bg-[radial-gradient(ellipse_50%_45%_at_85%_85%,_rgba(139,92,246,0.04)_0%,_transparent_55%)]"></div>
+      {/* Background ambient mesh glow circles */}
+      <div className="absolute inset-0 pointer-events-none overflow-hidden">
+        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-blue-400/15 blur-[120px] animate-pulse"></div>
+        <div className="absolute top-[20%] right-[-10%] w-[450px] h-[450px] rounded-full bg-indigo-400/15 blur-[120px]"></div>
+        <div className="absolute bottom-[-10%] left-[30%] w-[500px] h-[500px] rounded-full bg-purple-400/10 blur-[140px]"></div>
       </div>
 
       <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 space-y-20 sm:space-y-24 relative z-10 py-10 sm:py-16">
@@ -142,8 +144,8 @@ export default function Home() {
         {/* ════════ 1. HERO SECTION ════════ */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center text-left">
           <div className="lg:col-span-7 space-y-6">
-            <div className="inline-flex items-center space-x-2 bg-brand-blue/10 text-brand-blue px-4 py-2 rounded-full text-xs font-bold border border-brand-blue/15 shadow-sm">
-              <Sparkles size={13} />
+            <div className="inline-flex items-center space-x-2 hero-vibrant-badge text-brand-blue px-4 py-2 rounded-full text-xs font-extrabold shadow-sm">
+              <Sparkles size={14} className="text-brand-blue animate-pulse" />
               <span>Microsoft Student Club (MSC)</span>
             </div>
 
@@ -224,12 +226,8 @@ export default function Home() {
                 )}
 
                 {joinTab === 'qr' && (
-                  <div className="text-center space-y-4">
-                    <div className="w-40 h-40 mx-auto border-2 border-dashed border-zinc-300 rounded-2xl flex items-center justify-center bg-zinc-50 relative overflow-hidden group">
-                      <QrCode size={48} className="text-zinc-400 animate-pulse" />
-                      <div className="absolute top-0 left-0 w-full h-[2px] bg-brand-blue animate-[scan_2s_infinite]"></div>
-                    </div>
-                    <p className="text-xs text-brand-textMuted">Align the QR code provided by the MC inside the scan window.</p>
+                  <div className="py-2">
+                    <QRScanner onScanSuccess={(scannedCode) => navigate(`/join/${scannedCode}`)} />
                   </div>
                 )}
 
@@ -395,23 +393,20 @@ export default function Home() {
             {features.map((feat, idx) => {
               const Icon = feat.icon;
               const configs = {
-                blue: { grad: 'from-blue-500 to-indigo-500 shadow-blue-500/10', border: 'hover:border-blue-500/30', shadow: 'hover:shadow-[0_12px_24px_-4px_rgba(59,130,246,0.12)]', glow: 'bg-blue-400/10', dot: 'bg-blue-500' },
-                purple: { grad: 'from-purple-500 to-violet-500 shadow-purple-500/10', border: 'hover:border-purple-500/30', shadow: 'hover:shadow-[0_12px_24px_-4px_rgba(139,92,246,0.12)]', glow: 'bg-purple-400/10', dot: 'bg-purple-500' },
-                amber: { grad: 'from-amber-500 to-orange-500 shadow-amber-500/10', border: 'hover:border-amber-500/30', shadow: 'hover:shadow-[0_12px_24px_-4px_rgba(245,158,11,0.12)]', glow: 'bg-amber-400/10', dot: 'bg-amber-500' },
-                emerald: { grad: 'from-emerald-500 to-teal-500 shadow-emerald-500/10', border: 'hover:border-emerald-500/30', shadow: 'hover:shadow-[0_12px_24px_-4px_rgba(16,185,129,0.12)]', glow: 'bg-emerald-400/10', dot: 'bg-emerald-500' },
-                red: { grad: 'from-red-500 to-rose-500 shadow-red-500/10', border: 'hover:border-red-500/30', shadow: 'hover:shadow-[0_12px_24px_-4px_rgba(239,68,68,0.12)]', glow: 'bg-red-400/10', dot: 'bg-red-500' }
+                blue: { iconClass: 'icon-grad-blue', dot: 'bg-blue-500' },
+                purple: { iconClass: 'icon-grad-purple', dot: 'bg-purple-500' },
+                amber: { iconClass: 'icon-grad-amber', dot: 'bg-amber-500' },
+                emerald: { iconClass: 'icon-grad-emerald', dot: 'bg-emerald-500' },
+                red: { iconClass: 'icon-grad-red', dot: 'bg-red-500' }
               };
               const c = configs[feat.color] || configs.blue;
 
               return (
                 <div 
                   key={idx} 
-                  className={`bg-white border border-brand-border rounded-2xl p-5 transition-all duration-300 flex flex-col justify-between text-left group relative overflow-hidden opacity-0 animate-fade-in ${c.border} ${c.shadow} hover:-translate-y-1`}
+                  className="feature-card-glow rounded-2xl p-5 flex flex-col justify-between text-left group relative overflow-hidden opacity-0 animate-fade-in"
                   style={{ animationDelay: `${(idx + 1) * 80}ms`, animationFillMode: 'forwards' }}
                 >
-                  {/* Hover glowing background ellipse */}
-                  <div className={`absolute -bottom-10 -right-10 w-24 h-24 rounded-full blur-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-500 ${c.glow}`}></div>
-                  
                   {/* Floating pulse dot in top right */}
                   <div className="absolute top-4 right-4 flex h-2 w-2">
                     <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${c.dot}`}></span>
@@ -419,8 +414,8 @@ export default function Home() {
                   </div>
 
                   <div className="space-y-4 relative z-10">
-                    <div className={`w-11 h-11 bg-gradient-to-br ${c.grad} text-white rounded-xl flex items-center justify-center shadow-md shadow-zinc-200/50 group-hover:scale-110 group-hover:rotate-6 transition-all duration-300`}>
-                      <Icon size={18} className="stroke-[2.5]" />
+                    <div className={`w-11 h-11 ${c.iconClass} rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-all duration-300`}>
+                      <Icon size={19} className="stroke-[2.5]" />
                     </div>
                     
                     <div className="space-y-1">

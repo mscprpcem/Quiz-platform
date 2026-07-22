@@ -154,13 +154,14 @@ const initializeSocket = (io) => {
         const question = await Question.findByPk(activeQuizzes[quizId].activeQuestionId);
         if (!question) return;
 
-        // Get updated rankings
-        const leaderboard = await getLiveLeaderboard(quizId);
+        // Calculate updated top 10 standings after question end
+        const fullLeaderboard = await getLiveLeaderboard(quizId);
+        const top10 = fullLeaderboard.slice(0, 10);
 
-        // Broadcast correct answer & leaderboard
+        // Broadcast correct answer & Top 10 standings
         io.to(`quiz_${quizId}`).emit('question_ended', {
           correctAnswer: question.correct_answer,
-          leaderboard
+          leaderboard: top10
         });
       } catch (err) {
         console.error('end_question error:', err);
@@ -182,10 +183,14 @@ const initializeSocket = (io) => {
         const totalQuestions = await Question.count({ where: { quiz_id: quizId } });
 
         if (nextIndex >= totalQuestions) {
-          // Last question skipped, end quiz
+          // Last question skipped, end quiz session and notify participants to wait for leaderboard
           await quiz.update({ status: 'completed' });
-          const leaderboard = await getLiveLeaderboard(quizId);
-          io.to(`quiz_${quizId}`).emit('quiz_ended', { leaderboard });
+          if (activeQuizzes[quizId]) {
+            activeQuizzes[quizId].questionStatus = 'closed';
+            activeQuizzes[quizId].leaderboardReleased = false;
+          }
+          io.to(`admin_${quizId}`).emit('leaderboard_status', { released: false });
+          io.to(`quiz_${quizId}`).emit('quiz_completed');
         } else {
           await quiz.update({
             current_question_index: nextIndex,
@@ -257,12 +262,14 @@ const initializeSocket = (io) => {
           // Find and notify client
           io.to(`quiz_${quizId}`).emit('participant_kicked', { participantId });
 
-          // Refresh participant list on Admin board
+          // Refresh participant list on Admin board and participant waiting rooms
           const participants = await Participant.findAll({
             where: { quiz_id: quizId },
             order: [['createdAt', 'ASC']]
           });
           io.to(`admin_${quizId}`).emit('lobby_participants_update', participants);
+          io.to(`quiz_${quizId}`).emit('lobby_participants_update', participants);
+          io.to(`quiz_${quizId}`).emit('participant_count_update', { count: participants.length });
         }
       } catch (err) {
         console.error('kick_participant error:', err);
@@ -338,12 +345,14 @@ const initializeSocket = (io) => {
           joinCode: quiz.join_code
         });
 
-        // Broadcast updated participants list to admins
+        // Broadcast updated participants list to admins AND to all room participants
         const participants = await Participant.findAll({
           where: { quiz_id: quiz.id },
           order: [['createdAt', 'ASC']]
         });
         io.to(`admin_${quiz.id}`).emit('lobby_participants_update', participants);
+        io.to(`quiz_${quiz.id}`).emit('lobby_participants_update', participants);
+        io.to(`quiz_${quiz.id}`).emit('participant_count_update', { count: participants.length });
       } catch (err) {
         console.error('join_quiz error:', err);
         socket.emit('join_error', { message: 'Server error joining quiz' });
@@ -362,7 +371,30 @@ const initializeSocket = (io) => {
         }
 
         if (quiz.status === 'completed') {
-          socket.emit('rejoin_error', { message: 'This quiz has already ended' });
+          const leaderboard = await getLiveLeaderboard(quiz.id);
+          const playerStats = leaderboard.find((p) => p.id === participant.id);
+
+          socket.emit('rejoin_success', {
+            participantId: participant.id,
+            quizId: quiz.id,
+            quizStatus: 'completed',
+            isCompleted: true,
+            message: 'This quiz session has already ended.',
+            title: quiz.title,
+            eventName: quiz.event_name,
+            leaderboard,
+            playerStats: playerStats ? {
+              rank: leaderboard.indexOf(playerStats) + 1,
+              score: playerStats.score,
+              correctAnswers: playerStats.correctAnswers,
+              avgResponseTime: playerStats.avgResponseTime
+            } : {
+              rank: 'N/A',
+              score: 0,
+              correctAnswers: 0,
+              avgResponseTime: 0
+            }
+          });
           return;
         }
 
@@ -377,12 +409,14 @@ const initializeSocket = (io) => {
         // Join rooms
         socket.join(`quiz_${quiz.id}`);
 
-        // Broadcast updated participants list to admins
+        // Broadcast updated participants list to admins AND room
         const participants = await Participant.findAll({
           where: { quiz_id: quiz.id },
           order: [['createdAt', 'ASC']]
         });
         io.to(`admin_${quiz.id}`).emit('lobby_participants_update', participants);
+        io.to(`quiz_${quiz.id}`).emit('lobby_participants_update', participants);
+        io.to(`quiz_${quiz.id}`).emit('participant_count_update', { count: participants.length });
 
         // Calculate and send current state
         const responseData = {
@@ -551,19 +585,6 @@ const initializeSocket = (io) => {
           submittedCount: quizState.answersReceived.size,
           totalCount: totalJoined
         });
-
-        // If everyone has submitted, auto-close the question
-        if (quizState.answersReceived.size >= totalJoined) {
-          quizState.questionStatus = 'timer_ended';
-          const quiz = await Quiz.findByPk(quizId);
-          await quiz.update({ current_question_status: 'timer_ended' });
-
-          const leaderboard = await getLiveLeaderboard(quizId);
-          io.to(`quiz_${quizId}`).emit('question_ended', {
-            correctAnswer: question.correct_answer,
-            leaderboard
-          });
-        }
       } catch (err) {
         console.error('submit_answer error:', err);
       }

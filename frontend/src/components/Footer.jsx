@@ -23,11 +23,11 @@ export default function Footer() {
           <div className="md:col-span-4 space-y-4">
             <div className="flex items-center gap-2.5">
               {/* Microsoft Colors Custom Grid Logo */}
-              <div className="grid grid-cols-2 gap-[2px] w-5 h-5 flex-shrink-0">
-                <div className="bg-red-500 rounded-[1px] w-2 h-2"></div>
-                <div className="bg-emerald-500 rounded-[1px] w-2 h-2"></div>
-                <div className="bg-blue-500 rounded-[1px] w-2 h-2"></div>
-                <div className="bg-amber-500 rounded-[1px] w-2 h-2"></div>
+              <div className="grid grid-cols-2 gap-[2px] w-4.5 h-4.5 flex-shrink-0">
+                <div className="bg-[#F25022] rounded-[0.5px]"></div>
+                <div className="bg-[#7FBA00] rounded-[0.5px]"></div>
+                <div className="bg-[#00A4EF] rounded-[0.5px]"></div>
+                <div className="bg-[#FFB900] rounded-[0.5px]"></div>
               </div>
               <div className="text-left">
                 <span className="font-black text-sm tracking-wide text-brand-textMain uppercase block leading-none">MSCPRPCEM</span>
@@ -55,6 +55,9 @@ export default function Footer() {
               </li>
               <li>
                 <Link to="/" className="footer-link">Quiz Platform</Link>
+              </li>
+              <li>
+                <Link to="/courses" className="footer-link">Courses (Coming Soon)</Link>
               </li>
               <li>
                 <a 
@@ -125,19 +128,34 @@ export default function Footer() {
             <span className="footer-section-title">Connect</span>
             <ul className="space-y-2.5">
               <li>
-                <a href="https://linktr.ee/mscprpcem" target="_blank" rel="noopener noreferrer" className="footer-link font-bold text-brand-blue">Linktree</a>
+                <a href="https://linktr.ee/mscprpcem" target="_blank" rel="noopener noreferrer" className="footer-link font-bold text-brand-blue flex items-center gap-1">
+                  <span>Linktree</span>
+                  <ExternalLink size={10} className="text-zinc-400" />
+                </a>
               </li>
               <li>
-                <a href="https://github.com" target="_blank" rel="noopener noreferrer" className="footer-link">GitHub</a>
+                <a href="https://github.com/mscprpcem" target="_blank" rel="noopener noreferrer" className="footer-link flex items-center gap-1">
+                  <span>GitHub</span>
+                  <ExternalLink size={10} className="text-zinc-400" />
+                </a>
               </li>
               <li>
-                <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" className="footer-link">LinkedIn</a>
+                <a href="https://linkedin.com/company/mscprpcem" target="_blank" rel="noopener noreferrer" className="footer-link flex items-center gap-1">
+                  <span>LinkedIn</span>
+                  <ExternalLink size={10} className="text-zinc-400" />
+                </a>
               </li>
               <li>
-                <a href="https://instagram.com" target="_blank" rel="noopener noreferrer" className="footer-link">Instagram</a>
+                <a href="https://instagram.com/mscprpcem" target="_blank" rel="noopener noreferrer" className="footer-link flex items-center gap-1">
+                  <span>Instagram</span>
+                  <ExternalLink size={10} className="text-zinc-400" />
+                </a>
               </li>
               <li>
-                <a href="https://youtube.com" target="_blank" rel="noopener noreferrer" className="footer-link">YouTube</a>
+                <a href="https://youtube.com/@mscprpcem" target="_blank" rel="noopener noreferrer" className="footer-link flex items-center gap-1">
+                  <span>YouTube</span>
+                  <ExternalLink size={10} className="text-zinc-400" />
+                </a>
               </li>
             </ul>
           </div>

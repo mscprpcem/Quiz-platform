@@ -6,6 +6,15 @@ export default function Results() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  React.useEffect(() => {
+    const handlePopState = (e) => {
+      e.preventDefault();
+      navigate('/', { replace: true, state: { message: 'Quiz session has ended.' } });
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [navigate]);
+
   // Retrieve results stats
   const stats = location.state || {
     title: sessionStorage.getItem('msc_quiz_title') || 'Quiz Session',

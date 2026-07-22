@@ -43,8 +43,24 @@ export default function WaitingRoom() {
     socket.on('rejoin_success', (data) => {
       setError('');
       setTotalParticipants(data.totalParticipants || 1);
+      if (data.quizStatus === 'completed' || data.isCompleted) {
+        const playerStats = data.playerStats || {};
+        navigate('/results', {
+          replace: true,
+          state: {
+            title: data.title || sessionStorage.getItem('msc_quiz_title') || 'Quiz Session',
+            eventName: data.eventName || sessionStorage.getItem('msc_event_name') || 'MSC Event',
+            rank: playerStats.rank || 'N/A',
+            totalParticipants: data.leaderboard ? data.leaderboard.length : 1,
+            score: playerStats.score || 0,
+            correctAnswers: playerStats.correctAnswers || 0,
+            avgResponseTime: playerStats.avgResponseTime || 0
+          }
+        });
+        return;
+      }
       if (data.quizStatus === 'in_progress') {
-        navigate('/live-quiz', { state: data });
+        navigate('/live-quiz', { state: data, replace: true });
       }
     });
 

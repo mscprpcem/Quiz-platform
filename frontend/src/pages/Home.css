@@ -1,22 +1,57 @@
 /* ============================================
-   HOME PAGE STYLES
+   HOME PAGE STYLES - ENHANCED DESIGN & COLOR PALETTE
    MSC-PRPCEM Quiz Platform Landing Page
    ============================================ */
 
 .home-join-card-bg {
-  background-color: rgba(248, 251, 255, 0.8) !important;
-  border-color: rgba(229, 240, 255, 0.9) !important;
+  background-color: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(219, 234, 254, 0.9) !important;
 }
 
-.home-step-number-watermark {
-  font-size: 4.5rem;
-  line-height: 1;
+/* Vibrant Hero Badge */
+.hero-vibrant-badge {
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.12) 0%, rgba(99, 102, 241, 0.12) 100%);
+  border: 1px solid rgba(37, 99, 235, 0.25);
+  box-shadow: 0 0 15px rgba(37, 99, 235, 0.1);
 }
 
-@media (min-width: 640px) {
-  .home-step-number-watermark {
-    font-size: 6rem;
-  }
+/* Feature Cards Glowing Hover */
+.feature-card-glow {
+  background: #ffffff;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.feature-card-glow:hover {
+  transform: translateY(-4px);
+  border-color: rgba(99, 102, 241, 0.35);
+  box-shadow: 0 12px 30px -5px rgba(99, 102, 241, 0.12), 0 4px 12px -2px rgba(37, 99, 235, 0.08);
+}
+
+/* Icon Gradient Wrappers */
+.icon-grad-blue {
+  background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
+  color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+}
+.icon-grad-purple {
+  background: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%);
+  color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25);
+}
+.icon-grad-amber {
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+}
+.icon-grad-emerald {
+  background: linear-gradient(135deg, #10B981 0%, #047857 100%);
+  color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+}
+.icon-grad-red {
+  background: linear-gradient(135deg, #EF4444 0%, #B91C1C 100%);
+  color: #FFFFFF;
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
 }
 
 /* ============================================
@@ -45,10 +80,10 @@
 }
 
 .medalist-card-gold {
-  @apply border-amber-300/80 bg-gradient-to-b from-amber-50/30 via-white to-white shadow-[0_8px_20px_rgba(245,158,11,0.06)] scale-100 sm:scale-105 z-10;
+  @apply border-amber-300/80 bg-gradient-to-b from-amber-50/30 via-white to-white shadow-[0_8px_20px_rgba(245,158,11,0.08)] scale-100 sm:scale-105 z-10;
 }
 .medalist-card-gold:hover {
-  @apply shadow-[0_12px_28px_rgba(245,158,11,0.12)];
+  @apply shadow-[0_14px_32px_rgba(245,158,11,0.18)];
 }
 
 .medalist-card-bronze {
@@ -114,7 +149,7 @@
 }
 
 .recent-event-card {
-  @apply bg-white border border-brand-border rounded-xl p-5 shadow-soft transition-all duration-300 relative flex flex-col xs:flex-row justify-between items-start xs:items-center gap-3 text-left;
+  @apply bg-white border border-brand-border rounded-2xl p-6 shadow-soft transition-all duration-300 relative flex flex-col xs:flex-row justify-between items-start xs:items-center gap-3 text-left;
 }
 .recent-event-card:hover {
   @apply shadow-md border-brand-blue/30 -translate-y-0.5;
@@ -131,26 +166,6 @@
   @apply shadow-md border-brand-blue/20;
 }
 
-.verify-cert-input {
-  @apply block w-full border border-slate-200 rounded-xl py-3 px-4 pl-9 text-sm font-mono text-brand-textMain transition-all bg-slate-50/50 focus:bg-white focus:border-brand-blue focus:outline-none;
-  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.02);
-}
-.verify-cert-input:focus {
-  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.08), inset 0 1px 2px rgba(15, 23, 42, 0.02);
-}
-
-.verify-cert-btn {
-  @apply w-full py-3 bg-gradient-to-r from-brand-blue to-indigo-600 hover:from-brand-dark hover:to-indigo-700 text-white font-extrabold rounded-xl shadow-sm hover:shadow transition-all active:scale-95 cursor-pointer text-xs uppercase tracking-wider;
-}
-
-.verify-result-success {
-  @apply mt-5 p-4 rounded-xl border border-emerald-100 bg-emerald-50/40 text-emerald-800 text-xs font-semibold animate-fade-in border-l-[4px] border-l-emerald-500 shadow-sm text-left;
-}
-
-.verify-result-error {
-  @apply mt-5 p-4 rounded-xl border border-red-100 bg-red-50/40 text-red-700 text-xs font-semibold animate-fade-in border-l-[4px] border-l-red-500 shadow-sm text-left;
-}
-
 /* ============================================
    PREMIUM ACCORDION FAQ SYSTEM
    ============================================ */
@@ -160,20 +175,17 @@
 }
 
 .faq-accordion-item {
-  @apply border border-slate-100 bg-white rounded-2xl transition-all duration-300 overflow-hidden shadow-sm;
+  @apply border border-slate-200/80 bg-white rounded-2xl transition-all duration-300 overflow-hidden shadow-sm;
 }
 .faq-accordion-item:hover {
-  @apply border-brand-blue/20 shadow-md;
+  @apply border-brand-blue/30 shadow-md -translate-y-0.5;
 }
 .faq-accordion-item-active {
-  @apply border-brand-blue/25 shadow-md ring-1 ring-brand-blue/10 bg-gradient-to-b from-brand-lightBlue/5 via-white to-white;
+  @apply border-brand-blue/40 shadow-md ring-2 ring-brand-blue/10 bg-gradient-to-b from-blue-50/20 via-white to-white;
 }
 
 .faq-question-btn {
   @apply w-full flex items-center justify-between p-5 text-left transition-colors duration-300 cursor-pointer select-none;
-}
-.faq-question-btn:hover {
-  @apply bg-zinc-50/20;
 }
 
 .faq-question-text {
@@ -188,7 +200,7 @@
 }
 
 .faq-badge-q {
-  @apply w-6 h-6 rounded-full bg-brand-blue text-white flex items-center justify-center font-black text-[10px] sm:text-xs flex-shrink-0 shadow-sm mr-3.5;
+  @apply w-6 h-6 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex items-center justify-center font-black text-[10px] sm:text-xs flex-shrink-0 shadow-sm mr-3.5;
 }
 
 .faq-badge-a {

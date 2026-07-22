@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
-import { Keyboard, User, School, Mail, ArrowRight, Zap } from 'lucide-react';
+import { Keyboard, User, School, Mail, ArrowRight, Zap, QrCode, X } from 'lucide-react';
+import QRScanner from '../components/QRScanner';
 import './JoinQuiz.css';
 
 const InputRow = ({ id, name, icon: Icon, label, required, type = 'text', placeholder, value, onChange, className = '' }) => (
@@ -33,18 +34,39 @@ export default function JoinQuiz() {
   const navigate = useNavigate();
   const { socket, connectSocket } = useSocket();
 
-  const [formData, setFormData] = useState({
-    joinCode: code ? code.toUpperCase() : '',
-    name: '',
-    college: '',
-    email: ''
+  const [formData, setFormData] = useState(() => {
+    const saved = localStorage.getItem('msc_saved_form_data');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return {
+          joinCode: code ? code.toUpperCase() : (parsed.joinCode || ''),
+          name: parsed.name || '',
+          college: parsed.college || '',
+          email: parsed.email || ''
+        };
+      } catch (e) {
+        console.error('Error parsing saved form data:', e);
+      }
+    }
+    return {
+      joinCode: code ? code.toUpperCase() : '',
+      name: '',
+      college: '',
+      email: ''
+    };
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showScannerModal, setShowScannerModal] = useState(false);
 
   useEffect(() => {
     if (code) {
-      setFormData((prev) => ({ ...prev, joinCode: code.toUpperCase() }));
+      setFormData((prev) => {
+        const updated = { ...prev, joinCode: code.toUpperCase() };
+        localStorage.setItem('msc_saved_form_data', JSON.stringify(updated));
+        return updated;
+      });
     }
   }, [code]);
 
@@ -90,10 +112,12 @@ export default function JoinQuiz() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData((prev) => ({
-      ...prev,
-      [name]: name === 'joinCode' ? value.toUpperCase() : value
-    }));
+    const val = name === 'joinCode' ? value.toUpperCase() : value;
+    setFormData((prev) => {
+      const updated = { ...prev, [name]: val };
+      localStorage.setItem('msc_saved_form_data', JSON.stringify(updated));
+      return updated;
+    });
     setError('');
   };
 
@@ -157,13 +181,23 @@ export default function JoinQuiz() {
 
           <form className="space-y-5" onSubmit={handleSubmit}>
             <div className="space-y-4">
-              <InputRow
-                id="joinCode" name="joinCode" icon={Keyboard}
-                label="Join Code" required placeholder="ABC123"
-                value={formData.joinCode}
-                onChange={handleChange}
-                className="text-center font-bold uppercase tracking-[0.2em] text-lg"
-              />
+              <div>
+                <InputRow
+                  id="joinCode" name="joinCode" icon={Keyboard}
+                  label="Join Code" required placeholder="ABC123"
+                  value={formData.joinCode}
+                  onChange={handleChange}
+                  className="text-center font-bold uppercase tracking-[0.2em] text-lg"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowScannerModal(true)}
+                  className="mt-2 w-full py-2 bg-brand-lightBlue/60 hover:bg-brand-lightBlue text-brand-blue border border-brand-blue/20 rounded-xl text-xs font-bold transition-all flex items-center justify-center space-x-1.5 cursor-pointer active:scale-98"
+                >
+                  <QrCode size={14} />
+                  <span>Scan QR Code or Upload Image</span>
+                </button>
+              </div>
               <InputRow
                 id="name" name="name" icon={User}
                 label="Full Name" required placeholder="Amit Yadav"
@@ -195,6 +229,44 @@ export default function JoinQuiz() {
           </form>
         </div>
       </div>
+
+      {/* QR Scanner Modal Overlay */}
+      {showScannerModal && (
+        <div
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in"
+          onClick={() => setShowScannerModal(false)}
+        >
+          <div
+            className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl space-y-4 relative border border-slate-100"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-center border-b border-zinc-100 pb-3">
+              <div className="flex items-center space-x-2 text-brand-textMain">
+                <QrCode size={18} className="text-brand-blue" />
+                <h3 className="font-extrabold text-sm sm:text-base">Scan QR Code or Upload Image</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowScannerModal(false)}
+                className="p-1 text-zinc-400 hover:text-zinc-700 rounded-lg hover:bg-zinc-100 transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <QRScanner
+              onScanSuccess={(scannedCode) => {
+                setFormData((prev) => {
+                  const updated = { ...prev, joinCode: scannedCode };
+                  localStorage.setItem('msc_saved_form_data', JSON.stringify(updated));
+                  return updated;
+                });
+                setShowScannerModal(false);
+              }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

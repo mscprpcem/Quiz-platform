@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { useSocket } from '../context/SocketContext';
+import Top10Leaderboard from '../components/Top10Leaderboard';
 import { QRCodeSVG } from 'qrcode.react';
 import {
   Play,
@@ -23,7 +24,8 @@ import {
   Trophy,
   HelpCircle,
   Clock,
-  Sparkles
+  Sparkles,
+  Globe
 } from 'lucide-react';
 
 export default function RunQuiz() {
@@ -350,6 +352,19 @@ export default function RunQuiz() {
   };
 
   // Controller functions
+  const publishQuiz = async () => {
+    if (!activeQuiz) return;
+    try {
+      const res = await api.put(`/api/quizzes/${activeQuiz.id}/publish`);
+      if (socket) {
+        socket.emit('start_lobby', { quizId: activeQuiz.id });
+      }
+      setActiveQuiz(res.data.quiz || { ...activeQuiz, status: 'waiting_lobby' });
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to publish quiz. Please make sure questions are added.');
+    }
+  };
+
   const startLobby = () => {
     if (socket && activeQuiz) {
       socket.emit('start_lobby', { quizId: activeQuiz.id });
@@ -554,13 +569,13 @@ export default function RunQuiz() {
         {/* --- STATE 1: DRAFT --- */}
         {activeQuiz.status === 'draft' && (
           <div className="bg-white border border-brand-border/80 rounded-3xl p-8 shadow-soft max-w-lg mx-auto text-center space-y-6 animate-scale-in">
-            <div className="w-14 h-14 bg-brand-lightBlue text-brand-blue rounded-2xl flex items-center justify-center mx-auto shadow-inner border border-brand-blue/5">
-              <Play size={24} fill="currentColor" className="ml-0.5 text-brand-blue" />
+            <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner border border-amber-100">
+              <Globe size={26} className="animate-pulse" />
             </div>
             <div>
-              <h2 className="text-xl font-extrabold text-brand-textMain tracking-tight">Quiz Session Uninitialized</h2>
+              <h2 className="text-xl font-black text-brand-textMain tracking-tight">Quiz in Draft Mode</h2>
               <p className="text-xs text-brand-textMuted mt-2 leading-relaxed max-w-sm mx-auto">
-                Prepare the waiting lobby room for participants. Once started, a unique numeric code and QR card will be broadcast.
+                Publishing this quiz generates the official Join Code, broadcasts the sharable QR Code card, and lists the event publicly across the website!
               </p>
             </div>
             
@@ -571,18 +586,17 @@ export default function RunQuiz() {
               </div>
               <div className="h-px bg-zinc-100" />
               <div className="flex justify-between items-center">
-                <span>Scheduled Time</span>
-                <span className="font-bold text-brand-textMain">
-                  {activeQuiz.scheduled_start ? new Date(activeQuiz.scheduled_start).toLocaleString() : 'Asynchronous'}
-                </span>
+                <span>Public Status</span>
+                <span className="font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-100 uppercase tracking-wider text-[9px]">Hidden (Draft)</span>
               </div>
             </div>
 
             <button
-              onClick={startLobby}
-              className="w-full py-3 bg-gradient-to-r from-brand-blue to-brand-dark text-white rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all active:scale-[0.98] cursor-pointer"
+              onClick={publishQuiz}
+              className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-black shadow-md hover:shadow-lg transition-all active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 uppercase tracking-wider"
             >
-              Initialize Lobby
+              <Globe size={16} />
+              <span>Publish Quiz & Generate QR Code</span>
             </button>
           </div>
         )}
@@ -965,6 +979,11 @@ export default function RunQuiz() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* --- ANIMATED TOP 10 LIVE LEADERBOARD --- */}
+        {activeQuiz.status !== 'draft' && (
+          <Top10Leaderboard leaderboard={sortedParticipants} title="Top 10 Live Standings" />
         )}
 
         {/* --- PARTICIPANTS TELEMETRY TABLE --- */}

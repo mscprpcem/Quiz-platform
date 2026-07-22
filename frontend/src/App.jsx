@@ -30,6 +30,7 @@ import UserGuide from './pages/UserGuide';
 import SupportSLA from './pages/SupportSLA';
 import ReportIssue from './pages/ReportIssue';
 import Documentation from './pages/Documentation';
+import Courses from './pages/Courses';
 
 // Private Route Enforcer for Admin pages
 const AdminRoute = ({ children }) => {
@@ -62,6 +63,7 @@ export default function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/join" element={<JoinQuiz />} />
                 <Route path="/join/:code" element={<JoinQuiz />} />
+                <Route path="/courses" element={<Courses />} />
                 <Route path="/waiting-room" element={<WaitingRoom />} />
                 <Route path="/live-quiz" element={<LiveQuiz />} />
                 <Route path="/results" element={<Results />} />

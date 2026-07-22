@@ -23,6 +23,7 @@ import {
   Clock,
   CheckCircle2,
   Sparkles,
+  Globe
 } from 'lucide-react';
 
 /* ── Status badge helper ── */
@@ -106,6 +107,19 @@ export default function QuizManagement() {
       setBranding(res.data);
     } catch (err) {
       console.error('Error loading branding:', err);
+    }
+  };
+
+  const handlePublishQuiz = async (quizId) => {
+    try {
+      await api.put(`/api/quizzes/${quizId}/publish`);
+      setNotification({ type: 'success', message: 'Quiz published successfully! QR Code and public listing are now live everywhere.' });
+      loadQuizzes();
+    } catch (err) {
+      setNotification({
+        type: 'error',
+        message: err.response?.data?.error || 'Failed to publish quiz'
+      });
     }
   };
 
@@ -543,6 +557,17 @@ export default function QuizManagement() {
                       <span>Import .xlsx</span>
                     </button>
                   </div>
+                  {quiz.status === 'draft' && (
+                    <button
+                      onClick={() => handlePublishQuiz(quiz.id)}
+                      className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black rounded-xl shadow-md transition-all text-xs cursor-pointer active:scale-95 uppercase tracking-wider"
+                      title="Publish quiz to generate QR Code and list on website"
+                    >
+                      <Globe size={14} />
+                      <span>Publish Quiz (Generate QR)</span>
+                    </button>
+                  )}
+
                   <button
                     onClick={() => handleOpenCreate(quiz)}
                     className="w-full flex items-center justify-center gap-1.5 py-2 border border-brand-border hover:bg-zinc-50 text-zinc-500 hover:text-brand-textMain rounded-xl transition-all text-xs font-bold cursor-pointer active:scale-95"

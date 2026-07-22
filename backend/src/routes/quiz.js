@@ -48,6 +48,9 @@ const generateJoinCode = async () => {
 router.get('/public', async (req, res) => {
   try {
     const quizzes = await Quiz.findAll({
+      where: {
+        status: ['waiting_lobby', 'in_progress']
+      },
       order: [['createdAt', 'DESC']]
     });
 
@@ -176,6 +179,27 @@ router.put('/:id', authMiddleware, async (req, res) => {
   } catch (error) {
     console.error('Update quiz error:', error);
     return res.status(500).json({ error: 'Server error updating quiz' });
+  }
+});
+
+// Publish quiz (changes status from 'draft' to 'waiting_lobby')
+router.put('/:id/publish', authMiddleware, async (req, res) => {
+  try {
+    const quiz = await Quiz.findByPk(req.params.id);
+    if (!quiz) {
+      return res.status(404).json({ error: 'Quiz not found' });
+    }
+
+    const questionCount = await Question.count({ where: { quiz_id: quiz.id } });
+    if (questionCount === 0) {
+      return res.status(400).json({ error: 'Cannot publish a quiz with no questions. Please add at least 1 question first.' });
+    }
+
+    await quiz.update({ status: 'waiting_lobby' });
+    return res.json({ message: 'Quiz published successfully!', quiz });
+  } catch (error) {
+    console.error('Publish quiz error:', error);
+    return res.status(500).json({ error: 'Server error publishing quiz' });
   }
 });
 

@@ -50,25 +50,34 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="sticky top-0 z-40 border-b transition-all duration-200 bg-white/85 backdrop-blur-xl border-brand-border text-brand-textMain shadow-[0_1px_3px_rgba(15,23,42,0.04)]">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-[60px] items-center">
-          {/* Logo Section */}
-          <div
-            className="flex items-center space-x-3 cursor-pointer group"
-            onClick={() => navTo('/')}
-          >
-            {/* MSC-PRPCEM Logo */}
-            <img
-              src="/logo.png"
-              alt="MSC-PRPCEM Logo"
-              className="w-8 h-8 rounded-md object-contain group-hover:scale-110 transition-transform duration-200"
-            />
-          
-            <span className="font-black text-brand-textMain">MSC-PRPCEM</span>
-            <span className="font-normal text-brand-textMuted ml-1.5 hidden sm:inline">MSC</span>
+      <nav className="sticky top-0 z-40 border-b transition-all duration-200 bg-white/90 backdrop-blur-xl border-brand-border text-brand-textMain shadow-[0_2px_8px_rgba(0,120,212,0.06)]">
+        {/* Microsoft Signature 4-Quadrant Color Strip */}
+        <div className="ms-quadrant-bar"></div>
 
-          </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between h-[60px] items-center">
+            {/* Logo Section */}
+            <div
+              className="flex items-center space-x-2.5 cursor-pointer group"
+              onClick={() => navTo('/')}
+            >
+              {/* MSC-PRPCEM Logo */}
+              <img
+                src="/logo.png"
+                alt="MSC-PRPCEM Logo"
+                className="w-8 h-8 rounded-md object-contain group-hover:scale-110 transition-transform duration-200"
+              />
+            
+              <span className="font-black text-brand-textMain tracking-tight">MSC-PRPCEM</span>
+
+              {/* Microsoft 4-Color Grid Badge */}
+              <div className="grid grid-cols-2 gap-[1.5px] w-3.5 h-3.5 flex-shrink-0 opacity-85 group-hover:opacity-100 transition-opacity">
+                <div className="bg-[#F25022] rounded-[0.5px]"></div>
+                <div className="bg-[#7FBA00] rounded-[0.5px]"></div>
+                <div className="bg-[#00A4EF] rounded-[0.5px]"></div>
+                <div className="bg-[#FFB900] rounded-[0.5px]"></div>
+              </div>
+            </div>
 
           {/* Navigation Items (Desktop) */}
           <div className="hidden md:flex items-center space-x-1">
@@ -122,6 +131,12 @@ export default function Navbar() {
                   label="Home"
                 />
                 <NavButton
+                  onClick={() => navTo('/courses')}
+                  isActive={isActive('/courses')}
+                  icon={BookOpen}
+                  label="Courses"
+                />
+                <NavButton
                   onClick={() => navTo('/join')}
                   isActive={isActive('/join')}
                   icon={Play}
@@ -155,6 +170,16 @@ export default function Navbar() {
               >
                 <Home size={16} />
                 Home
+              </button>
+
+              <button
+                onClick={() => navTo('/courses')}
+                className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all ${
+                  isActive('/courses') ? 'text-brand-blue bg-brand-lightBlue' : 'text-brand-textMuted hover:bg-brand-lightBlue/60'
+                }`}
+              >
+                <BookOpen size={16} />
+                Courses
               </button>
 
               <button

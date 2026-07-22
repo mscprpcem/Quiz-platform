@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
 import FullscreenHandler from '../components/FullscreenHandler';
+import Top10Leaderboard from '../components/Top10Leaderboard';
 import { Clock, ShieldAlert, Award, ArrowRight } from 'lucide-react';
 import './LiveQuiz.css';
 
@@ -24,6 +25,7 @@ export default function LiveQuiz() {
   const [submitted, setSubmitted] = useState(false);
   const [showFeedback, setShowFeedback] = useState(false);
   const [feedbackData, setFeedbackData] = useState(null); // { isCorrect, points, correctAnswer }
+  const [interimLeaderboard, setInterimLeaderboard] = useState([]);
   const [timer, setTimer] = useState(0);
   const [isPaused, setIsPaused] = useState(false);
   const [waitingForLeaderboard, setWaitingForLeaderboard] = useState(false);
@@ -63,6 +65,23 @@ export default function LiveQuiz() {
     }
 
     socket.on('rejoin_success', (data) => {
+      if (data.quizStatus === 'completed' || data.isCompleted) {
+        const playerStats = data.playerStats || {};
+        navigate('/results', {
+          replace: true,
+          state: {
+            title: data.title || sessionStorage.getItem('msc_quiz_title') || 'Quiz Session',
+            eventName: data.eventName || sessionStorage.getItem('msc_event_name') || 'MSC Event',
+            rank: playerStats.rank || 'N/A',
+            totalParticipants: data.leaderboard ? data.leaderboard.length : 1,
+            score: playerStats.score || 0,
+            correctAnswers: playerStats.correctAnswers || 0,
+            avgResponseTime: playerStats.avgResponseTime || 0
+          }
+        });
+        return;
+      }
+
       if (data.disqualified) {
         setDisqualified(true);
         setViolationCount(data.tabSwitchCount || 0);
@@ -176,14 +195,16 @@ export default function LiveQuiz() {
       setTimer(0);
       setShowFeedback(true);
 
-      // Identify player's current standings and score
-      const playerStats = leaderboard.find((p) => p.id === initialData.participantId);
+      const top10 = Array.isArray(leaderboard) ? leaderboard : [];
+      setInterimLeaderboard(top10);
+
+      const playerStats = top10.find((p) => p.id === initialData.participantId);
 
       setFeedbackData((prev) => ({
         ...prev,
         correctAnswer,
-        rank: playerStats ? leaderboard.indexOf(playerStats) + 1 : 'N/A',
-        totalScore: playerStats ? playerStats.score : 0
+        rank: playerStats ? top10.indexOf(playerStats) + 1 : (prev?.rank || 'N/A'),
+        totalScore: playerStats ? playerStats.score : (prev?.totalScore || 0)
       }));
     });
 
@@ -404,54 +425,63 @@ export default function LiveQuiz() {
                 </p>
               </div>
             ) : showFeedback ? (
-              <div className="bg-white border border-brand-border rounded-xl p-5 sm:p-8 shadow-sm space-y-5 sm:space-y-6 animate-fade-in">
-                <div className="text-center space-y-2">
-                  <div className="inline-block px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-zinc-100 text-zinc-600">
-                    Question Completed
-                  </div>
-                  <h2 className="text-lg sm:text-2xl font-bold text-brand-textMain">{currentQuestion.question}</h2>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
-                  {/* Correct Answer Display */}
-                  <div className="bg-brand-bgLight p-6 rounded-lg border border-brand-border text-center space-y-1">
-                    <span className="text-xs font-semibold text-brand-textMuted uppercase">Correct Option</span>
-                    <h3 className="text-2xl font-extrabold text-brand-success">
-                      Option {feedbackData?.correctAnswer}
-                    </h3>
+              <div className="space-y-6 animate-fade-in">
+                <div className="bg-white border border-brand-border rounded-xl p-5 sm:p-8 shadow-sm space-y-5 sm:space-y-6">
+                  <div className="text-center space-y-2">
+                    <div className="inline-block px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-zinc-100 text-zinc-600">
+                      Question Completed
+                    </div>
+                    <h2 className="text-lg sm:text-2xl font-bold text-brand-textMain">{currentQuestion.question}</h2>
                   </div>
 
-                  {/* Player Status Display */}
-                  <div className={`p-6 rounded-lg border text-center space-y-1 ${
-                    feedbackData?.isCorrect 
-                      ? 'bg-emerald-50 border-emerald-100 text-emerald-800' 
-                      : 'bg-red-50 border-red-100 text-red-800'
-                  }`}>
-                    <span className="text-xs font-semibold text-brand-textMuted uppercase">Your Result</span>
-                    <h3 className="text-2xl font-extrabold">
-                      {feedbackData?.isCorrect 
-                        ? `+${feedbackData?.points} Points` 
-                        : '0 Points (Wrong/No Answer)'}
-                    </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
+                    {/* Correct Answer Display */}
+                    <div className="bg-brand-bgLight p-6 rounded-lg border border-brand-border text-center space-y-1">
+                      <span className="text-xs font-semibold text-brand-textMuted uppercase">Correct Option</span>
+                      <h3 className="text-2xl font-extrabold text-brand-success">
+                        Option {feedbackData?.correctAnswer}
+                      </h3>
+                    </div>
+
+                    {/* Player Status Display */}
+                    <div className={`p-6 rounded-lg border text-center space-y-1 ${
+                      feedbackData?.isCorrect 
+                        ? 'bg-emerald-50 border-emerald-100 text-emerald-800' 
+                        : 'bg-red-50 border-red-100 text-red-800'
+                    }`}>
+                      <span className="text-xs font-semibold text-brand-textMuted uppercase">Your Result</span>
+                      <h3 className="text-2xl font-extrabold">
+                        {feedbackData?.isCorrect 
+                          ? `+${feedbackData?.points} Points` 
+                          : '0 Points (Wrong/No Answer)'}
+                      </h3>
+                    </div>
+                  </div>
+
+                  {/* Score and rank display */}
+                  <div className="border-t border-zinc-100 pt-6 flex justify-around text-center">
+                    <div>
+                      <span className="text-xs font-semibold text-brand-textMuted uppercase">Your Score</span>
+                      <p className="text-xl font-bold text-brand-textMain mt-1">{feedbackData?.totalScore || 0} pts</p>
+                    </div>
+                    <div className="w-px bg-zinc-200"></div>
+                    <div>
+                      <span className="text-xs font-semibold text-brand-textMuted uppercase">Your Rank</span>
+                      <p className="text-xl font-bold text-brand-blue mt-1">Rank #{feedbackData?.rank || 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  <div className="text-center text-xs font-semibold text-zinc-400 pt-2">
+                    Waiting for host to release next question...
                   </div>
                 </div>
 
-                {/* Score and rank display */}
-                <div className="border-t border-zinc-100 pt-6 flex justify-around text-center">
-                  <div>
-                    <span className="text-xs font-semibold text-brand-textMuted uppercase">Current Score</span>
-                    <p className="text-xl font-bold text-brand-textMain mt-1">{feedbackData?.totalScore || 0}</p>
-                  </div>
-                  <div className="w-px bg-zinc-200"></div>
-                  <div>
-                    <span className="text-xs font-semibold text-brand-textMuted uppercase">Current Standings</span>
-                    <p className="text-xl font-bold text-brand-blue mt-1">Rank #{feedbackData?.rank || 'N/A'}</p>
-                  </div>
-                </div>
-
-                <div className="text-center text-sm font-semibold text-zinc-500 pt-4">
-                  Waiting for host to release next question...
-                </div>
+                {/* Animated Top 10 Live Leaderboard */}
+                <Top10Leaderboard 
+                  leaderboard={interimLeaderboard} 
+                  currentParticipantId={initialData.participantId} 
+                  title="Top 10 Live Standings"
+                />
               </div>
             ) : (
               /* Active Gameplay Question Card */
