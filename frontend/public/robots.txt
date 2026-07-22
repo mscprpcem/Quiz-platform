@@ -1,0 +1,11 @@
+# robots.txt for MSC-PRPCEM Quiz Platform
+User-agent: *
+Allow: /
+Allow: /join
+Allow: /courses
+Allow: /rules
+Allow: /faq-details
+Disallow: /admin/
+Disallow: /api/
+
+Sitemap: https://www.mscprpcem.tech/sitemap.xml

@@ -2,20 +2,74 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" href="/logo.png" />
+    <link rel="icon" type="image/png" href="/logo.png" />
+    <link rel="apple-touch-icon" href="/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="A real-time Live Quiz Platform for the Microsoft Student Club PRPCEM events, workshops, and technical hackathons." />
-    <meta name="theme-color" content="#2563EB" />
-    <title>MSC-PRPCEM | Live Quiz Platform</title>
+    <meta name="theme-color" content="#0078D4" />
 
-    <!-- Preconnect for performance -->
+    <!-- Primary Search Engine Meta Tags -->
+    <title>MSC-PRPCEM | Live Quiz Platform & Technical Event Portal</title>
+    <meta name="title" content="MSC-PRPCEM | Live Quiz Platform & Technical Event Portal" />
+    <meta name="description" content="Official Live Quiz & Interactive Learning Platform for Microsoft Student Club (MSC) PRPCEM. Participate in real-time technical quizzes, compete on live leaderboards, earn certificates, and explore Microsoft Azure courses." />
+    <meta name="keywords" content="MSC PRPCEM, MSC-PRPCEM, MSC PRPCEM Quiz, PRPCEM Quiz Platform, Microsoft Student Club PRPCEM, PR Pote Patil College of Engineering, MSC Live Quiz, MSC PRPCEM Courses, Azure Student Club" />
+    <meta name="author" content="Microsoft Student Club PRPCEM" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+    <link rel="canonical" href="https://www.mscprpcem.tech/" />
+
+    <!-- Open Graph / Facebook / WhatsApp Social Cards -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://www.mscprpcem.tech/" />
+    <meta property="og:title" content="MSC-PRPCEM | Live Quiz Platform & Technical Events" />
+    <meta property="og:description" content="Official Live Quiz & Interactive Platform for Microsoft Student Club PRPCEM. Test your technical skills, compete on real-time leaderboards, and receive participation certificates." />
+    <meta property="og:image" content="https://www.mscprpcem.tech/logo.png" />
+    <meta property="og:site_name" content="MSC-PRPCEM Quiz Platform" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- Twitter Social Cards -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:url" content="https://www.mscprpcem.tech/" />
+    <meta name="twitter:title" content="MSC-PRPCEM | Live Quiz Platform & Technical Events" />
+    <meta name="twitter:description" content="Official Live Quiz & Interactive Platform for Microsoft Student Club PRPCEM. Test your technical skills and compete live." />
+    <meta name="twitter:image" content="https://www.mscprpcem.tech/logo.png" />
+
+    <!-- Google Fonts Preconnection -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
-    <!-- Inter Font — Modern, clean, highly legible -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <!-- Google Structured Data (JSON-LD Schema.org) for Top Ranking -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "EducationalOrganization",
+        "name": "Microsoft Student Club PRPCEM",
+        "alternateName": "MSC-PRPCEM",
+        "url": "https://www.mscprpcem.tech/",
+        "logo": "https://www.mscprpcem.tech/logo.png",
+        "sameAs": [
+          "https://linkedin.com/company/mscprpcem",
+          "https://github.com/mscprpcem",
+          "https://instagram.com/mscprpcem",
+          "https://linktr.ee/mscprpcem",
+          "https://youtube.com/@mscprpcem"
+        ],
+        "description": "Official Live Quiz Platform and Technical Learning Hub for Microsoft Student Club PRPCEM."
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "MSC-PRPCEM Live Quiz",
+        "url": "https://www.mscprpcem.tech/",
+        "potentialAction": {
+          "@type": "SearchAction",
+          "target": "https://www.mscprpcem.tech/join?code={search_term_string}",
+          "query-input": "required name=search_term_string"
+        }
+      }
+    </script>
   </head>
-  <body class="min-h-screen" style="background-color: #F5FAFF; color: #0F172A;">
+  <body class="min-h-screen" style="background-color: #F4F8FC; color: #111827;">
     <div id="root"></div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
