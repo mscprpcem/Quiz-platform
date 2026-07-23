@@ -48,9 +48,6 @@ const generateJoinCode = async () => {
 router.get('/public', async (req, res) => {
   try {
     const quizzes = await Quiz.findAll({
-      where: {
-        status: ['waiting_lobby', 'in_progress']
-      },
       order: [['createdAt', 'DESC']]
     });
 
