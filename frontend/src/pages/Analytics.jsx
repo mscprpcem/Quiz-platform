@@ -101,8 +101,23 @@ export default function Analytics() {
           </div>
         </div>
 
-        {/* Exports Dropdowns */}
+        {/* Exports & Certificate Publishing */}
         <div className="flex flex-wrap gap-2.5 relative z-10">
+          <button 
+            onClick={async () => {
+              try {
+                const res = await api.post(`/api/export/quiz/${id}/publish-certificates`);
+                alert(res.data.message || "✓ Certificates & badges published successfully to Certificate Platform!");
+              } catch (err) {
+                console.error("Publish error:", err);
+                alert("Failed to publish certificates to Certificate Engine.");
+              }
+            }}
+            className="flex items-center space-x-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer"
+          >
+            <span>🎓 Issue Certificates</span>
+          </button>
+
           <div className="relative group">
             <button className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer">
               <FileSpreadsheet size={14} />

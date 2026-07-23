@@ -173,4 +173,75 @@ router.get('/quiz/:id/responses', authMiddleware, async (req, res) => {
   }
 });
 
+// 3. Publish & Automatically Issue Certificates to Certificate Verification Engine
+router.post('/quiz/:id/publish-certificates', authMiddleware, async (req, res) => {
+  try {
+    const quizId = req.params.id;
+    const quiz = await Quiz.findByPk(quizId);
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+
+    const participants = await Participant.findAll({ where: { quiz_id: quizId } });
+    const questions = await Question.findAll({ where: { quiz_id: quizId } });
+    const answers = await Answer.findAll({
+      include: [{ model: Question, as: 'question', where: { quiz_id: quizId } }]
+    });
+
+    // Compute player statistics
+    const leaderboard = participants.map((p) => {
+      const pAnswers = answers.filter((ans) => ans.participant_id === p.id);
+      const totalPoints = pAnswers.reduce((sum, a) => sum + a.points, 0);
+      const correctAnswers = pAnswers.filter((a) => a.is_correct).length;
+      const totalTime = pAnswers.reduce((sum, a) => sum + a.response_time, 0);
+      const avgResponseTime = pAnswers.length > 0 ? parseFloat(((totalTime / pAnswers.length) / 1000).toFixed(2)) : 0;
+
+      return {
+        name: p.name,
+        email: p.email && p.email !== 'N/A' ? p.email : `${p.name.toLowerCase().replace(/[^a-z0-9]/g, '')}@mscprpcem.tech`,
+        score: totalPoints,
+        correctAnswers,
+        avgResponseTime
+      };
+    });
+
+    // Sort by score (descending), then correct answers (descending), then response speed (ascending)
+    leaderboard.sort((a, b) => {
+      if (b.score !== a.score) return b.score - a.score;
+      if (b.correctAnswers !== a.correctAnswers) return b.correctAnswers - a.correctAnswers;
+      return a.avgResponseTime - b.avgResponseTime;
+    });
+
+    // Assign ranks
+    const rankedParticipants = leaderboard.map((p, idx) => ({
+      ...p,
+      rank: idx + 1
+    }));
+
+    const certApiUrl = process.env.CERTIFICATE_API_URL || "https://msc-cert-verification-api-g2d4d9d9cygwgtd8.centralindia-01.azurewebsites.net/api/integration/publish-results";
+    
+    // Call Certificate Verification Engine API
+    const response = await fetch(certApiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": "msc_quiz_verification_secret_key_2026"
+      },
+      body: JSON.stringify({
+        quizTitle: quiz.title || quiz.event_name || "MSC Quiz Event",
+        publishDate: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+        participants: rankedParticipants
+      })
+    });
+
+    const certData = await response.json();
+    return res.json({
+      success: true,
+      message: `Issued ${rankedParticipants.length} certificates to Certificate Engine!`,
+      details: certData
+    });
+  } catch (error) {
+    console.error('Publish certificates error:', error);
+    return res.status(500).json({ error: 'Failed to dispatch certificates to Certificate Engine', details: error.message });
+  }
+});
+
 module.exports = router;
