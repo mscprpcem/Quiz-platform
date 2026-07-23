@@ -70,8 +70,11 @@ export default function LiveQuiz() {
         navigate('/results', {
           replace: true,
           state: {
+            quizId: data.quizId || initialData.quizId,
             title: data.title || sessionStorage.getItem('msc_quiz_title') || 'Quiz Session',
             eventName: data.eventName || sessionStorage.getItem('msc_event_name') || 'MSC Event',
+            email: data.email || sessionStorage.getItem('msc_participant_email') || '',
+            name: data.name || sessionStorage.getItem('msc_participant_name') || '',
             rank: playerStats.rank || 'N/A',
             totalParticipants: data.leaderboard ? data.leaderboard.length : 1,
             score: playerStats.score || 0,
@@ -249,8 +252,11 @@ export default function LiveQuiz() {
 
       navigate('/results', {
         state: {
+          quizId: initialData.quizId,
           title: initialData.title,
           eventName: initialData.eventName,
+          email: sessionStorage.getItem('msc_participant_email') || '',
+          name: sessionStorage.getItem('msc_participant_name') || '',
           rank: playerStats ? leaderboard.indexOf(playerStats) + 1 : 'N/A',
           totalParticipants: leaderboard.length,
           score: playerStats ? playerStats.score : 0,
@@ -383,16 +389,27 @@ export default function LiveQuiz() {
             {/* Header info */}
             <div className="flex flex-col xs:flex-row justify-between items-start xs:items-center gap-2 bg-white border border-brand-border px-4 sm:px-6 py-3 sm:py-4 rounded-xl shadow-sm">
               <div>
-                <h3 className="text-sm font-semibold text-brand-textMuted uppercase tracking-wider">Playing</h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-semibold text-brand-textMuted uppercase tracking-wider">Playing</h3>
+                  {currentQuestion && currentQuestion.totalQuestions && (currentQuestion.questionIndex + 1 === currentQuestion.totalQuestions) && (
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-red-500 text-white px-2.5 py-0.5 rounded-full animate-pulse">
+                      🎯 Final Question
+                    </span>
+                  )}
+                </div>
                 <h1 className="text-lg font-bold text-brand-textMain">{initialData.title}</h1>
               </div>
               <div className="flex items-center space-x-4">
                 {/* Timer Clock */}
                 {currentQuestion && !showFeedback && (
-                  <div className="flex items-center space-x-2 bg-brand-lightBlue text-brand-dark px-4 py-2 rounded-lg font-bold">
-                    <Clock size={20} className={timer <= 5 ? 'text-red-600 animate-pulse' : ''} />
-                    <span className={timer <= 5 ? 'text-red-600 font-extrabold text-xl' : 'text-xl'}>
-                      {isPaused ? 'Paused' : `${timer}s`}
+                  <div className={`flex items-center space-x-2 px-4 py-2 rounded-lg font-bold ${
+                    timer === 0 
+                      ? 'bg-amber-100 text-amber-900 border border-amber-300' 
+                      : 'bg-brand-lightBlue text-brand-dark'
+                  }`}>
+                    <Clock size={20} className={timer <= 5 ? (timer === 0 ? 'text-amber-700' : 'text-red-600 animate-pulse') : ''} />
+                    <span className={timer <= 5 ? (timer === 0 ? 'text-amber-900 font-black text-lg' : 'text-red-600 font-extrabold text-xl') : 'text-xl'}>
+                      {isPaused ? 'Paused' : (timer === 0 ? 'Timer Ended' : `${timer}s`)}
                     </span>
                   </div>
                 )}
@@ -428,8 +445,15 @@ export default function LiveQuiz() {
               <div className="space-y-6 animate-fade-in">
                 <div className="bg-white border border-brand-border rounded-xl p-5 sm:p-8 shadow-sm space-y-5 sm:space-y-6">
                   <div className="text-center space-y-2">
-                    <div className="inline-block px-4 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-zinc-100 text-zinc-600">
-                      Question Completed
+                    <div className="flex flex-wrap justify-center items-center gap-2">
+                      <div className="inline-block px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-amber-100 text-amber-800 border border-amber-200">
+                        ⌛ Timer Finished
+                      </div>
+                      {currentQuestion.totalQuestions && (currentQuestion.questionIndex + 1 === currentQuestion.totalQuestions) && (
+                        <div className="inline-block px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-red-100 text-red-700 border border-red-200 animate-pulse">
+                          🎯 Final Question Completed
+                        </div>
+                      )}
                     </div>
                     <h2 className="text-lg sm:text-2xl font-bold text-brand-textMain">{currentQuestion.question}</h2>
                   </div>
@@ -471,8 +495,16 @@ export default function LiveQuiz() {
                     </div>
                   </div>
 
-                  <div className="text-center text-xs font-semibold text-zinc-400 pt-2">
-                    Waiting for host to release next question...
+                  <div className="text-center pt-2">
+                    {currentQuestion.totalQuestions && (currentQuestion.questionIndex + 1 === currentQuestion.totalQuestions) ? (
+                      <span className="inline-block text-xs sm:text-sm font-extrabold text-purple-800 bg-purple-50 border border-purple-200 px-4 py-2 rounded-xl shadow-xs animate-bounce">
+                        🎉 Final question completed! Please wait while host ends the quiz and publishes final leaderboard.
+                      </span>
+                    ) : (
+                      <span className="text-xs font-semibold text-zinc-400">
+                        Waiting for host to release next question...
+                      </span>
+                    )}
                   </div>
                 </div>
 
@@ -489,7 +521,10 @@ export default function LiveQuiz() {
                 {/* Question */}
                 <div className="bg-white border border-brand-border p-5 sm:p-8 rounded-xl shadow-sm space-y-4">
                   <div className="flex justify-between items-center text-brand-textMuted text-xs font-semibold uppercase tracking-wider">
-                    <span>Question {currentQuestion.questionIndex + 1}</span>
+                    <span>
+                      Question {currentQuestion.questionIndex + 1}
+                      {currentQuestion.totalQuestions && ` of ${currentQuestion.totalQuestions}`}
+                    </span>
                     <span>{currentQuestion.marks} Points</span>
                   </div>
                   <h2 className="text-lg sm:text-2xl font-bold text-brand-textMain leading-tight">
@@ -536,10 +571,18 @@ export default function LiveQuiz() {
                 </div>
 
                 {/* Submission State Info overlay */}
-                {submitted && (
+                {submitted && timer > 0 && (
                   <div className="bg-brand-lightBlue border border-brand-blue/10 rounded-xl p-4 text-center text-brand-dark font-semibold animate-fade-in flex items-center justify-center space-x-2">
                     <Loader2 className="animate-spin text-brand-blue" size={18} />
                     <span>Answer submitted! Waiting for other participants or timer to finish.</span>
+                  </div>
+                )}
+
+                {/* Timer Finished Banner */}
+                {timer === 0 && (
+                  <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 text-center text-amber-900 font-bold animate-fade-in flex items-center justify-center space-x-2 shadow-xs">
+                    <Clock className="animate-spin text-amber-700" size={20} />
+                    <span>⌛ Timer Finished! Submissions are now locked. Host is displaying the leaderboard...</span>
                   </div>
                 )}
               </div>

@@ -1,4 +1,5 @@
 const { Quiz, Question, Participant, Answer, Violation, sequelize } = require('../models');
+const { syncQuizCertificates } = require('./verificationService');
 
 // In-memory store for active quiz sessions, socket mapping, and timers
 // Format: { [quizId]: { activeQuestionId: string, timerStartedAt: Date, timerValue: number, questionStatus: string, answersReceived: Set(participantId) } }
@@ -125,6 +126,8 @@ const initializeSocket = (io) => {
           answersReceived: new Set()
         };
 
+        const totalQuestions = await Question.count({ where: { quiz_id: quizId } });
+
         // Broadcast question to participants (do NOT send correct_answer!)
         io.to(`quiz_${quizId}`).emit('question_released', {
           questionIndex,
@@ -135,7 +138,8 @@ const initializeSocket = (io) => {
           option_c: question.option_c,
           option_d: question.option_d,
           timer: question.timer,
-          marks: question.marks
+          marks: question.marks,
+          totalQuestions
         });
       } catch (err) {
         console.error('release_question error:', err);
@@ -230,6 +234,17 @@ const initializeSocket = (io) => {
 
         // Broadcast to participants that the quiz is completed and to wait
         io.to(`quiz_${quizId}`).emit('quiz_completed');
+
+        // Auto Sync Certificates and Event data with Verification Platform
+        if (process.env.AUTO_ISSUE_CERTIFICATES !== 'false') {
+          syncQuizCertificates(quizId)
+            .then((res) => {
+              io.to(`admin_${quizId}`).emit('verification_sync_status', res);
+            })
+            .catch((err) => {
+              console.error('Socket auto-sync certificate error:', err);
+            });
+        }
       } catch (err) {
         console.error('end_quiz error:', err);
       }
@@ -248,6 +263,17 @@ const initializeSocket = (io) => {
         // Compile and release the leaderboard standings to all participant sockets
         const leaderboard = await getLiveLeaderboard(quizId);
         io.to(`quiz_${quizId}`).emit('quiz_ended', { leaderboard });
+
+        // Auto Sync Certificates and Event data on release as well
+        if (process.env.AUTO_ISSUE_CERTIFICATES !== 'false') {
+          syncQuizCertificates(quizId)
+            .then((res) => {
+              io.to(`admin_${quizId}`).emit('verification_sync_status', res);
+            })
+            .catch((err) => {
+              console.error('Socket release auto-sync certificate error:', err);
+            });
+        }
       } catch (err) {
         console.error('release_leaderboard error:', err);
       }
@@ -418,6 +444,8 @@ const initializeSocket = (io) => {
         io.to(`quiz_${quiz.id}`).emit('lobby_participants_update', participants);
         io.to(`quiz_${quiz.id}`).emit('participant_count_update', { count: participants.length });
 
+        const totalQuestions = await Question.count({ where: { quiz_id: quiz.id } });
+
         // Calculate and send current state
         const responseData = {
           participantId: participant.id,
@@ -434,7 +462,8 @@ const initializeSocket = (io) => {
           college: participant.college,
           email: participant.email,
           joinCode: quiz.join_code,
-          totalParticipants: participants.length
+          totalParticipants: participants.length,
+          totalQuestions
         };
 
         // If quiz is in progress, we need to send active question details
@@ -453,7 +482,8 @@ const initializeSocket = (io) => {
                 option_c: question.option_c,
                 option_d: question.option_d,
                 timer: question.timer,
-                marks: question.marks
+                marks: question.marks,
+                totalQuestions
               };
 
               // Calculate remaining time

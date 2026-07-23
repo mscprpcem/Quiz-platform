@@ -39,6 +39,22 @@ const Quiz = sequelize.define('Quiz', {
   scheduled_start: {
     type: DataTypes.DATE,
     allowNull: true
+  },
+  verification_synced: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  verification_synced_at: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  verification_event_id: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  verification_error: {
+    type: DataTypes.TEXT,
+    allowNull: true
   }
 });
 

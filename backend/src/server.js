@@ -157,7 +157,7 @@ async function startServer() {
     console.log("✅ PostgreSQL Connected");
 
     // Sync Database
-    await sequelize.sync();
+    await sequelize.sync({ alter: true });
 
     console.log("✅ Database Synced");
 

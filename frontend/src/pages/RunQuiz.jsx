@@ -403,6 +403,8 @@ export default function RunQuiz() {
         setTimerCount((prev) => {
           if (prev <= 1) {
             clearInterval(interval);
+            // Auto lock submissions and calculate leaderboard when timer ends
+            socket.emit('end_question', { quizId: activeQuiz.id });
             return 0;
           }
           return prev - 1;
@@ -729,7 +731,14 @@ export default function RunQuiz() {
               {/* Question Tracking details */}
               <div className="flex justify-between items-center border-b border-zinc-100 pb-4">
                 <div>
-                  <span className="text-[9px] font-black text-brand-blue uppercase tracking-widest block">Gameplay Console</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[9px] font-black text-brand-blue uppercase tracking-widest block">Gameplay Console</span>
+                    {activeQuiz && currentQuestionIndex >= 0 && currentQuestionIndex === activeQuiz.questions.length - 1 && (
+                      <span className="text-[10px] font-black uppercase tracking-wider bg-red-500 text-white px-2.5 py-0.5 rounded-full animate-pulse">
+                        🚨 Final Question ({currentQuestionIndex + 1}/{activeQuiz.questions.length})
+                      </span>
+                    )}
+                  </div>
                   <h2 className="text-lg font-black text-brand-textMain tracking-tight mt-0.5">
                     {currentQuestionIndex >= 0 ? `Question ${currentQuestionIndex + 1} of ${activeQuiz.questions.length}` : 'Preparing first question...'}
                   </h2>
@@ -737,9 +746,18 @@ export default function RunQuiz() {
 
                 <button
                   onClick={endQuiz}
-                  className="bg-red-50 hover:bg-red-100 border border-red-150 text-red-600 hover:text-red-700 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 shadow-sm cursor-pointer"
+                  className={`px-4 py-2 rounded-xl text-xs font-extrabold transition-all active:scale-95 shadow-sm cursor-pointer flex items-center gap-1.5 ${
+                    activeQuiz && currentQuestionIndex >= 0 && currentQuestionIndex === activeQuiz.questions.length - 1 && currentQuestionStatus === 'timer_ended'
+                      ? 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-700 hover:to-rose-700 text-white ring-4 ring-red-200 animate-bounce'
+                      : 'bg-red-50 hover:bg-red-100 border border-red-150 text-red-600 hover:text-red-700'
+                  }`}
                 >
-                  End Quiz
+                  <Trophy size={14} />
+                  <span>
+                    {activeQuiz && currentQuestionIndex >= 0 && currentQuestionIndex === activeQuiz.questions.length - 1 && currentQuestionStatus === 'timer_ended'
+                      ? 'End Quiz & Finalize'
+                      : 'End Quiz'}
+                  </span>
                 </button>
               </div>
 
@@ -754,8 +772,8 @@ export default function RunQuiz() {
                       {timerCount}s
                     </div>
                   ) : (
-                    <div className="mt-2 text-sm font-extrabold text-brand-textMuted uppercase tracking-wider bg-zinc-100 px-3 py-1 rounded-full border border-zinc-200">
-                      {currentQuestionStatus.replace('_', ' ')}
+                    <div className="mt-2 text-xs font-extrabold text-amber-800 uppercase tracking-wider bg-amber-100 px-3.5 py-1 rounded-full border border-amber-200">
+                      ⌛ {currentQuestionStatus === 'timer_ended' ? 'Timer Finished' : currentQuestionStatus.replace('_', ' ')}
                     </div>
                   )}
                 </div>
@@ -786,6 +804,26 @@ export default function RunQuiz() {
                 </div>
               </div>
 
+              {/* Last Question Prompt Banner for Admin */}
+              {activeQuiz && currentQuestionIndex >= 0 && currentQuestionIndex === activeQuiz.questions.length - 1 && currentQuestionStatus === 'timer_ended' && (
+                <div className="bg-gradient-to-r from-purple-900 via-indigo-900 to-slate-900 text-white p-5 rounded-2xl border border-purple-500/30 shadow-md text-center space-y-2 animate-fade-in">
+                  <div className="flex items-center justify-center gap-2 font-black text-sm text-amber-300">
+                    <Sparkles size={18} className="animate-spin" />
+                    <span>🎉 FINAL QUESTION COMPLETED!</span>
+                  </div>
+                  <p className="text-xs text-purple-200 font-medium max-w-md mx-auto">
+                    This was the last question of the quiz! Please tell admin to click <strong>"End Quiz"</strong> to conclude the session and publish the final standings.
+                  </p>
+                  <button
+                    onClick={endQuiz}
+                    className="mt-2 inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-500 hover:to-amber-600 text-slate-950 font-black text-xs rounded-xl shadow-lg transition-all active:scale-95 cursor-pointer"
+                  >
+                    <Trophy size={16} />
+                    <span>End Quiz & Show Final Standings</span>
+                  </button>
+                </div>
+              )}
+
               {/* Main Controls Card */}
               <div className="border border-brand-border/80 bg-brand-bgLight/60 rounded-2xl p-5 space-y-4 shadow-sm">
                 <div className="flex items-center justify-between">
@@ -801,12 +839,13 @@ export default function RunQuiz() {
                   {/* Primary Release Action */}
                   <button
                     onClick={releaseQuestion}
-                    disabled={currentQuestionStatus === 'released'}
+                    disabled={currentQuestionStatus === 'released' || (activeQuiz && currentQuestionIndex === activeQuiz.questions.length - 1 && currentQuestionStatus === 'timer_ended')}
                     className="flex-grow sm:flex-grow-0 flex items-center justify-center space-x-2 bg-brand-blue hover:bg-brand-dark disabled:bg-zinc-200 text-white px-6 py-3 rounded-xl text-xs font-extrabold shadow-md hover:shadow-lg transition-all active:scale-[0.97] cursor-pointer"
                   >
                     <ArrowRight size={14} />
                     <span>
-                      {currentQuestionStatus === 'timer_ended' ? 'Release Next Question' :
+                      {activeQuiz && currentQuestionIndex === activeQuiz.questions.length - 1 && currentQuestionStatus === 'timer_ended' ? 'All Questions Finished' :
+                       currentQuestionStatus === 'timer_ended' ? 'Release Next Question' :
                        currentQuestionIndex === -1 ? 'Release First Question' : 'Release Current'}
                     </span>
                   </button>

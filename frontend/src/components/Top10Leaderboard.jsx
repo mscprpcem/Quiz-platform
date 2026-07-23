@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Trophy, TrendingUp, TrendingDown, Minus, Sparkles, Award } from 'lucide-react';
 
 export default function Top10Leaderboard({ leaderboard = [], currentParticipantId = null, title = "Top 10 Live Standings" }) {
@@ -71,112 +72,141 @@ export default function Top10Leaderboard({ leaderboard = [], currentParticipantI
         </span>
       </div>
 
-      {/* Top 10 List with Shuffle Animations */}
-      <div className="space-y-2.5 relative">
-        {rankedList.map((player) => {
-          const isCurrentPlayer = currentParticipantId && player.id === currentParticipantId;
+      {/* Top 10 List with FLIP Shuffle Animations via Framer Motion */}
+      <motion.div layout className="space-y-2.5 relative">
+        <AnimatePresence mode="popLayout">
+          {rankedList.map((player) => {
+            const isCurrentPlayer = currentParticipantId && player.id === currentParticipantId;
 
-          // Rank Badges Styling
-          let rankBadge = null;
-          let rowBgClass = "bg-white hover:bg-zinc-50 border-brand-border";
+            // Rank Badges Styling
+            let rankBadge = null;
+            let rowBgClass = "bg-white hover:bg-zinc-50 border-brand-border";
 
-          if (player.rank === 1) {
-            rankBadge = (
-              <span className="w-7 h-7 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-white flex items-center justify-center font-black text-xs shadow-sm">
-                👑
-              </span>
-            );
-            rowBgClass = "bg-gradient-to-r from-amber-50/70 via-amber-50/30 to-white border-amber-200/80 shadow-sm";
-          } else if (player.rank === 2) {
-            rankBadge = (
-              <span className="w-7 h-7 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-black text-xs border border-slate-300">
-                2
-              </span>
-            );
-            rowBgClass = "bg-gradient-to-r from-slate-50/70 via-slate-50/30 to-white border-slate-200";
-          } else if (player.rank === 3) {
-            rankBadge = (
-              <span className="w-7 h-7 rounded-full bg-orange-100 text-orange-800 flex items-center justify-center font-black text-xs border border-orange-200">
-                3
-              </span>
-            );
-            rowBgClass = "bg-gradient-to-r from-orange-50/70 via-orange-50/30 to-white border-orange-200/80";
-          } else {
-            rankBadge = (
-              <span className="w-7 h-7 rounded-full bg-zinc-100 text-zinc-600 flex items-center justify-center font-black text-xs border border-zinc-200">
-                {player.rank}
-              </span>
-            );
-          }
-
-          if (isCurrentPlayer) {
-            rowBgClass += " ring-2 ring-brand-blue border-brand-blue shadow-md";
-          }
-
-          return (
-            <div
-              key={player.id}
-              className={`p-3.5 sm:p-4 rounded-xl border transition-all duration-700 ease-out flex items-center justify-between gap-3 ${rowBgClass}`}
-            >
-              {/* Left Rank & User Info */}
-              <div className="flex items-center space-x-3 truncate">
-                {rankBadge}
-
-                {/* Avatar Initials */}
-                <div className="w-9 h-9 rounded-full bg-brand-blue/10 text-brand-blue font-black text-xs flex items-center justify-center flex-shrink-0 border border-brand-blue/15">
-                  {player.name ? player.name.substring(0, 2).toUpperCase() : 'P'}
-                </div>
-
-                <div className="truncate text-left">
-                  <div className="flex items-center gap-1.5 truncate">
-                    <span className="font-extrabold text-xs sm:text-sm text-brand-textMain truncate">
-                      {player.name}
-                    </span>
-                    {isCurrentPlayer && (
-                      <span className="text-[9px] font-black uppercase tracking-wider bg-brand-blue text-white px-2 py-0.5 rounded">
-                        You
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-[10px] font-medium text-brand-textMuted truncate">
-                    {player.college || 'PRPCEM Campus'}
-                  </p>
-                </div>
-              </div>
-
-              {/* Right Rank Delta & Points */}
-              <div className="flex items-center space-x-3 flex-shrink-0">
-                {/* Delta Badge */}
-                {player.isNew ? (
-                  <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 text-[9px] font-black uppercase px-2 py-0.5 rounded-full animate-bounce">
-                    <Sparkles size={10} />
-                    <span>NEW</span>
-                  </span>
-                ) : player.delta > 0 ? (
-                  <span className="inline-flex items-center gap-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black px-2 py-0.5 rounded-full animate-pulse">
-                    <TrendingUp size={11} />
-                    <span>+{player.delta}</span>
-                  </span>
-                ) : player.delta < 0 ? (
-                  <span className="inline-flex items-center gap-0.5 bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-black px-2 py-0.5 rounded-full">
-                    <TrendingDown size={11} />
-                    <span>{player.delta}</span>
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-0.5 bg-slate-50 text-slate-500 border border-slate-200 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    <Minus size={10} />
-                  </span>
-                )}
-
-                {/* Score Capsule */}
-                <span className="font-extrabold text-xs sm:text-sm text-brand-blue bg-brand-lightBlue border border-brand-blue/15 px-3 py-1 rounded-full whitespace-nowrap">
-                  {player.score} <span className="text-[9px] font-bold text-brand-textMuted uppercase">pts</span>
+            if (player.rank === 1) {
+              rankBadge = (
+                <span className="w-7 h-7 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-white flex items-center justify-center font-black text-xs shadow-sm">
+                  👑
                 </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
+              );
+              rowBgClass = "bg-gradient-to-r from-amber-50/70 via-amber-50/30 to-white border-amber-200/80 shadow-sm";
+            } else if (player.rank === 2) {
+              rankBadge = (
+                <span className="w-7 h-7 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-black text-xs border border-slate-300">
+                  2
+                </span>
+              );
+              rowBgClass = "bg-gradient-to-r from-slate-50/70 via-slate-50/30 to-white border-slate-200";
+            } else if (player.rank === 3) {
+              rankBadge = (
+                <span className="w-7 h-7 rounded-full bg-orange-100 text-orange-800 flex items-center justify-center font-black text-xs border border-orange-200">
+                  3
+                </span>
+              );
+              rowBgClass = "bg-gradient-to-r from-orange-50/70 via-orange-50/30 to-white border-orange-200/80";
+            } else {
+              rankBadge = (
+                <span className="w-7 h-7 rounded-full bg-zinc-100 text-zinc-600 flex items-center justify-center font-black text-xs border border-zinc-200">
+                  {player.rank}
+                </span>
+              );
+            }
+
+            if (isCurrentPlayer) {
+              rowBgClass += " ring-2 ring-brand-blue border-brand-blue shadow-md";
+            }
+
+            return (
+              <motion.div
+                key={player.id}
+                layout
+                initial={{ opacity: 0, scale: 0.95, y: 10 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                transition={{
+                  layout: { type: "spring", stiffness: 350, damping: 28 },
+                  opacity: { duration: 0.25 }
+                }}
+                className={`p-3.5 sm:p-4 rounded-xl border flex items-center justify-between gap-3 ${rowBgClass}`}
+              >
+                {/* Left Rank & User Info */}
+                <div className="flex items-center space-x-3 truncate">
+                  {rankBadge}
+
+                  {/* Avatar Initials */}
+                  <div className="w-9 h-9 rounded-full bg-brand-blue/10 text-brand-blue font-black text-xs flex items-center justify-center flex-shrink-0 border border-brand-blue/15">
+                    {player.name ? player.name.substring(0, 2).toUpperCase() : 'P'}
+                  </div>
+
+                  <div className="truncate text-left">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="font-extrabold text-xs sm:text-sm text-brand-textMain truncate">
+                        {player.name}
+                      </span>
+                      {isCurrentPlayer && (
+                        <span className="text-[9px] font-black uppercase tracking-wider bg-brand-blue text-white px-2 py-0.5 rounded">
+                          You
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] font-medium text-brand-textMuted truncate">
+                      {player.college || 'PRPCEM Campus'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Right Rank Delta & Points */}
+                <div className="flex items-center space-x-3 flex-shrink-0">
+                  {/* Delta Badge */}
+                  {player.isNew ? (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 text-[9px] font-black uppercase px-2 py-0.5 rounded-full animate-bounce"
+                    >
+                      <Sparkles size={10} />
+                      <span>NEW</span>
+                    </motion.span>
+                  ) : player.delta > 0 ? (
+                    <motion.span
+                      initial={{ scale: 0.8 }}
+                      animate={{ scale: [1, 1.25, 1] }}
+                      transition={{ duration: 0.5 }}
+                      className="inline-flex items-center gap-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black px-2 py-0.5 rounded-full"
+                    >
+                      <TrendingUp size={11} />
+                      <span>+{player.delta}</span>
+                    </motion.span>
+                  ) : player.delta < 0 ? (
+                    <motion.span
+                      initial={{ scale: 0.8 }}
+                      animate={{ scale: 1 }}
+                      className="inline-flex items-center gap-0.5 bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-black px-2 py-0.5 rounded-full"
+                    >
+                      <TrendingDown size={11} />
+                      <span>{player.delta}</span>
+                    </motion.span>
+                  ) : (
+                    <span className="inline-flex items-center gap-0.5 bg-slate-50 text-slate-500 border border-slate-200 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      <Minus size={10} />
+                    </span>
+                  )}
+
+                  {/* Score Capsule */}
+                  <motion.span
+                    key={player.score}
+                    initial={{ scale: 1.15 }}
+                    animate={{ scale: 1 }}
+                    transition={{ duration: 0.3 }}
+                    className="font-extrabold text-xs sm:text-sm text-brand-blue bg-brand-lightBlue border border-brand-blue/15 px-3 py-1 rounded-full whitespace-nowrap shadow-xs"
+                  >
+                    {player.score} <span className="text-[9px] font-bold text-brand-textMuted uppercase">pts</span>
+                  </motion.span>
+                </div>
+              </motion.div>
+            );
+          })}
+        </AnimatePresence>
+      </motion.div>
     </div>
   );
 }

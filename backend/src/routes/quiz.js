@@ -4,6 +4,7 @@ const multer = require('multer');
 const ExcelJS = require('exceljs');
 const { Quiz, Question, Participant, Answer, Violation } = require('../models');
 const authMiddleware = require('../middleware/auth');
+const { syncQuizCertificates } = require('../services/verificationService');
 
 // Multer memory storage configuration for Excel uploads
 const storage = multer.memoryStorage();
@@ -498,6 +499,25 @@ router.post('/:id/import', authMiddleware, upload.single('file'), async (req, re
   } catch (error) {
     console.error('Import questions error:', error);
     return res.status(500).json({ error: 'Server error during question import' });
+  }
+});
+
+// Trigger / Retry Verification & Certificate Auto-Sync
+router.post('/:id/sync-certificates', authMiddleware, async (req, res) => {
+  try {
+    const quizId = req.params.id;
+    const result = await syncQuizCertificates(quizId);
+
+    return res.json({
+      message: result.success
+        ? 'Certificates & Event synced successfully with Verification Platform!'
+        : 'Sync log recorded (Verification Platform endpoint not reachable directly).',
+      synced: result.success,
+      details: result
+    });
+  } catch (error) {
+    console.error('Sync certificates error:', error);
+    return res.status(500).json({ error: error.message || 'Server error syncing certificates' });
   }
 });
 
