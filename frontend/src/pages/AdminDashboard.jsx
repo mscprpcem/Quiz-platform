@@ -680,6 +680,7 @@ export default function AdminDashboard() {
                 Share
               </button>
             </div>
+          </div>
         </div>
       )}
 
