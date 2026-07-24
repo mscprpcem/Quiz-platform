@@ -116,7 +116,7 @@ export default function AdminTemplates() {
             </div>
 
             {/* Main Area: Embedded Full Configurator (8 Cols) */}
-            <div className="lg:col-span-8 bg-white border border-brand-border rounded-2xl p-5 shadow-sm space-y-4">
+            <div className="lg:col-span-8">
               {selectedQuiz && (
                 <CertificateTemplateModal
                   quiz={selectedQuiz}
@@ -124,6 +124,7 @@ export default function AdminTemplates() {
                   onSelectQuiz={(q) => setSelectedQuiz(q)}
                   onClose={() => {}}
                   onSaveSuccess={loadQuizzes}
+                  isInline={true}
                 />
               )}
             </div>

@@ -68,7 +68,7 @@ const DEFAULT_SVG = `<?xml version="1.0" encoding="UTF-8"?>
   </g>
 </svg>`;
 
-export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQuiz, onClose, onSaveSuccess }) {
+export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQuiz, onClose, onSaveSuccess, isInline = false }) {
   const [currentQuiz, setCurrentQuiz] = useState(quiz || (allQuizzes && allQuizzes[0]) || null);
   const [svgContent, setSvgContent] = useState('');
   const [loading, setLoading] = useState(true);
@@ -295,9 +295,8 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
     URL.revokeObjectURL(url);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fadeIn">
-      <div className="bg-white border border-slate-200 w-full max-w-6xl h-[92vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+  const mainContent = (
+    <div className={`bg-white border border-slate-200 w-full ${isInline ? 'min-h-[750px] rounded-2xl shadow-sm' : 'max-w-6xl h-[92vh] rounded-2xl shadow-2xl'} flex flex-col overflow-hidden`}>
         
         {/* Modal Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-3.5 border-b border-slate-200 bg-slate-50 gap-3">
@@ -652,6 +651,15 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
         </div>
 
       </div>
+  );
+
+  if (isInline) {
+    return mainContent;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/80 backdrop-blur-sm animate-fadeIn">
+      {mainContent}
     </div>
   );
 }
