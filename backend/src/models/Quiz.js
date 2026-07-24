@@ -55,6 +55,10 @@ const Quiz = sequelize.define('Quiz', {
   verification_error: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  svg_template: {
+    type: DataTypes.TEXT,
+    allowNull: true
   }
 });
 

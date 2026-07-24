@@ -23,8 +23,10 @@ import {
   Percent,
   CheckCircle,
   FileSpreadsheet,
-  AlertTriangle
+  AlertTriangle,
+  FileCode
 } from 'lucide-react';
+import CertificateTemplateModal from '../components/CertificateTemplateModal';
 
 export default function Analytics() {
   const { id } = useParams();
@@ -32,6 +34,7 @@ export default function Analytics() {
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   const fetchAnalytics = async () => {
     try {
@@ -102,7 +105,15 @@ export default function Analytics() {
         </div>
 
         {/* Exports & Certificate Publishing */}
-        <div className="flex flex-wrap gap-2.5 relative z-10">
+          <button 
+            onClick={() => setShowTemplateModal(true)}
+            className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer"
+            title="Upload/Edit SVG Certificate Template & Live Preview"
+          >
+            <FileCode size={14} />
+            <span>🎨 Template & Preview</span>
+          </button>
+
           <button 
             onClick={async () => {
               try {
@@ -321,7 +332,15 @@ export default function Analytics() {
           No participants joined or submitted answers. Run a quiz session first to capture statistical analytics.
         </div>
       )}
-    </div>
+
+      {/* SVG Certificate Template Modal */}
+      {showTemplateModal && data && (
+        <CertificateTemplateModal
+          quiz={{ id, title: data.quizTitle, event_name: data.eventName }}
+          onClose={() => setShowTemplateModal(false)}
+          onSaveSuccess={fetchAnalytics}
+        />
+      )}
     </div>
   );
 }

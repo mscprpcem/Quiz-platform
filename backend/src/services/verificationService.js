@@ -89,7 +89,8 @@ async function syncQuizCertificates(quizId) {
         description: quiz.description,
         totalQuestions: questions.length,
         totalParticipants: attendees.length,
-        date: quiz.updatedAt || new Date()
+        date: quiz.updatedAt || new Date(),
+        svgTemplate: quiz.svg_template || null
       },
       attendees
     };

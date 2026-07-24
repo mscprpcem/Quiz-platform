@@ -521,4 +521,159 @@ router.post('/:id/sync-certificates', authMiddleware, async (req, res) => {
   }
 });
 
+// Helper for SVG Certificate Default Template and Placeholder Substitution
+function getDefaultSvgTemplate() {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1000" height="700" viewBox="0 0 1000 700" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0f172a"/>
+      <stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="50%" stop-color="#3b82f6"/>
+      <stop offset="100%" stop-color="#60a5fa"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="6" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <rect width="1000" height="700" fill="url(#bgGrad)"/>
+  <rect x="25" y="25" width="950" height="650" fill="none" stroke="url(#accentGrad)" stroke-width="4" rx="16"/>
+  <rect x="35" y="35" width="930" height="630" fill="none" stroke="#334155" stroke-width="1" rx="12"/>
+
+  <!-- Brand Header -->
+  <g transform="translate(60, 70)">
+    <rect x="0" y="0" width="18" height="18" fill="#f25022"/>
+    <rect x="22" y="0" width="18" height="18" fill="#7fba00"/>
+    <rect x="0" y="22" width="18" height="18" fill="#00a4ef"/>
+    <rect x="22" y="22" width="18" height="18" fill="#ffb900"/>
+    <text x="54" y="28" fill="#f8fafc" font-family="'Segoe UI', sans-serif" font-size="20" font-weight="800" letter-spacing="1">MICROSOFT STUDENT CLUB</text>
+    <text x="54" y="48" fill="#94a3b8" font-family="'Segoe UI', sans-serif" font-size="12" font-weight="600" letter-spacing="2">PRPCEM CHAPTER • OFFICIAL CREDENTIAL</text>
+  </g>
+
+  <!-- Title -->
+  <text x="500" y="200" fill="#93c5fd" font-family="'Segoe UI', sans-serif" font-size="14" font-weight="800" text-anchor="middle" letter-spacing="4">CERTIFICATE OF ACHIEVEMENT</text>
+  <text x="500" y="240" fill="#94a3b8" font-family="'Segoe UI', sans-serif" font-size="15" font-weight="400" text-anchor="middle">PROUDLY PRESENTED TO</text>
+
+  <!-- Recipient Name -->
+  <text x="500" y="310" fill="#ffffff" font-family="'Segoe UI', sans-serif" font-size="38" font-weight="900" text-anchor="middle" filter="url(#shadow)">{{name}}</text>
+  <line x1="300" y1="330" x2="700" y2="330" stroke="url(#accentGrad)" stroke-width="2"/>
+
+  <!-- Achievement Details -->
+  <text x="500" y="375" fill="#cbd5e1" font-family="'Segoe UI', sans-serif" font-size="15" font-weight="400" text-anchor="middle">For outstanding performance in {{event_name}}</text>
+  <text x="500" y="420" fill="#60a5fa" font-family="'Segoe UI', sans-serif" font-size="26" font-weight="800" text-anchor="middle">{{title}}</text>
+  <text x="500" y="460" fill="#94a3b8" font-family="'Segoe UI', sans-serif" font-size="13" font-weight="600" text-anchor="middle">Category: {{category}} | Rank: #{{rank}} | Score: {{score}} pts</text>
+
+  <!-- Footer -->
+  <g transform="translate(80, 560)">
+    <text x="0" y="0" fill="#64748b" font-family="'Segoe UI', sans-serif" font-size="11" font-weight="700">DATE ISSUED</text>
+    <text x="0" y="20" fill="#f8fafc" font-family="'Segoe UI', sans-serif" font-size="14" font-weight="700">{{date}}</text>
+  </g>
+
+  <g transform="translate(500, 560)">
+    <circle cx="0" cy="0" r="30" fill="#1e3a8a" stroke="url(#accentGrad)" stroke-width="3"/>
+    <path d="M-10,-4 L0,12 L12,-10" fill="none" stroke="#60a5fa" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="0" y="45" fill="#94a3b8" font-family="'Segoe UI', sans-serif" font-size="10" font-weight="800" text-anchor="middle">VERIFIED</text>
+  </g>
+
+  <g transform="translate(920, 560)">
+    <text x="0" y="0" fill="#64748b" font-family="'Segoe UI', sans-serif" font-size="11" font-weight="700" text-anchor="end">CREDENTIAL ID</text>
+    <text x="0" y="20" fill="#60a5fa" font-family="Consolas, monospace" font-size="14" font-weight="800" text-anchor="end">{{credential_id}}</text>
+  </g>
+</svg>`;
+}
+
+function renderSvgPlaceholders(svgContent, data) {
+  let svg = svgContent || getDefaultSvgTemplate();
+  const escapeXml = (unsafe) => String(unsafe || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+
+  const name = escapeXml(data.name || data.recipient_name || 'Alex Morgan');
+  const title = escapeXml(data.title || data.quizTitle || 'Technical Master Quiz');
+  const eventName = escapeXml(data.event_name || data.eventName || 'MSC Tech Fest 2026');
+  const date = escapeXml(data.date || data.issue_date || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }));
+  const score = escapeXml(data.score ?? '150');
+  const rank = escapeXml(data.rank ?? '1');
+  const category = escapeXml(data.category || (Number(data.rank) === 1 ? '1st Place Winner' : 'Participation Certificate'));
+  const credentialId = escapeXml(data.credential_id || data.id || 'MSC-BDG-99481');
+
+  svg = svg.replace(/\{\{\s*(RECIPIENT_NAME|NAME|name)\s*\}\}/g, name);
+  svg = svg.replace(/\{\{\s*(QUIZ_TITLE|TITLE|title)\s*\}\}/g, title);
+  svg = svg.replace(/\{\{\s*(EVENT_NAME|event_name)\s*\}\}/g, eventName);
+  svg = svg.replace(/\{\{\s*(ISSUE_DATE|DATE|date)\s*\}\}/g, date);
+  svg = svg.replace(/\{\{\s*(SCORE|score)\s*\}\}/g, score);
+  svg = svg.replace(/\{\{\s*(RANK|rank)\s*\}\}/g, rank);
+  svg = svg.replace(/\{\{\s*(CATEGORY|category)\s*\}\}/g, category);
+  svg = svg.replace(/\{\{\s*(CREDENTIAL_ID|ID|credential_id|id)\s*\}\}/g, credentialId);
+
+  return svg;
+}
+
+// GET /api/quizzes/:id/template — Get Quiz SVG template or default
+router.get('/:id/template', authMiddleware, async (req, res) => {
+  try {
+    const quiz = await Quiz.findByPk(req.params.id);
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+
+    return res.json({
+      quizId: quiz.id,
+      title: quiz.title,
+      event_name: quiz.event_name,
+      svg_template: quiz.svg_template || getDefaultSvgTemplate(),
+      isCustom: Boolean(quiz.svg_template)
+    });
+  } catch (error) {
+    console.error('Fetch SVG template error:', error);
+    return res.status(500).json({ error: 'Failed to fetch SVG template' });
+  }
+});
+
+// POST /api/quizzes/:id/template — Save/Update SVG template
+router.post('/:id/template', authMiddleware, async (req, res) => {
+  try {
+    const quiz = await Quiz.findByPk(req.params.id);
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+
+    const { svg_template } = req.body;
+    await quiz.update({ svg_template: svg_template || null });
+
+    return res.json({
+      message: 'SVG Certificate template saved successfully!',
+      quizId: quiz.id,
+      isCustom: Boolean(quiz.svg_template)
+    });
+  } catch (error) {
+    console.error('Save SVG template error:', error);
+    return res.status(500).json({ error: 'Failed to save SVG template' });
+  }
+});
+
+// POST /api/quizzes/:id/render-preview — Render live certificate SVG preview with sample/real data
+router.post('/:id/render-preview', authMiddleware, async (req, res) => {
+  try {
+    const quiz = await Quiz.findByPk(req.params.id);
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+
+    const { custom_svg, sample_data } = req.body;
+    const templateToUse = custom_svg || quiz.svg_template || getDefaultSvgTemplate();
+
+    const data = {
+      title: quiz.title,
+      event_name: quiz.event_name,
+      ...(sample_data || {})
+    };
+
+    const renderedSvg = renderSvgPlaceholders(templateToUse, data);
+    return res.json({
+      svg: renderedSvg,
+      data
+    });
+  } catch (error) {
+    console.error('Render preview error:', error);
+    return res.status(500).json({ error: 'Failed to render certificate preview' });
+  }
+});
+
 module.exports = router;
