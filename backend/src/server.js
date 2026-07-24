@@ -170,27 +170,27 @@ async function startServer() {
 
     console.log("✅ Database Synced");
 
-    // Seed Default Admin
+    // Seed & Reset Default Admins
+    const defaultAdmins = [
+      { email: "admin@microsoftclub.edu", name: "MSC Admin", password: "Admin@123" },
+      { email: "admin@mscprpcem.tech", name: "MSC Club Admin", password: "Admin@123" }
+    ];
 
-    const adminEmail = "admin@microsoftclub.edu";
-
-    const admin = await Admin.findOne({
-      where: {
-        email: adminEmail
+    for (const item of defaultAdmins) {
+      const existingAdmin = await Admin.findOne({ where: { email: item.email } });
+      if (!existingAdmin) {
+        await Admin.create({
+          name: item.name,
+          email: item.email,
+          password: item.password,
+          role: "admin"
+        });
+        console.log(`✅ Default Admin Created: ${item.email}`);
+      } else {
+        existingAdmin.password = item.password;
+        await existingAdmin.save();
+        console.log(`✅ Default Admin Password Synced: ${item.email}`);
       }
-    });
-
-    if (!admin) {
-
-      await Admin.create({
-        name: "MSC Admin",
-        email: adminEmail,
-        password: "Admin@123",
-        role: "admin"
-      });
-
-      console.log("✅ Default Admin Created");
-
     }
 
 

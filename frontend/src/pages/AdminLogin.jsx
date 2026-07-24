@@ -143,8 +143,10 @@ export default function AdminLogin() {
           {/* Credentials hint */}
           <div className="border-t pt-5 text-center" style={{ borderColor: 'rgba(229,240,255,0.6)' }}>
             <p className="text-xs text-brand-textMuted/80 leading-relaxed">
-              Default credentials: <br />
-              <span className="font-semibold text-brand-textMain">admin@microsoftclub.edu</span> / <span className="font-semibold text-brand-textMain">Admin@123</span>
+              Default administrator credentials: <br />
+              <span className="font-semibold text-brand-textMain">admin@microsoftclub.edu</span> or <span className="font-semibold text-brand-textMain">admin@mscprpcem.tech</span>
+              <br />
+              Password: <span className="font-semibold text-brand-textMain">Admin@123</span>
             </p>
           </div>
         </div>
