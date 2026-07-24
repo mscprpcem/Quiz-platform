@@ -176,6 +176,40 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
     }
   };
 
+  const ensurePlaceholdersInSvg = (svgRaw) => {
+    let svg = svgRaw;
+    if (!svg.includes('{name}') && !svg.includes('{{name}}') && !svg.includes('{qr}') && !svg.includes('{{qr_code}}')) {
+      const placeholderLayer = `
+  <!-- Configured Placeholders Layer -->
+  <g id="svg-certificate-text-layer">
+    <text x="421" y="210" fill="#01204f" font-family="'Segoe UI', sans-serif" font-size="14" font-weight="800" text-anchor="middle" letter-spacing="4">CERTIFICATE OF ACHIEVEMENT</text>
+    <text x="421" y="240" fill="#64748b" font-family="'Segoe UI', sans-serif" font-size="13" font-weight="600" text-anchor="middle">PROUDLY PRESENTED TO</text>
+    <text x="421" y="285" fill="#01204f" font-family="'Segoe UI', sans-serif" font-size="32" font-weight="900" text-anchor="middle">{name}</text>
+    <line x1="221" y1="300" x2="621" y2="300" stroke="#00a4ef" stroke-width="2"/>
+    <text x="421" y="335" fill="#475569" font-family="'Segoe UI', sans-serif" font-size="14" font-weight="600" text-anchor="middle">For outstanding performance in {event_name}</text>
+    <text x="421" y="370" fill="#00a4ef" font-family="'Segoe UI', sans-serif" font-size="24" font-weight="800" text-anchor="middle">{title}</text>
+    <text x="421" y="405" fill="#64748b" font-family="'Segoe UI', sans-serif" font-size="12" font-weight="600" text-anchor="middle">Category: {category} | Rank: #{rank} | Score: {score} pts</text>
+    <g id="svg-qr-group" transform="translate(421, 465)">
+      <g transform="translate(-32, -32)">
+        {qr}
+      </g>
+    </g>
+    <text id="svg-verification-url" x="421" y="520" fill="#64748b" font-family="'Segoe UI', sans-serif" font-size="11" font-weight="600" text-anchor="middle">Verify Credential: {url}</text>
+    <g transform="translate(60, 550)">
+      <text x="0" y="0" fill="#64748b" font-family="'Segoe UI', sans-serif" font-size="10" font-weight="700">DATE ISSUED</text>
+      <text x="0" y="16" fill="#01204f" font-family="'Segoe UI', sans-serif" font-size="12" font-weight="700">{date}</text>
+    </g>
+    <g transform="translate(780, 550)">
+      <text x="0" y="0" fill="#64748b" font-family="'Segoe UI', sans-serif" font-size="10" font-weight="700" text-anchor="end">CREDENTIAL ID</text>
+      <text x="0" y="16" fill="#00a4ef" font-family="Consolas, monospace" font-size="12" font-weight="800" text-anchor="end">{credential_id}</text>
+    </g>
+  </g>
+</svg>`;
+      svg = svg.replace(/<\/svg>/i, placeholderLayer);
+    }
+    return svg;
+  };
+
   const handleFileUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -190,9 +224,10 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
       try {
         const content = event.target?.result;
         if (typeof content === 'string' && content.trim()) {
-          setSvgContent(content);
-          extractPositionsFromSvg(content);
-          setFeedback({ type: 'success', message: `Uploaded "${file.name}" for Quiz "${currentQuiz?.title || 'Selected'}"!` });
+          const processedSvg = ensurePlaceholdersInSvg(content);
+          setSvgContent(processedSvg);
+          extractPositionsFromSvg(processedSvg);
+          setFeedback({ type: 'success', message: `Uploaded & Configured "${file.name}" for Quiz "${currentQuiz?.title || 'Selected'}"!` });
         }
       } catch (err) {
         console.error('File read error:', err);
