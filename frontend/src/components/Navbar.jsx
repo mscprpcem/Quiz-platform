@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Home, BarChart2, BookOpen, Trophy, Play, User, Palette, Menu, X } from 'lucide-react';
+import { LogOut, Home, BarChart2, BookOpen, Trophy, Play, User, Palette, Menu, X, FileCode } from 'lucide-react';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -94,6 +94,12 @@ export default function Navbar() {
                   isActive={isActive('/admin/quizzes')}
                   icon={BookOpen}
                   label="Quizzes"
+                />
+                <NavButton
+                  onClick={() => navTo('/admin/templates')}
+                  isActive={isActive('/admin/templates')}
+                  icon={FileCode}
+                  label="SVG Templates"
                 />
 
                 <div className="h-5 w-px mx-2 bg-brand-border"></div>
@@ -213,6 +219,15 @@ export default function Navbar() {
               >
                 <BookOpen size={16} />
                 Quizzes
+              </button>
+              <button
+                onClick={() => navTo('/admin/templates')}
+                className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all ${
+                  isActive('/admin/templates') ? 'text-brand-blue bg-brand-lightBlue' : 'text-brand-textMuted hover:bg-brand-lightBlue/60'
+                }`}
+              >
+                <FileCode size={16} />
+                SVG Templates
               </button>
               <div className="border-t border-brand-border pt-2 mt-2">
                 <p className="text-xs text-brand-textMuted px-3 mb-1">Signed in as {user.name}</p>
