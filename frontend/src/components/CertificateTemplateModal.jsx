@@ -68,7 +68,8 @@ const DEFAULT_SVG = `<?xml version="1.0" encoding="UTF-8"?>
   </g>
 </svg>`;
 
-export default function CertificateTemplateModal({ quiz, onClose, onSaveSuccess }) {
+export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQuiz, onClose, onSaveSuccess }) {
+  const [currentQuiz, setCurrentQuiz] = useState(quiz || (allQuizzes && allQuizzes[0]) || null);
   const [svgContent, setSvgContent] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -91,8 +92,8 @@ export default function CertificateTemplateModal({ quiz, onClose, onSaveSuccess 
   // Sample data for live preview
   const [sampleData, setSampleData] = useState({
     name: 'Amit Yadav',
-    title: quiz?.title || 'Web Development Master Quiz',
-    event_name: quiz?.event_name || 'Spark26 Tech Fest',
+    title: currentQuiz?.title || 'Web Development Master Quiz',
+    event_name: currentQuiz?.event_name || 'Spark26 Tech Fest',
     date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
     score: '185',
     rank: '1',
@@ -101,29 +102,27 @@ export default function CertificateTemplateModal({ quiz, onClose, onSaveSuccess 
     verification_url: 'https://verify.mscprpcem.tech/verify/MSC-BDG-88291'
   });
 
-  const placeholders = [
-    { tag: '{{name}}', label: 'Recipient Name' },
-    { tag: '{{title}}', label: 'Quiz Title' },
-    { tag: '{{event_name}}', label: 'Event Name' },
-    { tag: '{{date}}', label: 'Issue Date' },
-    { tag: '{{score}}', label: 'Total Score' },
-    { tag: '{{rank}}', label: 'Leaderboard Rank' },
-    { tag: '{{category}}', label: 'Certificate Category' },
-    { tag: '{{credential_id}}', label: 'Credential ID' },
-    { tag: '{{qr_code}}', label: 'QR Code Box' },
-    { tag: '{{verification_url}}', label: 'Verification Link' }
-  ];
-
   useEffect(() => {
-    if (quiz?.id) {
-      loadTemplate();
+    if (quiz) {
+      setCurrentQuiz(quiz);
     }
   }, [quiz]);
 
-  const loadTemplate = async () => {
+  useEffect(() => {
+    if (currentQuiz?.id) {
+      loadTemplate(currentQuiz.id);
+      setSampleData(prev => ({
+        ...prev,
+        title: currentQuiz.title,
+        event_name: currentQuiz.event_name
+      }));
+    }
+  }, [currentQuiz]);
+
+  const loadTemplate = async (quizId) => {
     try {
       setLoading(true);
-      const res = await api.get(`/api/quizzes/${quiz.id}/template`);
+      const res = await api.get(`/api/quizzes/${quizId}/template`);
       const loadedSvg = res.data.svg_template || DEFAULT_SVG;
       setSvgContent(loadedSvg);
       extractPositionsFromSvg(loadedSvg);
@@ -301,7 +300,7 @@ export default function CertificateTemplateModal({ quiz, onClose, onSaveSuccess 
       <div className="bg-white border border-slate-200 w-full max-w-6xl h-[92vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
         
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-3.5 border-b border-slate-200 bg-slate-50">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-3.5 border-b border-slate-200 bg-slate-50 gap-3">
           <div className="flex items-center space-x-3">
             <div className="p-2.5 bg-blue-600 text-white rounded-xl shadow-md">
               <FileCode size={22} />
@@ -310,15 +309,36 @@ export default function CertificateTemplateModal({ quiz, onClose, onSaveSuccess 
               <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
                 SVG Certificate Template & Live Positioner
               </h2>
-              <p className="text-xs text-slate-500 font-medium">
-                Mapped exclusively to Quiz: <strong className="text-blue-600">{quiz?.title}</strong> (ID: {quiz?.id?.substring(0, 8)}...)
+              <p className="text-xs text-slate-500 font-medium flex items-center gap-1.5 flex-wrap">
+                <span>Mapped exclusively to:</span>
+                {allQuizzes && allQuizzes.length > 0 ? (
+                  <select
+                    value={currentQuiz?.id || ''}
+                    onChange={(e) => {
+                      const q = allQuizzes.find(item => item.id === e.target.value);
+                      if (q) {
+                        setCurrentQuiz(q);
+                        if (onSelectQuiz) onSelectQuiz(q);
+                      }
+                    }}
+                    className="bg-white border border-blue-300 font-bold text-blue-700 text-xs rounded-lg px-2 py-0.5 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer shadow-2xs"
+                  >
+                    {allQuizzes.map((q) => (
+                      <option key={q.id} value={q.id}>
+                        {q.title} ({q.event_name})
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <strong className="text-blue-600">{currentQuiz?.title}</strong>
+                )}
               </p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 rounded-xl transition-all cursor-pointer"
+            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 rounded-xl transition-all cursor-pointer self-start sm:self-center"
           >
             <X size={20} />
           </button>
