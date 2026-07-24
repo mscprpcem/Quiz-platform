@@ -42,10 +42,6 @@ export default function Home() {
   const [recentEvents, setRecentEvents] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
 
-  // Section 9 States (Verification)
-  const [certId, setCertId] = useState('');
-  const [verificationResult, setVerificationResult] = useState(null);
-  
   // Section 10 States (FAQ Accordion)
   const [activeFaq, setActiveFaq] = useState(null);
 
@@ -90,17 +86,7 @@ export default function Home() {
     navigate(`/join/${joinCode.toUpperCase()}`);
   };
 
-  const handleVerifyCertificate = (e) => {
-    e.preventDefault();
-    if (!certId) {
-      setVerificationResult({ success: false, message: 'Please enter a certificate ID.' });
-      return;
-    }
-    setVerificationResult({
-      success: false,
-      message: `No record found for ID "${certId}". Official completion credentials are generated upon quiz finalization.`
-    });
-  };
+
 
   const scrollSection = (id) => {
     const el = document.getElementById(id);
@@ -117,7 +103,6 @@ export default function Home() {
     { title: 'Interactive Quiz', desc: 'Syncs questions instantly on all screens via WebSockets.', icon: Play, color: 'blue' },
     { title: 'Real-Time Leaderboard', desc: 'Rankings updates after every question based on speed and accuracy.', icon: Trophy, color: 'purple' },
     { title: 'Instant Results', desc: 'Detailed scorecards and analytics provided immediately upon completion.', icon: Award, color: 'amber' },
-    { title: 'Digital Certificates', desc: 'Earn verified participation certificates immediately downloadable.', icon: ShieldCheck, color: 'emerald' },
     { title: 'Secure Participation', desc: 'Academic integrity protected via focus-loss trackers.', icon: Lock, color: 'red' }
   ];
 
@@ -125,7 +110,6 @@ export default function Home() {
     { q: 'How do I join?', a: 'Enter the 6-digit room code shared by the MC in the Join Quiz section above.' },
     { q: 'Do I need to register?', a: 'Yes, register using the upcoming events registration link or join with your student name and ID on the prompt.' },
     { q: 'What if my internet disconnects?', a: 'Our WebSocket protocol allows you to resume and join back immediately from the current question.' },
-    { q: 'When are certificates issued?', a: 'Certificates are issued automatically and instantly once the quiz completes.' },
     { q: 'How are winners decided?', a: 'Winners are determined by correct answers and speed response times.' }
   ];
 
@@ -154,7 +138,7 @@ export default function Home() {
             </h1>
 
             <p className="text-sm sm:text-base text-brand-textMuted leading-relaxed">
-              Participate in quizzes conducted during club events. Compete, learn, and earn certificates. Built for students, developers, and tech enthusiasts.
+              Participate in quizzes conducted during club events. Compete, learn, and excel. Built for students, developers, and tech enthusiasts.
             </p>
 
             <div className="flex flex-wrap gap-3">
@@ -445,7 +429,7 @@ export default function Home() {
                 { num: '01', title: 'Register for Event', desc: 'Secure your seat for the active workshop or tournament on the official MSC-PRPCEM portal to receive check-in access.', icon: Calendar, color: 'text-blue-500 bg-blue-50/50 border-blue-100' },
                 { num: '02', title: 'Join Quiz Lobby', desc: 'Access the console, enter the 6-digit lobby code, and check in with your registered student credentials.', icon: Play, color: 'text-indigo-500 bg-indigo-50/50 border-indigo-100' },
                 { num: '03', title: 'Answer Questions', desc: 'Tackle synchronous multi-choice questions in real-time. Speed and accuracy maximize your score weights!', icon: Zap, color: 'text-amber-500 bg-amber-50/50 border-amber-100' },
-                { num: '04', title: 'Claim Verified Badge', desc: 'Review final leaderboard podium places and instantly download your authenticated SVG participation certificate.', icon: Award, color: 'text-emerald-500 bg-emerald-50/50 border-emerald-100' }
+                { num: '04', title: 'Review Leaderboard', desc: 'Review final leaderboard podium places and celebration rankings.', icon: Award, color: 'text-emerald-500 bg-emerald-50/50 border-emerald-100' }
               ].map((step, idx) => {
                 const IconComponent = step.icon;
                 return (
@@ -632,34 +616,7 @@ export default function Home() {
           )}
         </div>
 
-        {/* ════════ 9. CERTIFICATE VERIFICATION ════════ */}
-        <div id="cert-verify" className="max-w-md mx-auto w-full text-left space-y-6">
-          <div className="text-center space-y-1">
-            <h2 className="text-2xl sm:text-3xl font-black text-brand-textMain tracking-tight">Verify Certificate</h2>
-            <p className="text-brand-textMuted text-xs">Official certificates of participation are issued to registered participant emails.</p>
-          </div>
 
-          <div className="verify-cert-card p-6 bg-white border border-brand-border rounded-2xl shadow-soft text-center space-y-4">
-            <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto border border-emerald-100 shadow-sm">
-              <Award size={24} />
-            </div>
-            <div className="space-y-1">
-              <h3 className="text-base font-extrabold text-brand-textMain">Official Verification Portal</h3>
-              <p className="text-xs text-brand-textMuted leading-relaxed">
-                Certificates of participation are generated automatically using your registered email. Visit our dedicated certificate verification platform to validate authenticity and view credentials.
-              </p>
-            </div>
-            <a
-              href={import.meta.env.VITE_VERIFICATION_URL || 'https://verify.mscprpcem.tech'}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold rounded-xl shadow-md transition-all text-xs uppercase tracking-wider cursor-pointer"
-            >
-              <span>Go to Verification Portal</span>
-              <ExternalLink size={14} />
-            </a>
-          </div>
-        </div>
 
         {/* ════════ 10. FAQ SECTION ════════ */}
         <div className="max-w-2xl mx-auto w-full text-left space-y-8">

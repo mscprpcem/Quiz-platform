@@ -59,17 +59,6 @@ export default function Footer() {
               <li>
                 <Link to="/courses" className="footer-link">Courses (Coming Soon)</Link>
               </li>
-              <li>
-                <a 
-                  href={import.meta.env.VITE_VERIFICATION_URL || 'https://verify.mscprpcem.tech'} 
-                  target="_blank" 
-                  rel="noopener noreferrer" 
-                  className="footer-link flex items-center gap-1"
-                >
-                  <span>Certificate Verify</span>
-                  <ExternalLink size={10} className="text-zinc-400" />
-                </a>
-              </li>
             </ul>
           </div>
 

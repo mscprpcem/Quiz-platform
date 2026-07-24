@@ -126,7 +126,7 @@ export default function JoinQuiz() {
     const { joinCode, name, college, email } = formData;
 
     if (!joinCode || !name || !college || !email) {
-      setError('Please fill in all fields (Email is required for certificate issuance).');
+      setError('Please fill in all required fields.');
       return;
     }
     if (joinCode.length !== 6) {
@@ -212,7 +212,7 @@ export default function JoinQuiz() {
               />
               <InputRow
                 id="email" name="email" icon={Mail} type="email"
-                label="Email Address (For Certificate Issuance)" required={true} placeholder="student@example.com"
+                label="Email Address" required={true} placeholder="student@example.com"
                 value={formData.email}
                 onChange={handleChange}
               />

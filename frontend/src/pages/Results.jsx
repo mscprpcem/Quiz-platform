@@ -88,41 +88,7 @@ export default function Results() {
           </div>
         </div>
 
-        {/* Certificate of Participation Banner */}
-        {(() => {
-          const userEmail = stats.email || sessionStorage.getItem('msc_participant_email') || sessionStorage.getItem('msc_user_email') || '';
-          const userName = stats.name || sessionStorage.getItem('msc_participant_name') || '';
-          const quizId = stats.quizId || sessionStorage.getItem('msc_quiz_id') || '';
-          const verificationBase = import.meta.env.VITE_VERIFICATION_URL || 'https://verify.mscprpcem.tech';
 
-          const queryParams = new URLSearchParams();
-          if (userEmail) queryParams.set('email', userEmail);
-          if (userName) queryParams.set('name', userName);
-          if (quizId) queryParams.set('quizId', quizId);
-
-          const claimUrl = `${verificationBase.replace(/\/$/, '')}?${queryParams.toString()}`;
-
-          return (
-            <div className="bg-emerald-50/90 border border-emerald-200/80 p-4 rounded-xl text-center space-y-2.5 shadow-sm">
-              <div className="flex items-center justify-center gap-1.5 text-emerald-800 font-extrabold text-xs uppercase tracking-wider">
-                <Award size={16} className="text-emerald-600" />
-                <span>Certificate of Participation</span>
-              </div>
-              <p className="text-xs text-emerald-700 font-medium leading-relaxed">
-                Certificates are issued automatically upon quiz completion. Visit the official verification portal to claim and verify your authenticated certificate.
-              </p>
-              <a
-                href={claimUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center justify-center gap-1.5 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs rounded-lg transition-all shadow-sm cursor-pointer"
-              >
-                <span>Claim & Verify Certificate</span>
-                <ExternalLink size={13} />
-              </a>
-            </div>
-          );
-        })()}
 
         {/* Go home buttons */}
         <button

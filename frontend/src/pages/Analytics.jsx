@@ -23,10 +23,8 @@ import {
   Percent,
   CheckCircle,
   FileSpreadsheet,
-  AlertTriangle,
-  FileCode
+  AlertTriangle
 } from 'lucide-react';
-import CertificateTemplateModal from '../components/CertificateTemplateModal';
 
 export default function Analytics() {
   const { id } = useParams();
@@ -34,7 +32,6 @@ export default function Analytics() {
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   const fetchAnalytics = async () => {
     try {
@@ -104,30 +101,7 @@ export default function Analytics() {
           </div>
         </div>
 
-        {/* Exports & Certificate Publishing */}
-          <button 
-            onClick={() => setShowTemplateModal(true)}
-            className="flex items-center space-x-1.5 bg-blue-600 hover:bg-blue-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer"
-            title="Upload/Edit SVG Certificate Template & Live Preview"
-          >
-            <FileCode size={14} />
-            <span>🎨 Template & Preview</span>
-          </button>
 
-          <button 
-            onClick={async () => {
-              try {
-                const res = await api.post(`/api/export/quiz/${id}/publish-certificates`);
-                alert(res.data.message || "✓ Certificates & badges published successfully to Certificate Platform!");
-              } catch (err) {
-                console.error("Publish error:", err);
-                alert("Failed to publish certificates to Certificate Engine.");
-              }
-            }}
-            className="flex items-center space-x-1.5 bg-indigo-600 hover:bg-indigo-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer"
-          >
-            <span>🎓 Issue Certificates</span>
-          </button>
 
           <div className="relative group">
             <button className="flex items-center space-x-1.5 bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer">
@@ -333,14 +307,7 @@ export default function Analytics() {
         </div>
       )}
 
-      {/* SVG Certificate Template Modal */}
-      {showTemplateModal && data && (
-        <CertificateTemplateModal
-          quiz={{ id, title: data.quizTitle, event_name: data.eventName }}
-          onClose={() => setShowTemplateModal(false)}
-          onSaveSuccess={fetchAnalytics}
-        />
-      )}
+
     </div>
   );
 }

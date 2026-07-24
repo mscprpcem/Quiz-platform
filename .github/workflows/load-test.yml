@@ -6,7 +6,7 @@ on:
       baseUrl:
         description: 'Target API/Server URL'
         required: true
-        default: 'https://quiz-api-dhhvcqg2gjapfkbm.centralindia-01.azurewebsites.net'
+        default: 'https://quiz-api-sea.azurewebsites.net'
       joinCode:
         description: 'Quiz Join Code for Artillery Participants'
         required: true

@@ -28,9 +28,7 @@ import QuizRules from './pages/QuizRules';
 import FAQDetails from './pages/FAQDetails';
 import UserGuide from './pages/UserGuide';
 import SupportSLA from './pages/SupportSLA';
-import ReportIssue from './pages/ReportIssue';
 import Documentation from './pages/Documentation';
-import AdminTemplates from './pages/AdminTemplates';
 import Courses from './pages/Courses';
 
 // Private Route Enforcer for Admin pages
@@ -111,14 +109,7 @@ export default function App() {
                     </AdminRoute>
                   }
                 />
-                <Route
-                  path="/admin/templates"
-                  element={
-                    <AdminRoute>
-                      <AdminTemplates />
-                    </AdminRoute>
-                  }
-                />
+
                 <Route
                   path="/admin/quizzes/:id"
                   element={

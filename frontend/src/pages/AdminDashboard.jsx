@@ -22,7 +22,6 @@ import {
   FileCode,
   Trash2
 } from 'lucide-react';
-import CertificateTemplateModal from '../components/CertificateTemplateModal';
 import './AdminDashboard.css';
 
 export default function AdminDashboard() {
@@ -60,36 +59,7 @@ export default function AdminDashboard() {
   // Branding config
   const [branding, setBranding] = useState(null);
 
-  // Verification & Certificate Sync States
-  const [syncingQuizId, setSyncingQuizId] = useState(null);
-  const [syncFeedback, setSyncFeedback] = useState({});
-  const [templateModalQuiz, setTemplateModalQuiz] = useState(null);
 
-  const handleSyncCertificates = async (quizId, e) => {
-    if (e) e.stopPropagation();
-    setSyncingQuizId(quizId);
-    try {
-      const res = await api.post(`/api/quizzes/${quizId}/sync-certificates`);
-      const isSynced = res.data?.synced === true;
-      setSyncFeedback((prev) => ({
-        ...prev,
-        [quizId]: { success: isSynced, message: res.data.message }
-      }));
-      if (isSynced) {
-        setQuizzes((prevQuizzes) =>
-          prevQuizzes.map((q) => (q.id === quizId ? { ...q, verification_synced: true, verification_synced_at: new Date() } : q))
-        );
-      }
-      await loadQuizzes();
-    } catch (err) {
-      setSyncFeedback((prev) => ({
-        ...prev,
-        [quizId]: { success: false, message: err.response?.data?.error || 'Sync failed' }
-      }));
-    } finally {
-      setSyncingQuizId(null);
-    }
-  };
 
   // Load quizzes on mount
   const loadQuizzes = async () => {
@@ -411,29 +381,12 @@ export default function AdminDashboard() {
               Select, monitor, and run live quiz sessions, view catalogs, and track participant standings.
             </p>
           </div>
-          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
-            <button
-              onClick={() => {
-                if (quizzes.length > 0) {
-                  setTemplateModalQuiz(quizzes[0]);
-                } else {
-                  alert('No quizzes found. Please create a quiz first.');
-                }
-              }}
-              className="flex items-center space-x-1.5 bg-white hover:bg-slate-100 text-blue-700 border border-blue-300 px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer flex-shrink-0"
-              title="Upload/Edit SVG Certificate Templates with QR & URL Positioner"
-            >
-              <FileCode size={14} />
-              <span>🎨 SVG Certificate Templates</span>
-            </button>
-
-            <button
-              onClick={() => navigate('/admin/quizzes')}
-              className="flex items-center space-x-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer flex-shrink-0"
-            >
-              <span>Manage Quizzes</span>
-            </button>
-          </div>
+          <button
+            onClick={() => navigate('/admin/quizzes')}
+            className="flex items-center space-x-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer flex-shrink-0"
+          >
+            <span>Manage Quizzes</span>
+          </button>
         </div>
 
         {/* Active Quiz Alert Banner */}
@@ -542,44 +495,7 @@ export default function AdminDashboard() {
                           </span>
                         </div>
 
-                        {/* Certificate Sync Status Badge & Template Editor Button */}
-                        <div className="flex items-center justify-between text-[11px] bg-slate-50 border border-slate-200/80 rounded-lg p-2 mt-2 gap-1.5 flex-wrap">
-                          <span className="flex items-center gap-1.5 text-slate-700 font-medium">
-                            <Award size={13} className={quiz.verification_synced ? "text-emerald-500" : "text-amber-500"} />
-                            <span>Certificates: <strong>{quiz.verification_synced ? 'Issued & Synced' : 'Ready / Pending'}</strong></span>
-                          </span>
-                          <div className="flex items-center gap-1.5">
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setTemplateModalQuiz(quiz);
-                              }}
-                              className="flex items-center gap-1 text-[10px] font-bold text-indigo-700 hover:text-indigo-900 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded px-2.5 py-1 transition-all cursor-pointer"
-                              title="Edit SVG Certificate Template & Live Preview"
-                            >
-                              <FileCode size={10} />
-                              <span>Template & Preview</span>
-                            </button>
-                            <button
-                              onClick={(e) => handleSyncCertificates(quiz.id, e)}
-                              disabled={syncingQuizId === quiz.id}
-                              className={`flex items-center gap-1 text-[10px] font-bold rounded px-2.5 py-1 transition-all cursor-pointer disabled:opacity-50 ${
-                                quiz.verification_synced
-                                  ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300'
-                                  : 'text-blue-600 hover:text-blue-800 bg-white hover:bg-blue-50 border border-blue-200'
-                              }`}
-                              title="Auto Sync Quiz Event & Issue Certificates to Verification Platform"
-                            >
-                              <RefreshCw size={10} className={syncingQuizId === quiz.id ? "animate-spin" : ""} />
-                              <span>{syncingQuizId === quiz.id ? 'Syncing...' : (quiz.verification_synced ? 'Synced ✓' : 'Sync')}</span>
-                            </button>
-                          </div>
-                        </div>
-                        {syncFeedback[quiz.id] && (
-                          <div className={`text-[10px] p-1.5 rounded text-center mt-1 ${syncFeedback[quiz.id].success ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-800'}`}>
-                            {syncFeedback[quiz.id].message}
-                          </div>
-                        )}
+
                       </div>
                     </div>
 
@@ -749,16 +665,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* SVG Certificate Template & Live Previewer Modal */}
-      {templateModalQuiz && (
-        <CertificateTemplateModal
-          quiz={templateModalQuiz}
-          allQuizzes={quizzes}
-          onSelectQuiz={(q) => setTemplateModalQuiz(q)}
-          onClose={() => setTemplateModalQuiz(null)}
-          onSaveSuccess={loadQuizzes}
-        />
-      )}
+
     </div>
   );
 }
