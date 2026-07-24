@@ -70,8 +70,8 @@ const DEFAULT_SVG = `<?xml version="1.0" encoding="UTF-8"?>
 
 export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQuiz, onClose, onSaveSuccess, isInline = false }) {
   const [currentQuiz, setCurrentQuiz] = useState(quiz || (allQuizzes && allQuizzes[0]) || null);
-  const [svgContent, setSvgContent] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [svgContent, setSvgContent] = useState(DEFAULT_SVG);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [copiedTag, setCopiedTag] = useState(null);
@@ -102,6 +102,19 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
     verification_url: 'https://verify.mscprpcem.tech/verify/MSC-BDG-88291'
   });
 
+  const placeholders = [
+    { tag: '{{name}}', label: 'Recipient Name' },
+    { tag: '{{title}}', label: 'Quiz Title' },
+    { tag: '{{event_name}}', label: 'Event Name' },
+    { tag: '{{date}}', label: 'Issue Date' },
+    { tag: '{{score}}', label: 'Total Score' },
+    { tag: '{{rank}}', label: 'Leaderboard Rank' },
+    { tag: '{{category}}', label: 'Certificate Category' },
+    { tag: '{{credential_id}}', label: 'Credential ID' },
+    { tag: '{{qr_code}}', label: 'QR Code Box' },
+    { tag: '{{verification_url}}', label: 'Verification Link' }
+  ];
+
   useEffect(() => {
     if (quiz) {
       setCurrentQuiz(quiz);
@@ -111,19 +124,22 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
   useEffect(() => {
     if (currentQuiz?.id) {
       loadTemplate(currentQuiz.id);
-      setSampleData(prev => ({
+      setSampleData((prev) => ({
         ...prev,
-        title: currentQuiz.title,
-        event_name: currentQuiz.event_name
+        title: currentQuiz.title || 'Master Quiz',
+        event_name: currentQuiz.event_name || 'Tech Event'
       }));
     }
   }, [currentQuiz]);
 
   const loadTemplate = async (quizId) => {
+    if (!quizId) return;
     try {
       setLoading(true);
       const res = await api.get(`/api/quizzes/${quizId}/template`);
-      const loadedSvg = res.data.svg_template || DEFAULT_SVG;
+      const loadedSvg = (res.data && typeof res.data.svg_template === 'string' && res.data.svg_template.trim())
+        ? res.data.svg_template
+        : DEFAULT_SVG;
       setSvgContent(loadedSvg);
       extractPositionsFromSvg(loadedSvg);
     } catch (err) {
@@ -135,24 +151,28 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
     }
   };
 
-  // Helper to extract QR and URL X/Y positions from SVG code if present
+  // Helper to extract QR and URL X/Y positions safely
   const extractPositionsFromSvg = (content) => {
-    if (!content) return;
-    const qrMatch = content.match(/<g\s+id="svg-qr-group"\s+transform="translate\((\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?)\)"/i);
-    if (qrMatch) {
-      setPosConfig((prev) => ({
-        ...prev,
-        qrX: parseFloat(qrMatch[1]),
-        qrY: parseFloat(qrMatch[2])
-      }));
-    }
-    const urlMatch = content.match(/<text\s+id="svg-verification-url"\s+x="(\d+(?:\.\d+)?)"\s+y="(\d+(?:\.\d+)?)"/i);
-    if (urlMatch) {
-      setPosConfig((prev) => ({
-        ...prev,
-        urlX: parseFloat(urlMatch[1]),
-        urlY: parseFloat(urlMatch[2])
-      }));
+    if (!content || typeof content !== 'string') return;
+    try {
+      const qrMatch = content.match(/<g\s+id="svg-qr-group"\s+transform="translate\((\d+(?:\.\d+)?),\s*(\d+(?:\.\d+)?)\)"/i);
+      if (qrMatch) {
+        setPosConfig((prev) => ({
+          ...prev,
+          qrX: parseFloat(qrMatch[1]),
+          qrY: parseFloat(qrMatch[2])
+        }));
+      }
+      const urlMatch = content.match(/<text\s+id="svg-verification-url"\s+x="(\d+(?:\.\d+)?)"\s+y="(\d+(?:\.\d+)?)"/i);
+      if (urlMatch) {
+        setPosConfig((prev) => ({
+          ...prev,
+          urlX: parseFloat(urlMatch[1]),
+          urlY: parseFloat(urlMatch[2])
+        }));
+      }
+    } catch (e) {
+      console.warn('Extract positions parse error:', e);
     }
   };
 
@@ -167,52 +187,60 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const content = event.target?.result;
-      if (typeof content === 'string') {
-        setSvgContent(content);
-        extractPositionsFromSvg(content);
-        setFeedback({ type: 'success', message: `Uploaded "${file.name}" for Quiz "${quiz?.title}"!` });
+      try {
+        const content = event.target?.result;
+        if (typeof content === 'string' && content.trim()) {
+          setSvgContent(content);
+          extractPositionsFromSvg(content);
+          setFeedback({ type: 'success', message: `Uploaded "${file.name}" for Quiz "${currentQuiz?.title || 'Selected'}"!` });
+        }
+      } catch (err) {
+        console.error('File read error:', err);
+        setFeedback({ type: 'error', message: 'Failed to parse uploaded SVG file.' });
       }
     };
     reader.readAsText(file);
   };
 
   const insertPlaceholder = (tag) => {
-    setSvgContent((prev) => prev + `\n${tag}`);
+    setSvgContent((prev) => (prev || DEFAULT_SVG) + `\n${tag}`);
     setCopiedTag(tag);
     setTimeout(() => setCopiedTag(null), 1500);
   };
 
-  // Update SVG Code dynamically when QR or URL positions are moved via sliders
   const updatePositionInSvg = (newConfig) => {
     setPosConfig(newConfig);
     setSvgContent((prevSvg) => {
-      let svg = prevSvg || DEFAULT_SVG;
+      let svg = (typeof prevSvg === 'string' && prevSvg.trim()) ? prevSvg : DEFAULT_SVG;
 
-      // Ensure QR group element exists in SVG or inject it
-      if (!svg.includes('id="svg-qr-group"')) {
-        const qrSnippet = `\n  <!-- Dynamic QR Code Container -->\n  <g id="svg-qr-group" transform="translate(${newConfig.qrX}, ${newConfig.qrY})">\n    <g transform="translate(-${newConfig.qrSize / 2}, -${newConfig.qrSize / 2})">\n      {{qr_code}}\n    </g>\n  </g>`;
-        svg = svg.replace('</svg>', `${qrSnippet}\n</svg>`);
-      } else {
-        svg = svg.replace(
-          /<g\s+id="svg-qr-group"\s+transform="translate\([^)]+\)">/i,
-          `<g id="svg-qr-group" transform="translate(${newConfig.qrX}, ${newConfig.qrY})">`
-        );
-        svg = svg.replace(
-          /<g\s+transform="translate\(-?\d*(?:\.\d+)?,\s*-?\d*(?:\.\d+)?\)">(\s*\{\{qr_code\}\}\s*)<\/g>/i,
-          `<g transform="translate(-${newConfig.qrSize / 2}, -${newConfig.qrSize / 2})">$1</g>`
-        );
-      }
+      try {
+        // Ensure QR group element exists in SVG or inject it
+        if (!svg.includes('id="svg-qr-group"')) {
+          const qrSnippet = `\n  <!-- Dynamic QR Code Container -->\n  <g id="svg-qr-group" transform="translate(${newConfig.qrX}, ${newConfig.qrY})">\n    <g transform="translate(-${newConfig.qrSize / 2}, -${newConfig.qrSize / 2})">\n      {{qr_code}}\n    </g>\n  </g>`;
+          svg = svg.replace('</svg>', `${qrSnippet}\n</svg>`);
+        } else {
+          svg = svg.replace(
+            /<g\s+id="svg-qr-group"\s+transform="translate\([^)]+\)">/i,
+            `<g id="svg-qr-group" transform="translate(${newConfig.qrX}, ${newConfig.qrY})">`
+          );
+          svg = svg.replace(
+            /<g\s+transform="translate\(-?\d*(?:\.\d+)?,\s*-?\d*(?:\.\d+)?\)">(\s*\{\{qr_code\}\}\s*)<\/g>/i,
+            `<g transform="translate(-${newConfig.qrSize / 2}, -${newConfig.qrSize / 2})">$1</g>`
+          );
+        }
 
-      // Ensure Verification URL element exists in SVG or inject it
-      if (!svg.includes('id="svg-verification-url"')) {
-        const urlSnippet = `\n  <!-- Dynamic Verification Link -->\n  <text id="svg-verification-url" x="${newConfig.urlX}" y="${newConfig.urlY}" fill="${newConfig.urlColor}" font-family="'Segoe UI', sans-serif" font-size="${newConfig.urlFontSize}" font-weight="600" text-anchor="${newConfig.urlAnchor}">Verify Credential: {{verification_url}}</text>`;
-        svg = svg.replace('</svg>', `${urlSnippet}\n</svg>`);
-      } else {
-        svg = svg.replace(
-          /<text\s+id="svg-verification-url"[^>]*>([\s\S]*?)<\/text>/i,
-          `<text id="svg-verification-url" x="${newConfig.urlX}" y="${newConfig.urlY}" fill="${newConfig.urlColor}" font-family="'Segoe UI', sans-serif" font-size="${newConfig.urlFontSize}" font-weight="600" text-anchor="${newConfig.urlAnchor}">$1</text>`
-        );
+        // Ensure Verification URL element exists in SVG or inject it
+        if (!svg.includes('id="svg-verification-url"')) {
+          const urlSnippet = `\n  <!-- Dynamic Verification Link -->\n  <text id="svg-verification-url" x="${newConfig.urlX}" y="${newConfig.urlY}" fill="${newConfig.urlColor}" font-family="'Segoe UI', sans-serif" font-size="${newConfig.urlFontSize}" font-weight="600" text-anchor="${newConfig.urlAnchor}">Verify Credential: {{verification_url}}</text>`;
+          svg = svg.replace('</svg>', `${urlSnippet}\n</svg>`);
+        } else {
+          svg = svg.replace(
+            /<text\s+id="svg-verification-url"[^>]*>([\s\S]*?)<\/text>/i,
+            `<text id="svg-verification-url" x="${newConfig.urlX}" y="${newConfig.urlY}" fill="${newConfig.urlColor}" font-family="'Segoe UI', sans-serif" font-size="${newConfig.urlFontSize}" font-weight="600" text-anchor="${newConfig.urlAnchor}">$1</text>`
+          );
+        }
+      } catch (e) {
+        console.error('Position update error:', e);
       }
 
       return svg;
@@ -220,13 +248,19 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
   };
 
   const handleSave = async () => {
+    const targetQuizId = currentQuiz?.id || quiz?.id;
+    if (!targetQuizId) {
+      setFeedback({ type: 'error', message: 'No quiz selected to save template.' });
+      return;
+    }
+
     try {
       setSaving(true);
       setFeedback(null);
-      await api.post(`/api/quizzes/${quiz.id}/template`, {
+      await api.post(`/api/quizzes/${targetQuizId}/template`, {
         svg_template: svgContent
       });
-      setFeedback({ type: 'success', message: `SVG Certificate template saved exclusively for Quiz "${quiz?.title}"!` });
+      setFeedback({ type: 'success', message: `SVG Certificate template saved exclusively for Quiz "${currentQuiz?.title || 'Selected'}"!` });
       if (onSaveSuccess) onSaveSuccess();
     } catch (err) {
       setFeedback({ type: 'error', message: err.response?.data?.error || 'Failed to save template' });
@@ -235,64 +269,73 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
     }
   };
 
-  // Helper function to render live SVG with substituted placeholders
   const renderLiveSvg = () => {
-    let svg = svgContent || DEFAULT_SVG;
-    const escapeXml = (unsafe) => String(unsafe || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+    try {
+      let svg = (typeof svgContent === 'string' && svgContent.trim()) ? svgContent : DEFAULT_SVG;
+      const escapeXml = (unsafe) => String(unsafe || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 
-    const name = escapeXml(sampleData.name);
-    const title = escapeXml(sampleData.title);
-    const eventName = escapeXml(sampleData.event_name);
-    const date = escapeXml(sampleData.date);
-    const score = escapeXml(sampleData.score);
-    const rank = escapeXml(sampleData.rank);
-    const category = escapeXml(sampleData.category);
-    const credentialId = escapeXml(sampleData.credential_id);
-    const verificationUrl = escapeXml(sampleData.verification_url);
+      const name = escapeXml(sampleData.name);
+      const title = escapeXml(sampleData.title || currentQuiz?.title);
+      const eventName = escapeXml(sampleData.event_name || currentQuiz?.event_name);
+      const date = escapeXml(sampleData.date);
+      const score = escapeXml(sampleData.score);
+      const rank = escapeXml(sampleData.rank);
+      const category = escapeXml(sampleData.category);
+      const credentialId = escapeXml(sampleData.credential_id);
+      const verificationUrl = escapeXml(sampleData.verification_url);
 
-    // Vector SVG representation for QR Code in live preview
-    const qrVectorSvg = `<rect width="${posConfig.qrSize}" height="${posConfig.qrSize}" fill="#ffffff" rx="8" stroke="#3b82f6" stroke-width="2"/>
-    <g transform="translate(4, 4)">
-      <rect x="4" y="4" width="16" height="16" fill="#0f172a" rx="3"/>
-      <rect x="7" y="7" width="10" height="10" fill="#ffffff" rx="1"/>
-      <rect x="9" y="9" width="6" height="6" fill="#0f172a"/>
+      const qrSize = posConfig.qrSize || 64;
 
-      <rect x="${posConfig.qrSize - 24}" y="4" width="16" height="16" fill="#0f172a" rx="3"/>
-      <rect x="${posConfig.qrSize - 21}" y="7" width="10" height="10" fill="#ffffff" rx="1"/>
-      <rect x="${posConfig.qrSize - 19}" y="9" width="6" height="6" fill="#0f172a"/>
+      const qrVectorSvg = `<rect width="${qrSize}" height="${qrSize}" fill="#ffffff" rx="8" stroke="#3b82f6" stroke-width="2"/>
+      <g transform="translate(4, 4)">
+        <rect x="4" y="4" width="16" height="16" fill="#0f172a" rx="3"/>
+        <rect x="7" y="7" width="10" height="10" fill="#ffffff" rx="1"/>
+        <rect x="9" y="9" width="6" height="6" fill="#0f172a"/>
 
-      <rect x="4" y="${posConfig.qrSize - 24}" width="16" height="16" fill="#0f172a" rx="3"/>
-      <rect x="7" y="${posConfig.qrSize - 21}" width="10" height="10" fill="#ffffff" rx="1"/>
-      <rect x="9" y="${posConfig.qrSize - 19}" width="6" height="6" fill="#0f172a"/>
+        <rect x="${Math.max(4, qrSize - 24)}" y="4" width="16" height="16" fill="#0f172a" rx="3"/>
+        <rect x="${Math.max(7, qrSize - 21)}" y="7" width="10" height="10" fill="#ffffff" rx="1"/>
+        <rect x="${Math.max(9, qrSize - 19)}" y="9" width="6" height="6" fill="#0f172a"/>
 
-      <rect x="${posConfig.qrSize / 2 - 4}" y="${posConfig.qrSize / 2 - 4}" width="8" height="8" fill="#2563eb" rx="2"/>
-    </g>`;
+        <rect x="4" y="${Math.max(4, qrSize - 24)}" width="16" height="16" fill="#0f172a" rx="3"/>
+        <rect x="7" y="${Math.max(7, qrSize - 21)}" width="10" height="10" fill="#ffffff" rx="1"/>
+        <rect x="9" y="${Math.max(9, qrSize - 19)}" width="6" height="6" fill="#0f172a"/>
 
-    svg = svg.replace(/\{\{\s*(RECIPIENT_NAME|NAME|name)\s*\}\}/g, name);
-    svg = svg.replace(/\{\{\s*(QUIZ_TITLE|TITLE|title)\s*\}\}/g, title);
-    svg = svg.replace(/\{\{\s*(EVENT_NAME|event_name)\s*\}\}/g, eventName);
-    svg = svg.replace(/\{\{\s*(ISSUE_DATE|DATE|date)\s*\}\}/g, date);
-    svg = svg.replace(/\{\{\s*(SCORE|score)\s*\}\}/g, score);
-    svg = svg.replace(/\{\{\s*(RANK|rank)\s*\}\}/g, rank);
-    svg = svg.replace(/\{\{\s*(CATEGORY|category)\s*\}\}/g, category);
-    svg = svg.replace(/\{\{\s*(CREDENTIAL_ID|ID|credential_id|id)\s*\}\}/g, credentialId);
-    svg = svg.replace(/\{\{\s*(VERIFICATION_URL|verification_url|url)\s*\}\}/g, verificationUrl);
-    svg = svg.replace(/\{\{\s*(QR_CODE|VERIFICATION_QR|qr_code|verification_qr)\s*\}\}/g, qrVectorSvg);
+        <rect x="${qrSize / 2 - 4}" y="${qrSize / 2 - 4}" width="8" height="8" fill="#2563eb" rx="2"/>
+      </g>`;
 
-    return svg;
+      svg = svg.replace(/\{\{\s*(RECIPIENT_NAME|NAME|name)\s*\}\}/g, name);
+      svg = svg.replace(/\{\{\s*(QUIZ_TITLE|TITLE|title)\s*\}\}/g, title);
+      svg = svg.replace(/\{\{\s*(EVENT_NAME|event_name)\s*\}\}/g, eventName);
+      svg = svg.replace(/\{\{\s*(ISSUE_DATE|DATE|date)\s*\}\}/g, date);
+      svg = svg.replace(/\{\{\s*(SCORE|score)\s*\}\}/g, score);
+      svg = svg.replace(/\{\{\s*(RANK|rank)\s*\}\}/g, rank);
+      svg = svg.replace(/\{\{\s*(CATEGORY|category)\s*\}\}/g, category);
+      svg = svg.replace(/\{\{\s*(CREDENTIAL_ID|ID|credential_id|id)\s*\}\}/g, credentialId);
+      svg = svg.replace(/\{\{\s*(VERIFICATION_URL|verification_url|url)\s*\}\}/g, verificationUrl);
+      svg = svg.replace(/\{\{\s*(QR_CODE|VERIFICATION_QR|qr_code|verification_qr)\s*\}\}/g, qrVectorSvg);
+
+      return svg;
+    } catch (err) {
+      console.error('Error rendering live SVG:', err);
+      return DEFAULT_SVG;
+    }
   };
 
   const handleDownloadPreview = () => {
-    const svgStr = renderLiveSvg();
-    const blob = new Blob([svgStr], { type: 'image/svg+xml' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Certificate_${quiz?.title?.replace(/\s+/g, '_') || 'Preview'}.svg`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    try {
+      const svgStr = renderLiveSvg();
+      const blob = new Blob([svgStr], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Certificate_${(currentQuiz?.title || 'Preview').replace(/\s+/g, '_')}.svg`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      console.error('Download error:', e);
+    }
   };
 
   const mainContent = (
@@ -329,18 +372,20 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
                     ))}
                   </select>
                 ) : (
-                  <strong className="text-blue-600">{currentQuiz?.title}</strong>
+                  <strong className="text-blue-600">{currentQuiz?.title || 'Selected Quiz'}</strong>
                 )}
               </p>
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 rounded-xl transition-all cursor-pointer self-start sm:self-center"
-          >
-            <X size={20} />
-          </button>
+          {!isInline && (
+            <button
+              onClick={onClose}
+              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 rounded-xl transition-all cursor-pointer self-start sm:self-center"
+            >
+              <X size={20} />
+            </button>
+          )}
         </div>
 
         {/* Modal Body: Split view */}
@@ -415,7 +460,7 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
                         min="50"
                         max="950"
                         value={posConfig.qrX}
-                        onChange={(e) => updatePositionInSvg({ ...posConfig, qrX: parseInt(e.target.value) })}
+                        onChange={(e) => updatePositionInSvg({ ...posConfig, qrX: parseInt(e.target.value) || 500 })}
                         className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                       />
                     </div>
@@ -430,7 +475,7 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
                         min="50"
                         max="650"
                         value={posConfig.qrY}
-                        onChange={(e) => updatePositionInSvg({ ...posConfig, qrY: parseInt(e.target.value) })}
+                        onChange={(e) => updatePositionInSvg({ ...posConfig, qrY: parseInt(e.target.value) || 535 })}
                         className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                       />
                     </div>
@@ -445,7 +490,7 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
                         min="30"
                         max="140"
                         value={posConfig.qrSize}
-                        onChange={(e) => updatePositionInSvg({ ...posConfig, qrSize: parseInt(e.target.value) })}
+                        onChange={(e) => updatePositionInSvg({ ...posConfig, qrSize: parseInt(e.target.value) || 64 })}
                         className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                       />
                     </div>
@@ -470,7 +515,7 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
                         min="50"
                         max="950"
                         value={posConfig.urlX}
-                        onChange={(e) => updatePositionInSvg({ ...posConfig, urlX: parseInt(e.target.value) })}
+                        onChange={(e) => updatePositionInSvg({ ...posConfig, urlX: parseInt(e.target.value) || 500 })}
                         className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                       />
                     </div>
@@ -485,7 +530,7 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
                         min="50"
                         max="680"
                         value={posConfig.urlY}
-                        onChange={(e) => updatePositionInSvg({ ...posConfig, urlY: parseInt(e.target.value) })}
+                        onChange={(e) => updatePositionInSvg({ ...posConfig, urlY: parseInt(e.target.value) || 618 })}
                         className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
                       />
                     </div>
@@ -506,7 +551,7 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
                       <label className="text-[10px] font-semibold text-slate-500 block mb-0.5">Text Color</label>
                       <input
                         type="color"
-                        value={posConfig.urlColor}
+                        value={posConfig.urlColor || '#94a3b8'}
                         onChange={(e) => updatePositionInSvg({ ...posConfig, urlColor: e.target.value })}
                         className="w-full h-7 bg-slate-50 border border-slate-200 rounded-lg p-0.5 cursor-pointer"
                       />
@@ -630,19 +675,21 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
 
             {/* Modal Footer Actions */}
             <div className="flex justify-end space-x-3 mt-3 pt-2.5 border-t border-slate-800">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
-              >
-                Close
-              </button>
+              {!isInline && (
+                <button
+                  onClick={onClose}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                >
+                  Close
+                </button>
+              )}
               <button
                 onClick={handleSave}
                 disabled={saving}
                 className="flex items-center space-x-2 px-5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold shadow-lg shadow-blue-600/30 transition-all cursor-pointer disabled:opacity-50"
               >
                 {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
-                <span>{saving ? 'Saving...' : `Save Template for "${quiz?.title}"`}</span>
+                <span>{saving ? 'Saving...' : `Save Template for "${currentQuiz?.title || 'Selected'}"`}</span>
               </button>
             </div>
 

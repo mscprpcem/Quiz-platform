@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import CertificateTemplateModal from '../components/CertificateTemplateModal';
-import { FileCode, Upload, RefreshCw, Save, Download, Eye, HelpCircle, Move, QrCode, Link, BookOpen, CheckCircle2, ArrowRight } from 'lucide-react';
+import { FileCode, RefreshCw, BookOpen, CheckCircle2, ArrowRight } from 'lucide-react';
 
 export default function AdminTemplates() {
   const [quizzes, setQuizzes] = useState([]);
@@ -16,13 +16,23 @@ export default function AdminTemplates() {
     try {
       setLoading(true);
       const res = await api.get('/api/quizzes');
-      const quizList = Array.isArray(res.data) ? res.data : [];
+      const quizList = Array.isArray(res?.data) ? res.data : [];
       setQuizzes(quizList);
-      if (quizList.length > 0 && !selectedQuiz) {
-        setSelectedQuiz(quizList[0]);
+
+      if (quizList.length > 0) {
+        setSelectedQuiz((prev) => {
+          if (prev && quizList.some((q) => q.id === prev.id)) {
+            return quizList.find((q) => q.id === prev.id) || quizList[0];
+          }
+          return quizList[0];
+        });
+      } else {
+        setSelectedQuiz(null);
       }
     } catch (err) {
       console.error('Failed to load quizzes for templates:', err);
+      setQuizzes([]);
+      setSelectedQuiz(null);
     } finally {
       setLoading(false);
     }
@@ -90,9 +100,9 @@ export default function AdminTemplates() {
                         }`}
                       >
                         <div className="min-w-0">
-                          <h3 className="text-xs font-bold truncate">{q.title}</h3>
+                          <h3 className="text-xs font-bold truncate">{q.title || 'Untitled Quiz'}</h3>
                           <p className="text-[10px] text-slate-500 truncate mt-0.5">
-                            Event: <strong className="text-slate-700">{q.event_name}</strong>
+                            Event: <strong className="text-slate-700">{q.event_name || 'General Event'}</strong>
                           </p>
                         </div>
 
@@ -117,7 +127,7 @@ export default function AdminTemplates() {
 
             {/* Main Area: Embedded Full Configurator (8 Cols) */}
             <div className="lg:col-span-8">
-              {selectedQuiz && (
+              {selectedQuiz ? (
                 <CertificateTemplateModal
                   quiz={selectedQuiz}
                   allQuizzes={quizzes}
@@ -126,6 +136,10 @@ export default function AdminTemplates() {
                   onSaveSuccess={loadQuizzes}
                   isInline={true}
                 />
+              ) : (
+                <div className="bg-white border border-brand-border rounded-2xl p-8 text-center text-slate-500">
+                  Select a quiz from the list to manage its template.
+                </div>
               )}
             </div>
 
