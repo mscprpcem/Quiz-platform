@@ -19,7 +19,8 @@ import {
   Award,
   ShieldCheck,
   RefreshCw,
-  FileCode
+  FileCode,
+  Trash2
 } from 'lucide-react';
 import CertificateTemplateModal from '../components/CertificateTemplateModal';
 import './AdminDashboard.css';
@@ -37,6 +38,24 @@ export default function AdminDashboard() {
   const [showCatalogQRModal, setShowCatalogQRModal] = useState(false);
   const [catalogCopyFeedback, setCatalogCopyFeedback] = useState(false);
   const [catalogCopyCodeFeedback, setCatalogCopyCodeFeedback] = useState(false);
+
+  // Delete Quiz Modal State
+  const [deleteQuizTarget, setDeleteQuizTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
+
+  const handleDeleteQuiz = async (quizId) => {
+    try {
+      setDeleting(true);
+      await api.delete(`/api/quizzes/${quizId}`);
+      setQuizzes((prev) => prev.filter((q) => q.id !== quizId));
+      setDeleteQuizTarget(null);
+    } catch (err) {
+      console.error('Delete quiz error:', err);
+      alert(err.response?.data?.error || 'Failed to delete quiz');
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   // Branding config
   const [branding, setBranding] = useState(null);
@@ -486,6 +505,16 @@ export default function AdminDashboard() {
                             >
                               <QrCode size={12} />
                             </button>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setDeleteQuizTarget(quiz);
+                              }}
+                              className="p-1.5 hover:bg-rose-100 text-zinc-400 hover:text-rose-600 rounded-md transition-all cursor-pointer bg-zinc-50 border border-zinc-200 active:scale-90"
+                              title="Delete Quiz"
+                            >
+                              <Trash2 size={12} />
+                            </button>
                           </div>
                         </div>
                         <div className="mt-3.5">
@@ -678,6 +707,42 @@ export default function AdminDashboard() {
               >
                 <Share2 size={13} />
                 Share
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Quiz Confirmation Modal */}
+      {deleteQuizTarget && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white border border-rose-100 rounded-2xl p-6 shadow-2xl max-w-md w-full space-y-4 text-zinc-800">
+            <div className="flex items-center space-x-3 text-rose-600">
+              <div className="p-2.5 bg-rose-50 rounded-xl border border-rose-200">
+                <Trash2 size={22} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-slate-900">Delete Quiz</h3>
+                <p className="text-xs text-slate-500">This action cannot be undone.</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Are you sure you want to permanently delete <strong className="text-slate-900">"{deleteQuizTarget.title}"</strong> ({deleteQuizTarget.event_name})? All questions, participants, answers, and violations will be removed.
+            </p>
+            <div className="flex justify-end space-x-3 pt-2">
+              <button
+                onClick={() => setDeleteQuizTarget(null)}
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteQuiz(deleteQuizTarget.id)}
+                disabled={deleting}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-md shadow-rose-600/30 transition-all cursor-pointer flex items-center space-x-2 disabled:opacity-50"
+              >
+                {deleting ? <RefreshCw size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                <span>{deleting ? 'Deleting...' : 'Delete Quiz'}</span>
               </button>
             </div>
           </div>
