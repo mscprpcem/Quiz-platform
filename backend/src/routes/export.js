@@ -216,23 +216,58 @@ router.post('/quiz/:id/publish-certificates', authMiddleware, async (req, res) =
       rank: idx + 1
     }));
 
-    const certApiUrl = process.env.CERTIFICATE_API_URL || "https://msc-cert-verification-api-g2d4d9d9cygwgtd8.centralindia-01.azurewebsites.net/api/integration/publish-results";
-    
-    // Call Certificate Verification Engine API
-    const response = await fetch(certApiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": "msc_quiz_verification_secret_key_2026"
-      },
-      body: JSON.stringify({
-        quizTitle: quiz.title || quiz.event_name || "MSC Quiz Event",
-        publishDate: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
-        participants: rankedParticipants
-      })
-    });
+    const candidateUrls = [
+      process.env.CERTIFICATE_API_URL,
+      "http://localhost:3000/api/integration/publish-results",
+      "http://127.0.0.1:3000/api/integration/publish-results",
+      "https://verify.mscprpcem.tech/api/integration/publish-results",
+      "https://msc-cert-verification-api-g2d4d9d9cygwgtd8.centralindia-01.azurewebsites.net/api/integration/publish-results"
+    ].filter(Boolean);
 
-    const certData = await response.json();
+    const payload = {
+      event: {
+        quizId: quiz.id,
+        title: quiz.title,
+        eventName: quiz.event_name
+      },
+      quizTitle: quiz.title,
+      eventName: quiz.event_name,
+      publishDate: new Date().toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }),
+      participants: rankedParticipants
+    };
+
+    let certData = null;
+    let isSuccess = false;
+    let lastErr = null;
+
+    for (const targetUrl of candidateUrls) {
+      try {
+        const response = await fetch(targetUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": "msc_quiz_verification_secret_key_2026"
+          },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(4000)
+        });
+
+        if (response.ok) {
+          certData = await response.json();
+          isSuccess = true;
+          break;
+        } else {
+          lastErr = await response.text();
+        }
+      } catch (e) {
+        lastErr = e.message;
+      }
+    }
+
+    if (!isSuccess) {
+      return res.status(500).json({ error: 'Failed to dispatch certificates to Certificate Engine', details: lastErr });
+    }
+
     return res.json({
       success: true,
       message: `Issued ${rankedParticipants.length} certificates to Certificate Engine!`,

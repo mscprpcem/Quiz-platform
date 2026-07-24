@@ -28,12 +28,21 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
   : [
       "http://localhost:3000",
       "http://localhost:5173",
-      "https://quiz.mscprpcem.tech"
+      "http://127.0.0.1:3000",
+      "http://127.0.0.1:5173",
+      "https://quiz.mscprpcem.tech",
+      "https://verify.mscprpcem.tech",
+      "https://www.mscprpcem.tech"
     ];
 
 const corsOriginFn = (origin, callback) => {
   if (!origin) return callback(null, true);
-  const isAllowed = allowedOrigins.includes(origin) || allowedOrigins.includes('*');
+  const isAllowed =
+    allowedOrigins.includes(origin) ||
+    allowedOrigins.includes('*') ||
+    origin.includes('localhost') ||
+    origin.includes('127.0.0.1') ||
+    origin.endsWith('.mscprpcem.tech');
   if (isAllowed) {
     callback(null, true);
   } else {

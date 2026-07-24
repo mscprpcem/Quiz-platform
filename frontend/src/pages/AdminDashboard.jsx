@@ -48,11 +48,17 @@ export default function AdminDashboard() {
     setSyncingQuizId(quizId);
     try {
       const res = await api.post(`/api/quizzes/${quizId}/sync-certificates`);
+      const isSynced = res.data?.synced === true;
       setSyncFeedback((prev) => ({
         ...prev,
-        [quizId]: { success: true, message: res.data.message }
+        [quizId]: { success: isSynced, message: res.data.message }
       }));
-      loadQuizzes();
+      if (isSynced) {
+        setQuizzes((prevQuizzes) =>
+          prevQuizzes.map((q) => (q.id === quizId ? { ...q, verification_synced: true, verification_synced_at: new Date() } : q))
+        );
+      }
+      await loadQuizzes();
     } catch (err) {
       setSyncFeedback((prev) => ({
         ...prev,
@@ -496,11 +502,15 @@ export default function AdminDashboard() {
                           <button
                             onClick={(e) => handleSyncCertificates(quiz.id, e)}
                             disabled={syncingQuizId === quiz.id}
-                            className="flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:text-blue-800 bg-white hover:bg-blue-50 border border-blue-200 rounded px-2 py-0.5 transition-all cursor-pointer disabled:opacity-50"
+                            className={`flex items-center gap-1 text-[10px] font-bold rounded px-2.5 py-1 transition-all cursor-pointer disabled:opacity-50 ${
+                              quiz.verification_synced
+                                ? 'text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300'
+                                : 'text-blue-600 hover:text-blue-800 bg-white hover:bg-blue-50 border border-blue-200'
+                            }`}
                             title="Auto Sync Quiz Event & Issue Certificates to Verification Platform"
                           >
                             <RefreshCw size={10} className={syncingQuizId === quiz.id ? "animate-spin" : ""} />
-                            <span>{syncingQuizId === quiz.id ? 'Syncing...' : 'Sync'}</span>
+                            <span>{syncingQuizId === quiz.id ? 'Syncing...' : (quiz.verification_synced ? 'Synced ✓' : 'Sync')}</span>
                           </button>
                         </div>
                         {syncFeedback[quiz.id] && (

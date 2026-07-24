@@ -71,7 +71,13 @@ async function syncQuizCertificates(quizId) {
       };
     });
 
-    const verificationPlatformUrl = process.env.VERIFICATION_PLATFORM_URL || 'https://verify.mscprpcem.tech';
+    const candidateUrls = [
+      process.env.VERIFICATION_PLATFORM_URL,
+      'http://localhost:3000',
+      'http://127.0.0.1:3000',
+      'https://verify.mscprpcem.tech'
+    ].filter(Boolean);
+
     const apiKey = process.env.VERIFICATION_API_KEY || 'msc_quiz_verification_secret_key_2026';
 
     const payload = {
@@ -88,41 +94,51 @@ async function syncQuizCertificates(quizId) {
       attendees
     };
 
-    console.log(`[VerificationService] Syncing Quiz ${quiz.title} (${quiz.id}) to ${verificationPlatformUrl}...`);
-
-    const endpoint = `${verificationPlatformUrl.replace(/\/$/, '')}/api/webhooks/quiz-certificates`;
-
     let responseData = null;
     let isSuccess = false;
+    let lastError = null;
 
-    try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-API-Key': apiKey
-        },
-        body: JSON.stringify(payload)
-      });
+    for (const baseUrl of candidateUrls) {
+      const endpoint = `${baseUrl.replace(/\/$/, '')}/api/webhooks/quiz-certificates`;
+      console.log(`[VerificationService] Attempting Sync for Quiz "${quiz.title}" (${quiz.id}) to ${endpoint}...`);
 
-      if (res.ok) {
-        responseData = await res.json();
-        isSuccess = true;
-      } else {
-        const errText = await res.text();
-        throw new Error(`Platform responded with status ${res.status}: ${errText}`);
+      try {
+        const res = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': apiKey
+          },
+          body: JSON.stringify(payload),
+          signal: AbortSignal.timeout(4000)
+        });
+
+        if (res.ok) {
+          responseData = await res.json();
+          isSuccess = true;
+          console.log(`[VerificationService] Successfully synced quiz "${quiz.title}" with Verification Platform via ${baseUrl}!`);
+          break;
+        } else {
+          const errText = await res.text();
+          lastError = `Status ${res.status}: ${errText}`;
+        }
+      } catch (httpError) {
+        lastError = httpError.message;
+        console.warn(`[VerificationService] Sync attempt to ${baseUrl} failed: ${httpError.message}`);
       }
-    } catch (httpError) {
-      console.warn(`[VerificationService] Direct HTTP sync warning (${httpError.message}). Local record updated.`);
+    }
+
+    if (!isSuccess) {
+      console.warn(`[VerificationService] Direct HTTP sync failed on all endpoints (${lastError}). Local record updated.`);
       await quiz.update({
         verification_synced: false,
-        verification_error: httpError.message,
+        verification_error: lastError || 'Verification Platform endpoint unreachable',
         verification_synced_at: new Date()
       });
 
       return {
         success: false,
-        error: httpError.message,
+        error: lastError || 'Verification Platform endpoint unreachable',
         payload
       };
     }
@@ -134,8 +150,6 @@ async function syncQuizCertificates(quizId) {
         verification_event_id: responseData?.eventId || quiz.id,
         verification_error: null
       });
-
-      console.log(`[VerificationService] Successfully synced quiz ${quiz.title} with Verification Platform!`);
     }
 
     return {
