@@ -586,7 +586,7 @@ function getDefaultSvgTemplate() {
 </svg>`;
 }
 
-function renderSvgPlaceholders(svgContent, data) {
+async function renderSvgPlaceholders(svgContent, data) {
   let svg = svgContent || getDefaultSvgTemplate();
   const escapeXml = (unsafe) => String(unsafe || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 
@@ -598,6 +598,21 @@ function renderSvgPlaceholders(svgContent, data) {
   const rank = escapeXml(data.rank ?? '1');
   const category = escapeXml(data.category || (Number(data.rank) === 1 ? '1st Place Winner' : 'Participation Certificate'));
   const credentialId = escapeXml(data.credential_id || data.id || 'MSC-BDG-99481');
+  const verificationUrl = escapeXml(data.verification_url || data.verificationUrl || `https://verify.mscprpcem.tech/verify/${credentialId}`);
+
+  let qrDataUri = data.qr_data_uri || data.qrDataUri || '';
+  if (!qrDataUri) {
+    try {
+      const QRCode = require('qrcode');
+      qrDataUri = await QRCode.toDataURL(verificationUrl, { margin: 1, width: 200 });
+    } catch (e) {
+      console.warn('QR Code generation fallback:', e.message);
+    }
+  }
+
+  const qrImageTag = qrDataUri
+    ? `<image href="${qrDataUri}" width="100%" height="100%" />`
+    : `<rect width="100%" height="100%" fill="#1e293b" rx="8"/><text x="50%" y="50%" fill="#60a5fa" font-size="10" text-anchor="middle" dominant-baseline="middle">QR CODE</text>`;
 
   svg = svg.replace(/\{\{\s*(RECIPIENT_NAME|NAME|name)\s*\}\}/g, name);
   svg = svg.replace(/\{\{\s*(QUIZ_TITLE|TITLE|title)\s*\}\}/g, title);
@@ -607,6 +622,8 @@ function renderSvgPlaceholders(svgContent, data) {
   svg = svg.replace(/\{\{\s*(RANK|rank)\s*\}\}/g, rank);
   svg = svg.replace(/\{\{\s*(CATEGORY|category)\s*\}\}/g, category);
   svg = svg.replace(/\{\{\s*(CREDENTIAL_ID|ID|credential_id|id)\s*\}\}/g, credentialId);
+  svg = svg.replace(/\{\{\s*(VERIFICATION_URL|verification_url|url)\s*\}\}/g, verificationUrl);
+  svg = svg.replace(/\{\{\s*(QR_CODE|VERIFICATION_QR|qr_code|verification_qr)\s*\}\}/g, qrImageTag);
 
   return svg;
 }
@@ -665,7 +682,7 @@ router.post('/:id/render-preview', authMiddleware, async (req, res) => {
       ...(sample_data || {})
     };
 
-    const renderedSvg = renderSvgPlaceholders(templateToUse, data);
+    const renderedSvg = await renderSvgPlaceholders(templateToUse, data);
     return res.json({
       svg: renderedSvg,
       data
