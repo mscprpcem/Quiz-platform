@@ -517,28 +517,7 @@ router.post('/:id/sync-certificates', authMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error('Sync certificates error:', error);
-// Delete quiz (admin)
-router.delete('/:id', authMiddleware, async (req, res) => {
-  try {
-    const quizId = req.params.id;
-    const quiz = await Quiz.findByPk(quizId);
-    if (!quiz) {
-      return res.status(404).json({ error: 'Quiz not found' });
-    }
-
-    const quizTitle = quiz.title;
-
-    // Cascade delete associated questions, participants, answers, violations
-    await Question.destroy({ where: { quiz_id: quizId } });
-    await Participant.destroy({ where: { quiz_id: quizId } });
-    await Answer.destroy({ where: { quiz_id: quizId } });
-    await Violation.destroy({ where: { quiz_id: quizId } });
-    await quiz.destroy();
-
-    return res.json({ message: `Quiz "${quizTitle}" deleted successfully.` });
-  } catch (error) {
-    console.error('Delete quiz error:', error);
-    return res.status(500).json({ error: 'Failed to delete quiz' });
+    return res.status(500).json({ error: 'Server error syncing certificates' });
   }
 });
 
