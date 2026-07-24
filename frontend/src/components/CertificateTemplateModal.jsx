@@ -103,16 +103,16 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
   });
 
   const placeholders = [
-    { tag: '{{name}}', label: 'Recipient Name' },
-    { tag: '{{title}}', label: 'Quiz Title' },
-    { tag: '{{event_name}}', label: 'Event Name' },
-    { tag: '{{date}}', label: 'Issue Date' },
-    { tag: '{{score}}', label: 'Total Score' },
-    { tag: '{{rank}}', label: 'Leaderboard Rank' },
-    { tag: '{{category}}', label: 'Certificate Category' },
-    { tag: '{{credential_id}}', label: 'Credential ID' },
-    { tag: '{{qr_code}}', label: 'QR Code Box' },
-    { tag: '{{verification_url}}', label: 'Verification Link' }
+    { tag: '{name}', label: 'Recipient Name' },
+    { tag: '{title}', label: 'Quiz Title' },
+    { tag: '{event_name}', label: 'Event Name' },
+    { tag: '{date}', label: 'Issue Date' },
+    { tag: '{score}', label: 'Total Score' },
+    { tag: '{rank}', label: 'Leaderboard Rank' },
+    { tag: '{category}', label: 'Certificate Category' },
+    { tag: '{credential_id}', label: 'Credential ID' },
+    { tag: '{qr}', label: 'QR Code Box' },
+    { tag: '{url}', label: 'Verification Link' }
   ];
 
   useEffect(() => {
@@ -214,9 +214,13 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
       let svg = (typeof prevSvg === 'string' && prevSvg.trim()) ? prevSvg : DEFAULT_SVG;
 
       try {
-        // Ensure QR group element exists in SVG or inject it
+        // If template has single or double brace QR tag outside group, normalize it
         if (!svg.includes('id="svg-qr-group"')) {
-          const qrSnippet = `\n  <!-- Dynamic QR Code Container -->\n  <g id="svg-qr-group" transform="translate(${newConfig.qrX}, ${newConfig.qrY})">\n    <g transform="translate(-${newConfig.qrSize / 2}, -${newConfig.qrSize / 2})">\n      {{qr_code}}\n    </g>\n  </g>`;
+          const qrTagMatch = svg.match(/<text[^>]*>\s*\{{1,2}\s*(QR_CODE|VERIFICATION_QR|qr_code|verification_qr|qr)\s*\}{1,2}\s*<\/text>/gi);
+          if (qrTagMatch) {
+            svg = svg.replace(/<text[^>]*>\s*\{{1,2}\s*(QR_CODE|VERIFICATION_QR|qr_code|verification_qr|qr)\s*\}{1,2}\s*<\/text>/gi, '{qr}');
+          }
+          const qrSnippet = `\n  <!-- Dynamic QR Code Container -->\n  <g id="svg-qr-group" transform="translate(${newConfig.qrX}, ${newConfig.qrY})">\n    <g transform="translate(-${newConfig.qrSize / 2}, -${newConfig.qrSize / 2})">\n      {qr}\n    </g>\n  </g>`;
           svg = svg.replace('</svg>', `${qrSnippet}\n</svg>`);
         } else {
           svg = svg.replace(
@@ -224,14 +228,14 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
             `<g id="svg-qr-group" transform="translate(${newConfig.qrX}, ${newConfig.qrY})">`
           );
           svg = svg.replace(
-            /<g\s+transform="translate\(-?\d*(?:\.\d+)?,\s*-?\d*(?:\.\d+)?\)">(\s*\{\{qr_code\}\}\s*)<\/g>/i,
+            /<g\s+transform="translate\(-?\d*(?:\.\d+)?,\s*-?\d*(?:\.\d+)?\)">(\s*\{{1,2}(?:qr_code|qr|verification_qr)\}{1,2}\s*)<\/g>/i,
             `<g transform="translate(-${newConfig.qrSize / 2}, -${newConfig.qrSize / 2})">$1</g>`
           );
         }
 
-        // Ensure Verification URL element exists in SVG or inject it
+        // Ensure Verification URL element exists in SVG or update position
         if (!svg.includes('id="svg-verification-url"')) {
-          const urlSnippet = `\n  <!-- Dynamic Verification Link -->\n  <text id="svg-verification-url" x="${newConfig.urlX}" y="${newConfig.urlY}" fill="${newConfig.urlColor}" font-family="'Segoe UI', sans-serif" font-size="${newConfig.urlFontSize}" font-weight="600" text-anchor="${newConfig.urlAnchor}">Verify Credential: {{verification_url}}</text>`;
+          const urlSnippet = `\n  <!-- Dynamic Verification Link -->\n  <text id="svg-verification-url" x="${newConfig.urlX}" y="${newConfig.urlY}" fill="${newConfig.urlColor}" font-family="'Segoe UI', sans-serif" font-size="${newConfig.urlFontSize}" font-weight="600" text-anchor="${newConfig.urlAnchor}">Verify Credential: {url}</text>`;
           svg = svg.replace('</svg>', `${urlSnippet}\n</svg>`);
         } else {
           svg = svg.replace(
@@ -303,16 +307,16 @@ export default function CertificateTemplateModal({ quiz, allQuizzes, onSelectQui
         <rect x="${qrSize / 2 - 4}" y="${qrSize / 2 - 4}" width="8" height="8" fill="#2563eb" rx="2"/>
       </g>`;
 
-      svg = svg.replace(/\{\{\s*(RECIPIENT_NAME|NAME|name)\s*\}\}/g, name);
-      svg = svg.replace(/\{\{\s*(QUIZ_TITLE|TITLE|title)\s*\}\}/g, title);
-      svg = svg.replace(/\{\{\s*(EVENT_NAME|event_name)\s*\}\}/g, eventName);
-      svg = svg.replace(/\{\{\s*(ISSUE_DATE|DATE|date)\s*\}\}/g, date);
-      svg = svg.replace(/\{\{\s*(SCORE|score)\s*\}\}/g, score);
-      svg = svg.replace(/\{\{\s*(RANK|rank)\s*\}\}/g, rank);
-      svg = svg.replace(/\{\{\s*(CATEGORY|category)\s*\}\}/g, category);
-      svg = svg.replace(/\{\{\s*(CREDENTIAL_ID|ID|credential_id|id)\s*\}\}/g, credentialId);
-      svg = svg.replace(/\{\{\s*(VERIFICATION_URL|verification_url|url)\s*\}\}/g, verificationUrl);
-      svg = svg.replace(/\{\{\s*(QR_CODE|VERIFICATION_QR|qr_code|verification_qr)\s*\}\}/g, qrVectorSvg);
+      svg = svg.replace(/\{{1,2}\s*(RECIPIENT_NAME|NAME|name)\s*\}{1,2}/gi, name);
+      svg = svg.replace(/\{{1,2}\s*(QUIZ_TITLE|TITLE|title)\s*\}{1,2}/gi, title);
+      svg = svg.replace(/\{{1,2}\s*(EVENT_NAME|event_name|event)\s*\}{1,2}/gi, eventName);
+      svg = svg.replace(/\{{1,2}\s*(ISSUE_DATE|DATE|date)\s*\}{1,2}/gi, date);
+      svg = svg.replace(/\{{1,2}\s*(SCORE|score)\s*\}{1,2}/gi, score);
+      svg = svg.replace(/\{{1,2}\s*(RANK|rank)\s*\}{1,2}/gi, rank);
+      svg = svg.replace(/\{{1,2}\s*(CATEGORY|category)\s*\}{1,2}/gi, category);
+      svg = svg.replace(/\{{1,2}\s*(CREDENTIAL_ID|ID|credential_id|id)\s*\}{1,2}/gi, credentialId);
+      svg = svg.replace(/\{{1,2}\s*(VERIFICATION_URL|verification_url|url)\s*\}{1,2}/gi, verificationUrl);
+      svg = svg.replace(/\{{1,2}\s*(QR_CODE|VERIFICATION_QR|qr_code|verification_qr|qr)\s*\}{1,2}/gi, qrVectorSvg);
 
       return svg;
     } catch (err) {

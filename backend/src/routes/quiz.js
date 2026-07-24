@@ -614,16 +614,16 @@ async function renderSvgPlaceholders(svgContent, data) {
     ? `<image href="${qrDataUri}" width="100%" height="100%" />`
     : `<rect width="100%" height="100%" fill="#1e293b" rx="8"/><text x="50%" y="50%" fill="#60a5fa" font-size="10" text-anchor="middle" dominant-baseline="middle">QR CODE</text>`;
 
-  svg = svg.replace(/\{\{\s*(RECIPIENT_NAME|NAME|name)\s*\}\}/g, name);
-  svg = svg.replace(/\{\{\s*(QUIZ_TITLE|TITLE|title)\s*\}\}/g, title);
-  svg = svg.replace(/\{\{\s*(EVENT_NAME|event_name)\s*\}\}/g, eventName);
-  svg = svg.replace(/\{\{\s*(ISSUE_DATE|DATE|date)\s*\}\}/g, date);
-  svg = svg.replace(/\{\{\s*(SCORE|score)\s*\}\}/g, score);
-  svg = svg.replace(/\{\{\s*(RANK|rank)\s*\}\}/g, rank);
-  svg = svg.replace(/\{\{\s*(CATEGORY|category)\s*\}\}/g, category);
-  svg = svg.replace(/\{\{\s*(CREDENTIAL_ID|ID|credential_id|id)\s*\}\}/g, credentialId);
-  svg = svg.replace(/\{\{\s*(VERIFICATION_URL|verification_url|url)\s*\}\}/g, verificationUrl);
-  svg = svg.replace(/\{\{\s*(QR_CODE|VERIFICATION_QR|qr_code|verification_qr)\s*\}\}/g, qrImageTag);
+  svg = svg.replace(/\{{1,2}\s*(RECIPIENT_NAME|NAME|name)\s*\}{1,2}/gi, name);
+  svg = svg.replace(/\{{1,2}\s*(QUIZ_TITLE|TITLE|title)\s*\}{1,2}/gi, title);
+  svg = svg.replace(/\{{1,2}\s*(EVENT_NAME|event_name|event)\s*\}{1,2}/gi, eventName);
+  svg = svg.replace(/\{{1,2}\s*(ISSUE_DATE|DATE|date)\s*\}{1,2}/gi, date);
+  svg = svg.replace(/\{{1,2}\s*(SCORE|score)\s*\}{1,2}/gi, score);
+  svg = svg.replace(/\{{1,2}\s*(RANK|rank)\s*\}{1,2}/gi, rank);
+  svg = svg.replace(/\{{1,2}\s*(CATEGORY|category)\s*\}{1,2}/gi, category);
+  svg = svg.replace(/\{{1,2}\s*(CREDENTIAL_ID|ID|credential_id|id)\s*\}{1,2}/gi, credentialId);
+  svg = svg.replace(/\{{1,2}\s*(VERIFICATION_URL|verification_url|url)\s*\}{1,2}/gi, verificationUrl);
+  svg = svg.replace(/\{{1,2}\s*(QR_CODE|VERIFICATION_QR|qr_code|verification_qr|qr)\s*\}{1,2}/gi, qrImageTag);
 
   return svg;
 }
