@@ -153,14 +153,27 @@ const initializeSocket = (io) => {
         const question = await Question.findByPk(activeQuizzes[quizId].activeQuestionId);
         if (!question) return;
 
+        const totalQuestions = await Question.count({ where: { quiz_id: quizId } });
+        const isFinalQuestion = quiz.current_question_index >= totalQuestions - 1;
+
         // Calculate updated top 10 standings after question end
         const fullLeaderboard = await getLiveLeaderboard(quizId);
-        const top10 = fullLeaderboard.slice(0, 10);
+        
+        // On final question, withhold top 10 leaderboard from participants to create finale suspense
+        const top10 = isFinalQuestion ? [] : fullLeaderboard.slice(0, 10);
 
-        // Broadcast correct answer & Top 10 standings
+        // Broadcast correct answer & Top 10 standings (empty array on final question)
         io.to(`quiz_${quizId}`).emit('question_ended', {
           correctAnswer: question.correct_answer,
-          leaderboard: top10
+          leaderboard: top10,
+          isFinalQuestion
+        });
+
+        // Always send full leaderboard to Admin board so host can review standings
+        io.to(`admin_${quizId}`).emit('question_ended', {
+          correctAnswer: question.correct_answer,
+          leaderboard: fullLeaderboard,
+          isFinalQuestion
         });
       } catch (err) {
         console.error('end_question error:', err);
@@ -501,15 +514,28 @@ const initializeSocket = (io) => {
               }
 
               if (quizState.questionStatus === 'timer_ended') {
-                // Fetch leaderboard
-                const leaderboard = await getLiveLeaderboard(quiz.id);
-                const playerStats = leaderboard.find((p) => p.id === participant.id);
-                responseData.feedbackData = {
-                  ...responseData.feedbackData,
-                  correctAnswer: question.correct_answer,
-                  rank: playerStats ? leaderboard.indexOf(playerStats) + 1 : 'N/A',
-                  totalScore: playerStats ? playerStats.score : 0
-                };
+                const totalQuestionsCount = await Question.count({ where: { quiz_id: quiz.id } });
+                const isFinalQuestion = quiz.current_question_index >= totalQuestionsCount - 1;
+
+                if (!isFinalQuestion) {
+                  const leaderboard = await getLiveLeaderboard(quiz.id);
+                  const playerStats = leaderboard.find((p) => p.id === participant.id);
+                  responseData.feedbackData = {
+                    ...responseData.feedbackData,
+                    correctAnswer: question.correct_answer,
+                    isFinalQuestion: false,
+                    rank: playerStats ? leaderboard.indexOf(playerStats) + 1 : 'N/A',
+                    totalScore: playerStats ? playerStats.score : 0
+                  };
+                } else {
+                  responseData.feedbackData = {
+                    ...responseData.feedbackData,
+                    correctAnswer: question.correct_answer,
+                    isFinalQuestion: true,
+                    rank: '🔒 Suspense',
+                    totalScore: responseData.feedbackData?.points || 0
+                  };
+                }
               }
             }
           }

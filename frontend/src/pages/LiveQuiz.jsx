@@ -193,7 +193,7 @@ export default function LiveQuiz() {
     });
 
     // 2. Submissions closed (timer ended or host skipped)
-    socket.on('question_ended', ({ correctAnswer, leaderboard }) => {
+    socket.on('question_ended', ({ correctAnswer, leaderboard, isFinalQuestion }) => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
       setTimer(0);
       setShowFeedback(true);
@@ -206,7 +206,8 @@ export default function LiveQuiz() {
       setFeedbackData((prev) => ({
         ...prev,
         correctAnswer,
-        rank: playerStats ? top10.indexOf(playerStats) + 1 : (prev?.rank || 'N/A'),
+        isFinalQuestion: !!isFinalQuestion,
+        rank: isFinalQuestion ? '🔒 Hidden' : (playerStats ? top10.indexOf(playerStats) + 1 : (prev?.rank || 'N/A')),
         totalScore: playerStats ? playerStats.score : (prev?.totalScore || 0)
       }));
     });
@@ -491,14 +492,18 @@ export default function LiveQuiz() {
                     <div className="w-px bg-zinc-200"></div>
                     <div>
                       <span className="text-xs font-semibold text-brand-textMuted uppercase">Your Rank</span>
-                      <p className="text-xl font-bold text-brand-blue mt-1">Rank #{feedbackData?.rank || 'N/A'}</p>
+                      <p className="text-xl font-bold text-brand-blue mt-1">
+                        {feedbackData?.isFinalQuestion || (currentQuestion.totalQuestions && currentQuestion.questionIndex + 1 === currentQuestion.totalQuestions)
+                          ? '🔒 Hidden for Finale'
+                          : `Rank #${feedbackData?.rank || 'N/A'}`}
+                      </p>
                     </div>
                   </div>
 
                   <div className="text-center pt-2">
-                    {currentQuestion.totalQuestions && (currentQuestion.questionIndex + 1 === currentQuestion.totalQuestions) ? (
+                    {feedbackData?.isFinalQuestion || (currentQuestion.totalQuestions && (currentQuestion.questionIndex + 1 === currentQuestion.totalQuestions)) ? (
                       <span className="inline-block text-xs sm:text-sm font-extrabold text-purple-800 bg-purple-50 border border-purple-200 px-4 py-2 rounded-xl shadow-xs animate-bounce">
-                        🎉 Final question completed! Please wait while host ends the quiz and publishes final leaderboard.
+                        🎉 Final question completed! Standings locked. Host will release final leaderboard shortly.
                       </span>
                     ) : (
                       <span className="text-xs font-semibold text-zinc-400">
@@ -508,12 +513,29 @@ export default function LiveQuiz() {
                   </div>
                 </div>
 
-                {/* Animated Top 10 Live Leaderboard */}
-                <Top10Leaderboard 
-                  leaderboard={interimLeaderboard} 
-                  currentParticipantId={initialData.participantId} 
-                  title="Top 10 Live Standings"
-                />
+                {/* Animated Top 10 Live Leaderboard (Withheld on final question for finale suspense) */}
+                {feedbackData?.isFinalQuestion || (currentQuestion.totalQuestions && currentQuestion.questionIndex + 1 === currentQuestion.totalQuestions) ? (
+                  <div className="bg-gradient-to-br from-slate-900 via-purple-950 to-indigo-950 border border-purple-500/30 rounded-2xl p-8 sm:p-10 text-center text-white shadow-xl space-y-4 animate-fade-in">
+                    <div className="w-16 h-16 bg-amber-400/20 text-amber-300 rounded-full flex items-center justify-center mx-auto border border-amber-400/30 animate-pulse">
+                      <Award size={36} />
+                    </div>
+                    <h3 className="text-xl sm:text-2xl font-black text-amber-300 tracking-tight">
+                      ✨ Grand Finale Standings Locked!
+                    </h3>
+                    <p className="text-xs sm:text-sm text-purple-200 max-w-md mx-auto font-medium leading-relaxed">
+                      All responses for the final question are submitted! Leaderboard standings are locked to build maximum suspense. Get ready for the host to reveal the official winners! 🏆
+                    </p>
+                    <div className="flex justify-center pt-2">
+                      <div className="w-7 h-7 border-3 border-amber-400 border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  </div>
+                ) : (
+                  <Top10Leaderboard 
+                    leaderboard={interimLeaderboard} 
+                    currentParticipantId={initialData.participantId} 
+                    title="Top 10 Live Standings"
+                  />
+                )}
               </div>
             ) : (
               /* Active Gameplay Question Card */
