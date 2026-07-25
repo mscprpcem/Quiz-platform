@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const ExcelJS = require('exceljs');
 const { Quiz, Question, Participant, Answer, Violation } = require('../models');
+const authMiddleware = require('../middleware/auth');
 
 
 // Multer memory storage configuration for Excel uploads
