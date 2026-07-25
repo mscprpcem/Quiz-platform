@@ -28,6 +28,7 @@ import QuizRules from './pages/QuizRules';
 import FAQDetails from './pages/FAQDetails';
 import UserGuide from './pages/UserGuide';
 import SupportSLA from './pages/SupportSLA';
+import ReportIssue from './pages/ReportIssue';
 import Documentation from './pages/Documentation';
 import Courses from './pages/Courses';
 
