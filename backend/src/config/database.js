@@ -11,6 +11,12 @@ if (process.env.DATABASE_URL) {
     sequelize = new Sequelize(process.env.DATABASE_URL, {
         dialect: "postgres",
         logging: false,
+        pool: {
+            max: 40,
+            min: 5,
+            acquire: 30000,
+            idle: 10000
+        },
         dialectOptions: {
             ssl: {
                 require: true,

@@ -1,5 +1,4 @@
 const { Quiz, Question, Participant, Answer, Violation, sequelize } = require('../models');
-const { syncQuizCertificates } = require('./verificationService');
 
 // In-memory store for active quiz sessions, socket mapping, and timers
 // Format: { [quizId]: { activeQuestionId: string, timerStartedAt: Date, timerValue: number, questionStatus: string, answersReceived: Set(participantId) } }
