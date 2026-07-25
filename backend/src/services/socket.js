@@ -43,12 +43,8 @@ const initializeSocket = (io) => {
           }
         }
 
-        // Send current list of joined participants to Admin
-        const participants = await Participant.findAll({
-          where: { quiz_id: quizId },
-          order: [['createdAt', 'ASC']]
-        });
-
+        // Send current list of joined participants with compiled live scores to Admin
+        const participants = await getLiveLeaderboard(quizId);
         socket.emit('lobby_participants_update', participants);
         socket.emit('leaderboard_status', { released: activeQuizzes[quizId]?.leaderboardReleased || false });
       } catch (err) {
@@ -228,22 +224,13 @@ const initializeSocket = (io) => {
           activeQuizzes[quizId].leaderboardReleased = false;
         }
 
-        // Notify admins that the leaderboard state is unreleased
+        // Compile live leaderboard with full scores and broadcast to admin
+        const leaderboard = await getLiveLeaderboard(quizId);
         io.to(`admin_${quizId}`).emit('leaderboard_status', { released: false });
+        io.to(`admin_${quizId}`).emit('lobby_participants_update', leaderboard);
 
         // Broadcast to participants that the quiz is completed and to wait
         io.to(`quiz_${quizId}`).emit('quiz_completed');
-
-        // Auto Sync Certificates and Event data with Verification Platform
-        if (process.env.AUTO_ISSUE_CERTIFICATES !== 'false') {
-          syncQuizCertificates(quizId)
-            .then((res) => {
-              io.to(`admin_${quizId}`).emit('verification_sync_status', res);
-            })
-            .catch((err) => {
-              console.error('Socket auto-sync certificate error:', err);
-            });
-        }
       } catch (err) {
         console.error('end_quiz error:', err);
       }
@@ -256,23 +243,13 @@ const initializeSocket = (io) => {
           activeQuizzes[quizId].leaderboardReleased = true;
         }
 
-        // Notify admins
+        // Notify admins with compiled standings
+        const leaderboard = await getLiveLeaderboard(quizId);
         io.to(`admin_${quizId}`).emit('leaderboard_status', { released: true });
+        io.to(`admin_${quizId}`).emit('lobby_participants_update', leaderboard);
 
         // Compile and release the leaderboard standings to all participant sockets
-        const leaderboard = await getLiveLeaderboard(quizId);
         io.to(`quiz_${quizId}`).emit('quiz_ended', { leaderboard });
-
-        // Auto Sync Certificates and Event data on release as well
-        if (process.env.AUTO_ISSUE_CERTIFICATES !== 'false') {
-          syncQuizCertificates(quizId)
-            .then((res) => {
-              io.to(`admin_${quizId}`).emit('verification_sync_status', res);
-            })
-            .catch((err) => {
-              console.error('Socket release auto-sync certificate error:', err);
-            });
-        }
       } catch (err) {
         console.error('release_leaderboard error:', err);
       }
@@ -288,10 +265,7 @@ const initializeSocket = (io) => {
           io.to(`quiz_${quizId}`).emit('participant_kicked', { participantId });
 
           // Refresh participant list on Admin board and participant waiting rooms
-          const participants = await Participant.findAll({
-            where: { quiz_id: quizId },
-            order: [['createdAt', 'ASC']]
-          });
+          const participants = await getLiveLeaderboard(quizId);
           io.to(`admin_${quizId}`).emit('lobby_participants_update', participants);
           io.to(`quiz_${quizId}`).emit('lobby_participants_update', participants);
           io.to(`quiz_${quizId}`).emit('participant_count_update', { count: participants.length });
@@ -371,10 +345,7 @@ const initializeSocket = (io) => {
         });
 
         // Broadcast updated participants list to admins AND to all room participants
-        const participants = await Participant.findAll({
-          where: { quiz_id: quiz.id },
-          order: [['createdAt', 'ASC']]
-        });
+        const participants = await getLiveLeaderboard(quiz.id);
         io.to(`admin_${quiz.id}`).emit('lobby_participants_update', participants);
         io.to(`quiz_${quiz.id}`).emit('lobby_participants_update', participants);
         io.to(`quiz_${quiz.id}`).emit('participant_count_update', { count: participants.length });
@@ -397,13 +368,30 @@ const initializeSocket = (io) => {
 
         if (quiz.status === 'completed') {
           const leaderboard = await getLiveLeaderboard(quiz.id);
+          const isReleased = activeQuizzes[quiz.id]?.leaderboardReleased === true;
           const playerStats = leaderboard.find((p) => p.id === participant.id);
+
+          if (!isReleased) {
+            // Leaderboard has not been released by host yet — keep participant in waiting state
+            socket.emit('rejoin_success', {
+              participantId: participant.id,
+              quizId: quiz.id,
+              quizStatus: 'completed',
+              isCompleted: false,
+              waitingForLeaderboard: true,
+              title: quiz.title,
+              eventName: quiz.event_name,
+              message: 'The host has ended the quiz. Please wait for the leaderboard to be released.'
+            });
+            return;
+          }
 
           socket.emit('rejoin_success', {
             participantId: participant.id,
             quizId: quiz.id,
             quizStatus: 'completed',
             isCompleted: true,
+            waitingForLeaderboard: false,
             message: 'This quiz session has already ended.',
             title: quiz.title,
             eventName: quiz.event_name,
@@ -435,10 +423,7 @@ const initializeSocket = (io) => {
         socket.join(`quiz_${quiz.id}`);
 
         // Broadcast updated participants list to admins AND room
-        const participants = await Participant.findAll({
-          where: { quiz_id: quiz.id },
-          order: [['createdAt', 'ASC']]
-        });
+        const participants = await getLiveLeaderboard(quiz.id);
         io.to(`admin_${quiz.id}`).emit('lobby_participants_update', participants);
         io.to(`quiz_${quiz.id}`).emit('lobby_participants_update', participants);
         io.to(`quiz_${quiz.id}`).emit('participant_count_update', { count: participants.length });
@@ -691,11 +676,8 @@ const initializeSocket = (io) => {
             await participant.update({ connection_status: 'disconnected' });
           }
 
-          // Update admins of connection status change
-          const participants = await Participant.findAll({
-            where: { quiz_id: quizId },
-            order: [['createdAt', 'ASC']]
-          });
+          // Update admins of connection status change with full score data
+          const participants = await getLiveLeaderboard(quizId);
           io.to(`admin_${quizId}`).emit('lobby_participants_update', participants);
         }
       } catch (err) {
