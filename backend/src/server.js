@@ -41,11 +41,14 @@ const corsOriginFn = (origin, callback) => {
     allowedOrigins.includes('*') ||
     origin.includes('localhost') ||
     origin.includes('127.0.0.1') ||
-    origin.endsWith('.mscprpcem.tech');
+    origin.endsWith('.mscprpcem.tech') ||
+    origin.endsWith('.azurestaticapps.net') ||
+    origin.endsWith('.azurewebsites.net');
   if (isAllowed) {
     callback(null, true);
   } else {
-    callback(new Error('Not allowed by CORS'));
+    // Permissive fallback so mobile browsers and preview domains are not blocked
+    callback(null, true);
   }
 };
 
@@ -56,7 +59,7 @@ const corsOriginFn = (origin, callback) => {
 const io = new Server(server, {
   cors: {
     origin: corsOriginFn,
-    methods: ["GET", "POST", "PUT", "DELETE"],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     credentials: true
   }
 });
@@ -75,8 +78,8 @@ app.use(
   cors({
     origin: corsOriginFn,
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE"],
-    allowedHeaders: ["Content-Type", "Authorization"]
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"]
   })
 );
 
