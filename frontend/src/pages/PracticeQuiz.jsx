@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Trophy, HelpCircle, Clock, ShieldAlert, Award, ChevronLeft, ChevronRight, RotateCcw, Home, Flag, CheckCircle, AlertCircle, BookOpen, Layers } from 'lucide-react';
 
@@ -162,10 +162,130 @@ const PRACTICE_QUESTIONS = {
       correct_answer: 'B',
       explanation: 'Elasticity is the cloud\'s ability to automatically scale resources in or out in response to real-time workload fluctuations. Scalability refers to capacity growth; elasticity is the dynamic automation of it.'
     }
+  ],
+  dbms: [
+    {
+      id: 'db1',
+      question: 'Which SQL command is used to retrieve data from a relational database table?',
+      option_a: 'UPDATE',
+      option_b: 'SELECT',
+      option_c: 'INSERT',
+      option_d: 'DELETE',
+      correct_answer: 'B',
+      marks: 100,
+      explanation: 'The SELECT statement is used in SQL to query data from database tables.'
+    },
+    {
+      id: 'db2',
+      question: 'In database normalisation, which Normal Form eliminates partial functional dependencies on a composite primary key?',
+      option_a: '1NF (First Normal Form)',
+      option_b: '2NF (Second Normal Form)',
+      option_c: '3NF (Third Normal Form)',
+      option_d: 'BCNF (Boyce-Codd Normal Form)',
+      correct_answer: 'B',
+      marks: 100,
+      explanation: 'Second Normal Form (2NF) requires 1NF and additionally demands that all non-key attributes are fully functionally dependent on the entire primary key.'
+    },
+    {
+      id: 'db3',
+      question: 'Which ACID property guarantees that once a transaction completes successfully, its changes are permanently stored in non-volatile memory?',
+      option_a: 'Atomicity',
+      option_b: 'Consistency',
+      option_c: 'Isolation',
+      option_d: 'Durability',
+      correct_answer: 'D',
+      marks: 100,
+      explanation: 'Durability guarantees that committed transactions persist permanently even in case of system failure or power loss.'
+    },
+    {
+      id: 'db4',
+      question: 'Which type of SQL JOIN returns all records from the left table and matching records from the right table?',
+      option_a: 'INNER JOIN',
+      option_b: 'LEFT (OUTER) JOIN',
+      option_c: 'RIGHT (OUTER) JOIN',
+      option_d: 'FULL (OUTER) JOIN',
+      correct_answer: 'B',
+      marks: 100,
+      explanation: 'A LEFT JOIN returns all rows from the left table, with NULLs for unmatched rows from the right table.'
+    },
+    {
+      id: 'db5',
+      question: 'What is the primary data structure commonly used by relational database systems for table indexing?',
+      option_a: 'Binary Search Tree',
+      option_b: 'B-Tree / B+ Tree',
+      option_c: 'Linked List',
+      option_d: 'Min-Heap',
+      correct_answer: 'B',
+      marks: 100,
+      explanation: 'B-Trees and B+ Trees keep data sorted and allow search, sequential access, insertions, and deletions in logarithmic O(log N) time.'
+    },
+    {
+      id: 'db6',
+      question: 'Which relational algebra operation selects rows that satisfy a specified condition (predicate)?',
+      option_a: 'Projection (π)',
+      option_b: 'Selection (σ)',
+      option_c: 'Cartesian Product (×)',
+      option_d: 'Union (∪)',
+      correct_answer: 'B',
+      marks: 100,
+      explanation: 'Selection (denoted by sigma σ) filters rows/tuples meeting a predicate condition, whereas Projection (pi π) filters columns.'
+    },
+    {
+      id: 'db7',
+      question: 'What type of dependency occurs when attribute A determines attribute B, and B determines attribute C (A -> B and B -> C)?',
+      option_a: 'Partial Dependency',
+      option_b: 'Transitive Dependency',
+      option_c: 'Trivial Dependency',
+      option_d: 'Multivalued Dependency',
+      correct_answer: 'B',
+      marks: 100,
+      explanation: 'A transitive dependency exists when a non-prime attribute depends on another non-prime attribute. 3NF eliminates transitive dependencies.'
+    },
+    {
+      id: 'db8',
+      question: 'Which concurrency control protocol ensures serializability by dividing locking into a Growing phase and a Shrinking phase?',
+      option_a: 'Time-stamp Ordering Protocol',
+      option_b: 'Two-Phase Locking (2PL) Protocol',
+      option_c: 'Graph-based Locking',
+      option_d: 'Validation-based Protocol',
+      correct_answer: 'B',
+      marks: 100,
+      explanation: 'Two-Phase Locking (2PL) consists of a growing phase (acquiring locks) and a shrinking phase (releasing locks) to guarantee serializability.'
+    },
+    {
+      id: 'db9',
+      question: 'What constraint enforces referential integrity between two tables in a relational database?',
+      option_a: 'Primary Key',
+      option_b: 'Foreign Key',
+      option_c: 'Unique Key',
+      option_d: 'Check Constraint',
+      correct_answer: 'B',
+      marks: 100,
+      explanation: 'A Foreign Key links a field in one table to the Primary Key of another table, enforcing referential integrity.'
+    },
+    {
+      id: 'db10',
+      question: 'In SQL, which clause is used to filter group aggregations produced by a GROUP BY clause?',
+      option_a: 'WHERE',
+      option_b: 'HAVING',
+      option_c: 'ORDER BY',
+      option_d: 'LIMIT',
+      correct_answer: 'B',
+      marks: 100,
+      explanation: 'The HAVING clause filters rows after aggregate operations are performed by GROUP BY, whereas WHERE filters individual rows before grouping.'
+    }
   ]
 };
 
 const CATEGORY_META = {
+  dbms: {
+    title: 'Database Management Systems (DBMS)',
+    desc: 'Master SQL queries, Normalization (1NF to BCNF), ACID transaction properties, Indexing B-Trees, Relational Algebra, and Concurrency 2PL protocols.',
+    themeColor: 'from-amber-500 to-orange-500',
+    hoverBorder: 'hover:border-amber-400',
+    pillBg: 'bg-amber-50 text-amber-700',
+    iconColor: 'text-amber-600 bg-amber-50'
+  },
   frontend: {
     title: 'Frontend Mastery',
     desc: 'Test your understanding of JavaScript closures, React reconciliation algorithms, hooks lifecycle, and responsive CSS architectures.',

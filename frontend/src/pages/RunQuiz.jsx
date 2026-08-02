@@ -850,6 +850,37 @@ export default function RunQuiz() {
                     </span>
                   </button>
 
+                  {/* Live Timer Extensions (+10s, +30s) */}
+                  <button
+                    onClick={() => {
+                      if (socket && activeQuiz) {
+                        socket.emit('extend_timer', { quizId: activeQuiz.id, additionalSeconds: 10 });
+                        setTimerCount((prev) => prev + 10);
+                      }
+                    }}
+                    disabled={currentQuestionStatus !== 'released'}
+                    className="flex items-center justify-center space-x-1 bg-emerald-600 hover:bg-emerald-700 disabled:bg-zinc-100 disabled:text-zinc-400 text-white px-3.5 py-3 rounded-xl text-xs font-extrabold shadow-sm transition-all active:scale-[0.97] cursor-pointer"
+                    title="Add 10 extra seconds to active question timer"
+                  >
+                    <Clock size={13} />
+                    <span>+10s</span>
+                  </button>
+
+                  <button
+                    onClick={() => {
+                      if (socket && activeQuiz) {
+                        socket.emit('extend_timer', { quizId: activeQuiz.id, additionalSeconds: 30 });
+                        setTimerCount((prev) => prev + 30);
+                      }
+                    }}
+                    disabled={currentQuestionStatus !== 'released'}
+                    className="flex items-center justify-center space-x-1 bg-teal-600 hover:bg-teal-700 disabled:bg-zinc-100 disabled:text-zinc-400 text-white px-3.5 py-3 rounded-xl text-xs font-extrabold shadow-sm transition-all active:scale-[0.97] cursor-pointer"
+                    title="Add 30 extra seconds to active question timer"
+                  >
+                    <Clock size={13} />
+                    <span>+30s</span>
+                  </button>
+
                   {/* Lock Answers */}
                   <button
                     onClick={lockSubmissions}

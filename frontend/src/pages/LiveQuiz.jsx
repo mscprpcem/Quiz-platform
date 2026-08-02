@@ -192,6 +192,11 @@ export default function LiveQuiz() {
       }, 1000);
     });
 
+    // 1b. Timer extended by Admin live
+    socket.on('timer_extended', ({ additionalSeconds }) => {
+      setTimer((prev) => prev + (additionalSeconds || 10));
+    });
+
     // 2. Submissions closed (timer ended or host skipped)
     socket.on('question_ended', ({ correctAnswer, leaderboard, isFinalQuestion }) => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);

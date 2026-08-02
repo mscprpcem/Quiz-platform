@@ -140,13 +140,29 @@ export default function AdminLogin() {
             </button>
           </form>
 
-          {/* Credentials hint */}
-          <div className="border-t pt-5 text-center" style={{ borderColor: 'rgba(229,240,255,0.6)' }}>
-            <p className="text-xs text-brand-textMuted/80 leading-relaxed">
-              Default administrator credentials: <br />
-              <span className="font-semibold text-brand-textMain">admin@microsoftclub.edu</span> or <span className="font-semibold text-brand-textMain">admin@mscprpcem.tech</span>
-              <br />
-              Password: <span className="font-semibold text-brand-textMain">Admin@123</span>
+          {/* Credentials hint & Quick Fill */}
+          <div className="border-t pt-5 text-center space-y-3" style={{ borderColor: 'rgba(229,240,255,0.6)' }}>
+            <p className="text-xs text-brand-textMuted/80 leading-relaxed font-medium">
+              Default administrator credentials:
+            </p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              <button
+                type="button"
+                onClick={() => setFormData({ email: 'admin@microsoftclub.edu', password: 'Admin@123' })}
+                className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 rounded-lg text-xs font-bold transition-all cursor-pointer"
+              >
+                Fill: admin@microsoftclub.edu
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData({ email: 'admin@mscprpcem.tech', password: 'Admin@123' })}
+                className="px-3 py-1.5 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 rounded-lg text-xs font-bold transition-all cursor-pointer"
+              >
+                Fill: admin@mscprpcem.tech
+              </button>
+            </div>
+            <p className="text-[11px] text-zinc-500 font-semibold">
+              Password: <span className="text-brand-textMain">Admin@123</span>
             </p>
           </div>
         </div>

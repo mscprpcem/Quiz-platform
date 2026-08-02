@@ -225,6 +225,20 @@ const initializeSocket = (io) => {
       io.to(`quiz_${quizId}`).emit('quiz_resumed');
     });
 
+    // Admin extends active question timer live (+10s, +30s)
+    socket.on('extend_timer', ({ quizId, additionalSeconds }) => {
+      try {
+        const added = parseInt(additionalSeconds) || 10;
+        if (activeQuizzes[quizId] && activeQuizzes[quizId].timerValue) {
+          activeQuizzes[quizId].timerValue += added;
+        }
+        io.to(`quiz_${quizId}`).emit('timer_extended', { additionalSeconds: added });
+        io.to(`admin_${quizId}`).emit('timer_extended', { additionalSeconds: added });
+      } catch (err) {
+        console.error('extend_timer error:', err);
+      }
+    });
+
     // Admin ends the entire quiz (but does not release leaderboard yet)
     socket.on('end_quiz', async ({ quizId }) => {
       try {

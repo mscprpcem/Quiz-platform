@@ -36,7 +36,15 @@ const Quiz = sequelize.define('Quiz', {
     type: DataTypes.ENUM('closed', 'released', 'timer_ended'),
     defaultValue: 'closed'
   },
+  subject: {
+    type: DataTypes.STRING,
+    defaultValue: 'DBMS'
+  },
   scheduled_start: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  scheduled_end: {
     type: DataTypes.DATE,
     allowNull: true
   },

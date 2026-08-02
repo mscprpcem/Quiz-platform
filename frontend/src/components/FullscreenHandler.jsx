@@ -67,6 +67,38 @@ export default function FullscreenHandler({ quizStarted, participantId, quizId, 
       }
     };
 
+    const handleContextMenu = (e) => {
+      if (quizStarted && !disqualified) {
+        e.preventDefault();
+        if (socket) socket.emit('report_violation', { violationType: 'context_menu' });
+      }
+    };
+
+    const handleCopyCutPaste = (e) => {
+      if (quizStarted && !disqualified) {
+        e.preventDefault();
+        alert('⚠️ Copying, cutting, or pasting is strictly prohibited during the quiz.');
+        if (socket) socket.emit('report_violation', { violationType: 'copy_paste' });
+      }
+    };
+
+    const handleKeyDown = (e) => {
+      if (quizStarted && !disqualified) {
+        // Block Ctrl+C, Ctrl+V, Ctrl+X, Ctrl+A, Ctrl+U, F12
+        if (
+          (e.ctrlKey || e.metaKey) &&
+          ['c', 'v', 'x', 'a', 'u', 'i'].includes(e.key.toLowerCase())
+        ) {
+          e.preventDefault();
+          if (socket) socket.emit('report_violation', { violationType: 'keyboard_shortcut' });
+        }
+        if (e.key === 'F12') {
+          e.preventDefault();
+          if (socket) socket.emit('report_violation', { violationType: 'devtools_opened' });
+        }
+      }
+    };
+
     // Add event listeners when quiz is active
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
@@ -74,6 +106,16 @@ export default function FullscreenHandler({ quizStarted, participantId, quizId, 
     document.addEventListener('MSFullscreenChange', handleFullscreenChange);
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('blur', handleWindowBlur);
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('copy', handleCopyCutPaste);
+    document.addEventListener('cut', handleCopyCutPaste);
+    document.addEventListener('paste', handleCopyCutPaste);
+    window.addEventListener('keydown', handleKeyDown);
+
+    if (quizStarted && !disqualified) {
+      document.body.style.userSelect = 'none';
+      document.body.style.webkitUserSelect = 'none';
+    }
 
     // Initial check
     checkFullscreen();
@@ -85,6 +127,14 @@ export default function FullscreenHandler({ quizStarted, participantId, quizId, 
       document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('blur', handleWindowBlur);
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('copy', handleCopyCutPaste);
+      document.removeEventListener('cut', handleCopyCutPaste);
+      document.removeEventListener('paste', handleCopyCutPaste);
+      window.removeEventListener('keydown', handleKeyDown);
+
+      document.body.style.userSelect = '';
+      document.body.style.webkitUserSelect = '';
     };
   }, [quizStarted, disqualified, socket]);
 

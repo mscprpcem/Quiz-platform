@@ -60,10 +60,12 @@ router.get('/public', async (req, res) => {
           id: quiz.id,
           title: quiz.title,
           event_name: quiz.event_name,
+          subject: quiz.subject || 'DBMS',
           description: quiz.description,
           join_code: quiz.join_code,
           status: quiz.status,
           scheduled_start: quiz.scheduled_start,
+          scheduled_end: quiz.scheduled_end,
           createdAt: quiz.createdAt,
           questionCount,
           participantCount
@@ -75,6 +77,100 @@ router.get('/public', async (req, res) => {
   } catch (error) {
     console.error('Fetch public quizzes error:', error);
     return res.status(500).json({ error: 'Server error fetching public quizzes' });
+  }
+});
+
+// Create 1-click Instant DBMS Preset Quiz (Admin)
+router.post('/preset/dbms', authMiddleware, async (req, res) => {
+  try {
+    const { title, event_name, scheduled_start, scheduled_end } = req.body;
+
+    const join_code = await generateJoinCode();
+
+    // Default 1-day schedule if not provided
+    const now = new Date();
+    const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+    const quiz = await Quiz.create({
+      title: title || 'Database Management Systems (DBMS) Challenge',
+      event_name: event_name || 'MSC DBMS Special Quiz',
+      subject: 'DBMS',
+      description: 'Comprehensive quiz covering SQL, Normalization, ACID transactions, Indexing, and Relational Algebra.',
+      join_code,
+      status: 'draft',
+      scheduled_start: scheduled_start || now,
+      scheduled_end: scheduled_end || endOfDay
+    });
+
+    const defaultQuestions = [
+      {
+        quiz_id: quiz.id,
+        question: 'Which SQL command is used to retrieve data from a relational database table?',
+        option_a: 'UPDATE',
+        option_b: 'SELECT',
+        option_c: 'INSERT',
+        option_d: 'DELETE',
+        correct_answer: 'B',
+        timer: 30,
+        marks: 500,
+        order_index: 1
+      },
+      {
+        quiz_id: quiz.id,
+        question: 'In database normalization, which Normal Form eliminates partial dependencies on a composite primary key?',
+        option_a: '1NF (First Normal Form)',
+        option_b: '2NF (Second Normal Form)',
+        option_c: '3NF (Third Normal Form)',
+        option_d: 'BCNF (Boyce-Codd Normal Form)',
+        correct_answer: 'B',
+        timer: 30,
+        marks: 500,
+        order_index: 2
+      },
+      {
+        quiz_id: quiz.id,
+        question: 'Which ACID property guarantees that once a transaction completes successfully, changes are permanently saved?',
+        option_a: 'Atomicity',
+        option_b: 'Consistency',
+        option_c: 'Isolation',
+        option_d: 'Durability',
+        correct_answer: 'D',
+        timer: 30,
+        marks: 500,
+        order_index: 3
+      },
+      {
+        quiz_id: quiz.id,
+        question: 'Which type of SQL JOIN returns all records from the left table and matching records from the right table?',
+        option_a: 'INNER JOIN',
+        option_b: 'LEFT (OUTER) JOIN',
+        option_c: 'RIGHT (OUTER) JOIN',
+        option_d: 'FULL (OUTER) JOIN',
+        correct_answer: 'B',
+        timer: 30,
+        marks: 500,
+        order_index: 4
+      },
+      {
+        quiz_id: quiz.id,
+        question: 'What is the primary data structure commonly used by relational databases for table indexing?',
+        option_a: 'Binary Search Tree',
+        option_b: 'B-Tree / B+ Tree',
+        option_c: 'Linked List',
+        option_d: 'Min-Heap',
+        correct_answer: 'B',
+        timer: 30,
+        marks: 500,
+        order_index: 5
+      }
+    ];
+
+    await Question.bulkCreate(defaultQuestions);
+
+    return res.status(201).json({ message: 'Instant DBMS quiz created successfully!', quiz });
+  } catch (error) {
+    console.error('Create DBMS preset quiz error:', error);
+    return res.status(500).json({ error: 'Server error creating DBMS preset quiz' });
   }
 });
 
@@ -132,7 +228,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // Create new quiz
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { title, event_name, description, scheduled_start } = req.body;
+    const { title, event_name, subject, description, scheduled_start, scheduled_end } = req.body;
 
     if (!title || !event_name) {
       return res.status(400).json({ error: 'Title and event name are required' });
@@ -143,10 +239,12 @@ router.post('/', authMiddleware, async (req, res) => {
     const quiz = await Quiz.create({
       title,
       event_name,
+      subject: subject || 'DBMS',
       description,
       join_code,
       status: 'draft',
-      scheduled_start: scheduled_start || null
+      scheduled_start: scheduled_start || null,
+      scheduled_end: scheduled_end || null
     });
 
     return res.status(201).json(quiz);
@@ -159,7 +257,7 @@ router.post('/', authMiddleware, async (req, res) => {
 // Update quiz details
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
-    const { title, event_name, description, scheduled_start } = req.body;
+    const { title, event_name, subject, description, scheduled_start, scheduled_end } = req.body;
     const quiz = await Quiz.findByPk(req.params.id);
 
     if (!quiz) {
@@ -169,8 +267,10 @@ router.put('/:id', authMiddleware, async (req, res) => {
     await quiz.update({
       title: title || quiz.title,
       event_name: event_name || quiz.event_name,
+      subject: subject || quiz.subject,
       description: description !== undefined ? description : quiz.description,
-      scheduled_start: scheduled_start !== undefined ? (scheduled_start || null) : quiz.scheduled_start
+      scheduled_start: scheduled_start !== undefined ? (scheduled_start || null) : quiz.scheduled_start,
+      scheduled_end: scheduled_end !== undefined ? (scheduled_end || null) : quiz.scheduled_end
     });
 
     return res.json(quiz);

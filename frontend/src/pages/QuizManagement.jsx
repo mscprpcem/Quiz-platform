@@ -78,8 +78,25 @@ export default function QuizManagement() {
   const [deleteTargetQuiz, setDeleteTargetQuiz] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const SUBJECT_OPTIONS = [
+    'DBMS',
+    'Data Structures & Algorithms',
+    'Frontend Development',
+    'Cloud Computing',
+    'Operating Systems',
+    'Computer Networks',
+    'General CS'
+  ];
+
   // Form States
-  const [quizForm, setQuizForm] = useState({ title: '', event_name: '', description: '', scheduled_start: '' });
+  const [quizForm, setQuizForm] = useState({
+    title: '',
+    event_name: '',
+    subject: 'DBMS',
+    description: '',
+    scheduled_start: '',
+    scheduled_end: ''
+  });
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadErrors, setUploadErrors] = useState([]);
   const [uploadSuccess, setUploadSuccess] = useState('');
@@ -113,13 +130,9 @@ export default function QuizManagement() {
   const handlePublishQuiz = async (quizId) => {
     try {
       await api.put(`/api/quizzes/${quizId}/publish`);
-      setNotification({ type: 'success', message: 'Quiz published successfully! QR Code and public listing are now live everywhere.' });
       loadQuizzes();
     } catch (err) {
-      setNotification({
-        type: 'error',
-        message: err.response?.data?.error || 'Failed to publish quiz'
-      });
+      console.error(err);
     }
   };
 
@@ -128,19 +141,56 @@ export default function QuizManagement() {
     loadBranding();
   }, []);
 
+  const formatDateForInput = (dateVal) => {
+    if (!dateVal) return '';
+    const d = new Date(dateVal);
+    if (isNaN(d.getTime())) return '';
+    const pad = (n) => n.toString().padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  };
+
+  const handleSetOneDaySchedule = () => {
+    const now = new Date();
+    const pad = (n) => n.toString().padStart(2, '0');
+    const startStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const endStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T23:59`;
+    setQuizForm((p) => ({ ...p, scheduled_start: startStr, scheduled_end: endStr }));
+  };
+
+  const handleCreateInstantDBMS = async () => {
+    try {
+      setSaving(true);
+      await api.post('/api/quizzes/preset/dbms', {});
+      loadQuizzes();
+    } catch (err) {
+      console.error(err);
+      alert('Error creating Instant DBMS Quiz.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleOpenCreate = (quiz = null) => {
     if (quiz) {
       setSelectedQuiz(quiz);
-      let formattedDate = '';
-      if (quiz.scheduled_start) {
-        const d = new Date(quiz.scheduled_start);
-        const pad = (n) => n.toString().padStart(2, '0');
-        formattedDate = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-      }
-      setQuizForm({ title: quiz.title, event_name: quiz.event_name, description: quiz.description || '', scheduled_start: formattedDate });
+      setQuizForm({
+        title: quiz.title,
+        event_name: quiz.event_name,
+        subject: quiz.subject || 'DBMS',
+        description: quiz.description || '',
+        scheduled_start: formatDateForInput(quiz.scheduled_start),
+        scheduled_end: formatDateForInput(quiz.scheduled_end)
+      });
     } else {
       setSelectedQuiz(null);
-      setQuizForm({ title: '', event_name: '', description: '', scheduled_start: '' });
+      setQuizForm({
+        title: '',
+        event_name: '',
+        subject: 'DBMS',
+        description: '',
+        scheduled_start: '',
+        scheduled_end: ''
+      });
     }
     setFormError('');
     setShowCreateModal(true);
@@ -464,21 +514,31 @@ export default function QuizManagement() {
   return (
     <div className="min-h-screen bg-slate-50 text-zinc-800 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 animate-fade-in space-y-6">
-      
-      {/* Page Header */}
+        {/* Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-brand-border p-5 sm:p-6 rounded-2xl shadow-sm gap-4 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-brand-blue via-brand-cyan to-brand-purple"></div>
         <div>
           <h1 className="text-xl sm:text-2xl font-black text-brand-textMain tracking-tight">Quiz Catalog</h1>
-          <p className="text-xs sm:text-sm text-brand-textMuted mt-1">Configure draft sheets, launch sessions, or read telemetry analytical logs.</p>
+          <p className="text-xs sm:text-sm text-brand-textMuted mt-1">Configure draft sheets, launch sessions, or set subject schedules.</p>
         </div>
-        <button
-          onClick={() => handleOpenCreate()}
-          className="flex items-center justify-center gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.97] cursor-pointer flex-shrink-0"
-        >
-          <Plus size={16} />
-          Create Quiz
-        </button>
+        <div className="flex flex-wrap gap-2.5 items-center">
+          <button
+            onClick={handleCreateInstantDBMS}
+            className="flex items-center justify-center gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-4 py-2.5 rounded-xl text-xs font-extrabold shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.97] cursor-pointer"
+            title="Create a pre-configured DBMS Subject Quiz with 5 questions in 1 click"
+          >
+            <Sparkles size={15} />
+            <span>Instant DBMS Quiz</span>
+          </button>
+
+          <button
+            onClick={() => handleOpenCreate()}
+            className="flex items-center justify-center gap-1.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white px-5 py-2.5 rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.97] cursor-pointer flex-shrink-0"
+          >
+            <Plus size={16} />
+            Create Quiz
+          </button>
+        </div>
       </div>
 
       {/* Quiz Grid */}
@@ -507,6 +567,9 @@ export default function QuizManagement() {
                     <div className="flex justify-between items-start gap-2 pt-1">
                       <span className="text-[9px] font-extrabold text-zinc-550 uppercase tracking-widest bg-zinc-100 px-2.5 py-0.5 rounded-full truncate max-w-[120px]">{quiz.event_name}</span>
                       <div className="flex gap-1.5 items-center">
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200">
+                          {quiz.subject || 'DBMS'}
+                        </span>
                         <StatusBadge status={quiz.status} />
                       </div>
                     </div>
@@ -518,9 +581,17 @@ export default function QuizManagement() {
 
                   <div className="space-y-2">
                     {/* Date & Schedule */}
-                    <div className="flex items-center gap-1.5 text-[11px] text-brand-textMuted">
-                      <Calendar size={12} className="flex-shrink-0 text-brand-blue" />
-                      <span className="truncate">{quiz.scheduled_start ? new Date(quiz.scheduled_start).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Asynchronous Play'}</span>
+                    <div className="space-y-1 text-[11px] text-brand-textMuted bg-slate-50/80 p-2 rounded-xl border border-slate-100">
+                      <div className="flex items-center gap-1.5">
+                        <Calendar size={12} className="flex-shrink-0 text-brand-blue" />
+                        <span className="truncate"><strong>Start:</strong> {quiz.scheduled_start ? new Date(quiz.scheduled_start).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Flexible'}</span>
+                      </div>
+                      {quiz.scheduled_end && (
+                        <div className="flex items-center gap-1.5 text-slate-500">
+                          <Clock size={12} className="flex-shrink-0 text-emerald-600" />
+                          <span className="truncate"><strong>End:</strong> {new Date(quiz.scheduled_end).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Counts section inline */}
@@ -592,7 +663,7 @@ export default function QuizManagement() {
       )}
       </div>
 
-      {/* â”€â”€ CREATE / EDIT QUIZ MODAL â”€â”€ */}
+      {/* ── CREATE / EDIT QUIZ MODAL ── */}
       {showCreateModal && (
         <Modal onClose={() => setShowCreateModal(false)}>
           <div className="max-w-lg mx-auto bg-white rounded-2xl shadow-2xl border border-zinc-150 overflow-hidden text-zinc-750">
@@ -640,9 +711,27 @@ export default function QuizManagement() {
                     required
                     value={quizForm.title}
                     onChange={(e) => setQuizForm((p) => ({ ...p, title: e.target.value }))}
-                    placeholder="e.g. Cloud Infrastructure Trivia"
+                    placeholder="e.g. DBMS Normalization & SQL Challenge"
                     className="w-full px-4 py-2.5 border border-brand-border rounded-xl bg-brand-bgLight/50 text-brand-textMain placeholder-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all text-sm"
                   />
+                </div>
+
+                {/* Subject Selection */}
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-bold text-zinc-550 uppercase tracking-widest">
+                    Subject Module <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={quizForm.subject}
+                    onChange={(e) => setQuizForm((p) => ({ ...p, subject: e.target.value }))}
+                    className="w-full px-4 py-2.5 border border-brand-border rounded-xl bg-white text-brand-textMain focus:outline-none focus:ring-2 focus:ring-brand-blue transition-all text-sm font-semibold"
+                  >
+                    {SUBJECT_OPTIONS.map((sub) => (
+                      <option key={sub} value={sub}>
+                        {sub}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* Event Name */}
@@ -655,7 +744,7 @@ export default function QuizManagement() {
                     required
                     value={quizForm.event_name}
                     onChange={(e) => setQuizForm((p) => ({ ...p, event_name: e.target.value }))}
-                    placeholder="e.g. Azure Seminar 2026"
+                    placeholder="e.g. MSC DBMS Day 2026"
                     className="w-full px-4 py-2.5 border border-brand-border rounded-xl bg-brand-bgLight/50 text-brand-textMain placeholder-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all text-sm"
                   />
                 </div>
@@ -666,7 +755,7 @@ export default function QuizManagement() {
                     Description <span className="text-brand-textMuted font-normal normal-case">(Optional)</span>
                   </label>
                   <textarea
-                    rows={3}
+                    rows={2}
                     value={quizForm.description}
                     onChange={(e) => setQuizForm((p) => ({ ...p, description: e.target.value }))}
                     placeholder="A short summary of what this quiz covers..."
@@ -674,19 +763,40 @@ export default function QuizManagement() {
                   />
                 </div>
 
-                {/* Scheduled Start */}
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-550 uppercase tracking-widest">
-                    Scheduled Start <span className="text-brand-textMuted font-normal normal-case">(Optional)</span>
-                  </label>
-                  <div className="relative">
-                    <Calendar size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-textMuted pointer-events-none" />
-                    <input
-                      type="datetime-local"
-                      value={quizForm.scheduled_start}
-                      onChange={(e) => setQuizForm((p) => ({ ...p, scheduled_start: e.target.value }))}
-                      className="w-full pl-10 pr-4 py-2.5 border border-brand-border rounded-xl bg-brand-bgLight/50 text-brand-textMain focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all text-sm"
-                    />
+                {/* Schedule Controls */}
+                <div className="space-y-3 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                  <div className="flex justify-between items-center">
+                    <label className="block text-xs font-extrabold text-slate-700 uppercase tracking-wider">
+                      Quiz Schedule / Time Window
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleSetOneDaySchedule}
+                      className="px-2.5 py-1 bg-brand-blue/10 text-brand-blue hover:bg-brand-blue hover:text-white rounded-lg text-[10px] font-extrabold transition-all cursor-pointer"
+                    >
+                      Preset: Set for 1 Day (Today)
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-semibold text-slate-600">Start Date & Time</label>
+                      <input
+                        type="datetime-local"
+                        value={quizForm.scheduled_start}
+                        onChange={(e) => setQuizForm((p) => ({ ...p, scheduled_start: e.target.value }))}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-brand-textMain text-xs focus:ring-2 focus:ring-brand-blue"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="block text-[11px] font-semibold text-slate-600">End Date & Time</label>
+                      <input
+                        type="datetime-local"
+                        value={quizForm.scheduled_end}
+                        onChange={(e) => setQuizForm((p) => ({ ...p, scheduled_end: e.target.value }))}
+                        className="w-full px-3 py-2 border border-slate-200 rounded-lg bg-white text-brand-textMain text-xs focus:ring-2 focus:ring-brand-blue"
+                      />
+                    </div>
                   </div>
                 </div>
 
