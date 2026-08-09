@@ -54,14 +54,14 @@ export default function Home() {
           api.get('/api/analytics/public/leaderboard').catch(() => ({ data: { leaderboard: [], recentEvents: [] } }))
         ]);
 
-        if (Array.isArray(quizzesRes.data)) {
-          const activeOrScheduled = quizzesRes.data.filter((q) => q.status !== 'completed');
+        if (Array.isArray(quizzesRes?.data)) {
+          const activeOrScheduled = quizzesRes.data.filter((q) => q && q.status !== 'completed');
           setUpcomingQuizzes(activeOrScheduled);
         }
 
-        if (leaderboardRes.data) {
-          setLeaderboard(leaderboardRes.data.leaderboard || []);
-          setRecentEvents(leaderboardRes.data.recentEvents || []);
+        if (leaderboardRes?.data) {
+          setLeaderboard(Array.isArray(leaderboardRes.data.leaderboard) ? leaderboardRes.data.leaderboard : []);
+          setRecentEvents(Array.isArray(leaderboardRes.data.recentEvents) ? leaderboardRes.data.recentEvents : []);
         }
       } catch (err) {
         console.error('Fetch homepage data error:', err);
@@ -85,8 +85,6 @@ export default function Home() {
     }
     navigate(`/join/${joinCode.toUpperCase()}`);
   };
-
-
 
   const scrollSection = (id) => {
     const el = document.getElementById(id);
@@ -113,6 +111,11 @@ export default function Home() {
     { q: 'What if my internet disconnects?', a: 'Our WebSocket protocol allows you to resume and join back immediately from the current question.' },
     { q: 'How are winners decided?', a: 'Winners are determined by correct answers and speed response times.' }
   ];
+
+  const getInitials = (name) => {
+    if (!name || typeof name !== 'string') return 'U';
+    return name.slice(0, 2).toUpperCase();
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F5FAFF] relative overflow-hidden pb-12">
@@ -232,6 +235,7 @@ export default function Home() {
             </div>
           </div>
         </div>
+
         {/* ════════ 3. UPCOMING QUIZZES ════════ */}
         <div id="upcoming-quizzes" className="space-y-8 text-left">
           <div className="space-y-1">
@@ -241,29 +245,18 @@ export default function Home() {
           
           {upcomingQuizzes.length === 0 ? (
             <div className="bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-violet-50/30 border border-blue-200/50 rounded-2xl p-6 sm:p-8 shadow-[0_10px_25px_-5px_rgba(59,130,246,0.05)] flex flex-col md:flex-row justify-between items-center gap-6 relative overflow-hidden text-left group w-full">
-              {/* Left indicator accent */}
               <div className="absolute top-0 left-0 h-full w-[4px] bg-gradient-to-b from-blue-500 to-indigo-500 shadow-[0_0_8px_rgba(59,130,246,0.25)]"></div>
-              
-              {/* Subtle glow accent */}
               <div className="absolute -top-12 -right-12 w-32 h-32 bg-blue-400/5 rounded-full blur-2xl group-hover:bg-blue-400/10 transition-all duration-500"></div>
 
               <div className="flex flex-col sm:flex-row items-center gap-6 relative z-10 w-full md:w-auto">
-                {/* SVG Event illustration */}
                 <svg className="w-16 h-16 text-brand-blue/25 shrink-0" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  {/* Outer Orbit Path */}
                   <circle cx="100" cy="100" r="80" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeDasharray="6 6" className="animate-[spin_40s_linear_infinite]" />
-                  
-                  {/* Calendar Graphic Board */}
                   <rect x="70" y="65" width="60" height="65" rx="8" fill="white" stroke="#3B82F6" strokeWidth="3" className="shadow-sm" />
                   <rect x="70" y="65" width="60" height="18" rx="2" fill="#3B82F6" />
                   <circle cx="85" cy="74" r="2.5" fill="white" />
                   <circle cx="115" cy="74" r="2.5" fill="white" />
-                  
-                  {/* Grid Lines inside Calendar */}
                   <line x1="80" y1="95" x2="120" y2="95" stroke="#E2E8F0" strokeWidth="2.5" strokeLinecap="round" />
                   <line x1="80" y1="108" x2="120" y2="108" stroke="#E2E8F0" strokeWidth="2.5" strokeLinecap="round" />
-                  
-                  {/* Clock / Hourglass element floating beside */}
                   <g className="animate-[bounce_2.5s_ease-in-out_infinite]">
                     <circle cx="135" cy="85" r="14" fill="white" stroke="#8B5CF6" strokeWidth="2" />
                     <path d="M131 80H139L135 85L131 80Z" fill="#8B5CF6" />
@@ -303,15 +296,15 @@ export default function Home() {
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {upcomingQuizzes.map((q) => {
-                const dateObj = q.scheduled_start ? new Date(q.scheduled_start) : new Date(q.createdAt);
-                const day = dateObj.getDate();
-                const month = dateObj.toLocaleString('en-US', { month: 'short' }).toUpperCase();
-                const timeStr = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                if (!q) return null;
+                const dateObj = q.scheduled_start ? new Date(q.scheduled_start) : new Date(q.createdAt || Date.now());
+                const day = isNaN(dateObj.getTime()) ? '15' : dateObj.getDate();
+                const month = isNaN(dateObj.getTime()) ? 'AUG' : dateObj.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+                const timeStr = isNaN(dateObj.getTime()) ? '10:00 AM' : dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
                 return (
-                  <div key={q.id} className="bg-white border border-brand-border rounded-2xl shadow-soft hover:shadow-soft-lg hover:-translate-y-0.5 transition-all duration-300 flex flex-col xs:flex-row overflow-hidden group">
+                  <div key={q.id || Math.random()} className="bg-white border border-brand-border rounded-2xl shadow-soft hover:shadow-soft-lg hover:-translate-y-0.5 transition-all duration-300 flex flex-col xs:flex-row overflow-hidden group">
                     
-                    {/* Left Ticket Ribbon */}
                     <div className="w-full xs:w-20 sm:w-24 py-3 xs:py-0 bg-gradient-to-br from-blue-600 to-indigo-600 flex flex-row xs:flex-col justify-center items-center gap-2 xs:gap-0 text-white shrink-0 border-b xs:border-b-0 xs:border-r border-dashed border-zinc-200/30 relative">
                       <div className="hidden xs:block absolute -top-1.5 -right-1.5 w-3 h-3 bg-[#F5FAFF] rounded-full border border-brand-border/60"></div>
                       <div className="hidden xs:block absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-[#F5FAFF] rounded-full border border-brand-border/60"></div>
@@ -320,16 +313,15 @@ export default function Home() {
                       <span className="text-xl xs:text-2xl sm:text-3xl font-black xs:mt-1.5 leading-none">{day}</span>
                     </div>
 
-                    {/* Right Content details */}
                     <div className="flex-grow p-5 sm:p-6 text-left flex flex-col justify-between gap-4">
                       <div className="space-y-3">
                         <div className="flex justify-between items-center gap-2">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="text-[9px] font-bold text-brand-blue uppercase bg-brand-lightBlue px-2.5 py-1 rounded-full border border-brand-blue/5 truncate max-w-[130px] sm:max-w-none">
-                              {q.event_name}
+                              {q.event_name || 'MSC Event'}
                             </span>
                             <span className="text-[9px] font-black uppercase text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
-                              {q.subject || 'DBMS'}
+                              {q.subject || 'Technical'}
                             </span>
                           </div>
                           <span className="flex items-center gap-1 text-[9px] font-bold text-zinc-500 bg-zinc-100 px-2 py-1 rounded border border-zinc-200/50 uppercase whitespace-nowrap">
@@ -340,7 +332,7 @@ export default function Home() {
                         
                         <div className="space-y-1">
                           <h3 className="text-sm sm:text-base font-black text-brand-textMain leading-snug group-hover:text-brand-blue transition-colors duration-250">
-                            {q.title}
+                            {q.title || 'Live Quiz Challenge'}
                           </h3>
                           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-brand-textMuted pt-1 font-medium">
                             <span className="flex items-center gap-1"><BookOpen size={12} className="text-brand-blue" /> {q.questionCount || 0} Questions</span>
@@ -398,8 +390,6 @@ export default function Home() {
           </div>
         </div>
 
-
-
         {/* ════════ 5. PLATFORM FEATURES ════════ */}
         <div className="space-y-8 text-left">
           <div className="space-y-1">
@@ -425,7 +415,6 @@ export default function Home() {
                   className="feature-card-glow rounded-2xl p-5 flex flex-col justify-between h-full min-h-[170px] text-left group relative overflow-hidden opacity-0 animate-fade-in shadow-2xs"
                   style={{ animationDelay: `${(idx + 1) * 80}ms`, animationFillMode: 'forwards' }}
                 >
-                  {/* Floating pulse dot in top right */}
                   <div className="absolute top-4 right-4 flex h-2 w-2">
                     <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${c.dot}`}></span>
                     <span className={`relative inline-flex rounded-full h-2 w-2 ${c.dot}`}></span>
@@ -455,7 +444,6 @@ export default function Home() {
           </div>
 
           <div className="relative">
-            {/* Background connection line */}
             <div className="hidden md:block absolute top-[44px] left-10 right-10 h-[2px] bg-gradient-to-r from-blue-200 via-indigo-200 to-emerald-200 pointer-events-none z-0"></div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 relative z-10">
@@ -472,13 +460,11 @@ export default function Home() {
                     className="bg-white border border-brand-border rounded-2xl p-6 shadow-soft hover:shadow-soft-lg hover:-translate-y-1 hover:border-brand-blue/30 transition-all duration-300 flex flex-col justify-between relative overflow-hidden group opacity-0 animate-fade-in"
                     style={{ animationDelay: `${(idx + 1) * 120}ms`, animationFillMode: 'forwards' }}
                   >
-                    {/* Big background number watermark */}
                     <span className="text-7xl font-black text-zinc-100/50 absolute -bottom-2 -right-1 pointer-events-none select-none group-hover:text-brand-blue/5 group-hover:-translate-y-1 transition-all duration-300">
                       {step.num}
                     </span>
 
                     <div className="space-y-6 relative z-10">
-                      {/* Step Indicator Header */}
                       <div className="flex items-center justify-between">
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center border ${step.color} shadow-sm group-hover:scale-110 group-hover:rotate-6 transition-all duration-300`}>
                           <IconComponent size={20} className="stroke-[2.5]" />
@@ -488,7 +474,6 @@ export default function Home() {
                         </span>
                       </div>
 
-                      {/* Info */}
                       <div className="space-y-2">
                         <h4 className="text-xs sm:text-sm font-black text-brand-textMain uppercase tracking-wider">{step.title}</h4>
                         <p className="text-xs text-brand-textMuted leading-relaxed pr-2 font-medium">{step.desc}</p>
@@ -530,14 +515,14 @@ export default function Home() {
                     <span className="inline-flex items-center justify-center bg-slate-100 text-slate-700 font-extrabold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full border border-slate-200 shadow-sm mb-3">Overall #2</span>
                     <div className="flex flex-col items-center space-y-3.5">
                       <div className="medalist-avatar-silver">
-                        <div className="medalist-avatar-inner">{leaderboard[1].name.substring(0, 2).toUpperCase()}</div>
+                        <div className="medalist-avatar-inner">{getInitials(leaderboard[1].name)}</div>
                       </div>
                       <div className="space-y-0.5 text-center">
-                        <h4 className="font-extrabold text-zinc-800 text-xs sm:text-sm truncate max-w-[150px] xs:max-w-[200px] sm:max-w-none">{leaderboard[1].name}</h4>
+                        <h4 className="font-extrabold text-zinc-800 text-xs sm:text-sm truncate max-w-[150px] xs:max-w-[200px] sm:max-w-none">{leaderboard[1].name || 'Participant'}</h4>
                         <p className="text-[9px] font-semibold text-zinc-400">{leaderboard[1].college || 'MSC Member'}</p>
                       </div>
                     </div>
-                    <span className="score-capsule score-capsule-silver">{leaderboard[1].score} pts</span>
+                    <span className="score-capsule score-capsule-silver">{leaderboard[1].score || 0} pts</span>
                   </div>
                 )}
 
@@ -547,14 +532,14 @@ export default function Home() {
                     <span className="inline-flex items-center justify-center bg-amber-500 text-white font-extrabold text-[10px] uppercase tracking-wider px-3.5 py-1 rounded-full shadow-sm mb-3">👑 Overall #1</span>
                     <div className="flex flex-col items-center space-y-3.5">
                       <div className="medalist-avatar-gold">
-                        <div className="medalist-avatar-inner medalist-avatar-inner-gold">{leaderboard[0].name.substring(0, 2).toUpperCase()}</div>
+                        <div className="medalist-avatar-inner medalist-avatar-inner-gold">{getInitials(leaderboard[0].name)}</div>
                       </div>
                       <div className="space-y-0.5 text-center">
-                        <h4 className="font-extrabold text-zinc-800 text-xs sm:text-sm truncate max-w-[150px] xs:max-w-[200px] sm:max-w-none">{leaderboard[0].name}</h4>
+                        <h4 className="font-extrabold text-zinc-800 text-xs sm:text-sm truncate max-w-[150px] xs:max-w-[200px] sm:max-w-none">{leaderboard[0].name || 'Participant'}</h4>
                         <p className="text-[9px] font-semibold text-zinc-400">{leaderboard[0].college || 'MSC Member'}</p>
                       </div>
                     </div>
-                    <span className="score-capsule score-capsule-gold">{leaderboard[0].score} pts</span>
+                    <span className="score-capsule score-capsule-gold">{leaderboard[0].score || 0} pts</span>
                   </div>
                 )}
 
@@ -564,14 +549,14 @@ export default function Home() {
                     <span className="inline-flex items-center justify-center bg-orange-50 text-orange-850 font-extrabold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full border border-orange-200 shadow-sm mb-3">Overall #3</span>
                     <div className="flex flex-col items-center space-y-3.5">
                       <div className="medalist-avatar-bronze">
-                        <div className="medalist-avatar-inner medalist-avatar-inner-bronze">{leaderboard[2].name.substring(0, 2).toUpperCase()}</div>
+                        <div className="medalist-avatar-inner medalist-avatar-inner-bronze">{getInitials(leaderboard[2].name)}</div>
                       </div>
                       <div className="space-y-0.5 text-center">
-                        <h4 className="font-extrabold text-zinc-800 text-xs sm:text-sm truncate max-w-[150px] xs:max-w-[200px] sm:max-w-none">{leaderboard[2].name}</h4>
+                        <h4 className="font-extrabold text-zinc-800 text-xs sm:text-sm truncate max-w-[150px] xs:max-w-[200px] sm:max-w-none">{leaderboard[2].name || 'Participant'}</h4>
                         <p className="text-[9px] font-semibold text-zinc-400">{leaderboard[2].college || 'MSC Member'}</p>
                       </div>
                     </div>
-                    <span className="score-capsule score-capsule-bronze">{leaderboard[2].score} pts</span>
+                    <span className="score-capsule score-capsule-bronze">{leaderboard[2].score || 0} pts</span>
                   </div>
                 )}
 
@@ -583,23 +568,26 @@ export default function Home() {
                   <div className="space-y-4">
                     <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Runner Ups</h4>
                     <div className="space-y-3">
-                      {leaderboard.slice(3, 5).map((player, idx) => (
-                        <div key={idx} className="leaderboard-runnerup-row group">
-                          <div className="flex items-center gap-3">
-                            <span className="w-6 h-6 rounded-full bg-zinc-200 text-zinc-600 flex items-center justify-center font-black text-[10px] group-hover:bg-brand-blue group-hover:text-white transition-colors duration-200">
-                              {idx + 4}
-                            </span>
-                            <div className="w-8 h-8 rounded-full bg-brand-blue/10 text-brand-blue flex items-center justify-center font-black text-[10px] group-hover:scale-105 transition-transform duration-200">
-                              {player.name.substring(0, 2).toUpperCase()}
+                      {leaderboard.slice(3, 5).map((player, idx) => {
+                        if (!player) return null;
+                        return (
+                          <div key={idx} className="leaderboard-runnerup-row group">
+                            <div className="flex items-center gap-3">
+                              <span className="w-6 h-6 rounded-full bg-zinc-200 text-zinc-600 flex items-center justify-center font-black text-[10px] group-hover:bg-brand-blue group-hover:text-white transition-colors duration-200">
+                                {idx + 4}
+                              </span>
+                              <div className="w-8 h-8 rounded-full bg-brand-blue/10 text-brand-blue flex items-center justify-center font-black text-[10px] group-hover:scale-105 transition-transform duration-200">
+                                {getInitials(player.name)}
+                              </div>
+                              <div className="text-left">
+                                <p className="font-bold text-xs text-brand-textMain leading-tight">{player.name || 'Participant'}</p>
+                                <p className="text-[9px] text-brand-textMuted mt-0.5">{player.college || 'MSC Member'}</p>
+                              </div>
                             </div>
-                            <div className="text-left">
-                              <p className="font-bold text-xs text-brand-textMain leading-tight">{player.name}</p>
-                              <p className="text-[9px] text-brand-textMuted mt-0.5">{player.college || 'MSC Member'}</p>
-                            </div>
+                            <span className="font-black text-xs text-brand-blue bg-brand-lightBlue px-2.5 py-1 rounded-full border border-brand-blue/10">{player.score || 0} pts</span>
                           </div>
-                          <span className="font-black text-xs text-brand-blue bg-brand-lightBlue px-2.5 py-1 rounded-full border border-brand-blue/10">{player.score} pts</span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
@@ -629,14 +617,16 @@ export default function Home() {
           ) : (
             <div className="recent-events-grid">
               {recentEvents.map((event, idx) => {
-                const dateStr = new Date(event.date).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+                if (!event) return null;
+                const eventDate = event.date ? new Date(event.date) : new Date();
+                const dateStr = isNaN(eventDate.getTime()) ? 'Recently Completed' : eventDate.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
                 return (
                   <div key={idx} className="recent-event-card">
                     <div className="space-y-2">
                       <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">{dateStr}</span>
-                      <h4 className="text-sm font-bold text-brand-textMain">{event.title}</h4>
+                      <h4 className="text-sm font-bold text-brand-textMain">{event.title || 'Completed Event'}</h4>
                       <div className="flex gap-4 text-[11px] text-brand-textMuted mt-1">
-                        <span>👥 Participants: <span className="font-bold text-brand-textMain">{event.players}</span></span>
+                        <span>👥 Participants: <span className="font-bold text-brand-textMain">{event.players || 0}</span></span>
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-3 py-1 rounded-full uppercase tracking-wider flex-shrink-0">
@@ -649,8 +639,6 @@ export default function Home() {
             </div>
           )}
         </div>
-
-
 
         {/* ════════ 10. FAQ SECTION ════════ */}
         <div className="max-w-2xl mx-auto w-full text-left space-y-8">
@@ -684,8 +672,6 @@ export default function Home() {
             ))}
           </div>
         </div>
-
-
 
       </div>
     </div>

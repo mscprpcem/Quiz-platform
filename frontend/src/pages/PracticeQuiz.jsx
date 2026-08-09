@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Trophy, HelpCircle, Clock, ShieldAlert, Award, ChevronLeft, ChevronRight, RotateCcw, Home, Flag, CheckCircle, AlertCircle, BookOpen, Layers } from 'lucide-react';
+import { Trophy, HelpCircle, Clock, ShieldAlert, Award, ChevronLeft, ChevronRight, RotateCcw, Home, Flag, CheckCircle, AlertCircle, BookOpen, Layers, ShieldCheck, ExternalLink, ArrowRight, Check } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
-// Questions database
+// Built-in Questions database
 const PRACTICE_QUESTIONS = {
   frontend: [
     {
@@ -25,142 +26,19 @@ const PRACTICE_QUESTIONS = {
       option_d: 'To validate props types before execution.',
       correct_answer: 'C',
       explanation: 'Returning a function from useEffect schedules a clean-up. This function runs before the effect re-runs or when the component unmounts, preventing memory leaks (e.g. clearing setIntervals).'
-    },
-    {
-      id: 'f3',
-      question: 'Which CSS property is used in flexbox to align items along the cross axis?',
-      option_a: 'justify-content',
-      option_b: 'align-items',
-      option_c: 'flex-direction',
-      option_d: 'align-content',
-      correct_answer: 'B',
-      explanation: 'While justify-content aligns items along the main axis, align-items specifies the default alignment for items along the cross axis inside a flex container.'
-    },
-    {
-      id: 'f4',
-      question: 'What is a closure in JavaScript?',
-      option_a: 'A method used to seal objects and prevent modifications.',
-      option_b: 'The process of terminating a running function execution.',
-      option_c: 'A function bundled together with references to its surrounding state (lexical environment).',
-      option_d: 'An event listener that automatically garbage collects scope.',
-      correct_answer: 'C',
-      explanation: 'A closure gives an inner function access to the outer function\'s scope even after the outer function has returned. It is created every time a function is created in JS.'
-    },
-    {
-      id: 'f5',
-      question: 'Which hook should be used to memoize the result of a resource-intensive calculation?',
-      option_a: 'useEffect',
-      option_b: 'useCallback',
-      option_c: 'useMemo',
-      option_d: 'useRef',
-      correct_answer: 'C',
-      explanation: 'useMemo memoizes a computed value and only recomputes it when its dependency array values change. useCallback is similar but memoizes the function reference itself.'
     }
   ],
   dsa: [
     {
       id: 'd1',
-      question: 'What is the worst-case time complexity of searching in a Balanced Binary Search Tree (like an AVL or Red-Black Tree)?',
-      option_a: 'O(1)',
-      option_b: 'O(log N)',
-      option_c: 'O(N)',
-      option_d: 'O(N log N)',
-      correct_answer: 'B',
-      marks: 100,
-      explanation: 'A balanced BST guarantees that its height is kept at logarithmic scale relative to node count N. Therefore, lookup, insertion, and deletion operations take O(log N) time.'
-    },
-    {
-      id: 'd2',
-      question: 'Which data structure follows the Last-In-First-Out (LIFO) order of operations?',
-      option_a: 'Queue',
-      option_b: 'Stack',
-      option_c: 'Linked List',
-      option_d: 'Priority Queue',
-      correct_answer: 'B',
-      explanation: 'A stack is a linear collection where elements are added (push) and removed (pop) from the same end, respecting the LIFO (Last-In-First-Out) principle.'
-    },
-    {
-      id: 'd3',
-      question: 'What algorithm is best suited to find the shortest path from a single source node to all other nodes in a graph with non-negative edge weights?',
-      option_a: 'Kruskal\'s Algorithm',
-      option_b: 'Dijkstra\'s Algorithm',
-      option_c: 'Floyd-Warshall Algorithm',
-      option_d: 'Depth First Search (DFS)',
-      correct_answer: 'B',
-      explanation: 'Dijkstra\'s algorithm is a greedy search algorithm that finds shortest paths in O(E + V log V) time. Kruskal\'s is for Minimum Spanning Tree, and Floyd-Warshall is for all-pairs shortest path.'
-    },
-    {
-      id: 'd4',
-      question: 'What is the time complexity of building a heap from an unsorted array of size N?',
+      question: 'What is the worst-case time complexity of QuickSort?',
       option_a: 'O(N log N)',
-      option_b: 'O(N)',
-      option_c: 'O(log N)',
-      option_d: 'O(N^2)',
-      correct_answer: 'B',
-      explanation: 'Although inserting N elements into a heap one by one takes O(N log N), building a heap in-place using the Floyd bottom-up "heapify" method takes O(N) time complexity.'
-    },
-    {
-      id: 'd5',
-      question: 'Which traversal prints a Binary Search Tree in sorted ascending order?',
-      option_a: 'Pre-order Traversal',
-      option_b: 'Post-order Traversal',
-      option_c: 'In-order Traversal',
-      option_d: 'Level-order Traversal',
-      correct_answer: 'C',
-      explanation: 'In-order traversal visits the left subtree, the root, and then the right subtree. In a BST, this guarantees visiting values in ascending sorted sequence.'
-    }
-  ],
-  cloud: [
-    {
-      id: 'c1',
-      question: 'Which Azure service is best suited for hosting Docker containers serverless, without managing virtual machines?',
-      option_a: 'Azure Virtual Machines',
-      option_b: 'Azure Container Instances (ACI)',
-      option_c: 'Azure App Service Plan (Basic)',
-      option_d: 'Azure Disk Storage',
+      option_b: 'O(N^2)',
+      option_c: 'O(N)',
+      option_d: 'O(1)',
       correct_answer: 'B',
       marks: 100,
-      explanation: 'Azure Container Instances (ACI) allows you to launch containers serverless in seconds, paying only for the CPU/Memory resources consumed, without setting up orchestrators or VM layers.'
-    },
-    {
-      id: 'c2',
-      question: 'What represents the core DevOps principle of treating infrastructure configurations as standard software source code?',
-      option_a: 'Continuous Deployment (CD)',
-      option_b: 'Infrastructure as Code (IaC)',
-      option_c: 'Microservices Deployment',
-      option_d: 'Automated Unit Testing',
-      correct_answer: 'B',
-      explanation: 'Infrastructure as Code (IaC) is the practice of provisioning and managing infrastructure using definition files (such as Terraform, ARM templates, or Ansible) rather than manual configs.'
-    },
-    {
-      id: 'c3',
-      question: 'In cloud computing, what does SaaS stand for?',
-      option_a: 'Storage as a Service',
-      option_b: 'Software as a Service',
-      option_c: 'System as an Asset',
-      option_d: 'Security as a Solution',
-      correct_answer: 'B',
-      explanation: 'SaaS stands for Software as a Service. It delivers end-user software applications over the internet (like Office 365, Slack) hosted and fully managed by the cloud provider.'
-    },
-    {
-      id: 'c4',
-      question: 'Which Azure Service provides a private, isolated network environment for your cloud resources?',
-      option_a: 'Azure Traffic Manager',
-      option_b: 'Azure Virtual Network (VNet)',
-      option_c: 'Azure ExpressRoute',
-      option_d: 'Azure Bastion Host',
-      correct_answer: 'B',
-      explanation: 'Azure Virtual Network (VNet) is the fundamental building block for your private network in Azure, enabling secure communication between Azure resources, internet, and on-premises networks.'
-    },
-    {
-      id: 'c5',
-      question: 'What cloud characteristic describes the ability to automatically provision or de-provision resources dynamically based on demand spikes?',
-      option_a: 'High Availability',
-      option_b: 'Elasticity',
-      option_c: 'Fault Tolerance',
-      option_d: 'Predictive Analytics',
-      correct_answer: 'B',
-      explanation: 'Elasticity is the cloud\'s ability to automatically scale resources in or out in response to real-time workload fluctuations. Scalability refers to capacity growth; elasticity is the dynamic automation of it.'
+      explanation: 'QuickSort worst-case time complexity is O(N^2) when the pivot chosen is consistently the smallest or largest element (e.g., sorted array without random pivot selection).'
     }
   ],
   dbms: [
@@ -177,102 +55,27 @@ const PRACTICE_QUESTIONS = {
     },
     {
       id: 'db2',
-      question: 'In database normalisation, which Normal Form eliminates partial functional dependencies on a composite primary key?',
+      question: 'In database normalisation, which Normal Form eliminates partial functional dependencies?',
       option_a: '1NF (First Normal Form)',
       option_b: '2NF (Second Normal Form)',
       option_c: '3NF (Third Normal Form)',
-      option_d: 'BCNF (Boyce-Codd Normal Form)',
+      option_d: 'BCNF',
       correct_answer: 'B',
       marks: 100,
-      explanation: 'Second Normal Form (2NF) requires 1NF and additionally demands that all non-key attributes are fully functionally dependent on the entire primary key.'
-    },
+      explanation: '2NF requires 1NF and additionally demands that all non-key attributes depend fully on the primary key.'
+    }
+  ],
+  cloud: [
     {
-      id: 'db3',
-      question: 'Which ACID property guarantees that once a transaction completes successfully, its changes are permanently stored in non-volatile memory?',
-      option_a: 'Atomicity',
-      option_b: 'Consistency',
-      option_c: 'Isolation',
-      option_d: 'Durability',
-      correct_answer: 'D',
-      marks: 100,
-      explanation: 'Durability guarantees that committed transactions persist permanently even in case of system failure or power loss.'
-    },
-    {
-      id: 'db4',
-      question: 'Which type of SQL JOIN returns all records from the left table and matching records from the right table?',
-      option_a: 'INNER JOIN',
-      option_b: 'LEFT (OUTER) JOIN',
-      option_c: 'RIGHT (OUTER) JOIN',
-      option_d: 'FULL (OUTER) JOIN',
+      id: 'c1',
+      question: 'Which Azure service is best suited for hosting Docker containers serverless?',
+      option_a: 'Azure Virtual Machines',
+      option_b: 'Azure Container Instances (ACI)',
+      option_c: 'Azure Disk Storage',
+      option_d: 'Azure App Service Basic',
       correct_answer: 'B',
       marks: 100,
-      explanation: 'A LEFT JOIN returns all rows from the left table, with NULLs for unmatched rows from the right table.'
-    },
-    {
-      id: 'db5',
-      question: 'What is the primary data structure commonly used by relational database systems for table indexing?',
-      option_a: 'Binary Search Tree',
-      option_b: 'B-Tree / B+ Tree',
-      option_c: 'Linked List',
-      option_d: 'Min-Heap',
-      correct_answer: 'B',
-      marks: 100,
-      explanation: 'B-Trees and B+ Trees keep data sorted and allow search, sequential access, insertions, and deletions in logarithmic O(log N) time.'
-    },
-    {
-      id: 'db6',
-      question: 'Which relational algebra operation selects rows that satisfy a specified condition (predicate)?',
-      option_a: 'Projection (π)',
-      option_b: 'Selection (σ)',
-      option_c: 'Cartesian Product (×)',
-      option_d: 'Union (∪)',
-      correct_answer: 'B',
-      marks: 100,
-      explanation: 'Selection (denoted by sigma σ) filters rows/tuples meeting a predicate condition, whereas Projection (pi π) filters columns.'
-    },
-    {
-      id: 'db7',
-      question: 'What type of dependency occurs when attribute A determines attribute B, and B determines attribute C (A -> B and B -> C)?',
-      option_a: 'Partial Dependency',
-      option_b: 'Transitive Dependency',
-      option_c: 'Trivial Dependency',
-      option_d: 'Multivalued Dependency',
-      correct_answer: 'B',
-      marks: 100,
-      explanation: 'A transitive dependency exists when a non-prime attribute depends on another non-prime attribute. 3NF eliminates transitive dependencies.'
-    },
-    {
-      id: 'db8',
-      question: 'Which concurrency control protocol ensures serializability by dividing locking into a Growing phase and a Shrinking phase?',
-      option_a: 'Time-stamp Ordering Protocol',
-      option_b: 'Two-Phase Locking (2PL) Protocol',
-      option_c: 'Graph-based Locking',
-      option_d: 'Validation-based Protocol',
-      correct_answer: 'B',
-      marks: 100,
-      explanation: 'Two-Phase Locking (2PL) consists of a growing phase (acquiring locks) and a shrinking phase (releasing locks) to guarantee serializability.'
-    },
-    {
-      id: 'db9',
-      question: 'What constraint enforces referential integrity between two tables in a relational database?',
-      option_a: 'Primary Key',
-      option_b: 'Foreign Key',
-      option_c: 'Unique Key',
-      option_d: 'Check Constraint',
-      correct_answer: 'B',
-      marks: 100,
-      explanation: 'A Foreign Key links a field in one table to the Primary Key of another table, enforcing referential integrity.'
-    },
-    {
-      id: 'db10',
-      question: 'In SQL, which clause is used to filter group aggregations produced by a GROUP BY clause?',
-      option_a: 'WHERE',
-      option_b: 'HAVING',
-      option_c: 'ORDER BY',
-      option_d: 'LIMIT',
-      correct_answer: 'B',
-      marks: 100,
-      explanation: 'The HAVING clause filters rows after aggregate operations are performed by GROUP BY, whereas WHERE filters individual rows before grouping.'
+      explanation: 'ACI lets you run containers serverless in seconds without VM infrastructure management.'
     }
   ]
 };
@@ -315,20 +118,64 @@ const CATEGORY_META = {
 export default function PracticeQuiz() {
   const { category } = useParams();
   const navigate = useNavigate();
+  const { studentAccount, issueStudentCertificate } = useAuth();
 
   // Active state control
   const [inQuiz, setInQuiz] = useState(false);
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [answers, setAnswers] = useState({}); // { [questionIdx]: selectedOption }
-  const [flags, setFlags] = useState({}); // { [questionIdx]: isFlagged }
-  const [timer, setTimer] = useState(120); // 2 minutes
+  const [answers, setAnswers] = useState({});
+  const [flags, setFlags] = useState({});
+  const [timer, setTimer] = useState(120);
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [timeSpent, setTimeSpent] = useState(0);
+  const [issuedCert, setIssuedCert] = useState(null);
 
   const timerIntervalRef = useRef(null);
-  const questions = PRACTICE_QUESTIONS[category] || [];
-  const meta = CATEGORY_META[category];
+
+  // Dynamic Course and Questions Resolution from localStorage or Fallbacks
+  const allSavedCourses = (() => {
+    try {
+      const saved = localStorage.getItem('msc_admin_courses');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  })();
+
+  const allSavedQuestions = (() => {
+    try {
+      const saved = localStorage.getItem('msc_admin_questions');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  })();
+
+  const matchedCourse = allSavedCourses.find(c => c.slug === category);
+  
+  // Resolve Questions array safely
+  const customQuestionsForCategory = category ? allSavedQuestions.filter(q => q.courseSlug === category) : [];
+  const questions = customQuestionsForCategory.length > 0 
+    ? customQuestionsForCategory 
+    : (PRACTICE_QUESTIONS[category] || PRACTICE_QUESTIONS['dbms']);
+
+  // Resolve Meta safely (Guarantees meta is NEVER undefined!)
+  const meta = CATEGORY_META[category] || (matchedCourse ? {
+    title: matchedCourse.title,
+    desc: matchedCourse.desc,
+    themeColor: 'from-purple-500 to-indigo-500',
+    hoverBorder: 'hover:border-purple-400',
+    pillBg: 'bg-purple-50 text-purple-700',
+    iconColor: 'text-purple-600 bg-purple-50'
+  } : {
+    title: category ? (category.charAt(0).toUpperCase() + category.slice(1)) : 'Practice Course Track',
+    desc: 'Self-paced technical quiz and practice examination module.',
+    themeColor: 'from-blue-500 to-indigo-500',
+    hoverBorder: 'hover:border-blue-400',
+    pillBg: 'bg-blue-50 text-blue-700',
+    iconColor: 'text-blue-600 bg-blue-50'
+  });
 
   // Timer effect
   useEffect(() => {
@@ -358,6 +205,7 @@ export default function PracticeQuiz() {
     setTimeSpent(0);
     setCurrentIdx(0);
     setCompleted(false);
+    setIssuedCert(null);
     setInQuiz(true);
   };
 
@@ -375,11 +223,23 @@ export default function PracticeQuiz() {
     }));
   };
 
-  const handleSubmitTest = () => {
+  const handleSubmitTest = async () => {
     setCompleted(true);
     setInQuiz(false);
     setShowSubmitModal(false);
     clearInterval(timerIntervalRef.current);
+
+    const scoreData = getScoreStats();
+    if (scoreData.percentage >= 60) {
+      const cert = await issueStudentCertificate({
+        courseTitle: meta?.title || category,
+        score: scoreData.percentage,
+        passingScore: 60,
+        badgeTitle: `${meta?.title || category} Certified Master`,
+        email: studentAccount?.email || localStorage.getItem('msc_student_email') || 'student@prpcem.ac.in'
+      });
+      if (cert) setIssuedCert(cert);
+    }
   };
 
   // Score calculation
@@ -390,16 +250,16 @@ export default function PracticeQuiz() {
         correct++;
       }
     });
-    const total = questions.length;
-    const score = correct * 20; // 20 points per question
+    const total = questions.length || 1;
+    const score = correct * 20;
     const percentage = Math.round((correct / total) * 100);
     return { correct, wrong: total - correct, score, percentage, total };
   };
 
   const stats = completed ? getScoreStats() : null;
 
-  // Render Arena Selection Page if no category is in URL, or invalid category
-  if (!category || !PRACTICE_QUESTIONS[category]) {
+  // Render Arena Selection Page if no category is in URL
+  if (!category) {
     return (
       <div className="min-h-[calc(100vh-4rem)] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-lightBlue/20 via-zinc-50 to-white py-12 px-4 sm:px-6 lg:px-8">
         <div className="max-w-5xl mx-auto space-y-10 animate-fade-in">
@@ -412,7 +272,7 @@ export default function PracticeQuiz() {
               Practice Arena
             </h1>
             <p className="text-zinc-550 text-base max-w-lg mx-auto leading-relaxed">
-              Sharpen your tech skills. Select a category below to test your knowledge independently. No codes or host triggers required.
+              Sharpen your tech skills. Select a category below to test your knowledge independently.
             </p>
           </div>
 
@@ -431,7 +291,7 @@ export default function PracticeQuiz() {
                   
                   <div className="space-y-1.5">
                     <span className={`text-[9px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full ${value.pillBg}`}>
-                      5 Questions â€¢ 2 Mins
+                      5 Questions • 2 Mins
                     </span>
                     <h3 className="text-lg font-bold text-brand-textMain">{value.title}</h3>
                   </div>
@@ -452,43 +312,35 @@ export default function PracticeQuiz() {
             ))}
           </div>
 
-          <div className="border-t border-zinc-150 pt-8 flex items-center justify-center space-x-6">
-            <button
-              onClick={() => navigate('/')}
-              className="flex items-center space-x-2 text-brand-textMuted hover:text-brand-textMain text-xs font-semibold transition-all"
-            >
-              <Home size={14} />
-              <span>Back to Home</span>
-            </button>
-          </div>
-
         </div>
       </div>
     );
   }
 
-  // Render Completed Scorecard
+  // Scorecard View (Quiz Completed)
   if (completed && stats) {
     return (
-      <div className="min-h-[calc(100vh-4rem)] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-lightBlue/20 via-zinc-50 to-white py-10 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-3xl mx-auto space-y-8 animate-fade-in">
+      <div className="min-h-[calc(100vh-4rem)] bg-brand-bgLight py-10 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl mx-auto space-y-8 animate-fade-in">
           
-          {/* Header Card */}
-          <div className="bg-white border border-brand-border p-8 rounded-2xl shadow-xl relative overflow-hidden text-center space-y-6">
-            <div className={`absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r ${meta.themeColor}`}></div>
-            
+          {/* Header Banner */}
+          <div className="bg-white border border-brand-border p-8 rounded-2xl shadow-sm text-center space-y-6 relative overflow-hidden">
+            <div className={`absolute top-0 left-0 w-full h-2 bg-gradient-to-r ${meta?.themeColor || 'from-blue-500 to-indigo-500'}`}></div>
+
             <div className="space-y-2">
-              <span className="text-[10px] font-bold text-brand-textMuted uppercase tracking-wider">Quiz Completed</span>
-              <h2 className="text-3xl font-extrabold text-zinc-850 tracking-tight">{meta.title}</h2>
-              <p className="text-brand-textMuted text-xs font-medium">Self-Paced Performance Review</p>
+              <span className="text-xs font-bold text-brand-blue uppercase tracking-widest bg-brand-lightBlue px-3 py-1 rounded-full">
+                Exam Scorecard
+              </span>
+              <h1 className="text-3xl font-extrabold text-brand-textMain">{meta?.title || 'Practice Track'}</h1>
+              <p className="text-xs text-brand-textMuted max-w-sm mx-auto">
+                Completed on {new Date().toLocaleDateString()} • Result Summary
+              </p>
             </div>
 
-            {/* Performance Gauges */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-xl mx-auto pt-2">
-              
-              {/* Radial Accuracy Ring */}
-              <div className="bg-brand-bgLight p-4 rounded-xl border border-zinc-100 flex flex-col items-center justify-center space-y-2">
-                <div className="relative w-20 h-20">
+            {/* Stat Counters */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+              <div className="bg-brand-bgLight p-4 rounded-xl border border-zinc-100 flex flex-col items-center justify-center space-y-1">
+                <div className="relative w-16 h-16 flex items-center justify-center my-1">
                   <svg className="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
                     <path
                       className="text-zinc-200"
@@ -511,24 +363,60 @@ export default function PracticeQuiz() {
                     {stats.percentage}%
                   </div>
                 </div>
-                <span className="text-[10px] font-bold text-brand-textMuted uppercase tracking-widest">Accuracy</span>
+                <span className="text-[10px] font-bold text-brand-textMuted uppercase tracking-widest">Accuracy Score</span>
               </div>
 
-              {/* Score card */}
               <div className="bg-brand-bgLight p-4 rounded-xl border border-zinc-100 flex flex-col items-center justify-center space-y-1">
                 <Award size={28} className="text-brand-blue mb-1" />
                 <h3 className="text-2xl font-extrabold text-brand-textMain">{stats.score}</h3>
                 <span className="text-[10px] font-bold text-brand-textMuted uppercase tracking-widest">Total Points</span>
               </div>
 
-              {/* Time Spent card */}
               <div className="bg-brand-bgLight p-4 rounded-xl border border-zinc-100 flex flex-col items-center justify-center space-y-1">
                 <Clock size={28} className="text-brand-textMuted mb-1" />
                 <h3 className="text-2xl font-extrabold text-brand-textMain">{Math.floor(timeSpent / 60)}m {timeSpent % 60}s</h3>
                 <span className="text-[10px] font-bold text-brand-textMuted uppercase tracking-widest">Time Spent</span>
               </div>
-
             </div>
+
+            {/* Certificate & Digital Badge Sync Card */}
+            {stats.percentage >= 60 && (
+              <div className="bg-gradient-to-r from-purple-50 via-indigo-50 to-blue-50 border border-purple-200 rounded-2xl p-6 text-left space-y-3 animate-fade-in shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center font-black shadow-xs">
+                      <ShieldCheck size={22} />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-extrabold text-purple-700 uppercase tracking-widest block">Cross-Portal Auto Sync</span>
+                      <h4 className="text-sm font-black text-purple-950">
+                        Official Certificate & Digital Badge Issued!
+                      </h4>
+                    </div>
+                  </div>
+
+                  <span className="px-3 py-1 bg-purple-600 text-white rounded-full text-[10px] font-black uppercase tracking-wider">
+                    {issuedCert ? issuedCert.certificateId : 'CERT-MSC-AUTO'}
+                  </span>
+                </div>
+
+                <p className="text-xs text-purple-900 leading-relaxed font-medium">
+                  Congratulations! You scored <strong className="font-extrabold text-purple-950">{stats.percentage}%</strong>. Your achievement badge (<em className="font-extrabold text-purple-950">{meta?.title} Certified Master</em>) and official completion certificate have been automatically synced to your Student Account profile.
+                </p>
+
+                <div className="pt-1 flex flex-col sm:flex-row items-center gap-3">
+                  <a
+                    href={issuedCert?.verificationUrl || (typeof import.meta !== 'undefined' && import.meta.env?.VITE_VERIFICATION_PORTAL_URL) || 'https://verify.mscprpcem.tech'}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="w-full sm:w-auto px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-extrabold flex items-center justify-center space-x-2 shadow-xs transition-all cursor-pointer active:scale-95"
+                  >
+                    <span>View in Verification Portal</span>
+                    <ExternalLink size={14} />
+                  </a>
+                </div>
+              </div>
+            )}
 
             {/* Quick Actions */}
             <div className="flex justify-center space-x-4 border-t border-zinc-100 pt-6">
@@ -540,16 +428,15 @@ export default function PracticeQuiz() {
                 <span>Retake Quiz</span>
               </button>
               <button
-                onClick={() => navigate('/practice')}
+                onClick={() => navigate('/courses')}
                 className="flex items-center space-x-2 bg-zinc-900 hover:bg-zinc-850 text-white font-bold px-5 py-2.5 rounded-lg text-xs transition-all cursor-pointer shadow-md"
               >
-                <span>Back to Arena</span>
+                <span>Back to Courses</span>
               </button>
             </div>
-
           </div>
 
-          {/* Detailed Question Review Scorecard */}
+          {/* Question Review List */}
           <div className="space-y-4">
             <h3 className="text-lg font-bold text-zinc-850">Review Question Details</h3>
             
@@ -558,16 +445,14 @@ export default function PracticeQuiz() {
               const isCorrect = selectedOpt === q.correct_answer;
               
               return (
-                <div key={q.id} className="bg-white border border-brand-border p-6 rounded-xl shadow-sm space-y-4 text-left">
+                <div key={q.id || idx} className="bg-white border border-brand-border p-6 rounded-xl shadow-sm space-y-4 text-left">
                   <div className="flex justify-between items-center text-xs">
                     <span className="text-brand-textMuted font-bold uppercase tracking-wider">Question {idx + 1}</span>
                     <span className={`font-bold px-2.5 py-0.5 rounded-full flex items-center space-x-1 ${
-                      isCorrect 
-                        ? 'bg-emerald-50 text-emerald-700' 
-                        : 'bg-red-50 text-red-700'
+                      isCorrect ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
                     }`}>
                       {isCorrect ? <CheckCircle size={12} className="mr-1" /> : <AlertCircle size={12} className="mr-1" />}
-                      <span>{isCorrect ? 'Correct (+20 pts)' : 'Incorrect (+0 pts)'}</span>
+                      <span>{isCorrect ? 'Correct (+100 pts)' : 'Incorrect (+0 pts)'}</span>
                     </span>
                   </div>
 
@@ -575,7 +460,6 @@ export default function PracticeQuiz() {
                     {q.question}
                   </h4>
 
-                  {/* Options */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
                     {[
                       { k: 'A', text: q.option_a },
@@ -614,17 +498,17 @@ export default function PracticeQuiz() {
                     })}
                   </div>
 
-                  {/* Explanation card */}
-                  <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-4 text-xs space-y-1">
-                    <div className="flex items-center space-x-1.5 text-blue-800 font-bold">
-                      <HelpCircle size={14} />
-                      <span>Explanation Overview:</span>
+                  {q.explanation && (
+                    <div className="bg-blue-50/50 border border-blue-100 rounded-lg p-4 text-xs space-y-1">
+                      <div className="flex items-center space-x-1.5 text-blue-800 font-bold">
+                        <HelpCircle size={14} />
+                        <span>Explanation Overview:</span>
+                      </div>
+                      <p className="text-zinc-600 leading-relaxed font-medium">
+                        {q.explanation}
+                      </p>
                     </div>
-                    <p className="text-zinc-600 leading-relaxed font-medium">
-                      {q.explanation || 'No detailed explanation provided.'}
-                    </p>
-                  </div>
-
+                  )}
                 </div>
               );
             })}
@@ -635,9 +519,9 @@ export default function PracticeQuiz() {
     );
   }
 
-  // Render Active Quiz Mode
+  // Active Quiz Arena Mode
   if (inQuiz) {
-    const currentQ = questions[currentIdx];
+    const currentQ = questions[currentIdx] || questions[0];
     const isSelected = (opt) => answers[currentIdx] === opt;
     const isFlagged = flags[currentIdx];
     const totalQ = questions.length;
@@ -646,15 +530,13 @@ export default function PracticeQuiz() {
       <div className="min-h-[calc(100vh-4rem)] bg-brand-bgLight py-8 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           
-          {/* Left / Top: Floating Tracker Sidebar */}
           <div className="lg:col-span-3 bg-white border border-brand-border p-5 rounded-2xl shadow-sm space-y-4">
-            <div className="space-y-1 border-b border-zinc-100 pb-3">
-              <span className="text-[10px] font-bold text-brand-textMuted uppercase tracking-widest">{meta.title}</span>
+            <div className="space-y-1 border-b border-zinc-100 pb-3 text-left">
+              <span className="text-[10px] font-bold text-brand-textMuted uppercase tracking-widest">{meta?.title}</span>
               <h3 className="text-md font-bold text-brand-textMain">Test Dashboard</h3>
             </div>
 
-            {/* Questions Grid Tracker */}
-            <div className="space-y-2">
+            <div className="space-y-2 text-left">
               <p className="text-[10px] font-bold text-brand-textMuted uppercase tracking-widest">Question Navigation</p>
               <div className="grid grid-cols-5 gap-2">
                 {questions.map((_, idx) => {
@@ -671,7 +553,7 @@ export default function PracticeQuiz() {
                     <button
                       key={idx}
                       onClick={() => setCurrentIdx(idx)}
-                      className={`w-full aspect-square border rounded-lg text-xs font-semibold flex items-center justify-center transition-all cursor-pointer hover:brightness-105`}
+                      className={`w-full aspect-square border rounded-lg text-xs font-semibold flex items-center justify-center transition-all cursor-pointer hover:brightness-105 ${cellBg}`}
                     >
                       {idx + 1}
                     </button>
@@ -680,41 +562,21 @@ export default function PracticeQuiz() {
               </div>
             </div>
 
-            {/* Color keys legend */}
-            <div className="text-[10px] space-y-1.5 border-t border-zinc-100 pt-3.5">
-              <div className="flex items-center space-x-2 text-brand-textMuted font-semibold">
-                <span className="w-2.5 h-2.5 rounded bg-zinc-100 border border-zinc-250 inline-block"></span>
-                <span>Unvisited / Unanswered</span>
-              </div>
-              <div className="flex items-center space-x-2 text-brand-textMuted font-semibold">
-                <span className="w-2.5 h-2.5 rounded bg-brand-blue inline-block"></span>
-                <span>Answered option</span>
-              </div>
-              <div className="flex items-center space-x-2 text-brand-textMuted font-semibold">
-                <span className="w-2.5 h-2.5 rounded bg-amber-500 inline-block"></span>
-                <span>Flagged for review</span>
-              </div>
-            </div>
-
             <button
               onClick={() => setShowSubmitModal(true)}
-              className="w-full bg-red-655 hover:bg-red-700 bg-red-600 text-white font-bold py-3 rounded-lg text-xs transition-all shadow-md mt-4 cursor-pointer active:scale-98"
+              className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3 rounded-lg text-xs transition-all shadow-md mt-4 cursor-pointer active:scale-98"
             >
               Submit Test Paper
             </button>
           </div>
 
-          {/* Right / Bottom: Active Question Card */}
           <div className="lg:col-span-9 space-y-6">
-            
-            {/* Header / Timer Panel */}
             <div className="flex justify-between items-center bg-white border border-brand-border px-6 py-4 rounded-xl shadow-sm">
-              <div className="space-y-0.5">
+              <div className="space-y-0.5 text-left">
                 <span className="text-[10px] font-bold text-brand-textMuted uppercase tracking-widest">In Progress</span>
-                <h4 className="text-md font-bold text-brand-textMain">{meta.title}</h4>
+                <h4 className="text-md font-bold text-brand-textMain">{meta?.title}</h4>
               </div>
 
-              {/* Progress timer */}
               <div className="flex items-center space-x-2 bg-amber-50 border border-amber-100 text-amber-800 px-4 py-2 rounded-lg font-bold">
                 <Clock size={16} className="text-amber-600 animate-pulse" />
                 <span className="text-sm font-bold">
@@ -723,9 +585,8 @@ export default function PracticeQuiz() {
               </div>
             </div>
 
-            {/* Question detail */}
             <div className="bg-white border border-brand-border p-8 rounded-2xl shadow-sm space-y-6 text-left relative overflow-hidden">
-              <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${meta.themeColor}`}></div>
+              <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${meta?.themeColor || 'from-blue-500 to-indigo-500'}`}></div>
 
               <div className="flex justify-between items-center">
                 <span className="text-[10px] font-bold text-brand-textMuted uppercase tracking-widest">Question {currentIdx + 1} of {totalQ}</span>
@@ -738,7 +599,7 @@ export default function PracticeQuiz() {
                   }`}
                 >
                   <Flag size={12} fill={isFlagged ? 'currentColor' : 'none'} />
-                  <span>{isFlagged ? 'Flagged for review' : 'Flag Question'}</span>
+                  <span>{isFlagged ? 'Flagged' : 'Flag Question'}</span>
                 </button>
               </div>
 
@@ -746,7 +607,6 @@ export default function PracticeQuiz() {
                 {currentQ.question}
               </h2>
 
-              {/* Options */}
               <div className="grid grid-cols-1 gap-4 pt-2">
                 {[
                   { k: 'A', text: currentQ.option_a },
@@ -776,10 +636,8 @@ export default function PracticeQuiz() {
                   );
                 })}
               </div>
-
             </div>
 
-            {/* Navigation buttons */}
             <div className="flex justify-between items-center">
               <button
                 onClick={() => setCurrentIdx((prev) => Math.max(0, prev - 1))}
@@ -801,23 +659,20 @@ export default function PracticeQuiz() {
             </div>
 
           </div>
-
         </div>
 
-        {/* Submit review modal */}
         {showSubmitModal && (
           <div className="fixed inset-0 bg-zinc-950/70 z-50 flex items-center justify-center p-4">
             <div className="bg-white max-w-sm w-full rounded-2xl p-6 shadow-2xl border border-zinc-100 text-center space-y-6 animate-fade-in animate-scale-up">
               
-              <div className="w-12 h-12 bg-red-50 text-red-655 rounded-full flex items-center justify-center mx-auto text-red-600">
+              <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto">
                 <ShieldAlert size={26} />
               </div>
 
               <div className="space-y-2">
                 <h3 className="text-lg font-bold text-zinc-850">Submit Quiz Paper?</h3>
                 <p className="text-xs text-brand-textMuted">
-                  You have answered {Object.keys(answers).length} out of {totalQ} questions. 
-                  {Object.values(flags).filter(Boolean).length > 0 && ` (${Object.values(flags).filter(Boolean).length} questions are flagged for review).`}
+                  You have answered {Object.keys(answers).length} out of {totalQ} questions.
                 </p>
               </div>
 
@@ -844,54 +699,55 @@ export default function PracticeQuiz() {
     );
   }
 
-  // Render Categories Landing Page for the selected category (Metadata check)
+  // Pre-Quiz Landing Card View for the chosen course category
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-lightBlue/20 via-zinc-50 to-white">
-      <div className="max-w-md w-full bg-white border border-brand-border p-8 rounded-2xl shadow-xl space-y-6 relative overflow-hidden group animate-fade-in">
-        <div className={`absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r ${meta.themeColor}`}></div>
+      <div className="max-w-md w-full bg-white border border-brand-border p-8 rounded-2xl shadow-xl space-y-6 relative overflow-hidden group animate-fade-in text-left">
+        <div className={`absolute top-0 left-0 w-full h-2 bg-gradient-to-r ${meta?.themeColor || 'from-purple-500 to-indigo-500'}`}></div>
 
-        <div className="text-center space-y-4">
-          <span className="text-[10px] font-bold text-brand-textMuted uppercase tracking-widest">Ready to Start?</span>
-          <h2 className="text-2xl font-extrabold text-zinc-850 tracking-tight">{meta.title}</h2>
-          <p className="text-xs text-zinc-550 leading-relaxed">
-            {meta.desc}
+        <div className="space-y-2">
+          <div className="flex items-center space-x-2">
+            <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue bg-brand-lightBlue px-3 py-1 rounded-full">
+              Official Practice Examination
+            </span>
+          </div>
+          <h2 className="text-2xl font-black text-brand-textMain">{meta?.title || 'Practice Track'}</h2>
+          <p className="text-xs text-brand-textMuted leading-relaxed font-medium">
+            {meta?.desc || 'Test your knowledge on this topic with our interactive practice examination.'}
           </p>
         </div>
 
-        <div className="bg-brand-bgLight p-4 rounded-xl border border-zinc-100 flex justify-around text-center text-xs">
-          <div>
-            <span className="block text-[10px] font-bold text-brand-textMuted uppercase tracking-wider">Questions</span>
-            <span className="block font-bold text-brand-textMain mt-1 text-sm">5 Items</span>
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 text-xs">
+          <div className="flex justify-between text-slate-600 font-bold">
+            <span>Total Questions:</span>
+            <span className="text-purple-700">{questions.length} Questions</span>
           </div>
-          <div className="w-px bg-zinc-200"></div>
-          <div>
-            <span className="block text-[10px] font-bold text-brand-textMuted uppercase tracking-wider">Duration</span>
-            <span className="block font-bold text-brand-textMain mt-1 text-sm">2 Minutes</span>
+          <div className="flex justify-between text-slate-600 font-bold">
+            <span>Duration:</span>
+            <span className="text-purple-700">2 Minutes</span>
           </div>
-          <div className="w-px bg-zinc-200"></div>
-          <div>
-            <span className="block text-[10px] font-bold text-brand-textMuted uppercase tracking-wider">Speed Scoring</span>
-            <span className="block font-bold text-brand-textMain mt-1 text-sm">Disabled</span>
+          <div className="flex justify-between text-slate-600 font-bold">
+            <span>Passing Grade:</span>
+            <span className="text-emerald-700">60% or higher</span>
           </div>
         </div>
 
         <div className="space-y-3 pt-2">
           <button
             onClick={handleStartQuiz}
-            className={`w-full bg-gradient-to-r ${meta.themeColor} text-white font-bold py-3.5 rounded-lg text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-md active:scale-98`}
+            className={`w-full py-3.5 bg-gradient-to-r ${meta?.themeColor || 'from-purple-600 to-indigo-600'} text-white rounded-xl text-xs font-black shadow-md cursor-pointer active:scale-98 transition-all flex items-center justify-center space-x-2`}
           >
-            <span>Start Practice Exam</span>
-            <ChevronRight size={14} />
+            <span>Launch Practice Examination</span>
+            <ArrowRight size={16} />
           </button>
-          
+
           <button
-            onClick={() => navigate('/practice')}
-            className="w-full text-center border border-brand-border hover:bg-brand-bgLight text-brand-textMuted font-semibold py-2.5 rounded-lg text-xs transition-all cursor-pointer"
+            onClick={() => navigate('/courses')}
+            className="w-full py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all cursor-pointer text-center block"
           >
-            Go Back
+            ← Return to Courses Catalog
           </button>
         </div>
-
       </div>
     </div>
   );

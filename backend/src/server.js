@@ -121,6 +121,7 @@ app.use("/api", limiter);
 // =======================
 
 const scheduledQuizRoutes = require('./routes/scheduledQuiz');
+const studentSyncRoutes = require('./routes/studentSync');
 
 app.use("/api/auth", authRoutes);
 app.use("/api/quizzes", quizRoutes);
@@ -128,6 +129,7 @@ app.use("/api/scheduled-quizzes", scheduledQuizRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/export", exportRoutes);
 app.use("/api/branding", brandingRoutes);
+app.use("/api/student", studentSyncRoutes);
 
 // =======================
 // Root

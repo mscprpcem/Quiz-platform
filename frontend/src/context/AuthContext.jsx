@@ -7,6 +7,12 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Student Account Session (Linked via Email)
+  const [studentAccount, setStudentAccount] = useState(() => {
+    const saved = localStorage.getItem('msc_student_account');
+    return saved ? JSON.parse(saved) : null;
+  });
+
   const defaultAdmin = {
     id: 'admin-dev',
     name: 'Admin User',
@@ -33,8 +39,25 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Cross-portal SSO URL query parameter check on initial mount
   useEffect(() => {
     verifyToken();
+
+    const params = new URLSearchParams(window.location.search);
+    const ssoEmail = params.get('sso_email') || params.get('email');
+    const ssoName = params.get('sso_name') || params.get('name');
+    const ssoToken = params.get('sso_token') || params.get('token');
+
+    if (ssoEmail || ssoToken) {
+      api.post('/api/student/sso-verify', { email: ssoEmail, name: ssoName, token: ssoToken })
+        .then(res => {
+          if (res.data.success && res.data.user) {
+            setStudentAccount(res.data.user);
+            localStorage.setItem('msc_student_account', JSON.stringify(res.data.user));
+          }
+        })
+        .catch(err => console.warn('SSO Token verification error:', err.message));
+    }
   }, []);
 
   const login = async (email, password) => {
@@ -57,8 +80,72 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  const studentLogin = async (email, name, password) => {
+    const cleanEmail = email ? email.toLowerCase().trim() : '';
+    const cleanName = name || (cleanEmail ? cleanEmail.split('@')[0] : 'Student');
+
+    try {
+      const res = await api.post('/api/student/login', { email: cleanEmail, name: cleanName, password });
+      if (res.data && res.data.user) {
+        setStudentAccount(res.data.user);
+        localStorage.setItem('msc_student_account', JSON.stringify(res.data.user));
+        return { success: true, user: res.data.user };
+      }
+    } catch (err) {
+      console.warn('Backend student login fallback:', err.message);
+    }
+
+    const account = {
+      email: cleanEmail,
+      name: cleanName,
+      role: 'student',
+      linkedAt: new Date().toISOString()
+    };
+    setStudentAccount(account);
+    localStorage.setItem('msc_student_account', JSON.stringify(account));
+    return { success: true, user: account };
+  };
+
+  const studentLogout = () => {
+    localStorage.removeItem('msc_student_account');
+    setStudentAccount(null);
+  };
+
+  // Issue Certificate & Digital Badge (Syncs to API & Verification Portal)
+  const issueStudentCertificate = async ({ courseTitle, score, passingScore, badgeTitle, name, email }) => {
+    const targetEmail = email || studentAccount?.email;
+    const targetName = name || studentAccount?.name || targetEmail?.split('@')[0] || 'Student';
+
+    if (!targetEmail) return null;
+
+    try {
+      const res = await api.post('/api/student/issue-certificate', {
+        email: targetEmail,
+        name: targetName,
+        courseTitle,
+        score,
+        passingScore,
+        badgeTitle
+      });
+      return res.data.certificate;
+    } catch (err) {
+      console.error('Certificate issue error:', err);
+      return null;
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, logout, loading, verifyToken }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      login, 
+      logout, 
+      loading, 
+      verifyToken,
+      studentAccount,
+      studentLogin,
+      studentLogout,
+      issueStudentCertificate
+    }}>
       {children}
     </AuthContext.Provider>
   );
