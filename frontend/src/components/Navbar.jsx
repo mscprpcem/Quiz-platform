@@ -8,14 +8,13 @@ export default function Navbar() {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
 
   const isAdminPath = location.pathname.startsWith('/admin');
 
   if (isAdminPath) {
     return null;
   }
-
-  const [showConfirm, setShowConfirm] = useState(false);
 
   const confirmLogout = () => {
     setShowConfirm(true);

@@ -47,7 +47,7 @@ function StatusBadge({ status }) {
 function Modal({ onClose, children }) {
   return (
     <div
-      className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto pt-14 xs:pt-16 px-3 sm:px-4 pb-6 animate-fade-in"
+      className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-start justify-center overflow-y-auto pt-14 xs:pt-16 px-3 sm:px-4 pb-6 animate-fade-in"
       onClick={onClose}
     >
       <div
@@ -126,9 +126,21 @@ export default function QuizManagement() {
     }
   };
 
+  const [nowTick, setNowTick] = useState(Date.now());
+
+  const isQuizExpired = (q) => {
+    if (q.status === 'completed') return true;
+    if (q.scheduled_end && new Date(q.scheduled_end).getTime() < nowTick) return true;
+    return false;
+  };
+
   useEffect(() => {
     loadQuizzes();
     loadBranding();
+    const interval = setInterval(() => {
+      setNowTick(Date.now());
+    }, 5000);
+    return () => clearInterval(interval);
   }, []);
 
   const formatDateForInput = (dateVal) => {
@@ -504,7 +516,7 @@ export default function QuizManagement() {
                 activeTab === 'active' ? 'bg-white text-purple-700 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Active & Draft ({quizzes.filter(q => q.status !== 'completed').length})
+              Active & Draft ({quizzes.filter(q => !isQuizExpired(q)).length})
             </button>
             <button
               onClick={() => setActiveTab('completed')}
@@ -512,7 +524,7 @@ export default function QuizManagement() {
                 activeTab === 'completed' ? 'bg-white text-purple-700 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Completed ({quizzes.filter(q => q.status === 'completed').length})
+              Completed & Expired ({quizzes.filter(q => isQuizExpired(q)).length})
             </button>
           </div>
 
@@ -532,7 +544,7 @@ export default function QuizManagement() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {quizzes
-            .filter(q => activeTab === 'completed' ? q.status === 'completed' : q.status !== 'completed')
+            .filter(q => activeTab === 'completed' ? isQuizExpired(q) : !isQuizExpired(q))
             .map((quiz) => {
             const isExpired = quiz.scheduled_start && new Date(quiz.scheduled_start) < new Date() && quiz.status === 'draft';
             return (
@@ -549,87 +561,127 @@ export default function QuizManagement() {
 
                 <div className="absolute inset-0 bg-gradient-to-br from-brand-blue/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                 
-                <div className="space-y-4 relative z-10 flex-grow flex flex-col justify-between">
-                  <div>
-                    <div className="flex justify-between items-start gap-2 pt-1">
-                      <span className="text-[9px] font-extrabold text-zinc-550 uppercase tracking-widest bg-zinc-100 px-2.5 py-0.5 rounded-full truncate max-w-[160px]">{quiz.event_name}</span>
-                      <StatusBadge status={quiz.status} />
+                {deleteTargetQuiz?.id === quiz.id ? (
+                  <div className="bg-red-50 border border-red-200 rounded-xl p-5 space-y-3.5 text-center animate-fade-in my-auto">
+                    <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center mx-auto shadow-2xs">
+                      <Trash2 size={20} />
                     </div>
-                    <div className="mt-3.5">
-                      <h3 className="text-base font-extrabold text-brand-textMain leading-snug group-hover:text-brand-blue transition-colors duration-200 truncate" title={quiz.title}>{quiz.title}</h3>
-                      <p className="text-xs text-brand-textMuted line-clamp-2 mt-1 leading-relaxed">{quiz.description || 'No description provided.'}</p>
+                    <div className="space-y-1">
+                      <h4 className="text-xs font-black text-red-950 truncate">Delete {quiz.title}?</h4>
+                      <p className="text-[11px] text-red-700 font-medium leading-relaxed">
+                        All question sheets, student submissions, and logs will be permanently erased.
+                      </p>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => setDeleteTargetQuiz(null)}
+                        className="flex-1 py-2 bg-white border border-slate-200 rounded-xl text-xs font-extrabold text-slate-700 hover:bg-slate-50 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleConfirmDelete}
+                        disabled={deleteLoading}
+                        className="flex-1 py-2 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-extrabold shadow-xs cursor-pointer"
+                      >
+                        {deleteLoading ? 'Deleting...' : 'Delete Quiz'}
+                      </button>
                     </div>
                   </div>
-
-                  <div className="space-y-2">
-                    {/* Date & Schedule */}
-                    <div className="space-y-1 text-[11px] text-brand-textMuted bg-slate-50/80 p-2 rounded-xl border border-slate-100">
-                      <div className="flex items-center gap-1.5">
-                        <Calendar size={12} className="flex-shrink-0 text-brand-blue" />
-                        <span className="truncate"><strong>Start:</strong> {quiz.scheduled_start ? new Date(quiz.scheduled_start).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Flexible'}</span>
-                      </div>
-                      {quiz.scheduled_end && (
-                        <div className="flex items-center gap-1.5 text-slate-500">
-                          <Clock size={12} className="flex-shrink-0 text-emerald-600" />
-                          <span className="truncate"><strong>End:</strong> {new Date(quiz.scheduled_end).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
+                ) : (
+                  <>
+                    <div className="space-y-4 relative z-10 flex-grow flex flex-col justify-between">
+                      <div>
+                        <div className="flex justify-between items-start gap-2 pt-1">
+                          <span className="text-[9px] font-extrabold text-zinc-550 uppercase tracking-widest bg-zinc-100 px-2.5 py-0.5 rounded-full truncate max-w-[160px]">{quiz.event_name}</span>
+                          <StatusBadge status={quiz.status} />
                         </div>
+                        <div className="mt-3.5">
+                          <h3 className="text-base font-extrabold text-brand-textMain leading-snug group-hover:text-brand-blue transition-colors duration-200 truncate" title={quiz.title}>{quiz.title}</h3>
+                          <p className="text-xs text-brand-textMuted line-clamp-2 mt-1 leading-relaxed">{quiz.description || 'No description provided.'}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        {/* Date & Schedule */}
+                        <div className="space-y-1 text-[11px] text-brand-textMuted bg-slate-50/80 p-2 rounded-xl border border-slate-100">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar size={12} className="flex-shrink-0 text-brand-blue" />
+                            <span className="truncate"><strong>Start:</strong> {quiz.scheduled_start ? new Date(quiz.scheduled_start).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Flexible'}</span>
+                          </div>
+                          {quiz.scheduled_end && (
+                            <div className="flex items-center gap-1.5 text-slate-500">
+                              <Clock size={12} className="flex-shrink-0 text-emerald-600" />
+                              <span className="truncate"><strong>End:</strong> {new Date(quiz.scheduled_end).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Counts section inline */}
+                        <div className="flex gap-4 items-center text-xs text-brand-textMuted border-t border-brand-border pt-2.5">
+                          <span className="flex items-center gap-1.5">
+                            <BookOpen size={13} className="text-brand-blue" />
+                            <span><strong>{quiz.questionCount || 0}</strong> Questions</span>
+                          </span>
+                          <span className="flex items-center gap-1.5">
+                            <Users size={13} className="text-brand-blue" />
+                            <span><strong>{quiz.participantCount || 0}</strong> Plays</span>
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions section */}
+                    <div className="flex flex-col gap-2 mt-4 pt-3.5 border-t border-brand-border relative z-10">
+                      <div className="grid grid-cols-2 gap-1.5">
+                        <button
+                          onClick={() => navigate(`/admin/quizzes/${quiz.id}`)}
+                          title="Manage Questions"
+                          className="flex items-center justify-center gap-1.5 px-2 py-2 bg-zinc-50 hover:bg-zinc-100 border border-brand-border text-zinc-650 hover:text-brand-textMain rounded-xl transition-all text-[11px] sm:text-xs font-semibold select-none cursor-pointer active:scale-95"
+                        >
+                          <ListCollapse size={13} />
+                          <span>Sheet</span>
+                        </button>
+                        <button
+                          onClick={() => handleOpenImport(quiz)}
+                          className="flex items-center justify-center gap-1.5 px-2 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-xl transition-all text-[11px] sm:text-xs font-bold cursor-pointer active:scale-95"
+                          title="Import Questions from Excel"
+                        >
+                          <FileSpreadsheet size={13} />
+                          <span>Import .xlsx</span>
+                        </button>
+                      </div>
+                      {quiz.status === 'draft' && (
+                        <button
+                          onClick={() => handlePublishQuiz(quiz.id)}
+                          className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black rounded-xl shadow-md transition-all text-xs cursor-pointer active:scale-95 uppercase tracking-wider"
+                          title="Publish quiz to generate QR Code and list on website"
+                        >
+                          <Globe size={14} />
+                          <span>Publish Quiz (Generate QR)</span>
+                        </button>
                       )}
+
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => handleOpenCreate(quiz)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-brand-border hover:bg-zinc-50 text-zinc-600 hover:text-brand-textMain rounded-xl transition-all text-xs font-bold cursor-pointer active:scale-95"
+                          title="Edit Quiz Details"
+                        >
+                          <Edit2 size={13} />
+                          <span>Edit Info</span>
+                        </button>
+                        <button
+                          onClick={() => handleOpenDeleteModal(quiz)}
+                          className="px-3.5 py-2 border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-all text-xs font-extrabold cursor-pointer active:scale-95 flex items-center justify-center"
+                          title="Delete Quiz"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
-
-                    {/* Counts section inline */}
-                    <div className="flex gap-4 items-center text-xs text-brand-textMuted border-t border-brand-border pt-2.5">
-                      <span className="flex items-center gap-1.5">
-                        <BookOpen size={13} className="text-brand-blue" />
-                        <span><strong>{quiz.questionCount || 0}</strong> Questions</span>
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <Users size={13} className="text-brand-blue" />
-                        <span><strong>{quiz.participantCount || 0}</strong> Plays</span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions section */}
-                <div className="flex flex-col gap-2 mt-4 pt-3.5 border-t border-brand-border relative z-10">
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <button
-                      onClick={() => navigate(`/admin/quizzes/${quiz.id}`)}
-                      title="Manage Questions"
-                      className="flex items-center justify-center gap-1.5 px-2 py-2 bg-zinc-50 hover:bg-zinc-100 border border-brand-border text-zinc-650 hover:text-brand-textMain rounded-xl transition-all text-[11px] sm:text-xs font-semibold select-none cursor-pointer active:scale-95"
-                    >
-                      <ListCollapse size={13} />
-                      <span>Sheet</span>
-                    </button>
-                    <button
-                      onClick={() => handleOpenImport(quiz)}
-                      className="flex items-center justify-center gap-1.5 px-2 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-xl transition-all text-[11px] sm:text-xs font-bold cursor-pointer active:scale-95"
-                      title="Import Questions from Excel"
-                    >
-                      <FileSpreadsheet size={13} />
-                      <span>Import .xlsx</span>
-                    </button>
-                  </div>
-                  {quiz.status === 'draft' && (
-                    <button
-                      onClick={() => handlePublishQuiz(quiz.id)}
-                      className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-black rounded-xl shadow-md transition-all text-xs cursor-pointer active:scale-95 uppercase tracking-wider"
-                      title="Publish quiz to generate QR Code and list on website"
-                    >
-                      <Globe size={14} />
-                      <span>Publish Quiz (Generate QR)</span>
-                    </button>
-                  )}
-
-                  <button
-                    onClick={() => handleOpenCreate(quiz)}
-                    className="w-full flex items-center justify-center gap-1.5 py-2 border border-brand-border hover:bg-zinc-50 text-zinc-500 hover:text-brand-textMain rounded-xl transition-all text-xs font-bold cursor-pointer active:scale-95"
-                    title="Edit Quiz Details"
-                  >
-                    <Edit2 size={13} />
-                    <span>Edit Info</span>
-                  </button>
-                </div>
+                  </>
+                )}
               </div>
             );
           })}
@@ -1011,38 +1063,42 @@ export default function QuizManagement() {
       {showDeleteModal && deleteTargetQuiz && (
         <div
           onClick={() => { setShowDeleteModal(false); setDeleteTargetQuiz(null); }}
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex justify-center items-center cursor-pointer"
+          className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex justify-center items-center p-4 cursor-pointer"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl border border-brand-border animate-fade-in-scale cursor-default space-y-4 text-zinc-750"
+            className="bg-white rounded-2xl p-6 sm:p-7 max-w-md w-full shadow-2xl border border-slate-200 animate-scale-in cursor-default space-y-5 text-left"
           >
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-red-50 text-red-500 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Trash2 size={20} />
+            <div className="flex items-center space-x-3.5">
+              <div className="w-12 h-12 bg-red-50 text-red-600 rounded-2xl border border-red-100 flex items-center justify-center flex-shrink-0 shadow-xs">
+                <Trash2 size={22} />
               </div>
               <div>
-                <h3 className="text-base font-bold text-brand-textMain">Delete Quiz?</h3>
-                <p className="text-xs text-brand-textMuted mt-0.5">This action cannot be undone.</p>
+                <h3 className="text-base font-black text-slate-900">Delete Quiz Session?</h3>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">This action cannot be undone.</p>
               </div>
             </div>
 
-            <div className="bg-brand-bgLight border border-zinc-100 rounded-xl p-3 text-left">
-              <p className="text-sm font-semibold text-zinc-705">{deleteTargetQuiz.title}</p>
-              <p className="text-[11px] text-brand-textMuted mt-0.5">All questions, participant scores, and logs will be permanently erased.</p>
+            <div className="bg-red-50/50 border border-red-100 rounded-xl p-3.5 space-y-1">
+              <p className="text-xs font-extrabold text-red-950 truncate">{deleteTargetQuiz.title}</p>
+              <p className="text-[11px] text-red-700 font-medium leading-relaxed">
+                All participant response sheets, score leaderboards, and session logs will be permanently erased.
+              </p>
             </div>
 
             <div className="flex space-x-3 pt-1">
               <button
+                type="button"
                 onClick={() => { setShowDeleteModal(false); setDeleteTargetQuiz(null); }}
-                className="flex-1 py-2.5 rounded-xl border border-brand-border text-sm font-semibold text-zinc-600 hover:bg-brand-bgLight hover:border-zinc-300 transition-all cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl border border-slate-200 text-xs font-extrabold text-slate-700 hover:bg-slate-50 transition-all cursor-pointer"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleConfirmDelete}
                 disabled={deleteLoading}
-                className="flex-1 py-2.5 rounded-xl bg-gradient-to-b from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white text-sm font-semibold transition-all cursor-pointer disabled:opacity-50 active:scale-[0.97] shadow-md flex items-center justify-center space-x-1.5"
+                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white text-xs font-extrabold transition-all cursor-pointer disabled:opacity-50 active:scale-95 shadow-md flex items-center justify-center space-x-1.5"
               >
                 {deleteLoading ? (
                   <>

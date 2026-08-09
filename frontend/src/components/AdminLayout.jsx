@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { 
+import {
   LayoutDashboard, Radio, Calendar, BookOpen,
   LogOut, Menu, Search, Plus, X, GraduationCap, ChevronLeft, ChevronRight
 } from 'lucide-react';
@@ -40,24 +40,24 @@ export default function AdminLayout({ children }) {
     {
       title: 'COURSES & LEARNING',
       items: [
-        { label: 'Courses & Practice', icon: BookOpen, path: '/courses' }
+        { label: 'Courses & Practice', icon: BookOpen, path: '/admin/courses' }
       ]
     }
   ];
 
   const renderNavItems = () => (
-    <div className="space-y-6 pt-1">
+    <div className="space-y-3 pt-1">
       {menuSections.map((section, idx) => (
-        <div key={idx} className="space-y-1.5">
+        <div key={idx} className="space-y-1">
           {(!collapsed || mobileDrawerOpen) && section.title && (
-            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest px-3 block mb-1">
+            <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest px-2.5 block mb-1">
               {section.title}
             </span>
           )}
 
           {section.items.map((item) => {
             const Icon = item.icon;
-            const isActive = currentPath === item.path || 
+            const isActive = currentPath === item.path ||
               (item.path === '/admin/scheduled-quizzes' && currentPath.includes('/admin/scheduled-quizzes')) ||
               (item.path === '/admin/quizzes' && currentPath === '/admin/quizzes' && !currentPath.includes('scheduled'));
 
@@ -68,15 +68,14 @@ export default function AdminLayout({ children }) {
                   navigate(item.path);
                   setMobileDrawerOpen(false);
                 }}
-                className={`w-full flex items-center ${(collapsed && !mobileDrawerOpen) ? 'justify-center py-3' : 'justify-between px-3.5 py-2.5'} rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                  isActive 
-                    ? 'bg-purple-50 text-purple-700 font-extrabold shadow-2xs border border-purple-100' 
+                className={`w-full flex items-center ${(collapsed && !mobileDrawerOpen) ? 'justify-center py-2.5' : 'justify-between px-3 py-2'} rounded-xl text-xs font-bold transition-all cursor-pointer ${isActive
+                    ? 'bg-purple-50 text-purple-700 font-extrabold shadow-2xs border border-purple-100'
                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
+                  }`}
                 title={(collapsed && !mobileDrawerOpen) ? item.label : undefined}
               >
-                <div className="flex items-center space-x-3">
-                  <Icon size={18} className={isActive ? 'text-purple-600' : 'text-slate-400'} />
+                <div className="flex items-center space-x-2.5">
+                  <Icon size={17} className={isActive ? 'text-purple-600' : 'text-slate-400'} />
                   {(!collapsed || mobileDrawerOpen) && <span>{item.label}</span>}
                 </div>
               </button>
@@ -89,44 +88,48 @@ export default function AdminLayout({ children }) {
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-slate-50 flex font-segoe text-slate-800 text-left relative">
-      
+
       {/* ════════ DESKTOP STICKY SIDEBAR ════════ */}
-      <aside 
-        className={`hidden md:flex bg-white text-slate-800 flex-col justify-between transition-all duration-300 z-40 sticky top-0 h-screen border-r border-slate-200 shadow-xs flex-shrink-0 relative ${
-          collapsed ? 'w-20' : 'w-64'
-        }`}
+      <aside
+        className={`hidden md:flex bg-white text-slate-800 flex-col justify-between transition-all duration-300 z-40 sticky top-0 h-screen border-r border-slate-200 shadow-xs flex-shrink-0 relative ${collapsed ? 'w-20' : 'w-64'
+          }`}
       >
         {/* Floating Border Edge Collapse Toggle (< / >) */}
         <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="absolute -right-3.5 top-6 z-50 bg-white border border-slate-200 shadow-md hover:shadow-lg rounded-full w-7 h-7 flex items-center justify-center text-slate-500 hover:text-purple-600 hover:scale-110 transition-all cursor-pointer"
-          title={collapsed ? "Expand Sidebar (<)" : "Collapse Sidebar (>)"}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setCollapsed((prev) => !prev);
+          }}
+          style={{ position: 'absolute', right: '-14px', top: '20px', zIndex: 50 }}
+          className="bg-white border border-slate-200 shadow-md hover:shadow-lg rounded-full w-7 h-7 flex items-center justify-center text-slate-600 hover:text-purple-600 hover:scale-110 transition-all cursor-pointer select-none pointer-events-auto"
+          title={collapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         >
-          {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
+          {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
         </button>
 
-        {/* Brand Header & Navigation */}
-        <div className="p-5 space-y-6 overflow-y-auto max-h-[calc(100vh-80px)] scrollbar-thin">
-          
+        {/* Top Header & Navigation Container */}
+        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto scrollbar-thin p-3.5 space-y-3">
+
           {/* Official MSC-PRPCEM Logo */}
-          <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+          <div className="flex items-center justify-between pb-2 border-b border-slate-100 min-h-[38px]">
             {!collapsed ? (
               <div className="flex items-center space-x-2.5">
                 <img
                   src="/logo.png"
                   alt="MSC-PRPCEM Logo"
-                  className="w-9 h-9 rounded-lg object-contain border border-slate-100 shadow-2xs"
+                  className="w-8 h-8 rounded-lg object-contain border border-slate-100 shadow-2xs"
                 />
                 <div>
-                  <h2 className="text-sm font-black text-slate-900 tracking-tight leading-none">MSC-PRPCEM</h2>
-                  <span className="text-[10px] text-slate-400 font-bold block mt-0.5">Admin Portal</span>
+                  <h2 className="text-xs font-black text-slate-900 tracking-tight leading-none">MSC-PRPCEM</h2>
+                  <span className="text-[9px] text-slate-400 font-bold block mt-0.5">Admin Portal</span>
                 </div>
               </div>
             ) : (
               <img
                 src="/logo.png"
                 alt="MSC-PRPCEM Logo"
-                className="w-9 h-9 rounded-lg object-contain mx-auto border border-slate-100 shadow-2xs"
+                className="w-8 h-8 rounded-lg object-contain mx-auto border border-slate-100 shadow-2xs"
               />
             )}
           </div>
@@ -136,7 +139,7 @@ export default function AdminLayout({ children }) {
         </div>
 
         {/* Bottom User Profile */}
-        <div className="p-4 border-t border-slate-200 bg-white">
+        <div className="p-3.5 border-t border-slate-200 bg-white flex-shrink-0">
           {!collapsed ? (
             <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200">
               <div className="truncate pr-2">
@@ -166,8 +169,8 @@ export default function AdminLayout({ children }) {
       {/* ════════ PHONE MOBILE DRAWER (RESPONSIVE) ════════ */}
       {mobileDrawerOpen && (
         <div className="fixed inset-0 z-50 md:hidden flex">
-          <div 
-            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity" 
+          <div
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
             onClick={() => setMobileDrawerOpen(false)}
           ></div>
 
@@ -204,7 +207,7 @@ export default function AdminLayout({ children }) {
 
       {/* ════════ MAIN WORKSPACE ════════ */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        
+
         {/* Top Sticky Header */}
         <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 shadow-2xs flex-shrink-0">
           <div className="flex items-center space-x-3 flex-1 max-w-xl">

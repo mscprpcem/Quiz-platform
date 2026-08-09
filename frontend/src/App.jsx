@@ -32,6 +32,7 @@ import SupportSLA from './pages/SupportSLA';
 import ReportIssue from './pages/ReportIssue';
 import Documentation from './pages/Documentation';
 import Courses from './pages/Courses';
+import AdminCourses from './pages/AdminCourses';
 import AdminScheduledQuizzes from './pages/AdminScheduledQuizzes';
 import ScheduledQuizDetails from './pages/ScheduledQuizDetails';
 import ScheduledQuizTake from './pages/ScheduledQuizTake';
@@ -174,6 +175,14 @@ export default function App() {
                   element={
                     <AdminRoute>
                       <Analytics />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/courses"
+                  element={
+                    <AdminRoute>
+                      <AdminCourses />
                     </AdminRoute>
                   }
                 />

@@ -1,11 +1,78 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Sparkles, Clock, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { BookOpen, Sparkles, Clock, ArrowRight, CheckCircle2, Maximize2, Shuffle, ShieldCheck } from 'lucide-react';
+
+const FALLBACK_COURSES = [
+  {
+    title: 'Microsoft Azure',
+    slug: 'cloud',
+    category: 'Cloud Infrastructure',
+    desc: 'Master Microsoft Azure cloud services, virtual machines, resource management, and AZ-900 exam preparation.',
+    imageSrc: '/azure.png',
+    color: 'from-blue-50/80 to-indigo-50/50 border-blue-200/80',
+    status: 'coming_soon',
+    badge: 'Coming Soon'
+  },
+  {
+    title: 'Azure AI',
+    slug: 'cloud-ai',
+    category: 'Artificial Intelligence',
+    desc: 'Explore Azure OpenAI, Cognitive Services, Computer Vision, and natural language processing solutions.',
+    imageSrc: '/azure-ai-foundry-logo.jpg',
+    color: 'from-purple-50/80 to-indigo-50/50 border-purple-200/80',
+    status: 'coming_soon',
+    badge: 'Coming Soon'
+  },
+  {
+    title: 'Computer Fundamentals',
+    slug: 'dsa',
+    category: 'Core Computer Science',
+    desc: 'Build rock-solid foundations in operating systems, computer architecture, memory management, and networking.',
+    imageSrc: '/microsoft-copilot.png',
+    color: 'from-amber-50/80 to-orange-50/50 border-amber-200/80',
+    status: 'coming_soon',
+    badge: 'Coming Soon'
+  },
+  {
+    title: 'Database (SQL)',
+    slug: 'dbms',
+    category: 'Database Systems',
+    desc: 'Learn relational database design, SQL querying, indexing, normalized schema design, and transaction management.',
+    imageSrc: '/database.svg',
+    color: 'from-emerald-50/80 to-teal-50/50 border-emerald-200/80',
+    status: 'coming_soon',
+    badge: 'Coming Soon'
+  },
+  {
+    title: 'Git & GitHub',
+    slug: 'frontend',
+    category: 'Version Control & Open Source',
+    desc: 'Master Git branching, pull requests, merge conflict resolution, CI/CD workflows, and open-source collaboration.',
+    imageSrc: '/github.svg',
+    color: 'from-rose-50/80 to-pink-50/50 border-rose-200/80',
+    status: 'coming_soon',
+    badge: 'Coming Soon'
+  }
+];
 
 export default function Courses() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+
+  const [courses, setCourses] = useState(() => {
+    const saved = localStorage.getItem('msc_admin_courses');
+    return saved ? JSON.parse(saved) : FALLBACK_COURSES;
+  });
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const saved = localStorage.getItem('msc_admin_courses');
+      if (saved) setCourses(JSON.parse(saved));
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   const handleSubscribe = (e) => {
     e.preventDefault();
@@ -13,59 +80,6 @@ export default function Courses() {
     setSubscribed(true);
     setEmail('');
   };
-
-  const upcomingCourses = [
-    {
-      title: 'Microsoft Azure',
-      category: 'Cloud Infrastructure',
-      desc: 'Master Microsoft Azure cloud services, virtual machines, resource management, and AZ-900 exam preparation.',
-      imageSrc: '/azure.png',
-      color: 'from-blue-50/80 to-indigo-50/50 border-blue-200/80',
-      imgClass: 'object-contain',
-      paddingClass: 'p-2',
-      badge: 'Coming Soon'
-    },
-    {
-      title: 'Azure AI',
-      category: 'Artificial Intelligence',
-      desc: 'Explore Azure OpenAI, Cognitive Services, Computer Vision, and natural language processing solutions.',
-      imageSrc: '/azure-ai-foundry-logo.jpg',
-      color: 'from-purple-50/80 to-indigo-50/50 border-purple-200/80',
-      imgClass: 'object-cover w-full h-full scale-105',
-      paddingClass: 'p-0',
-      badge: 'Coming Soon'
-    },
-    {
-      title: 'Computer Fundamentals',
-      category: 'Core Computer Science',
-      desc: 'Build rock-solid foundations in operating systems, computer architecture, memory management, and networking.',
-      imageSrc: '/microsoft-copilot.png',
-      color: 'from-amber-50/80 to-orange-50/50 border-amber-200/80',
-      imgClass: 'object-contain',
-      paddingClass: 'p-2',
-      badge: 'Coming Soon'
-    },
-    {
-      title: 'Database (SQL)',
-      category: 'Database Systems',
-      desc: 'Learn relational database design, SQL querying, indexing, normalized schema design, and transaction management.',
-      imageSrc: '/database.svg',
-      color: 'from-emerald-50/80 to-teal-50/50 border-emerald-200/80',
-      imgClass: 'object-contain',
-      paddingClass: 'p-2.5',
-      badge: 'Coming Soon'
-    },
-    {
-      title: 'Git & GitHub',
-      category: 'Version Control & Open Source',
-      desc: 'Master Git branching, pull requests, merge conflict resolution, CI/CD workflows, and open-source collaboration.',
-      imageSrc: '/github.svg',
-      color: 'from-rose-50/80 to-pink-50/50 border-rose-200/80',
-      imgClass: 'object-contain',
-      paddingClass: 'p-2.5',
-      badge: 'Coming Soon'
-    }
-  ];
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex flex-col justify-between bg-[#F5FAFF] relative overflow-hidden py-10 sm:py-16 px-4 sm:px-6">
@@ -87,26 +101,26 @@ export default function Courses() {
           </div>
 
           <h1 className="text-3xl sm:text-5xl font-black text-brand-textMain tracking-tight leading-tight">
-            Interactive Courses <br />
+            Technical Courses & <br />
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600">
-              Coming Soon
+              Developer Practice Tracks
             </span>
           </h1>
 
           <p className="text-sm sm:text-base text-brand-textMuted leading-relaxed font-medium">
-            We are curating comprehensive technical courses, certification prep materials, and hands-on developer workshops for MSC-PRPCEM students.
+            Explore curated technical curriculums, test your skills in real-time practice exams, and earn verified certification badges.
           </p>
         </div>
 
-        {/* Notify Me Form */}
+        {/* Early Access Notification Form */}
         <div className="max-w-md mx-auto bg-white border border-brand-border p-6 rounded-2xl shadow-soft text-left space-y-4">
           <div className="flex items-center space-x-2">
             <div className="w-8 h-8 rounded-lg bg-blue-50 text-brand-blue flex items-center justify-center border border-blue-100">
               <Clock size={18} />
             </div>
             <div>
-              <h3 className="text-sm font-extrabold text-brand-textMain">Get Early Access Notification</h3>
-              <p className="text-[11px] text-brand-textMuted">Be the first to know when new courses open for enrollment.</p>
+              <h3 className="text-sm font-extrabold text-brand-textMain">Get Early Access & Track Releases</h3>
+              <p className="text-[11px] text-brand-textMuted">Be the first to know when new technical courses open for enrollment.</p>
             </div>
           </div>
 
@@ -135,32 +149,37 @@ export default function Courses() {
           )}
         </div>
 
-        {/* Upcoming Courses Preview Grid */}
+        {/* Courses Preview Grid */}
         <div className="space-y-6 text-left">
           <div className="flex justify-between items-center border-b border-brand-border pb-3">
-            <h3 className="text-lg font-black text-brand-textMain">Upcoming Learning Tracks</h3>
+            <h3 className="text-lg font-black text-brand-textMain">Learning & Certification Tracks</h3>
             <span className="text-[10px] font-extrabold uppercase tracking-wider text-brand-blue bg-brand-lightBlue px-3 py-1 rounded-full border border-brand-blue/15">
               Official Curriculums
             </span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            {upcomingCourses.map((course, idx) => {
-              const isDbms = course.title.includes('Database');
+            {courses.map((course, idx) => {
+              const isPublished = course.status === 'published';
+              const qs = course.quizSettings || {};
+
               return (
                 <div
-                  key={idx}
-                  className={`bg-gradient-to-br ${course.color} border rounded-2xl p-6 shadow-soft hover:shadow-soft-lg hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between space-y-4 group relative overflow-hidden`}
+                  key={course.id || idx}
+                  className={`bg-white border border-brand-border rounded-2xl p-6 shadow-soft hover:shadow-soft-lg hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between space-y-4 group relative overflow-hidden`}
                 >
                   <div className="space-y-3">
                     <div className="flex justify-between items-start">
-                      <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-300 border border-slate-200/80 overflow-hidden ${course.paddingClass || 'p-2'}`}>
-                        <img src={course.imageSrc} alt={course.title} className={course.imgClass || 'object-contain w-full h-full'} />
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-50 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-300 border border-slate-200/80 p-2 overflow-hidden">
+                        <img src={course.imageSrc || '/logo.png'} alt={course.title} className="object-contain w-full h-full" />
                       </div>
+
                       <span className={`text-[10px] font-extrabold px-3 py-0.5 rounded-full uppercase tracking-wider ${
-                        isDbms ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 animate-pulse' : 'bg-amber-100/80 text-amber-800 border border-amber-200'
+                        isPublished
+                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 animate-pulse'
+                          : 'bg-amber-100/80 text-amber-800 border border-amber-200'
                       }`}>
-                        {isDbms ? 'Quiz Available' : course.badge}
+                        {isPublished ? 'Quiz Available' : 'Coming Soon'}
                       </span>
                     </div>
 
@@ -171,23 +190,45 @@ export default function Courses() {
                         {course.desc}
                       </p>
                     </div>
+
+                    {/* Quiz parameters overview */}
+                    {isPublished && (
+                      <div className="flex flex-wrap gap-2 pt-1 text-[10px] font-bold text-slate-600">
+                        {qs.requireFullScreen && (
+                          <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-100 flex items-center gap-1">
+                            <Maximize2 size={10} /> Full Screen Lock
+                          </span>
+                        )}
+                        <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-100 flex items-center gap-1">
+                          <Clock size={10} /> {qs.timeLimitMinutes || 10} Mins
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-100 flex items-center gap-1">
+                          <ShieldCheck size={10} /> Pass: {qs.passingScore || 70}%
+                        </span>
+                      </div>
+                    )}
                   </div>
 
-                  <div className="pt-2 border-t border-slate-200/60 flex justify-between items-center text-xs font-bold">
+                  <div className="pt-2 border-t border-slate-200/60 flex justify-between items-center text-xs font-bold text-slate-500">
                     <span>Includes verified certificate</span>
-                    <button
-                      onClick={() => {
-                        const slug = course.title.includes('Database') ? 'dbms' :
-                          course.title.includes('Azure AI') ? 'cloud' :
-                          course.title.includes('Computer') ? 'dsa' :
-                          course.title.includes('Git') ? 'frontend' : 'cloud';
-                        navigate(`/practice/${slug}`);
-                      }}
-                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-extrabold shadow-sm transition-all flex items-center gap-1 cursor-pointer"
-                    >
-                      <span>Take Practice Quiz</span>
-                      <ArrowRight size={12} />
-                    </button>
+                    
+                    {isPublished ? (
+                      <button
+                        onClick={() => {
+                          const slug = course.slug || 'dbms';
+                          navigate(`/practice/${slug}`);
+                        }}
+                        className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-extrabold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer active:scale-95"
+                      >
+                        <span>Take Practice Quiz</span>
+                        <ArrowRight size={13} />
+                      </button>
+                    ) : (
+                      <span className="px-3 py-1.5 bg-slate-100 text-slate-600 rounded-lg text-xs font-extrabold border border-slate-200/80 flex items-center gap-1.5">
+                        <Clock size={13} className="text-amber-600" />
+                        <span>Coming Soon</span>
+                      </span>
+                    )}
                   </div>
                 </div>
               );

@@ -349,6 +349,9 @@ export default function PracticeQuiz() {
   }, [inQuiz, completed]);
 
   const handleStartQuiz = () => {
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
     setAnswers({});
     setFlags({});
     setTimer(120);
