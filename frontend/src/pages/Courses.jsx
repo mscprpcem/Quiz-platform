@@ -175,17 +175,19 @@ export default function Courses() {
 
                   <div className="pt-2 border-t border-slate-200/60 flex justify-between items-center text-xs font-bold">
                     <span>Includes verified certificate</span>
-                    {isDbms ? (
-                      <button
-                        onClick={() => navigate('/practice/dbms')}
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-extrabold shadow-sm transition-all flex items-center gap-1 cursor-pointer"
-                      >
-                        <span>Take DBMS Quiz</span>
-                        <ArrowRight size={12} />
-                      </button>
-                    ) : (
-                      <span className="text-brand-blue font-extrabold">Stay tuned →</span>
-                    )}
+                    <button
+                      onClick={() => {
+                        const slug = course.title.includes('Database') ? 'dbms' :
+                          course.title.includes('Azure AI') ? 'cloud' :
+                          course.title.includes('Computer') ? 'dsa' :
+                          course.title.includes('Git') ? 'frontend' : 'cloud';
+                        navigate(`/practice/${slug}`);
+                      }}
+                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-extrabold shadow-sm transition-all flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Take Practice Quiz</span>
+                      <ArrowRight size={12} />
+                    </button>
                   </div>
                 </div>
               );

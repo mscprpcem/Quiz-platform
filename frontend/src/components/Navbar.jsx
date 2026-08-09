@@ -11,6 +11,10 @@ export default function Navbar() {
 
   const isAdminPath = location.pathname.startsWith('/admin');
 
+  if (isAdminPath) {
+    return null;
+  }
+
   const [showConfirm, setShowConfirm] = useState(false);
 
   const confirmLogout = () => {
@@ -65,18 +69,10 @@ export default function Navbar() {
               <img
                 src="/logo.png"
                 alt="MSC-PRPCEM Logo"
-                className="w-8 h-8 rounded-md object-contain group-hover:scale-110 transition-transform duration-200"
+                className="w-8 h-8 rounded-md object-contain group-hover:scale-105 transition-transform duration-200"
               />
             
-              <span className="font-black text-brand-textMain tracking-tight">MSC-PRPCEM</span>
-
-              {/* Microsoft 4-Color Grid Badge */}
-              <div className="grid grid-cols-2 gap-[1.5px] w-3.5 h-3.5 flex-shrink-0 opacity-85 group-hover:opacity-100 transition-opacity">
-                <div className="bg-[#F25022] rounded-[0.5px]"></div>
-                <div className="bg-[#7FBA00] rounded-[0.5px]"></div>
-                <div className="bg-[#00A4EF] rounded-[0.5px]"></div>
-                <div className="bg-[#FFB900] rounded-[0.5px]"></div>
-              </div>
+              <span className="font-black text-brand-textMain tracking-tight text-base">MSC-PRPCEM</span>
             </div>
 
           {/* Navigation Items (Desktop) */}
@@ -276,7 +272,7 @@ export default function Navbar() {
               </div>
               <h3 className="text-lg font-black tracking-tight text-brand-textMain">Confirm Sign Out</h3>
               <p className="text-xs sm:text-sm text-brand-textMuted max-w-xs leading-relaxed">
-                Are you sure you want to end your active session and log out of the administration portal?
+                Are you sure you want to log out of the administration portal?
               </p>
             </div>
 

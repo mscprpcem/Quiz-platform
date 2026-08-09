@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
+import AdminLayout from './components/AdminLayout';
 
 // Page Imports
 import Home from './pages/Home';
@@ -31,6 +32,10 @@ import SupportSLA from './pages/SupportSLA';
 import ReportIssue from './pages/ReportIssue';
 import Documentation from './pages/Documentation';
 import Courses from './pages/Courses';
+import AdminScheduledQuizzes from './pages/AdminScheduledQuizzes';
+import ScheduledQuizDetails from './pages/ScheduledQuizDetails';
+import ScheduledQuizTake from './pages/ScheduledQuizTake';
+import CreateScheduledQuiz from './pages/CreateScheduledQuiz';
 
 // Private Route Enforcer for Admin pages
 const AdminRoute = ({ children }) => {
@@ -38,13 +43,17 @@ const AdminRoute = ({ children }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center text-brand-textMuted font-semibold">
-        Validating session token...
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 text-purple-600 font-extrabold text-sm">
+        Authenticating...
       </div>
     );
   }
 
-  return user ? children : <Navigate to="/admin/login" replace />;
+  if (!user) {
+    return <Navigate to="/admin/login" replace />;
+  }
+
+  return <AdminLayout>{children}</AdminLayout>;
 };
 
 export default function App() {
@@ -52,23 +61,24 @@ export default function App() {
     <AuthProvider>
       <SocketProvider>
         <Router>
-          <div className="min-h-screen flex flex-col font-segoe" style={{ backgroundColor: '#F5FAFF' }}>
-            {/* Header navbar is shown globally */}
+          <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800 font-segoe">
             <Navbar />
 
-            {/* Page Router boundaries */}
             <main className="flex-grow">
               <Routes>
-                {/* Participant Routes */}
+                {/* Public Participant Routes */}
                 <Route path="/" element={<Home />} />
                 <Route path="/join" element={<JoinQuiz />} />
-                <Route path="/join/:code" element={<JoinQuiz />} />
-                <Route path="/courses" element={<Courses />} />
-                <Route path="/waiting-room" element={<WaitingRoom />} />
-                <Route path="/live-quiz" element={<LiveQuiz />} />
-                <Route path="/results" element={<Results />} />
+                <Route path="/join/:joinCode" element={<JoinQuiz />} />
+                <Route path="/waiting/:participantId" element={<WaitingRoom />} />
+                <Route path="/live/:participantId" element={<LiveQuiz />} />
+                <Route path="/results/:participantId" element={<Results />} />
                 <Route path="/practice" element={<PracticeQuiz />} />
                 <Route path="/practice/:category" element={<PracticeQuiz />} />
+                <Route path="/courses" element={<Courses />} />
+                <Route path="/scheduled-quiz/:occurrenceId" element={<ScheduledQuizTake />} />
+
+                {/* Footer Policy Pages */}
                 <Route path="/privacy" element={<PrivacyPolicy />} />
                 <Route path="/terms" element={<TermsOfService />} />
                 <Route path="/cookies" element={<CookiePolicy />} />
@@ -76,29 +86,21 @@ export default function App() {
                 <Route path="/disclaimer" element={<Disclaimer />} />
                 <Route path="/accessibility" element={<AccessibilityStatement />} />
                 <Route path="/rules" element={<QuizRules />} />
-                <Route path="/faq-details" element={<FAQDetails />} />
-                <Route path="/user-guide" element={<UserGuide />} />
-                <Route path="/support-sla" element={<SupportSLA />} />
+                <Route path="/faq" element={<FAQDetails />} />
+                <Route path="/guide" element={<UserGuide />} />
+                <Route path="/sla" element={<SupportSLA />} />
                 <Route path="/report-issue" element={<ReportIssue />} />
-                <Route path="/documentation" element={<Documentation />} />
+                <Route path="/docs" element={<Documentation />} />
 
-                {/* Admin Auth Routes */}
+                {/* Admin Auth Route */}
                 <Route path="/admin/login" element={<AdminLogin />} />
 
-                {/* Admin Dashboard & Management Routes (Protected) */}
+                {/* Protected Admin Routes */}
                 <Route
                   path="/admin/dashboard"
                   element={
                     <AdminRoute>
                       <AdminDashboard />
-                    </AdminRoute>
-                  }
-                />
-                <Route
-                  path="/admin/run-quiz/:id"
-                  element={
-                    <AdminRoute>
-                      <RunQuiz />
                     </AdminRoute>
                   }
                 />
@@ -112,10 +114,58 @@ export default function App() {
                 />
 
                 <Route
+                  path="/admin/scheduled-quizzes"
+                  element={
+                    <AdminRoute>
+                      <AdminScheduledQuizzes />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/scheduled-quizzes/create"
+                  element={
+                    <AdminRoute>
+                      <CreateScheduledQuiz />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/scheduled-quizzes/edit/:id"
+                  element={
+                    <AdminRoute>
+                      <CreateScheduledQuiz />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/scheduled-quizzes/:id"
+                  element={
+                    <AdminRoute>
+                      <ScheduledQuizDetails />
+                    </AdminRoute>
+                  }
+                />
+                <Route
                   path="/admin/quizzes/:id"
                   element={
                     <AdminRoute>
                       <QuestionManagement />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/run-quiz/:id"
+                  element={
+                    <AdminRoute>
+                      <RunQuiz />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/analytics"
+                  element={
+                    <AdminRoute>
+                      <Analytics />
                     </AdminRoute>
                   }
                 />
@@ -128,13 +178,11 @@ export default function App() {
                   }
                 />
 
-
                 {/* Fallback route */}
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </main>
 
-            {/* Footer */}
             <Footer />
           </div>
         </Router>

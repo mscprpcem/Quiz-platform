@@ -12,7 +12,10 @@ import {
   AlertCircle,
   HelpCircle,
   X,
+  FileSpreadsheet,
+  Download
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 /* â”€â”€ Correct answer option key â†’ label â”€â”€ */
 const OPTION_LABELS = { A: 'Option A', B: 'Option B', C: 'Option C', D: 'Option D' };
@@ -134,6 +137,66 @@ export default function QuestionManagement() {
     return <div className="text-center py-24 font-semibold text-brand-textMuted animate-pulse">Loading question sheet...</div>;
   }
 
+  const handleDownloadTemplate = () => {
+    const sampleData = [
+      { 'Question': 'What does CPU stand for?', 'Option A': 'Central Processing Unit', 'Option B': 'Central Program Utility', 'Option C': 'Computer Personal Unit', 'Option D': 'Central Processor Unifier', 'Correct Answer': 'A' },
+      { 'Question': 'Which data structure uses FIFO?', 'Option A': 'Stack', 'Option B': 'Queue', 'Option C': 'Tree', 'Option D': 'Graph', 'Correct Answer': 'B' },
+      { 'Question': 'HTML stands for?', 'Option A': 'Hyper Trainer Marking Language', 'Option B': 'Hyper Text Marketing Language', 'Option C': 'Hyper Text Markup Language', 'Option D': 'Hyper Text Markup Leveler', 'Correct Answer': 'C' }
+    ];
+    const ws = XLSX.utils.json_to_sheet(sampleData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Questions');
+    ws['!cols'] = [{ wch: 40 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 15 }];
+    XLSX.writeFile(wb, 'live_quiz_questions_template.xlsx');
+  };
+
+  const handleExcelUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = async (evt) => {
+      try {
+        const bstr = evt.target.result;
+        const wb = XLSX.read(bstr, { type: 'binary' });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rawData = XLSX.utils.sheet_to_json(ws, { defval: '' });
+
+        if (!rawData || rawData.length === 0) {
+          alert('No question rows found in uploaded file.');
+          return;
+        }
+
+        const parsed = rawData.map(row => ({
+          question: row.Question || row.question || '',
+          option_a: row['Option A'] || row.option_a || row.A || '',
+          option_b: row['Option B'] || row.option_b || row.B || '',
+          option_c: row['Option C'] || row.option_c || row.C || '',
+          option_d: row['Option D'] || row.option_d || row.D || '',
+          correct_answer: (row['Correct Answer'] || row.correct_answer || row.Answer || 'A').toString().trim().toUpperCase(),
+          timer: 30,
+          marks: 1
+        })).filter(q => q.question);
+
+        let successCount = 0;
+        for (const q of parsed) {
+          try {
+            await api.post(`/api/quizzes/${id}/questions`, q);
+            successCount++;
+          } catch (err) {
+            console.error('Failed to add question:', q.question, err);
+          }
+        }
+        alert(`Successfully imported ${successCount} of ${parsed.length} questions!`);
+        loadQuizDetails();
+      } catch (err) {
+        console.error('Excel parse error:', err);
+        alert('Failed to parse spreadsheet. Please use the template format.');
+      }
+    };
+    reader.readAsBinaryString(file);
+    e.target.value = '';
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 text-zinc-800 pb-12">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 animate-fade-in space-y-6">
@@ -158,6 +221,23 @@ export default function QuestionManagement() {
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap relative z-10">
+          {/* Download Template */}
+          <button
+            onClick={handleDownloadTemplate}
+            type="button"
+            className="flex items-center justify-center gap-1.5 border border-brand-border bg-white hover:bg-zinc-50 text-zinc-650 hover:text-brand-textMain px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
+          >
+            <Download size={14} />
+            Download Template
+          </button>
+
+          {/* Upload Excel */}
+          <label className="flex items-center justify-center gap-1.5 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer">
+            <FileSpreadsheet size={14} />
+            Upload Excel
+            <input type="file" accept=".csv,.xlsx,.xls" onChange={handleExcelUpload} className="hidden" />
+          </label>
+
           {quiz?.questions?.length > 0 && (
             <button
               onClick={() => setShowBulkTimerModal(true)}

@@ -100,10 +100,11 @@ export default function Home() {
   };
 
   const features = [
-    { title: 'Interactive Quiz', desc: 'Syncs questions instantly on all screens via WebSockets.', icon: Play, color: 'blue' },
-    { title: 'Real-Time Leaderboard', desc: 'Rankings updates after every question based on speed and accuracy.', icon: Trophy, color: 'purple' },
-    { title: 'Instant Results', desc: 'Detailed scorecards and analytics provided immediately upon completion.', icon: Award, color: 'amber' },
-    { title: 'Secure Participation', desc: 'Academic integrity protected via focus-loss trackers.', icon: Lock, color: 'red' }
+    { title: 'Interactive Live Quiz', desc: 'Syncs questions instantly on all participant screens via WebSockets.', icon: Play, color: 'blue' },
+    { title: 'Scheduled Quizzes', desc: 'Time-window availability, recurring slots, and independent attempts.', icon: Calendar, color: 'emerald' },
+    { title: 'Real-Time Leaderboards', desc: 'Rankings update dynamically after every question based on speed & accuracy.', icon: Trophy, color: 'purple' },
+    { title: 'Instant Analytics', desc: 'Detailed scorecards and question breakdown analytics provided immediately.', icon: Award, color: 'amber' },
+    { title: 'Proctoring & Anti-Cheat', desc: 'Academic integrity protected via focus-loss & tab-switch violation trackers.', icon: Lock, color: 'red' }
   ];
 
   const faqs = [
@@ -406,7 +407,7 @@ export default function Home() {
             <p className="text-brand-textMuted text-xs sm:text-sm">A simplified overview of key functionalities supporting our events.</p>
           </div>
           
-          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-5 items-stretch">
             {features.map((feat, idx) => {
               const Icon = feat.icon;
               const configs = {
@@ -421,7 +422,7 @@ export default function Home() {
               return (
                 <div 
                   key={idx} 
-                  className="feature-card-glow rounded-2xl p-5 flex flex-col justify-between text-left group relative overflow-hidden opacity-0 animate-fade-in"
+                  className="feature-card-glow rounded-2xl p-5 flex flex-col justify-between h-full min-h-[170px] text-left group relative overflow-hidden opacity-0 animate-fade-in shadow-2xs"
                   style={{ animationDelay: `${(idx + 1) * 80}ms`, animationFillMode: 'forwards' }}
                 >
                   {/* Floating pulse dot in top right */}
@@ -430,14 +431,14 @@ export default function Home() {
                     <span className={`relative inline-flex rounded-full h-2 w-2 ${c.dot}`}></span>
                   </div>
 
-                  <div className="space-y-4 relative z-10">
+                  <div className="space-y-4 relative z-10 flex flex-col justify-between h-full">
                     <div className={`w-11 h-11 ${c.iconClass} rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-all duration-300`}>
                       <Icon size={19} className="stroke-[2.5]" />
                     </div>
                     
                     <div className="space-y-1">
                       <h4 className="text-sm font-black text-brand-textMain leading-tight">{feat.title}</h4>
-                      <p className="text-xs text-brand-textMuted leading-relaxed font-medium pr-1">{feat.desc}</p>
+                      <p className="text-xs text-brand-textMuted leading-relaxed font-medium">{feat.desc}</p>
                     </div>
                   </div>
                 </div>

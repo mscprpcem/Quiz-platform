@@ -64,6 +64,7 @@ export default function QuizManagement() {
   const navigate = useNavigate();
   const [quizzes, setQuizzes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('active');
 
   // Modal States
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -78,21 +79,10 @@ export default function QuizManagement() {
   const [deleteTargetQuiz, setDeleteTargetQuiz] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const SUBJECT_OPTIONS = [
-    'DBMS',
-    'Data Structures & Algorithms',
-    'Frontend Development',
-    'Cloud Computing',
-    'Operating Systems',
-    'Computer Networks',
-    'General CS'
-  ];
-
   // Form States
   const [quizForm, setQuizForm] = useState({
     title: '',
     event_name: '',
-    subject: 'DBMS',
     description: '',
     scheduled_start: '',
     scheduled_end: ''
@@ -157,26 +147,12 @@ export default function QuizManagement() {
     setQuizForm((p) => ({ ...p, scheduled_start: startStr, scheduled_end: endStr }));
   };
 
-  const handleCreateInstantDBMS = async () => {
-    try {
-      setSaving(true);
-      await api.post('/api/quizzes/preset/dbms', {});
-      loadQuizzes();
-    } catch (err) {
-      console.error(err);
-      alert('Error creating Instant DBMS Quiz.');
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const handleOpenCreate = (quiz = null) => {
     if (quiz) {
       setSelectedQuiz(quiz);
       setQuizForm({
         title: quiz.title,
         event_name: quiz.event_name,
-        subject: quiz.subject || 'DBMS',
         description: quiz.description || '',
         scheduled_start: formatDateForInput(quiz.scheduled_start),
         scheduled_end: formatDateForInput(quiz.scheduled_end)
@@ -186,7 +162,6 @@ export default function QuizManagement() {
       setQuizForm({
         title: '',
         event_name: '',
-        subject: 'DBMS',
         description: '',
         scheduled_start: '',
         scheduled_end: ''
@@ -514,22 +489,32 @@ export default function QuizManagement() {
   return (
     <div className="min-h-screen bg-slate-50 text-zinc-800 pb-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 animate-fade-in space-y-6">
-        {/* Page Header */}
+      {/* Page Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-brand-border p-5 sm:p-6 rounded-2xl shadow-sm gap-4 relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-brand-blue via-brand-cyan to-brand-purple"></div>
         <div>
-          <h1 className="text-xl sm:text-2xl font-black text-brand-textMain tracking-tight">Quiz Catalog</h1>
-          <p className="text-xs sm:text-sm text-brand-textMuted mt-1">Configure draft sheets, launch sessions, or set subject schedules.</p>
+          <h1 className="text-xl sm:text-2xl font-black text-brand-textMain tracking-tight">Live Quiz Catalog</h1>
+          <p className="text-xs sm:text-sm text-brand-textMuted mt-1">Configure draft sheets, launch live sessions, or view completed quiz archives.</p>
         </div>
         <div className="flex flex-wrap gap-2.5 items-center">
-          <button
-            onClick={handleCreateInstantDBMS}
-            className="flex items-center justify-center gap-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white px-4 py-2.5 rounded-xl text-xs font-extrabold shadow-md hover:shadow-lg transition-all duration-200 active:scale-[0.97] cursor-pointer"
-            title="Create a pre-configured DBMS Subject Quiz with 5 questions in 1 click"
-          >
-            <Sparkles size={15} />
-            <span>Instant DBMS Quiz</span>
-          </button>
+          <div className="flex bg-slate-100 p-1 rounded-xl font-extrabold text-xs">
+            <button
+              onClick={() => setActiveTab('active')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                activeTab === 'active' ? 'bg-white text-purple-700 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Active & Draft ({quizzes.filter(q => q.status !== 'completed').length})
+            </button>
+            <button
+              onClick={() => setActiveTab('completed')}
+              className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                activeTab === 'completed' ? 'bg-white text-purple-700 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Completed ({quizzes.filter(q => q.status === 'completed').length})
+            </button>
+          </div>
 
           <button
             onClick={() => handleOpenCreate()}
@@ -546,7 +531,9 @@ export default function QuizManagement() {
         <div className="text-center py-20 text-zinc-550 font-semibold animate-pulse">Loading quizzes...</div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {quizzes.map((quiz) => {
+          {quizzes
+            .filter(q => activeTab === 'completed' ? q.status === 'completed' : q.status !== 'completed')
+            .map((quiz) => {
             const isExpired = quiz.scheduled_start && new Date(quiz.scheduled_start) < new Date() && quiz.status === 'draft';
             return (
               <div
@@ -565,13 +552,8 @@ export default function QuizManagement() {
                 <div className="space-y-4 relative z-10 flex-grow flex flex-col justify-between">
                   <div>
                     <div className="flex justify-between items-start gap-2 pt-1">
-                      <span className="text-[9px] font-extrabold text-zinc-550 uppercase tracking-widest bg-zinc-100 px-2.5 py-0.5 rounded-full truncate max-w-[120px]">{quiz.event_name}</span>
-                      <div className="flex gap-1.5 items-center">
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200">
-                          {quiz.subject || 'DBMS'}
-                        </span>
-                        <StatusBadge status={quiz.status} />
-                      </div>
+                      <span className="text-[9px] font-extrabold text-zinc-550 uppercase tracking-widest bg-zinc-100 px-2.5 py-0.5 rounded-full truncate max-w-[160px]">{quiz.event_name}</span>
+                      <StatusBadge status={quiz.status} />
                     </div>
                     <div className="mt-3.5">
                       <h3 className="text-base font-extrabold text-brand-textMain leading-snug group-hover:text-brand-blue transition-colors duration-200 truncate" title={quiz.title}>{quiz.title}</h3>
@@ -711,28 +693,12 @@ export default function QuizManagement() {
                     required
                     value={quizForm.title}
                     onChange={(e) => setQuizForm((p) => ({ ...p, title: e.target.value }))}
-                    placeholder="e.g. DBMS Normalization & SQL Challenge"
+                    placeholder="e.g. Cloud Fundamentals Challenge"
                     className="w-full px-4 py-2.5 border border-brand-border rounded-xl bg-brand-bgLight/50 text-brand-textMain placeholder-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all text-sm"
                   />
                 </div>
 
-                {/* Subject Selection */}
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-zinc-550 uppercase tracking-widest">
-                    Subject Module <span className="text-red-500">*</span>
-                  </label>
-                  <select
-                    value={quizForm.subject}
-                    onChange={(e) => setQuizForm((p) => ({ ...p, subject: e.target.value }))}
-                    className="w-full px-4 py-2.5 border border-brand-border rounded-xl bg-white text-brand-textMain focus:outline-none focus:ring-2 focus:ring-brand-blue transition-all text-sm font-semibold"
-                  >
-                    {SUBJECT_OPTIONS.map((sub) => (
-                      <option key={sub} value={sub}>
-                        {sub}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+
 
                 {/* Event Name */}
                 <div className="space-y-1.5">
@@ -744,7 +710,7 @@ export default function QuizManagement() {
                     required
                     value={quizForm.event_name}
                     onChange={(e) => setQuizForm((p) => ({ ...p, event_name: e.target.value }))}
-                    placeholder="e.g. MSC DBMS Day 2026"
+                    placeholder="e.g. MSC Tech Quiz 2026"
                     className="w-full px-4 py-2.5 border border-brand-border rounded-xl bg-brand-bgLight/50 text-brand-textMain placeholder-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all text-sm"
                   />
                 </div>

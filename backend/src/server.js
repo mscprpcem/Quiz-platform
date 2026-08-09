@@ -120,8 +120,11 @@ app.use("/api", limiter);
 // Routes
 // =======================
 
+const scheduledQuizRoutes = require('./routes/scheduledQuiz');
+
 app.use("/api/auth", authRoutes);
 app.use("/api/quizzes", quizRoutes);
+app.use("/api/scheduled-quizzes", scheduledQuizRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/export", exportRoutes);
 app.use("/api/branding", brandingRoutes);
@@ -167,8 +170,45 @@ async function startServer() {
     await sequelize.authenticate();
     console.log("✅ PostgreSQL Connected");
 
-    // Sync Database
-    await sequelize.sync({ alter: true });
+    // Auto-migrate missing columns for SQLite local development
+    if (sequelize.getDialect() === 'sqlite') {
+      const columns = [
+        "ALTER TABLE `Quizzes` ADD COLUMN `mode` VARCHAR(255) DEFAULT 'LIVE';",
+        "ALTER TABLE `Quizzes` ADD COLUMN `schedule_type` VARCHAR(255);",
+        "ALTER TABLE `Quizzes` ADD COLUMN `timezone` VARCHAR(255) DEFAULT 'Asia/Kolkata';",
+        "ALTER TABLE `Quizzes` ADD COLUMN `time_limit` INTEGER DEFAULT 30;",
+        "ALTER TABLE `Quizzes` ADD COLUMN `max_attempts` INTEGER DEFAULT 1;",
+        "ALTER TABLE `Quizzes` ADD COLUMN `score_policy` VARCHAR(255) DEFAULT 'BEST';",
+        "ALTER TABLE `Quizzes` ADD COLUMN `shuffle_questions` TINYINT(1) DEFAULT 0;",
+        "ALTER TABLE `Quizzes` ADD COLUMN `shuffle_answers` TINYINT(1) DEFAULT 0;",
+        "ALTER TABLE `Quizzes` ADD COLUMN `require_fullscreen` TINYINT(1) DEFAULT 0;",
+        "ALTER TABLE `Quizzes` ADD COLUMN `anti_cheat_enabled` TINYINT(1) DEFAULT 1;",
+        "ALTER TABLE `Quizzes` ADD COLUMN `max_violations` INTEGER DEFAULT 3;",
+        "ALTER TABLE `Quizzes` ADD COLUMN `positive_marks` INTEGER DEFAULT 1;",
+        "ALTER TABLE `Quizzes` ADD COLUMN `negative_marks` INTEGER DEFAULT 0;",
+        "ALTER TABLE `Quizzes` ADD COLUMN `show_leaderboard` TINYINT(1) DEFAULT 1;",
+        "ALTER TABLE `Quizzes` ADD COLUMN `schedule_config` TEXT;"
+      ];
+      for (const query of columns) {
+        try {
+          await sequelize.query(query);
+        } catch (e) {
+          // Column already exists or table sync handled it
+        }
+      }
+    }
+
+    // Sync Database safely for SQLite and PostgreSQL
+    try {
+      if (sequelize.getDialect() === 'sqlite') {
+        await sequelize.sync();
+      } else {
+        await sequelize.sync({ alter: true });
+      }
+    } catch (syncErr) {
+      console.warn("⚠️ Alter sync warning, falling back to standard sync:", syncErr.message);
+      await sequelize.sync();
+    }
 
     console.log("✅ Database Synced");
 

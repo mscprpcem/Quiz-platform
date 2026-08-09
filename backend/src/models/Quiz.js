@@ -28,6 +28,66 @@ const Quiz = sequelize.define('Quiz', {
     type: DataTypes.ENUM('draft', 'waiting_lobby', 'in_progress', 'completed'),
     defaultValue: 'draft'
   },
+  mode: {
+    type: DataTypes.ENUM('LIVE', 'SCHEDULED'),
+    defaultValue: 'LIVE'
+  },
+  schedule_type: {
+    type: DataTypes.ENUM('ONE_TIME', 'DAILY', 'WEEKLY', 'BIWEEKLY', 'MONTHLY', 'CUSTOM'),
+    allowNull: true
+  },
+  timezone: {
+    type: DataTypes.STRING,
+    defaultValue: 'Asia/Kolkata'
+  },
+  time_limit: {
+    type: DataTypes.INTEGER, // in minutes, 0 means no limit
+    defaultValue: 30
+  },
+  max_attempts: {
+    type: DataTypes.INTEGER,
+    defaultValue: 1
+  },
+  score_policy: {
+    type: DataTypes.ENUM('BEST', 'LATEST', 'FIRST'),
+    defaultValue: 'BEST'
+  },
+  shuffle_questions: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  shuffle_answers: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  require_fullscreen: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false
+  },
+  anti_cheat_enabled: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
+  },
+  max_violations: {
+    type: DataTypes.INTEGER,
+    defaultValue: 3
+  },
+  positive_marks: {
+    type: DataTypes.INTEGER,
+    defaultValue: 1
+  },
+  negative_marks: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
+  },
+  show_leaderboard: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
+  },
+  schedule_config: {
+    type: DataTypes.TEXT, // JSON stringified configuration for custom recurrence rules
+    allowNull: true
+  },
   current_question_index: {
     type: DataTypes.INTEGER,
     defaultValue: -1 // -1 means lobby. 0 means question 1.
