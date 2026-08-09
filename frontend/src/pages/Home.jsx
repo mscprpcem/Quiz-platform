@@ -22,7 +22,8 @@ import {
   Lock,
   Tv,
   Check,
-  Search
+  Search,
+  Bell
 } from 'lucide-react';
 import api from '../services/api';
 import QRScanner from '../components/QRScanner';
@@ -371,30 +372,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* Featured Subject Module Card (DBMS) */}
-          <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
-            <div className="space-y-2 max-w-xl text-left">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full text-[10px] font-black uppercase tracking-wider">
-                <Sparkles size={12} className="animate-pulse" />
-                <span>Featured Subject Quiz Module</span>
-              </div>
-              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                Database Management Systems (DBMS)
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-medium">
-                Test your knowledge in SQL Queries, 1NF-BCNF Normalization, ACID Transactions, Indexing B-Trees, and Two-Phase Locking (2PL) protocols.
-              </p>
-            </div>
-            <div className="flex gap-3 w-full md:w-auto">
-              <button
-                onClick={() => navigate('/practice/dbms')}
-                className="w-full md:w-auto px-6 py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider shadow-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2"
-              >
-                <span>Launch DBMS Module</span>
-                <ArrowRight size={14} />
-              </button>
-            </div>
-          </div>
         </div>
 
 
@@ -406,7 +383,7 @@ export default function Home() {
             <p className="text-brand-textMuted text-xs sm:text-sm">A simplified overview of key functionalities supporting our events.</p>
           </div>
           
-          <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6">
             {features.map((feat, idx) => {
               const Icon = feat.icon;
               const configs = {
@@ -421,23 +398,23 @@ export default function Home() {
               return (
                 <div 
                   key={idx} 
-                  className="feature-card-glow rounded-2xl p-5 flex flex-col justify-between text-left group relative overflow-hidden opacity-0 animate-fade-in"
+                  className="bg-white border border-slate-200/90 hover:border-brand-blue/40 rounded-2xl p-6 flex flex-col justify-between text-left group relative overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 h-full min-h-[170px] opacity-0 animate-fade-in"
                   style={{ animationDelay: `${(idx + 1) * 80}ms`, animationFillMode: 'forwards' }}
                 >
                   {/* Floating pulse dot in top right */}
-                  <div className="absolute top-4 right-4 flex h-2 w-2">
+                  <div className="absolute top-5 right-5 flex h-2.5 w-2.5">
                     <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${c.dot}`}></span>
-                    <span className={`relative inline-flex rounded-full h-2 w-2 ${c.dot}`}></span>
+                    <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${c.dot}`}></span>
                   </div>
 
                   <div className="space-y-4 relative z-10">
-                    <div className={`w-11 h-11 ${c.iconClass} rounded-xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-all duration-300`}>
-                      <Icon size={19} className="stroke-[2.5]" />
+                    <div className={`w-12 h-12 ${c.iconClass} rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-all duration-300 shadow-md`}>
+                      <Icon size={20} className="stroke-[2.5]" />
                     </div>
                     
-                    <div className="space-y-1">
-                      <h4 className="text-sm font-black text-brand-textMain leading-tight">{feat.title}</h4>
-                      <p className="text-xs text-brand-textMuted leading-relaxed font-medium pr-1">{feat.desc}</p>
+                    <div className="space-y-1.5">
+                      <h4 className="text-sm sm:text-base font-black text-brand-textMain leading-snug">{feat.title}</h4>
+                      <p className="text-xs text-brand-textMuted leading-relaxed font-medium">{feat.desc}</p>
                     </div>
                   </div>
                 </div>

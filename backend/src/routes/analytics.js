@@ -62,9 +62,64 @@ router.get('/public/leaderboard', async (req, res) => {
   }
 });
 
+// Global platform analytics across all quizzes and events
+router.get('/global', authMiddleware, async (req, res) => {
+  try {
+    const totalQuizzes = await Quiz.count();
+    const activeQuizzes = await Quiz.count({ where: { status: 'in_progress' } });
+    const completedQuizzes = await Quiz.count({ where: { status: 'completed' } });
+    const totalQuestions = await Question.count();
+    const totalParticipants = await Participant.count();
+    const totalAnswers = await Answer.count();
+    const correctAnswers = await Answer.count({ where: { is_correct: true } });
+
+    const accuracyRate = totalAnswers > 0 ? Math.round((correctAnswers / totalAnswers) * 100) : 0;
+
+    // Fetch quiz list with participant counts
+    const quizzes = await Quiz.findAll({
+      order: [['createdAt', 'DESC']],
+      limit: 10
+    });
+
+    const recentQuizzes = await Promise.all(
+      quizzes.map(async (q) => {
+        const pCount = await Participant.count({ where: { quiz_id: q.id } });
+        return {
+          id: q.id,
+          title: q.title,
+          subject: q.subject || 'General',
+          status: q.status,
+          date: q.createdAt,
+          participants: pCount
+        };
+      })
+    );
+
+    return res.json({
+      global: true,
+      totalQuizzes,
+      activeQuizzes,
+      completedQuizzes,
+      totalQuestions,
+      totalParticipants,
+      totalAnswers,
+      accuracyRate,
+      recentQuizzes
+    });
+  } catch (error) {
+    console.error('Global analytics error:', error);
+    return res.status(500).json({ error: 'Failed to compile global analytics' });
+  }
+});
+
 router.get('/quiz/:id', authMiddleware, async (req, res) => {
   try {
     const quizId = req.params.id;
+
+    if (quizId === 'all' || quizId === 'global') {
+      return res.redirect('/api/analytics/global');
+    }
+
     const quiz = await Quiz.findByPk(quizId);
     if (!quiz) {
       return res.status(404).json({ error: 'Quiz not found' });

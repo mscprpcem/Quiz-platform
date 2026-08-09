@@ -24,6 +24,10 @@ const Quiz = sequelize.define('Quiz', {
     type: DataTypes.TEXT,
     allowNull: true
   },
+  mode: {
+    type: DataTypes.ENUM('LIVE_REALTIME', 'WEEKLY_LEAGUE'),
+    defaultValue: 'LIVE_REALTIME'
+  },
   status: {
     type: DataTypes.ENUM('draft', 'waiting_lobby', 'in_progress', 'completed'),
     defaultValue: 'draft'

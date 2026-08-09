@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Trophy, HelpCircle, Clock, ShieldAlert, Award, ChevronLeft, ChevronRight, RotateCcw, Home, Flag, CheckCircle, AlertCircle, BookOpen, Layers } from 'lucide-react';
+import { Trophy, HelpCircle, Clock, ShieldAlert, Award, ChevronLeft, ChevronRight, RotateCcw, Home, Flag, CheckCircle, AlertCircle, BookOpen, Layers, Bell, Database } from 'lucide-react';
 
 // Questions database
 const PRACTICE_QUESTIONS = {
@@ -283,8 +283,9 @@ const CATEGORY_META = {
     desc: 'Master SQL queries, Normalization (1NF to BCNF), ACID transaction properties, Indexing B-Trees, Relational Algebra, and Concurrency 2PL protocols.',
     themeColor: 'from-amber-500 to-orange-500',
     hoverBorder: 'hover:border-amber-400',
-    pillBg: 'bg-amber-50 text-amber-700',
-    iconColor: 'text-amber-600 bg-amber-50'
+    pillBg: 'bg-amber-100 text-amber-800',
+    iconColor: 'text-amber-600 bg-amber-50',
+    isReady: false
   },
   frontend: {
     title: 'Frontend Mastery',
@@ -292,7 +293,8 @@ const CATEGORY_META = {
     themeColor: 'from-blue-500 to-cyan-500',
     hoverBorder: 'hover:border-blue-400',
     pillBg: 'bg-blue-50 text-blue-700',
-    iconColor: 'text-blue-600 bg-blue-50'
+    iconColor: 'text-blue-600 bg-blue-50',
+    isReady: true
   },
   dsa: {
     title: 'Algorithms & Data Structures',
@@ -300,7 +302,8 @@ const CATEGORY_META = {
     themeColor: 'from-emerald-500 to-teal-500',
     hoverBorder: 'hover:border-emerald-400',
     pillBg: 'bg-emerald-50 text-emerald-700',
-    iconColor: 'text-emerald-600 bg-emerald-50'
+    iconColor: 'text-emerald-600 bg-emerald-50',
+    isReady: true
   },
   cloud: {
     title: 'Cloud & DevOps Essentials',
@@ -308,7 +311,8 @@ const CATEGORY_META = {
     themeColor: 'from-purple-500 to-indigo-500',
     hoverBorder: 'hover:border-purple-400',
     pillBg: 'bg-purple-50 text-purple-700',
-    iconColor: 'text-purple-600 bg-purple-50'
+    iconColor: 'text-purple-600 bg-purple-50',
+    isReady: true
   }
 };
 
@@ -325,10 +329,64 @@ export default function PracticeQuiz() {
   const [showSubmitModal, setShowSubmitModal] = useState(false);
   const [completed, setCompleted] = useState(false);
   const [timeSpent, setTimeSpent] = useState(0);
+  const [notifiedCategory, setNotifiedCategory] = useState({});
+  const [notifyToast, setNotifyToast] = useState('');
 
   const timerIntervalRef = useRef(null);
   const questions = PRACTICE_QUESTIONS[category] || [];
   const meta = CATEGORY_META[category];
+
+  // Dedicated screen when accessing DBMS directly (quiz not ready)
+  if (category === 'dbms') {
+    return (
+      <div className="min-h-[calc(100vh-4rem)] bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-500/10 via-zinc-50 to-white py-16 px-4 sm:px-6 lg:px-8 flex items-center justify-center">
+        <div className="max-w-lg w-full bg-white border border-slate-200 rounded-3xl p-8 shadow-xl text-center space-y-6 animate-fade-in">
+          <div className="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto text-amber-600 border border-amber-200 shadow-sm">
+            <Database size={32} />
+          </div>
+          
+          <div className="space-y-2">
+            <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 bg-amber-100 text-amber-800 rounded-full border border-amber-200">
+              Quiz Under Preparation
+            </span>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight mt-2">
+              DBMS Quiz Is Not Ready Yet
+            </h2>
+            <p className="text-xs text-slate-500 leading-relaxed font-medium">
+              Questions for Database Management Systems are currently being compiled by course authors. Register below to be notified as soon as this quiz launches!
+            </p>
+          </div>
+
+          {notifiedCategory['dbms'] ? (
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-center space-x-2 text-emerald-800 text-xs font-extrabold animate-fade-in">
+              <CheckCircle size={18} className="text-emerald-600 flex-shrink-0" />
+              <span>Notification Saved! We will alert you when DBMS launches.</span>
+            </div>
+          ) : (
+            <button
+              onClick={() => {
+                setNotifiedCategory((prev) => ({ ...prev, dbms: true }));
+              }}
+              className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-black rounded-2xl text-xs uppercase tracking-wider shadow-lg transition-all active:scale-95 flex items-center justify-center space-x-2 cursor-pointer"
+            >
+              <Bell size={16} />
+              <span>Notify Me When DBMS Quiz Is Ready</span>
+            </button>
+          )}
+
+          <div className="pt-4 border-t border-slate-100 flex items-center justify-center">
+            <button
+              onClick={() => navigate('/practice')}
+              className="inline-flex items-center space-x-2 text-xs font-extrabold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+            >
+              <Home size={14} />
+              <span>Return to Practice Arena</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // Timer effect
   useEffect(() => {
@@ -414,51 +472,83 @@ export default function PracticeQuiz() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {Object.entries(CATEGORY_META).map(([key, value]) => (
-              <div
-                key={key}
-                className={`bg-white border border-brand-border ${value.hoverBorder} rounded-2xl p-6 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between text-left group`}
-              >
-                <div className="space-y-4">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-inner ${value.iconColor}`}>
-                    {key === 'frontend' && <BookOpen size={22} />}
-                    {key === 'dsa' && <Trophy size={22} />}
-                    {key === 'cloud' && <Layers size={22} />}
-                  </div>
-                  
-                  <div className="space-y-1.5">
-                    <span className={`text-[9px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full ${value.pillBg}`}>
-                      5 Questions â€¢ 2 Mins
-                    </span>
-                    <h3 className="text-lg font-bold text-brand-textMain">{value.title}</h3>
-                  </div>
-                  
-                  <p className="text-xs text-brand-textMuted leading-relaxed">
-                    {value.desc}
-                  </p>
-                </div>
+            {Object.entries(CATEGORY_META).map(([key, value]) => {
+              const isNotReady = value.isReady === false;
+              const isNotified = notifiedCategory[key];
 
-                <button
-                  onClick={() => navigate(`/practice/${key}`)}
-                  className={`mt-8 w-full text-center bg-gradient-to-r ${value.themeColor} text-white font-bold py-2.5 rounded-lg text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-md active:scale-98`}
+              return (
+                <div
+                  key={key}
+                  className={`bg-white border border-brand-border ${value.hoverBorder} rounded-2xl p-6 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between text-left group`}
                 >
-                  <span>Start Practice Quiz</span>
-                  <ChevronRight size={14} />
-                </button>
-              </div>
-            ))}
+                  <div className="space-y-4">
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-inner ${value.iconColor}`}>
+                      {key === 'dbms' && <Database size={22} />}
+                      {key === 'frontend' && <BookOpen size={22} />}
+                      {key === 'dsa' && <Trophy size={22} />}
+                      {key === 'cloud' && <Layers size={22} />}
+                    </div>
+                    
+                    <div className="space-y-1.5">
+                      <span className={`text-[9px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full ${
+                        isNotReady ? 'bg-amber-100 text-amber-800 border border-amber-200' : value.pillBg
+                      }`}>
+                        {isNotReady ? 'Quiz Not Ready' : '5 Questions • 2 Mins'}
+                      </span>
+                      <h3 className="text-lg font-bold text-brand-textMain">{value.title}</h3>
+                    </div>
+                    
+                    <p className="text-xs text-brand-textMuted leading-relaxed">
+                      {value.desc}
+                    </p>
+                  </div>
+
+                  {isNotReady ? (
+                    <button
+                      onClick={() => {
+                        setNotifiedCategory((prev) => ({ ...prev, [key]: true }));
+                        setNotifyToast(`${value.title} Quiz is not ready yet. Notification saved!`);
+                        setTimeout(() => setNotifyToast(''), 4000);
+                      }}
+                      className={`mt-8 w-full text-center ${
+                        isNotified 
+                          ? 'bg-emerald-600 text-white' 
+                          : `bg-gradient-to-r ${value.themeColor} text-slate-950 font-black`
+                      } py-2.5 rounded-lg text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-md active:scale-98`}
+                    >
+                      <Bell size={14} />
+                      <span>{isNotified ? '✓ Notification Set' : 'Notify Me (Quiz Not Ready)'}</span>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => navigate(`/practice/${key}`)}
+                      className={`mt-8 w-full text-center bg-gradient-to-r ${value.themeColor} text-white font-bold py-2.5 rounded-lg text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-md active:scale-98`}
+                    >
+                      <span>Start Practice Quiz</span>
+                      <ChevronRight size={14} />
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
+
+          {notifyToast && (
+            <div className="fixed bottom-5 right-5 z-50 bg-slate-900 text-white border border-amber-500/50 px-5 py-3 rounded-xl shadow-2xl flex items-center gap-3 text-xs font-bold animate-bounce">
+              <Bell className="text-amber-400" size={18} />
+              <span>{notifyToast}</span>
+            </div>
+          )}
 
           <div className="border-t border-zinc-150 pt-8 flex items-center justify-center space-x-6">
             <button
               onClick={() => navigate('/')}
-              className="flex items-center space-x-2 text-brand-textMuted hover:text-brand-textMain text-xs font-semibold transition-all"
+              className="flex items-center space-x-2 text-brand-textMuted hover:text-brand-textMain text-xs font-semibold transition-all cursor-pointer"
             >
               <Home size={14} />
               <span>Back to Home</span>
             </button>
           </div>
-
         </div>
       </div>
     );

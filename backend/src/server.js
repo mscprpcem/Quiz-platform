@@ -17,6 +17,7 @@ const quizRoutes = require('./routes/quiz');
 const analyticsRoutes = require('./routes/analytics');
 const exportRoutes = require('./routes/export');
 const brandingRoutes = require('./routes/branding');
+const weeklyLeagueRoutes = require('./routes/weeklyLeague');
 
 const app = express();
 const server = http.createServer(app);
@@ -125,6 +126,7 @@ app.use("/api/quizzes", quizRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/export", exportRoutes);
 app.use("/api/branding", brandingRoutes);
+app.use("/api/weekly-league", weeklyLeagueRoutes);
 
 // =======================
 // Root
@@ -163,12 +165,25 @@ initializeSocket(io);
 async function startServer() {
   try {
 
-    // Test PostgreSQL Connection
+    // Test Database Connection
     await sequelize.authenticate();
-    console.log("✅ PostgreSQL Connected");
+    console.log(`✅ Database Connected (${sequelize.getDialect()})`);
 
-    // Sync Database
-    await sequelize.sync({ alter: true });
+    // Sync Database (Handle SQLite alter table backup mismatch gracefully)
+    try {
+      if (sequelize.getDialect() === 'sqlite') {
+        await sequelize.sync();
+      } else {
+        await sequelize.sync({ alter: true });
+      }
+    } catch (syncErr) {
+      console.warn("⚠️ Database alter sync notice (falling back to standard sync):", syncErr.message);
+      try {
+        await sequelize.sync();
+      } catch (err2) {
+        console.warn("⚠️ Standard sync fallback error:", err2.message);
+      }
+    }
 
     console.log("✅ Database Synced");
 
@@ -189,9 +204,12 @@ async function startServer() {
         });
         console.log(`✅ Default Admin Created: ${item.email}`);
       } else {
-        existingAdmin.password = item.password;
-        await existingAdmin.save();
-        console.log(`✅ Default Admin Password Synced: ${item.email}`);
+        const matches = await existingAdmin.comparePassword(item.password);
+        if (!matches) {
+          existingAdmin.password = item.password;
+          await existingAdmin.save();
+          console.log(`✅ Default Admin Password Synced: ${item.email}`);
+        }
       }
     }
 

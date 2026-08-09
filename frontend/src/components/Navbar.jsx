@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Home, BarChart2, BookOpen, Trophy, Play, User, Palette, Menu, X, FileCode } from 'lucide-react';
+import { LogOut, Home, BarChart2, BookOpen, Trophy, Play, User, Palette, Menu, X, FileCode, Award } from 'lucide-react';
 
 export default function Navbar() {
   const { user, logout } = useAuth();
@@ -10,6 +10,10 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isAdminPath = location.pathname.startsWith('/admin');
+
+  if (isAdminPath && location.pathname !== '/admin/login') {
+    return null;
+  }
 
   const [showConfirm, setShowConfirm] = useState(false);
 
@@ -95,6 +99,12 @@ export default function Navbar() {
                   icon={BookOpen}
                   label="Quizzes"
                 />
+                <NavButton
+                  onClick={() => navTo('/admin/weekly-league')}
+                  isActive={isActive('/admin/weekly-league')}
+                  icon={Award}
+                  label="Weekly Tech League"
+                />
 
                 <div className="h-5 w-px mx-2 bg-brand-border"></div>
 
@@ -135,6 +145,12 @@ export default function Navbar() {
                   isActive={isActive('/courses')}
                   icon={BookOpen}
                   label="Courses"
+                />
+                <NavButton
+                  onClick={() => navTo('/weekly-league')}
+                  isActive={isActive('/weekly-league')}
+                  icon={Trophy}
+                  label="Weekly Tech League"
                 />
                 <NavButton
                   onClick={() => navTo('/join')}

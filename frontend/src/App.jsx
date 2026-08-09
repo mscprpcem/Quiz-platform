@@ -31,6 +31,11 @@ import SupportSLA from './pages/SupportSLA';
 import ReportIssue from './pages/ReportIssue';
 import Documentation from './pages/Documentation';
 import Courses from './pages/Courses';
+import WeeklyLeague from './pages/WeeklyLeague';
+import WeeklyLeagueQuiz from './pages/WeeklyLeagueQuiz';
+import AdminWeeklyLeague from './pages/AdminWeeklyLeague';
+import AdminCourses from './pages/AdminCourses';
+import AdminLayout from './components/AdminLayout';
 
 // Private Route Enforcer for Admin pages
 const AdminRoute = ({ children }) => {
@@ -44,7 +49,7 @@ const AdminRoute = ({ children }) => {
     );
   }
 
-  return user ? children : <Navigate to="/admin/login" replace />;
+  return user ? <AdminLayout>{children}</AdminLayout> : <Navigate to="/admin/login" replace />;
 };
 
 export default function App() {
@@ -64,6 +69,8 @@ export default function App() {
                 <Route path="/join" element={<JoinQuiz />} />
                 <Route path="/join/:code" element={<JoinQuiz />} />
                 <Route path="/courses" element={<Courses />} />
+                <Route path="/weekly-league" element={<WeeklyLeague />} />
+                <Route path="/weekly-league/quiz/:attemptId" element={<WeeklyLeagueQuiz />} />
                 <Route path="/waiting-room" element={<WaitingRoom />} />
                 <Route path="/live-quiz" element={<LiveQuiz />} />
                 <Route path="/results" element={<Results />} />
@@ -116,6 +123,30 @@ export default function App() {
                   element={
                     <AdminRoute>
                       <QuestionManagement />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/weekly-league"
+                  element={
+                    <AdminRoute>
+                      <AdminWeeklyLeague />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/courses"
+                  element={
+                    <AdminRoute>
+                      <AdminCourses />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/analytics"
+                  element={
+                    <AdminRoute>
+                      <Analytics />
                     </AdminRoute>
                   }
                 />

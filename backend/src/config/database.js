@@ -4,9 +4,11 @@ require("dotenv").config();
 
 let sequelize;
 
-if (process.env.DATABASE_URL) {
+const isProduction = process.env.NODE_ENV === "production" || process.env.USE_POSTGRES === "true";
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL && process.env.DATABASE_URL.trim().length > 0);
 
-    console.log("Using Neon PostgreSQL");
+if (hasDatabaseUrl && isProduction) {
+    console.log("🐘 Connecting to Neon PostgreSQL (Production Mode)...");
 
     sequelize = new Sequelize(process.env.DATABASE_URL, {
         dialect: "postgres",
@@ -26,8 +28,7 @@ if (process.env.DATABASE_URL) {
     });
 
 } else {
-
-    console.log("Using SQLite");
+    console.log("📁 Using Local SQLite Database (Local Development Mode)...");
 
     const sqlitePath = path.join(__dirname, "..", "..", "database.sqlite");
 
@@ -36,7 +37,6 @@ if (process.env.DATABASE_URL) {
         storage: sqlitePath,
         logging: false
     });
-
 }
 
 module.exports = sequelize;

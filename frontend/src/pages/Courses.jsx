@@ -157,10 +157,8 @@ export default function Courses() {
                       <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-300 border border-slate-200/80 overflow-hidden ${course.paddingClass || 'p-2'}`}>
                         <img src={course.imageSrc} alt={course.title} className={course.imgClass || 'object-contain w-full h-full'} />
                       </div>
-                      <span className={`text-[10px] font-extrabold px-3 py-0.5 rounded-full uppercase tracking-wider ${
-                        isDbms ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 animate-pulse' : 'bg-amber-100/80 text-amber-800 border border-amber-200'
-                      }`}>
-                        {isDbms ? 'Quiz Available' : course.badge}
+                      <span className="text-[10px] font-extrabold px-3 py-0.5 rounded-full uppercase tracking-wider bg-amber-100/80 text-amber-800 border border-amber-200">
+                        {isDbms ? 'Quiz Not Ready' : course.badge}
                       </span>
                     </div>
 
@@ -175,17 +173,16 @@ export default function Courses() {
 
                   <div className="pt-2 border-t border-slate-200/60 flex justify-between items-center text-xs font-bold">
                     <span>Includes verified certificate</span>
-                    {isDbms ? (
-                      <button
-                        onClick={() => navigate('/practice/dbms')}
-                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-extrabold shadow-sm transition-all flex items-center gap-1 cursor-pointer"
-                      >
-                        <span>Take DBMS Quiz</span>
-                        <ArrowRight size={12} />
-                      </button>
-                    ) : (
-                      <span className="text-brand-blue font-extrabold">Stay tuned →</span>
-                    )}
+                    <button
+                      onClick={() => {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                        setSubscribed(true);
+                      }}
+                      className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-extrabold shadow-sm transition-all flex items-center gap-1 cursor-pointer border border-slate-300/70"
+                    >
+                      <span>Notify Me</span>
+                      <ArrowRight size={12} />
+                    </button>
                   </div>
                 </div>
               );
