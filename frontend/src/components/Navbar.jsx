@@ -225,7 +225,7 @@ export default function Navbar() {
                   <User size={20} />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-slate-900">Student Login</h3>
+                  <h3 className="text-base font-black text-slate-900">Login</h3>
                   <p className="text-[11px] text-slate-400 font-medium">Enter your credentials to sign in and proceed</p>
                 </div>
               </div>
@@ -242,7 +242,7 @@ export default function Navbar() {
                   required
                   value={studentEmailInput}
                   onChange={(e) => setStudentEmailInput(e.target.value)}
-                  placeholder="e.g. student@gmail.com or student@prpcem.ac.in"
+                  placeholder="e.g. student@gmail.com"
                   className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:border-purple-600"
                 />
               </div>
