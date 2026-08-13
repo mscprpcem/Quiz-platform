@@ -19,7 +19,7 @@ const InputRow = ({ id, name, icon: Icon, label, required, type = 'text', placeh
         name={name}
         type={type}
         required={required}
-        maxLength={name === 'joinCode' ? 6 : undefined}
+        maxLength={name === 'joinCode' ? 30 : undefined}
         value={value}
         onChange={onChange}
         placeholder={placeholder}
@@ -40,7 +40,7 @@ export default function JoinQuiz() {
       try {
         const parsed = JSON.parse(saved);
         return {
-          joinCode: code ? code.toUpperCase() : (parsed.joinCode || ''),
+          joinCode: code || (parsed.joinCode || ''),
           name: parsed.name || '',
           college: parsed.college || '',
           email: parsed.email || ''
@@ -50,7 +50,7 @@ export default function JoinQuiz() {
       }
     }
     return {
-      joinCode: code ? code.toUpperCase() : '',
+      joinCode: code || '',
       name: '',
       college: '',
       email: ''
@@ -63,7 +63,7 @@ export default function JoinQuiz() {
   useEffect(() => {
     if (code) {
       setFormData((prev) => {
-        const updated = { ...prev, joinCode: code.toUpperCase() };
+        const updated = { ...prev, joinCode: code };
         localStorage.setItem('msc_saved_form_data', JSON.stringify(updated));
         return updated;
       });
@@ -112,7 +112,18 @@ export default function JoinQuiz() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    const val = name === 'joinCode' ? value.toUpperCase() : value;
+    let val = value;
+
+    if (name === 'joinCode') {
+      // If user pasted a full URL (e.g. https://mscprpcem.tech/q/visionXS2 or /visionXS2)
+      if (value.includes('/q/')) {
+        val = value.split('/q/')[1].split('/')[0].split('?')[0];
+      } else if (value.startsWith('http://') || value.startsWith('https://')) {
+        const parts = value.split('/').filter(Boolean);
+        val = parts[parts.length - 1].split('?')[0];
+      }
+    }
+
     setFormData((prev) => {
       const updated = { ...prev, [name]: val };
       localStorage.setItem('msc_saved_form_data', JSON.stringify(updated));
@@ -121,7 +132,7 @@ export default function JoinQuiz() {
     setError('');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     const { joinCode, name, college, email } = formData;
 
@@ -129,18 +140,40 @@ export default function JoinQuiz() {
       setError('Please fill in all required fields.');
       return;
     }
-    if (joinCode.length !== 6) {
-      setError('Join code must be exactly 6 characters.');
+
+    const cleanCode = joinCode.trim();
+    if (cleanCode.length < 3 || cleanCode.length > 30) {
+      setError('Join code or link slug must be between 3 and 30 characters.');
       return;
     }
 
     setLoading(true);
     setError('');
+
+    // Save student details to localStorage for scheduled quiz pre-fill
+    localStorage.setItem('msc_student_name', name);
+    localStorage.setItem('msc_student_email', email);
+    localStorage.setItem('msc_participant_name', name);
+    localStorage.setItem('msc_participant_email', email);
+
+    // 1. Try resolving as a Scheduled Quiz or Vanity Slug (/visionXS2)
+    try {
+      const slugRes = await api.get(`/api/scheduled-quizzes/slug/${cleanCode}`);
+      if (slugRes.data?.activeOccurrenceId) {
+        setLoading(false);
+        navigate(`/scheduled-quiz/${slugRes.data.activeOccurrenceId}`);
+        return;
+      }
+    } catch (err) {
+      // Not a scheduled quiz slug; continue to live socket join below
+    }
+
+    // 2. Fallback to Live Quiz Socket Lobby Join
     connectSocket();
 
     setTimeout(() => {
       if (socket) {
-        socket.emit('join_quiz', { name, college, email, joinCode });
+        socket.emit('join_quiz', { name, college, email, joinCode: cleanCode.toUpperCase() });
       } else {
         setLoading(false);
         setError('Connection issues. Please try again.');

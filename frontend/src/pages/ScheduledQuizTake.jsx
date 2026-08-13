@@ -279,7 +279,28 @@ export default function ScheduledQuizTake() {
             <p className="text-xs text-slate-500 font-medium">{occData?.quiz?.description}</p>
           </div>
 
-          {status !== 'AVAILABLE' ? (
+          {status === 'NOT_STARTED' ? (
+            <div className="p-5 bg-blue-50 border border-blue-200 text-blue-900 rounded-2xl space-y-3">
+              <div className="flex items-center space-x-2 text-xs font-extrabold text-blue-700">
+                <Clock size={18} className="animate-spin text-blue-600" />
+                <span>Scheduled Start Time:</span>
+              </div>
+              <div className="text-sm font-black text-slate-900">
+                {occData?.occurrence?.start_time ? new Date(occData.occurrence.start_time).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Upcoming Session'}
+              </div>
+              <p className="text-[11px] text-blue-700 font-medium leading-relaxed">
+                This scheduled session will automatically open for attempts at the start time above. Please stay on this page!
+              </p>
+            </div>
+          ) : status === 'CLOSED' ? (
+            <div className="p-5 bg-slate-100 border border-slate-200 text-slate-700 rounded-2xl space-y-2">
+              <div className="flex items-center space-x-2 text-xs font-extrabold text-slate-800">
+                <AlertTriangle size={18} className="text-amber-500" />
+                <span>Session Closed</span>
+              </div>
+              <p className="text-xs text-slate-600 font-medium">This scheduled quiz session has closed. Check back for the next upcoming slot!</p>
+            </div>
+          ) : status !== 'AVAILABLE' ? (
             <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl text-xs font-semibold flex items-center space-x-3">
               <AlertTriangle size={20} className="flex-shrink-0" />
               <span>{message}</span>

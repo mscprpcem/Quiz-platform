@@ -810,18 +810,31 @@ router.get('/slug/:slug', async (req, res) => {
     const rawSlug = req.params.slug ? req.params.slug.trim().replace(/^\//, '') : '';
     if (!rawSlug) return res.status(400).json({ error: 'Slug is required.' });
 
-    const quiz = await Quiz.findOne({
+    const cleanSlug = rawSlug.toLowerCase();
+
+    let quiz = await Quiz.findOne({
       where: {
         [Op.or]: [
+          { custom_slug: { [Op.like]: rawSlug } },
+          { join_code: { [Op.like]: rawSlug } },
           { custom_slug: rawSlug },
           { join_code: rawSlug.toUpperCase() },
           { id: rawSlug }
         ]
       },
-      include: [
-        { model: ScheduledOccurrence, as: 'occurrences' }
-      ]
+      include: [{ model: ScheduledOccurrence, as: 'occurrences' }]
     });
+
+    if (!quiz) {
+      const allQuizzes = await Quiz.findAll({
+        include: [{ model: ScheduledOccurrence, as: 'occurrences' }]
+      });
+      quiz = allQuizzes.find(q =>
+        (q.custom_slug && q.custom_slug.toLowerCase() === cleanSlug) ||
+        (q.join_code && q.join_code.toLowerCase() === cleanSlug) ||
+        (q.id === rawSlug)
+      );
+    }
 
     if (!quiz) {
       return res.status(404).json({ error: `No quiz found matching slug '/${rawSlug}'.` });

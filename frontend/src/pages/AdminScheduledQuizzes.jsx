@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import {
-  Calendar, Plus, Search, Clock, Users, Eye, Play, Pause, Edit2
+  Calendar, Plus, Search, Clock, Users, Eye, Play, Pause, Edit2, ExternalLink
 } from 'lucide-react';
 
 export default function AdminScheduledQuizzes() {
@@ -220,6 +220,19 @@ export default function AdminScheduledQuizzes() {
                 >
                   <Edit2 size={14} />
                   <span>Edit</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    const slug = quiz.custom_slug || quiz.join_code;
+                    const url = `${window.location.origin}/q/${slug}`;
+                    navigator.clipboard.writeText(url);
+                    alert(`Copied direct short link to clipboard:\n${url}`);
+                  }}
+                  className="p-2 border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs transition-colors cursor-pointer"
+                  title="Copy Short Link /q/slug"
+                >
+                  <ExternalLink size={14} />
                 </button>
 
                 <button
