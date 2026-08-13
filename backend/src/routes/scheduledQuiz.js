@@ -470,6 +470,37 @@ router.put('/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// Delete Scheduled Quiz (Admin)
+router.delete('/:id', authMiddleware, async (req, res) => {
+  try {
+    const quiz = await Quiz.findByPk(req.params.id);
+    if (!quiz) {
+      return res.status(404).json({ error: 'Scheduled Quiz not found.' });
+    }
+
+    const occurrences = await ScheduledOccurrence.findAll({ where: { quiz_id: quiz.id } });
+    const occurrenceIds = occurrences.map(o => o.id);
+
+    if (occurrenceIds.length > 0) {
+      const attempts = await QuizAttempt.findAll({ where: { occurrence_id: occurrenceIds } });
+      const attemptIds = attempts.map(a => a.id);
+      if (attemptIds.length > 0) {
+        await AttemptAnswer.destroy({ where: { attempt_id: attemptIds } });
+      }
+      await QuizAttempt.destroy({ where: { occurrence_id: occurrenceIds } });
+      await ScheduledOccurrence.destroy({ where: { quiz_id: quiz.id } });
+    }
+
+    await Question.destroy({ where: { quiz_id: quiz.id } });
+    await quiz.destroy();
+
+    return res.json({ success: true, message: 'Scheduled Quiz deleted successfully.' });
+  } catch (error) {
+    console.error('Delete scheduled quiz error:', error);
+    return res.status(500).json({ error: 'Failed to delete scheduled quiz.' });
+  }
+});
+
 // 7. Check occurrence availability & server time window
 router.get('/occurrences/:occurrenceId', async (req, res) => {
   try {

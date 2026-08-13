@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import {
-  Calendar, Plus, Search, Clock, Users, Eye, Play, Pause, Edit2, ExternalLink
+  Calendar, Plus, Search, Clock, Users, Eye, Play, Pause, Edit2, ExternalLink, Trash2
 } from 'lucide-react';
 
 export default function AdminScheduledQuizzes() {
@@ -35,6 +35,18 @@ export default function AdminScheduledQuizzes() {
       fetchScheduledQuizzes();
     } catch (err) {
       alert('Failed to pause schedule.');
+    }
+  };
+
+  const handleDeleteQuiz = async (quizId, quizTitle) => {
+    if (!window.confirm(`Are you sure you want to delete '${quizTitle}'?\nAll occurrences, questions, and participant attempts will be permanently deleted.`)) {
+      return;
+    }
+    try {
+      await api.delete(`/api/scheduled-quizzes/${quizId}`);
+      fetchScheduledQuizzes();
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to delete scheduled quiz.');
     }
   };
 
@@ -241,6 +253,14 @@ export default function AdminScheduledQuizzes() {
                   title="Pause Schedule"
                 >
                   <Pause size={14} />
+                </button>
+
+                <button
+                  onClick={() => handleDeleteQuiz(quiz.id, quiz.title)}
+                  className="p-2 border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs transition-colors cursor-pointer"
+                  title="Delete Scheduled Quiz"
+                >
+                  <Trash2 size={14} />
                 </button>
               </div>
 

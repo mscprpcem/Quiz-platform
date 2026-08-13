@@ -4,7 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import api from '../services/api';
 import {
   Calendar, Clock, CheckCircle, ArrowLeft, Users, Trophy, Pause, 
-  Play, ExternalLink, ShieldCheck, HelpCircle, Layers, QrCode, Mail, Send, Copy, Check
+  Play, ExternalLink, ShieldCheck, HelpCircle, Layers, QrCode, Mail, Send, Copy, Check, Trash2
 } from 'lucide-react';
 
 export default function ScheduledQuizDetails() {
@@ -50,6 +50,18 @@ export default function ScheduledQuizDetails() {
     }
   };
 
+  const handleDeleteQuiz = async () => {
+    if (!window.confirm(`Are you sure you want to delete '${quizData?.quiz?.title}'?\nAll occurrences, questions, and participant attempts will be permanently removed.`)) {
+      return;
+    }
+    try {
+      await api.delete(`/api/scheduled-quizzes/${id}`);
+      navigate('/admin/scheduled-quizzes');
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to delete scheduled quiz.');
+    }
+  };
+
   if (loading) {
     return (
       <div className="py-20 text-center text-slate-400 font-extrabold animate-pulse">
@@ -90,14 +102,25 @@ export default function ScheduledQuizDetails() {
           </div>
         </div>
 
-        <button
-          onClick={handleSendWeeklyReminder}
-          disabled={sendingMail}
-          className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center space-x-2 shadow-md cursor-pointer transition-all"
-        >
-          <Mail size={16} />
-          <span>{sendingMail ? 'Dispatching...' : 'Send Email Reminder to Participants'}</span>
-        </button>
+        <div className="flex items-center space-x-2 w-full sm:w-auto">
+          <button
+            onClick={handleSendWeeklyReminder}
+            disabled={sendingMail}
+            className="flex-1 sm:flex-initial px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all"
+          >
+            <Mail size={16} />
+            <span>{sendingMail ? 'Dispatching...' : 'Email Reminder'}</span>
+          </button>
+
+          <button
+            onClick={handleDeleteQuiz}
+            className="px-4 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 font-extrabold rounded-xl text-xs flex items-center space-x-1.5 cursor-pointer transition-all"
+            title="Delete Quiz"
+          >
+            <Trash2 size={16} />
+            <span>Delete</span>
+          </button>
+        </div>
       </div>
 
       {mailSentMessage && (

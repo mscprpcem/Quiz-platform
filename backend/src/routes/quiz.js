@@ -225,6 +225,33 @@ router.get('/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// Delete quiz (Admin)
+router.delete('/:id', authMiddleware, async (req, res) => {
+  try {
+    const quiz = await Quiz.findByPk(req.params.id);
+    if (!quiz) {
+      return res.status(404).json({ error: 'Quiz not found' });
+    }
+
+    const participants = await Participant.findAll({ where: { quiz_id: quiz.id } });
+    const participantIds = participants.map(p => p.id);
+
+    if (participantIds.length > 0) {
+      await Answer.destroy({ where: { participant_id: participantIds } });
+      await Violation.destroy({ where: { participant_id: participantIds } });
+      await Participant.destroy({ where: { quiz_id: quiz.id } });
+    }
+
+    await Question.destroy({ where: { quiz_id: quiz.id } });
+    await quiz.destroy();
+
+    return res.json({ success: true, message: 'Quiz deleted successfully' });
+  } catch (error) {
+    console.error('Delete quiz error:', error);
+    return res.status(500).json({ error: 'Server error deleting quiz' });
+  }
+});
+
 // Create new quiz
 router.post('/', authMiddleware, async (req, res) => {
   try {
