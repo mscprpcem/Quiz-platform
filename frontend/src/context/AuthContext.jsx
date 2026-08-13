@@ -13,27 +13,45 @@ export const AuthProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : null;
   });
 
-  const defaultAdmin = {
-    id: 'admin-dev',
-    name: 'Admin User',
-    email: 'admin@microsoftclub.edu',
-    role: 'ADMIN'
-  };
+  const ONE_DAY_MS = 24 * 60 * 60 * 1000; // 1 day (24 hours) session limit
 
   const verifyToken = async () => {
     const token = localStorage.getItem('msc_quiz_token');
+    const tokenTime = localStorage.getItem('msc_quiz_token_time');
+
     if (!token) {
-      setUser(defaultAdmin);
+      setUser(null);
       setLoading(false);
       return;
     }
 
+    // Check if 1 day (24h) has elapsed since login
+    if (tokenTime) {
+      const elapsed = Date.now() - parseInt(tokenTime, 10);
+      if (elapsed > ONE_DAY_MS) {
+        console.warn('Admin session expired after 1 day (24 hours). Requiring re-login.');
+        localStorage.removeItem('msc_quiz_token');
+        localStorage.removeItem('msc_quiz_token_time');
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+    }
+
     try {
       const response = await api.get('/api/auth/verify');
-      setUser(response.data.user || defaultAdmin);
+      if (response.data && response.data.user) {
+        setUser(response.data.user);
+      } else {
+        localStorage.removeItem('msc_quiz_token');
+        localStorage.removeItem('msc_quiz_token_time');
+        setUser(null);
+      }
     } catch (error) {
-      console.warn('Token validation fallback to default admin:', error.message);
-      setUser(defaultAdmin);
+      console.warn('Token validation failed or expired:', error.message);
+      localStorage.removeItem('msc_quiz_token');
+      localStorage.removeItem('msc_quiz_token_time');
+      setUser(null);
     } finally {
       setLoading(false);
     }
@@ -65,6 +83,7 @@ export const AuthProvider = ({ children }) => {
       const response = await api.post('/api/auth/login', { email, password });
       const { token, user: userData } = response.data;
       localStorage.setItem('msc_quiz_token', token);
+      localStorage.setItem('msc_quiz_token_time', Date.now().toString());
       setUser(userData);
       return { success: true };
     } catch (error) {
@@ -77,6 +96,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = () => {
     localStorage.removeItem('msc_quiz_token');
+    localStorage.removeItem('msc_quiz_token_time');
     setUser(null);
   };
 

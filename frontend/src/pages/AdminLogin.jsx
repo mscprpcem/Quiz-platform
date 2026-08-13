@@ -65,6 +65,10 @@ export default function AdminLogin() {
             <p className="text-[13px] text-brand-textMuted">
               Sign in to manage and launch event quizzes.
             </p>
+            <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-blue-50 border border-blue-200 text-blue-700 rounded-full text-[11px] font-bold mx-auto">
+              <Lock size={12} />
+              <span>Session Duration: 1 Day (24h Expiry)</span>
+            </div>
           </div>
 
           {error && (

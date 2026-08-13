@@ -28,17 +28,23 @@ let cache = null;
 let cacheTime = 0;
 const CACHE_TTL = 60 * 1000; // 60 seconds cache
 
+const DEFAULT_BRANDING = {
+  club_name: 'Microsoft Student Club PRPCEM',
+  chapter_name: 'Microsoft Student Club PRPCEM',
+  signing_authority: 'Prof. S. R. Patil',
+  domain_name: 'mscprpcem.tech',
+  chapter_identifier: 'MSC-PRPCEM-4112',
+  chapter_code: 'MSC-PRPCEM-4112',
+  logo_path: 'logo.png',
+  primary_color: '#0078d4',
+  footer_text: 'Powered by Microsoft Student Club PRPCEM Quiz Platform',
+  qr_logo_size: 28
+};
+
 const getBrandingSettings = async () => {
   const url = process.env.AZURE_BRANDING_URL;
   if (!url) {
-    return {
-      club_name: 'Microsoft Student Club',
-      chapter_name: 'MSC-PRPCEM Chapter',
-      logo_path: 'logo.png',
-      primary_color: '#0078d4',
-      footer_text: 'Powered by Microsoft Student Club Quiz Platform',
-      qr_logo_size: 28
-    };
+    return DEFAULT_BRANDING;
   }
 
   // Return cached version if still valid
@@ -50,30 +56,26 @@ const getBrandingSettings = async () => {
   try {
     const fetched = await fetchJson(url);
     cache = {
-      club_name: fetched.club_name || 'Microsoft Student Club',
-      chapter_name: fetched.chapter_name || 'MSC-PRPCEM Chapter',
-      logo_path: fetched.logo_path || 'logo.png',
-      primary_color: fetched.primary_color || '#0078d4',
-      footer_text: fetched.footer_text || 'Powered by Microsoft Student Club Quiz Platform',
+      club_name: fetched.club_name || DEFAULT_BRANDING.club_name,
+      chapter_name: fetched.chapter_name || DEFAULT_BRANDING.chapter_name,
+      signing_authority: fetched.signing_authority || DEFAULT_BRANDING.signing_authority,
+      domain_name: fetched.domain_name || DEFAULT_BRANDING.domain_name,
+      chapter_identifier: fetched.chapter_identifier || DEFAULT_BRANDING.chapter_identifier,
+      chapter_code: fetched.chapter_code || DEFAULT_BRANDING.chapter_code,
+      logo_path: fetched.logo_path || DEFAULT_BRANDING.logo_path,
+      primary_color: fetched.primary_color || DEFAULT_BRANDING.primary_color,
+      footer_text: fetched.footer_text || DEFAULT_BRANDING.footer_text,
       qr_logo_size: fetched.qr_logo_size !== undefined ? parseInt(fetched.qr_logo_size, 10) : 28
     };
     cacheTime = now;
     return cache;
   } catch (error) {
-    console.error("Error fetching branding from Azure Blob Storage:", error.message);
+    console.warn("Branding remote fetch fallback (using default chapter settings):", error.message);
     if (cache) {
-      console.log("Using expired cache as safety fallback.");
       return cache; // return stale cache if fetch fails
     }
-    // Return hardcoded default if even cache is not available
-    return {
-      club_name: 'Microsoft Student Club',
-      chapter_name: 'MSC-PRPCEM Chapter',
-      logo_path: 'logo.png',
-      primary_color: '#0078d4',
-      footer_text: 'Powered by Microsoft Student Club Quiz Platform',
-      qr_logo_size: 28
-    };
+    // Return robust chapter identity default
+    return DEFAULT_BRANDING;
   }
 };
 

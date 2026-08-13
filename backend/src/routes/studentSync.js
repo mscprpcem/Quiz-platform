@@ -1,7 +1,27 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const axios = require('axios');
+let axios;
+try {
+  axios = require('axios');
+} catch (e) {
+  axios = {
+    post: async (url, data, config) => {
+      try {
+        if (typeof fetch !== 'undefined') {
+          const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', ...(config?.headers || {}) },
+            body: JSON.stringify(data)
+          });
+          const json = await res.json().catch(() => ({}));
+          return { data: json, status: res.status };
+        }
+      } catch (err) {}
+      return { data: {} };
+    }
+  };
+}
 
 // In-memory student accounts and certificates
 let registeredStudents = new Map();
