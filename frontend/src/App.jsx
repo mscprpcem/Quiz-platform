@@ -40,6 +40,51 @@ import CreateScheduledQuiz from './pages/CreateScheduledQuiz';
 import VanityRedirect from './pages/VanityRedirect';
 import StudentAuth from './pages/StudentAuth';
 
+class ErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error("Quiz App ErrorBoundary caught rendering exception:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6 font-segoe text-center">
+          <div className="max-w-md w-full bg-white border border-slate-200 rounded-3xl p-8 shadow-xl space-y-6">
+            <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mx-auto text-2xl font-black">
+              🏆
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-xl font-black text-slate-900">Quiz Session Recovery</h2>
+              <p className="text-xs text-slate-500 leading-relaxed font-semibold">
+                {this.state.error?.message || "An issue occurred while loading this view."}
+              </p>
+            </div>
+            <button
+              onClick={() => {
+                this.setState({ hasError: false, error: null });
+                window.location.href = '/';
+              }}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs shadow-md transition-all cursor-pointer"
+            >
+              Return to Quiz Portal Homepage
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 // Private Route Enforcer for Admin pages
 const AdminRoute = ({ children }) => {
   const { user, loading } = useAuth();
@@ -61,11 +106,12 @@ const AdminRoute = ({ children }) => {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <Router>
-          <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800 font-segoe">
-            <Navbar />
+    <ErrorBoundary>
+      <AuthProvider>
+        <SocketProvider>
+          <Router>
+            <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800 font-segoe">
+              <Navbar />
 
             <main className="flex-grow">
               <Routes>
@@ -78,9 +124,11 @@ export default function App() {
                 <Route path="/results/:participantId" element={<Results />} />
                 <Route path="/practice" element={<PracticeQuiz />} />
                 <Route path="/practice/:category" element={<PracticeQuiz />} />
+                <Route path="/courses" element={<Courses />} />
                 <Route path="/scheduled-quiz/:occurrenceId" element={<ScheduledQuizTake />} />
                 <Route path="/q/:slug" element={<ScheduledQuizTake />} />
                 <Route path="/quiz/:slug" element={<ScheduledQuizTake />} />
+                <Route path="/q" element={<Navigate to="/" replace />} />
                 <Route path="/:slug" element={<VanityRedirect />} />
 
                 {/* Student Auth Routes with Verification Portal Sync */}
@@ -207,5 +255,6 @@ export default function App() {
         </Router>
       </SocketProvider>
     </AuthProvider>
+  </ErrorBoundary>
   );
 }

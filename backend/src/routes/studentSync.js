@@ -33,48 +33,120 @@ const normalizeEmail = (email) => (email ? email.toLowerCase().trim() : '');
 // =======================
 // Student Login & Cross-Portal Sync Registration
 // =======================
+// Student Login & Register with Cross-Portal Sync
+// =======================
 router.post('/login', async (req, res) => {
-  const { email, name, password } = req.body;
+  const { email, password, name, username } = req.body;
   const cleanEmail = normalizeEmail(email);
 
-  if (!cleanEmail) {
-    return res.status(400).json({ error: 'Please enter a valid Email Address.' });
+  if (!cleanEmail || !password) {
+    return res.status(400).json({ error: 'Both Email Address and Password are required.' });
   }
 
   const studentName = name || cleanEmail.split('@')[0];
+  const studentUsername = (username || cleanEmail.split('@')[0]).toLowerCase().trim().replace(/[^a-z0-9_-]/g, '');
 
-  // Store student locally
+  const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'http://localhost:3000';
+
+  let syncedUser = null;
+  try {
+    const syncRes = await axios.post(`${verificationPortalUrl}/api/auth/external-sync`, {
+      email: cleanEmail,
+      name: studentName,
+      username: studentUsername,
+      password: password
+    }, { timeout: 4000 });
+
+    if (syncRes.data && syncRes.data.user) {
+      syncedUser = syncRes.data.user;
+    }
+  } catch (syncErr) {
+    if (syncErr.response && syncErr.response.data && syncErr.response.data.error) {
+      return res.status(syncErr.response.status || 400).json({ error: syncErr.response.data.error });
+    }
+    console.warn('Cross-portal sync warning (local fallback used):', syncErr.message);
+  }
+
   const studentData = {
+    id: syncedUser?.id || `STU-${Date.now()}`,
     email: cleanEmail,
-    name: studentName,
+    name: syncedUser?.name || studentName,
+    username: syncedUser?.username || studentUsername,
     role: 'student',
     joinedAt: registeredStudents.get(cleanEmail)?.joinedAt || new Date().toISOString()
   };
+
   registeredStudents.set(cleanEmail, studentData);
 
-  // Generate JWT Session Token
   const token = jwt.sign(
-    { email: cleanEmail, name: studentName, role: 'student' },
+    { id: studentData.id, email: cleanEmail, name: studentData.name, role: 'student' },
     process.env.JWT_SECRET || 'msc_prpcem_jwt_secret_2026',
     { expiresIn: '30d' }
   );
 
-  // Dispatch cross-portal account registration to Verification Portal (D:\certificate-verification)
-  const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
-  axios.post(`${verificationPortalUrl}/api/auth/external-sync`, {
-    email: cleanEmail,
-    name: studentName,
-    password: password || 'student123',
-    apiKey: process.env.VERIFICATION_API_KEY || 'msc_quiz_verification_secret_key_2026'
-  }, {
-    headers: { 'x-api-key': process.env.VERIFICATION_API_KEY || 'msc_quiz_verification_secret_key_2026' }
-  }).catch(() => {
-    // Non-blocking fallback if verification portal server is offline
+  return res.json({
+    success: true,
+    message: 'Account synchronized and authenticated across portals!',
+    user: studentData,
+    token,
+    verificationPortalUrl
   });
+});
+
+router.post('/register', async (req, res) => {
+  const { email, password, name, username } = req.body;
+  const cleanEmail = normalizeEmail(email);
+
+  if (!cleanEmail || !password || !name) {
+    return res.status(400).json({ error: 'Full Name, Email Address, and Password are all required.' });
+  }
+
+  if (password.length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+  }
+
+  const studentUsername = (username || cleanEmail.split('@')[0]).toLowerCase().trim().replace(/[^a-z0-9_-]/g, '');
+  const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'http://localhost:3000';
+
+  let syncedUser = null;
+  try {
+    const syncRes = await axios.post(`${verificationPortalUrl}/api/auth/external-sync`, {
+      email: cleanEmail,
+      name: name.trim(),
+      username: studentUsername,
+      password: password
+    }, { timeout: 4000 });
+
+    if (syncRes.data && syncRes.data.user) {
+      syncedUser = syncRes.data.user;
+    }
+  } catch (syncErr) {
+    if (syncErr.response && syncErr.response.data && syncErr.response.data.error) {
+      return res.status(syncErr.response.status || 400).json({ error: syncErr.response.data.error });
+    }
+    console.warn('Cross-portal registration sync warning:', syncErr.message);
+  }
+
+  const studentData = {
+    id: syncedUser?.id || `STU-${Date.now()}`,
+    email: cleanEmail,
+    name: syncedUser?.name || name.trim(),
+    username: syncedUser?.username || studentUsername,
+    role: 'student',
+    joinedAt: new Date().toISOString()
+  };
+
+  registeredStudents.set(cleanEmail, studentData);
+
+  const token = jwt.sign(
+    { id: studentData.id, email: cleanEmail, name: studentData.name, role: 'student' },
+    process.env.JWT_SECRET || 'msc_prpcem_jwt_secret_2026',
+    { expiresIn: '30d' }
+  );
 
   return res.json({
     success: true,
-    message: 'Login successful. Account synchronized across portals!',
+    message: 'Account successfully registered and synchronized!',
     user: studentData,
     token,
     verificationPortalUrl

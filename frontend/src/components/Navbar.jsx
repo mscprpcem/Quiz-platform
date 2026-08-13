@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import StudentAuthModal from './StudentAuthModal';
 import { LogOut, Home, BarChart2, BookOpen, Trophy, Play, User, Palette, Menu, X, FileCode, ShieldCheck, CheckCircle2, ExternalLink, Lock } from 'lucide-react';
 
 export default function Navbar() {
@@ -206,84 +207,11 @@ export default function Navbar() {
         )}
       </nav>
 
-      {/* Student Account Email & Password Login Modal */}
-      {showStudentModal && (
-        <div className="fixed inset-0 z-[100] bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-2xl max-w-md w-full p-6 space-y-5 animate-scale-in text-left">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex items-center space-x-2.5">
-                <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
-                  <User size={20} />
-                </div>
-                <div>
-                  <h3 className="text-base font-black text-slate-900">Login</h3>
-                  <p className="text-[11px] text-slate-400 font-medium">Enter your credentials to sign in and proceed</p>
-                </div>
-              </div>
-              <button onClick={() => setShowStudentModal(false)} className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer">
-                <X size={18} />
-              </button>
-            </div>
-
-            <form onSubmit={handleStudentSubmit} className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Email Address / Gmail *</label>
-                <input
-                  type="email"
-                  required
-                  value={studentEmailInput}
-                  onChange={(e) => setStudentEmailInput(e.target.value)}
-                  placeholder="e.g. student@gmail.com"
-                  className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:border-purple-600"
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500">Password *</label>
-                <input
-                  type="password"
-                  required
-                  value={studentPasswordInput}
-                  onChange={(e) => setStudentPasswordInput(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold focus:outline-none focus:border-purple-600"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowStudentModal(false)}
-                  className="flex-1 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={loadingLogin}
-                  className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-extrabold shadow-xs cursor-pointer active:scale-95"
-                >
-                  {loadingLogin ? 'Signing In...' : 'Sign In & Proceed'}
-                </button>
-              </div>
-            </form>
-
-            {/* Create Account Link to Verification Portal */}
-            <div className="pt-4 border-t border-slate-100 text-center space-y-1">
-              <p className="text-[11px] text-slate-500 font-medium">Don't have an account yet?</p>
-              <a
-                href={`${verificationPortalUrl}/register`}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex items-center space-x-1.5 text-xs font-black text-purple-700 hover:text-purple-900 hover:underline"
-              >
-                <span>Create Account on verify.mscprpcem.tech</span>
-                <ExternalLink size={13} />
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Student Account Email & Password Auth Modal */}
+      <StudentAuthModal 
+        isOpen={showStudentModal} 
+        onClose={() => setShowStudentModal(false)} 
+      />
 
       {/* Custom Logout Confirmation Dialog */}
       {showConfirm && (

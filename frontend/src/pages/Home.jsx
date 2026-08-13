@@ -297,10 +297,13 @@ export default function Home() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {upcomingQuizzes.map((q) => {
                 if (!q) return null;
-                const dateObj = q.scheduled_start ? new Date(q.scheduled_start) : new Date(q.createdAt || Date.now());
-                const day = isNaN(dateObj.getTime()) ? '15' : dateObj.getDate();
-                const month = isNaN(dateObj.getTime()) ? 'AUG' : dateObj.toLocaleString('en-US', { month: 'short' }).toUpperCase();
-                const timeStr = isNaN(dateObj.getTime()) ? '10:00 AM' : dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const startDate = q.scheduled_start || q.startTime ? new Date(q.scheduled_start || q.startTime) : new Date(q.createdAt || Date.now());
+                const endDate = q.scheduled_end || q.endTime ? new Date(q.scheduled_end || q.endTime) : null;
+                const day = isNaN(startDate.getTime()) ? '15' : startDate.getDate();
+                const month = isNaN(startDate.getTime()) ? 'AUG' : startDate.toLocaleString('en-US', { month: 'short' }).toUpperCase();
+                const startTimeStr = isNaN(startDate.getTime()) ? '10:00 AM' : startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const endTimeStr = endDate && !isNaN(endDate.getTime()) ? endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
+                const qSlug = q.slug || (q.title ? q.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : q.join_code);
 
                 return (
                   <div key={q.id || Math.random()} className="bg-white border border-brand-border rounded-2xl shadow-soft hover:shadow-soft-lg hover:-translate-y-0.5 transition-all duration-300 flex flex-col xs:flex-row overflow-hidden group">
@@ -336,9 +339,9 @@ export default function Home() {
                           </h3>
                           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-brand-textMuted pt-1 font-medium">
                             <span className="flex items-center gap-1"><BookOpen size={12} className="text-brand-blue" /> {q.questionCount || 0} Questions</span>
-                            <span className="flex items-center gap-1"><Calendar size={12} className="text-brand-blue" /> {timeStr}</span>
-                            {q.scheduled_end && (
-                              <span className="flex items-center gap-1 text-emerald-600 font-bold"><Clock size={12} /> Until {new Date(q.scheduled_end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="flex items-center gap-1 text-slate-700 font-bold"><Calendar size={12} className="text-brand-blue" /> Start: {startTimeStr}</span>
+                            {endTimeStr && (
+                              <span className="flex items-center gap-1 text-emerald-600 font-bold"><Clock size={12} /> End: {endTimeStr}</span>
                             )}
                           </div>
                         </div>
@@ -349,7 +352,7 @@ export default function Home() {
                           {q.status === 'in_progress' ? 'Live Now' : q.status === 'waiting_lobby' ? 'Lobby Open' : 'Scheduled'}
                         </span>
                         <button
-                          onClick={() => navigate(`/join/${q.join_code}`)}
+                          onClick={() => navigate(q.occurrenceId ? `/q/${qSlug}` : `/join/${q.join_code}`)}
                           className="flex items-center justify-center space-x-1.5 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-lg shadow-sm transition-all active:scale-95 cursor-pointer text-[10px] uppercase tracking-wider"
                         >
                           <span>Join Quiz</span>

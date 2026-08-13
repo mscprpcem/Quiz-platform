@@ -100,56 +100,46 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
-  const studentLogin = async (email, name, password) => {
+  const studentLogin = async (email, password) => {
     const cleanEmail = email ? email.toLowerCase().trim() : '';
-    const cleanName = name || (cleanEmail ? cleanEmail.split('@')[0] : 'Student');
+    if (!cleanEmail || !password) {
+      return { success: false, error: 'Email Address and Password are both required.' };
+    }
 
     try {
-      const res = await api.post('/api/student/login', { email: cleanEmail, name: cleanName, password });
+      const res = await api.post('/api/student/login', { email: cleanEmail, password });
       if (res.data && res.data.user) {
         setStudentAccount(res.data.user);
         localStorage.setItem('msc_student_account', JSON.stringify(res.data.user));
         return { success: true, user: res.data.user };
       }
+      return { success: false, error: res.data?.error || 'Login failed.' };
     } catch (err) {
-      console.warn('Backend student login fallback:', err.message);
+      const errorMsg = err.response?.data?.error || 'Invalid credentials or server connection error.';
+      return { success: false, error: errorMsg };
     }
-
-    const account = {
-      email: cleanEmail,
-      name: cleanName,
-      role: 'student',
-      linkedAt: new Date().toISOString()
-    };
-    setStudentAccount(account);
-    localStorage.setItem('msc_student_account', JSON.stringify(account));
-    return { success: true, user: account };
   };
 
-  const studentRegister = async (email, name, password) => {
+  const studentRegister = async (name, email, password, username) => {
     const cleanEmail = email ? email.toLowerCase().trim() : '';
     const cleanName = name || (cleanEmail ? cleanEmail.split('@')[0] : 'Student');
 
+    if (!cleanEmail || !password || !cleanName) {
+      return { success: false, error: 'Full Name, Email Address, and Password are required.' };
+    }
+
     try {
-      const res = await api.post('/api/student/register', { email: cleanEmail, name: cleanName, password });
+      const res = await api.post('/api/student/register', { name: cleanName, email: cleanEmail, password, username });
       if (res.data && res.data.user) {
         setStudentAccount(res.data.user);
         localStorage.setItem('msc_student_account', JSON.stringify(res.data.user));
         return { success: true, user: res.data.user, verificationPortalUrl: res.data.verificationPortalUrl };
       }
+      return { success: false, error: res.data?.error || 'Registration failed.' };
     } catch (err) {
-      console.warn('Backend student register fallback:', err.message);
+      const errorMsg = err.response?.data?.error || 'Registration failed. Check network connection.';
+      return { success: false, error: errorMsg };
     }
-
-    const account = {
-      email: cleanEmail,
-      name: cleanName,
-      role: 'student',
-      joinedAt: new Date().toISOString()
-    };
-    setStudentAccount(account);
-    localStorage.setItem('msc_student_account', JSON.stringify(account));
-    return { success: true, user: account };
   };
 
   const studentLogout = () => {

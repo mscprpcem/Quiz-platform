@@ -478,9 +478,17 @@ export default function AdminDashboard() {
 
                       <div className="space-y-2">
                         {/* Date & Schedule */}
-                        <div className="flex items-center gap-1.5 text-[11px] text-brand-textMuted">
-                          <Calendar size={12} className="flex-shrink-0 text-brand-blue" />
-                          <span className="truncate">{quiz.scheduled_start ? new Date(quiz.scheduled_start).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Asynchronous Play'}</span>
+                        <div className="flex flex-col gap-1 text-[11px] text-brand-textMuted">
+                          <div className="flex items-center gap-1.5">
+                            <Calendar size={12} className="flex-shrink-0 text-brand-blue" />
+                            <span className="truncate"><strong>Start:</strong> {quiz.scheduled_start ? new Date(quiz.scheduled_start).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Flexible'}</span>
+                          </div>
+                          {quiz.scheduled_end && (
+                            <div className="flex items-center gap-1.5 text-emerald-600 font-semibold">
+                              <Clock size={12} className="flex-shrink-0 text-emerald-600" />
+                              <span className="truncate"><strong>End:</strong> {new Date(quiz.scheduled_end).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
+                            </div>
+                          )}
                         </div>
 
                         {/* Counts section inline */}

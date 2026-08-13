@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
+import StudentAuthModal from '../components/StudentAuthModal';
 import {
   Clock, CheckSquare, AlertTriangle, Trophy, CheckCircle, 
-  Square, ShieldCheck, ArrowRight, RefreshCw, User, Lock, Award, LogIn, ExternalLink, Sparkles, Maximize
+  Square, ShieldCheck, ArrowRight, RefreshCw, User, Lock, Award, LogIn, ExternalLink, Sparkles, Maximize, KeyRound
 } from 'lucide-react';
 import DigitalBadgeCard from '../components/DigitalBadgeCard';
 
@@ -24,6 +25,7 @@ export default function ScheduledQuizTake() {
   const [password, setPassword] = useState('');
   const [loggingIn, setLoggingIn] = useState(false);
   const [startError, setStartError] = useState('');
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Active Attempt State
   const [attempt, setAttempt] = useState(null);
@@ -40,6 +42,7 @@ export default function ScheduledQuizTake() {
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
 
   const timerRef = useRef(null);
+  const submittingRef = useRef(false);
 
   // Sync user credentials from auth context or local storage
   useEffect(() => {
@@ -132,7 +135,7 @@ export default function ScheduledQuizTake() {
       const remaining = Math.max(0, Math.floor((expiresAt - now) / 1000));
       setTimeLeftSeconds(remaining);
 
-      if (remaining <= 0) {
+      if (remaining <= 0 && !submittingRef.current) {
         handleFinalSubmit(true);
       }
     };
@@ -236,13 +239,13 @@ export default function ScheduledQuizTake() {
   }, [attempt, quizSubmitted, requireFullscreen]);
 
   const recordViolation = async (type) => {
-    if (!attempt || quizSubmitted) return;
+    if (!attempt || quizSubmitted || submittingRef.current) return;
     try {
       const res = await api.post(`/api/scheduled-quizzes/attempts/${attempt.id}/violation`, {
         violationType: type
       });
       setViolationsCount(res.data.violationCount);
-      if (res.data.autoSubmit) {
+      if (res.data.autoSubmit && !submittingRef.current) {
         alert('Anti-cheat limit exceeded. Your quiz is being automatically submitted.');
         handleFinalSubmit(true);
       }
@@ -276,11 +279,6 @@ export default function ScheduledQuizTake() {
         setQuestions(res.data.questions);
       }
 
-      // If quiz requires fullscreen, enter fullscreen mode
-      if (requireFullscreen) {
-        enterFullscreen();
-      }
-
       // Restore previously saved answers if resuming
       if (res.data.restoredAnswers) {
         const restoredMap = {};
@@ -311,13 +309,19 @@ export default function ScheduledQuizTake() {
   };
 
   const handleFinalSubmit = async (isAuto = false) => {
-    if (!attempt || quizSubmitted) return;
+    if (!attempt || quizSubmitted || submittingRef.current) return;
     if (!isAuto && !window.confirm('Are you sure you want to submit your quiz?')) return;
 
     try {
+      submittingRef.current = true;
       setLoading(true);
+
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
+
       const res = await api.post(`/api/scheduled-quizzes/attempts/${attempt.id}/submit`);
-      setResultData(res.data);
+      setResultData(res.data || {});
       setQuizSubmitted(true);
 
       // Cleanly exit fullscreen on finish
@@ -329,6 +333,7 @@ export default function ScheduledQuizTake() {
     } catch (err) {
       console.error('Submit error:', err);
       alert('Failed to submit quiz attempt.');
+      submittingRef.current = false;
     } finally {
       setLoading(false);
     }
@@ -745,7 +750,7 @@ export default function ScheduledQuizTake() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2.5">
                         <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
-                          {(displayName || 'S').charAt(0).toUpperCase()}
+                          {((displayName || 'S').charAt(0)).toUpperCase()}
                         </div>
                         <div>
                           <div className="text-xs font-black text-slate-900 flex items-center space-x-1.5">

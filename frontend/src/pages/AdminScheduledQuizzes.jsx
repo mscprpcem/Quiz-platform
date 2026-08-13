@@ -197,7 +197,27 @@ export default function AdminScheduledQuizzes() {
                   <div className="flex items-center justify-between">
                     <span className="text-slate-400 font-semibold">Start:</span>
                     <span className="font-extrabold text-slate-800">
-                      {quiz.scheduled_start ? new Date(quiz.scheduled_start).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'N/A'}
+                      {quiz.scheduled_start ? new Date(quiz.scheduled_start).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400 font-semibold">End:</span>
+                    <span className="font-extrabold text-emerald-600">
+                      {quiz.scheduled_end ? new Date(quiz.scheduled_end).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400 font-semibold">Direct Slug Link:</span>
+                    <span 
+                      onClick={() => {
+                        const slug = quiz.title ? quiz.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : quiz.join_code;
+                        navigator.clipboard.writeText(`${window.location.origin}/q/${slug}`);
+                        alert(`Copied link to clipboard: ${window.location.origin}/q/${slug}`);
+                      }}
+                      className="font-mono font-bold text-blue-600 hover:underline cursor-pointer truncate max-w-[140px]"
+                      title="Click to copy direct slug link"
+                    >
+                      /q/{quiz.title ? quiz.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : quiz.join_code}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">

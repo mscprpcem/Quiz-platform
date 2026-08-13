@@ -5,6 +5,78 @@ const {
 } = require('../models');
 const authMiddleware = require('../middleware/auth');
 const { Op } = require('sequelize');
+const sequelize = require('../config/database');
+
+// Helper: Resolve occurrence by UUID, Quiz Join Code, Quiz UUID, or Title Slug
+const resolveOccurrence = async (identifier) => {
+  if (!identifier) return null;
+  const rawClean = String(identifier).trim();
+  
+  // 1. Try finding ScheduledOccurrence directly by ID
+  try {
+    let occ = await ScheduledOccurrence.findByPk(rawClean, {
+      include: [{ model: Quiz, as: 'quiz', include: [{ model: Question, as: 'questions' }] }]
+    });
+    if (occ) return occ;
+  } catch (e) {
+    // If not a valid UUID, fallback to lookup
+  }
+
+  const slugClean = rawClean.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+  let quiz = await Quiz.findOne({
+    where: {
+      [Op.or]: [
+        { id: rawClean },
+        { join_code: rawClean },
+        { join_code: rawClean.toUpperCase() },
+        sequelize.where(sequelize.fn('LOWER', sequelize.col('title')), rawClean.toLowerCase()),
+        sequelize.where(sequelize.fn('LOWER', sequelize.fn('REPLACE', sequelize.col('title'), ' ', '-')), slugClean)
+      ]
+    },
+    include: [
+      { model: Question, as: 'questions' },
+      { model: ScheduledOccurrence, as: 'occurrences' }
+    ]
+  });
+
+  if (!quiz) {
+    // Partial substring fallback search for title slug
+    const allQuizzes = await Quiz.findAll({
+      include: [
+        { model: Question, as: 'questions' },
+        { model: ScheduledOccurrence, as: 'occurrences' }
+      ]
+    });
+    quiz = allQuizzes.find(q => {
+      const qSlug = q.title ? q.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : '';
+      return qSlug === slugClean || q.join_code?.toLowerCase() === rawClean.toLowerCase();
+    });
+  }
+
+  if (quiz) {
+    const occurrences = quiz.occurrences || [];
+    const now = new Date();
+    let matchedOcc = occurrences.find(o => o.status !== 'CANCELLED' && new Date(o.end_time) >= now) || occurrences[0];
+
+    if (!matchedOcc) {
+      const startTime = quiz.scheduled_start || now;
+      const endTime = quiz.scheduled_end || new Date(now.getTime() + (quiz.time_limit || 30) * 60000);
+      matchedOcc = await ScheduledOccurrence.create({
+        quiz_id: quiz.id,
+        occurrence_date: startTime,
+        start_time: startTime,
+        end_time: endTime,
+        status: 'SCHEDULED'
+      });
+    }
+
+    matchedOcc.quiz = quiz;
+    return matchedOcc;
+  }
+
+  return null;
+};
 
 // Helper: Generate unique join code for scheduled quizzes
 const generateJoinCode = async () => {
@@ -358,14 +430,19 @@ router.get('/public/all', async (req, res) => {
         if (now >= sTime && now <= eTime) availability = 'ACTIVE';
         else if (now > eTime) availability = 'COMPLETED';
 
+        const titleSlug = q.title ? q.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'quiz';
         publicList.push({
           occurrenceId: occ.id,
           quizId: q.id,
           title: q.title,
+          slug: titleSlug,
+          join_code: q.join_code,
           description: q.description,
           category: q.subject || 'General CS',
           startTime: occ.start_time,
           endTime: occ.end_time,
+          scheduled_start: occ.start_time,
+          scheduled_end: occ.end_time,
           timeLimit: q.time_limit,
           questionCount,
           availability,
@@ -624,7 +701,7 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
       message
     });
   } catch (error) {
-    console.error('Fetch occurrence error:', error);
+    console.error('Fetch occurrence info error:', error);
     return res.status(500).json({ error: 'Failed to fetch occurrence info.' });
   }
 });
