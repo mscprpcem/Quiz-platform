@@ -63,7 +63,7 @@ export default function ScheduledQuizDetails() {
   const attempts = quizData?.attempts || [];
 
   const slugOrCode = quiz?.custom_slug || quiz?.join_code || id;
-  const vanityUrl = `https://mscprpcem.tech/q/${slugOrCode}`;
+  const vanityUrl = `https://quiz.mscprpcem.tech/q/${slugOrCode}`;
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(vanityUrl);

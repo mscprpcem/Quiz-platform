@@ -458,25 +458,25 @@ export default function CreateScheduledQuiz() {
                   <label className="block text-xs font-bold text-slate-700">Custom Short Link (Vanity Slug)</label>
                   <div className="flex items-center space-x-2">
                     <span className="text-xs font-extrabold text-slate-500 bg-white border border-slate-200 px-3 py-2 rounded-xl whitespace-nowrap">
-                      mscprpcem.tech/
+                      quiz.mscprpcem.tech/q/
                     </span>
                     <input
                       type="text"
-                      placeholder="e.g. visionXS2"
+                      placeholder="e.g. test"
                       value={formData.custom_slug}
                       onChange={e => setFormData({ ...formData, custom_slug: e.target.value.replace(/[^a-zA-Z0-9_-]/g, '') })}
                       className="w-full border border-blue-300 rounded-xl px-3.5 py-2 text-xs font-black text-blue-700 bg-white focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <p className="text-[10px] text-slate-500 font-semibold leading-normal">
-                    Students visiting <strong className="text-blue-600">mscprpcem.tech/{formData.custom_slug || 'visionXS2'}</strong> or scanning the QR code will open this quiz session directly.
+                    Students visiting <strong className="text-blue-600">quiz.mscprpcem.tech/q/{formData.custom_slug || 'test'}</strong> or scanning the QR code will open this quiz session directly.
                   </p>
                 </div>
 
                 {/* Live QR Code Preview */}
                 <div className="bg-white p-3 border border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-1.5 shadow-2xs">
                   <QRCodeSVG
-                    value={`https://mscprpcem.tech/q/${formData.custom_slug || 'visionXS2'}`}
+                    value={`https://quiz.mscprpcem.tech/q/${formData.custom_slug || 'test'}`}
                     size={84}
                     bgColor="#FFFFFF"
                     fgColor="#0F172A"

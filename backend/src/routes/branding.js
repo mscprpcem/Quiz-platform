@@ -32,7 +32,7 @@ const DEFAULT_BRANDING = {
   club_name: 'Microsoft Student Club PRPCEM',
   chapter_name: 'Microsoft Student Club PRPCEM',
   signing_authority: 'Prof. S. R. Patil',
-  domain_name: 'mscprpcem.tech',
+  domain_name: 'quiz.mscprpcem.tech',
   chapter_identifier: 'MSC-PRPCEM-4112',
   chapter_code: 'MSC-PRPCEM-4112',
   logo_path: 'logo.png',

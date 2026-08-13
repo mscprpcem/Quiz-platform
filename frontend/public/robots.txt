@@ -8,4 +8,4 @@ Allow: /faq-details
 Disallow: /admin/
 Disallow: /api/
 
-Sitemap: https://www.mscprpcem.tech/sitemap.xml
+Sitemap: https://quiz.mscprpcem.tech/sitemap.xml

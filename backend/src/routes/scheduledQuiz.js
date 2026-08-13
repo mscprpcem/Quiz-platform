@@ -878,7 +878,7 @@ router.post('/:id/notify', authMiddleware, async (req, res) => {
     const nextOcc = occurrences.find(o => new Date(o.end_time) >= new Date()) || occurrences[0];
 
     const slugOrCode = quiz.custom_slug || quiz.join_code;
-    const directUrl = `${process.env.FRONTEND_URL || 'https://mscprpcem.tech'}/q/${slugOrCode}`;
+    const directUrl = `${process.env.FRONTEND_URL || 'https://quiz.mscprpcem.tech'}/q/${slugOrCode}`;
 
     console.log(`\n📧 Sending Scheduled Quiz Notification/Reminder for '${quiz.title}'`);
     console.log(`   Target Email Count: ${(targetEmails || []).length || 'All Subscribers'}`);
