@@ -743,6 +743,15 @@ export default function ScheduledQuizTake() {
               )}
 
               {/* ════════ AUTHENTICATION GATE ════════ */}
+              <StudentAuthModal 
+                isOpen={showAuthModal} 
+                onClose={() => setShowAuthModal(false)} 
+                onSuccess={(u) => { 
+                  setName(u.name); 
+                  setEmail(u.email); 
+                }} 
+              />
+
               {isLoggedIn ? (
                 /* Authenticated State: Show verified student badge and 1-click start */
                 <div className="space-y-4 pt-2 border-t border-slate-100">
@@ -790,7 +799,7 @@ export default function ScheduledQuizTake() {
                   </button>
                 </div>
               ) : (
-                /* Unauthenticated State: Prompt for Student Login / Sign In */
+                /* Unauthenticated State: Prompt for Student Login / Sign In Modal */
                 <div className="space-y-4 pt-2 border-t border-slate-100">
                   <div className="flex items-center space-x-2 text-xs font-black text-purple-900 bg-purple-50 border border-purple-200 px-3.5 py-2.5 rounded-xl">
                     <LogIn size={16} className="text-purple-600 flex-shrink-0" />
@@ -798,54 +807,17 @@ export default function ScheduledQuizTake() {
                   </div>
 
                   <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                    Please sign in with your student credentials to verify your identity and start your scheduled quiz attempt.
+                    Please sign in or create an account to verify your identity and start your scheduled quiz attempt.
                   </p>
 
-                  <form onSubmit={handleStudentAuth} className="space-y-3">
-                    <div className="space-y-1">
-                      <label className="block text-xs font-bold text-slate-600">Full Name *</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="e.g. Amit Sharma"
-                        value={name}
-                        onChange={e => setName(e.target.value)}
-                        className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold bg-slate-50 focus:bg-white focus:border-purple-600"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="block text-xs font-bold text-slate-600">Email Address *</label>
-                      <input
-                        type="email"
-                        required
-                        placeholder="student@gmail.com"
-                        value={email}
-                        onChange={e => setEmail(e.target.value)}
-                        className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold bg-slate-50 focus:bg-white focus:border-purple-600"
-                      />
-                    </div>
-
-                    <div className="space-y-1">
-                      <label className="block text-xs font-bold text-slate-600">Password</label>
-                      <input
-                        type="password"
-                        placeholder="•••••••• (Optional for guest)"
-                        value={password}
-                        onChange={e => setPassword(e.target.value)}
-                        className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold bg-slate-50 focus:bg-white focus:border-purple-600"
-                      />
-                    </div>
-
-                    <button
-                      type="submit"
-                      disabled={loggingIn}
-                      className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all active:scale-98"
-                    >
-                      <User size={15} />
-                      <span>{loggingIn ? 'Signing In...' : 'Sign In & Unlock Quiz'}</span>
-                    </button>
-                  </form>
+                  <button
+                    type="button"
+                    onClick={() => setShowAuthModal(true)}
+                    className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all active:scale-98"
+                  >
+                    <User size={15} />
+                    <span>Sign In / Create Account & Unlock Quiz</span>
+                  </button>
                 </div>
               )}
             </div>

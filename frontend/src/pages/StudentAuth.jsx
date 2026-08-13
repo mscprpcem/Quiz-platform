@@ -3,13 +3,13 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   Mail, Lock, User, ShieldCheck, CheckCircle2, ArrowRight,
-  ExternalLink, Sparkles, AlertTriangle, Loader2, BookOpen, Trophy
+  ExternalLink, Sparkles, AlertTriangle, Loader2, BookOpen, Trophy, Search, Eye, EyeOff, X
 } from 'lucide-react';
 
 export default function StudentAuth() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { studentAccount, studentLogin, studentRegister, studentLogout } = useAuth();
+  const { studentAccount, studentLogin, studentRegister, studentLogout, checkUsername } = useAuth();
 
   // Mode: 'login' or 'register'
   const isRegisterInitial = location.pathname.includes('register');
@@ -18,9 +18,19 @@ export default function StudentAuth() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
+    username: '',
     password: '',
     confirmPassword: ''
   });
+
+  // Username Availability State
+  const [usernameChecking, setUsernameChecking] = useState(false);
+  const [usernameAvailable, setUsernameAvailable] = useState(null);
+  const [usernameError, setUsernameError] = useState('');
+
+  // Password Visibility
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -40,6 +50,45 @@ export default function StudentAuth() {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
     setError('');
+    if (name === 'username') {
+      setUsernameAvailable(null);
+      setUsernameError('');
+    }
+  };
+
+  const handleCheckHandle = async (handleVal) => {
+    const clean = (handleVal || '').toLowerCase().trim();
+    if (!clean || clean.length < 3) {
+      setUsernameAvailable(false);
+      setUsernameError('Username handle must be at least 3 characters.');
+      return false;
+    }
+    if (!/^[a-zA-Z0-9_-]{3,20}$/.test(clean)) {
+      setUsernameAvailable(false);
+      setUsernameError('Only letters, numbers, underscores, or hyphens allowed.');
+      return false;
+    }
+
+    setUsernameChecking(true);
+    setUsernameError('');
+    try {
+      const res = await checkUsername(clean);
+      if (res.available) {
+        setUsernameAvailable(true);
+        setUsernameError('');
+        return true;
+      } else {
+        setUsernameAvailable(false);
+        setUsernameError(res.error || 'Username handle is already taken.');
+        return false;
+      }
+    } catch (err) {
+      setUsernameAvailable(false);
+      setUsernameError('Error verifying username availability.');
+      return false;
+    } finally {
+      setUsernameChecking(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -47,7 +96,7 @@ export default function StudentAuth() {
     setError('');
     setSuccessMsg('');
 
-    const { name, email, password, confirmPassword } = formData;
+    const { name, email, username, password, confirmPassword } = formData;
     const cleanEmail = email.trim();
 
     if (!cleanEmail || !password) {
@@ -60,12 +109,22 @@ export default function StudentAuth() {
         setError('Please enter your full name.');
         return;
       }
-      if (password !== confirmPassword) {
-        setError('Passwords do not match.');
+      if (username.trim()) {
+        if (usernameAvailable === false) {
+          setError('Please choose an available username handle before registering.');
+          return;
+        }
+        if (usernameAvailable === null) {
+          const available = await handleCheckHandle(username);
+          if (!available) return;
+        }
+      }
+      if (password.length < 8) {
+        setError('Password must be at least 8 characters long.');
         return;
       }
-      if (password.length < 6) {
-        setError('Password must be at least 6 characters.');
+      if (password !== confirmPassword) {
+        setError('Passwords do not match.');
         return;
       }
     }
@@ -73,14 +132,19 @@ export default function StudentAuth() {
     try {
       setLoading(true);
       if (mode === 'register') {
-        const res = await studentRegister(cleanEmail, name.trim(), password);
+        const res = await studentRegister({
+          name: name.trim(),
+          email: cleanEmail,
+          password,
+          username: username.trim()
+        });
         if (res.success) {
           setSuccessMsg('Account created successfully and synchronized with Verification Portal!');
         } else {
           setError(res.error || 'Failed to create account.');
         }
       } else {
-        const res = await studentLogin(cleanEmail, name.trim() || cleanEmail.split('@')[0], password);
+        const res = await studentLogin(cleanEmail, password);
         if (res.success) {
           setSuccessMsg('Logged in successfully!');
         } else {
@@ -174,12 +238,11 @@ export default function StudentAuth() {
 
           {/* Header */}
           <div className="text-center space-y-2 pt-1">
-            <div className="w-13 h-13 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mx-auto shadow-inner">
-              <ShieldCheck size={28} />
-            </div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Student Portal</h2>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">
+              {mode === 'register' ? 'Create Your Account' : 'Sign In to Your Account'}
+            </h2>
             <p className="text-xs text-slate-500 font-semibold">
-              Sign in or create your account with direct verification portal sync.
+              {mode === 'register' ? 'Fill in the details to get started' : 'Enter your credentials to continue'}
             </p>
           </div>
 
@@ -209,12 +272,6 @@ export default function StudentAuth() {
             </button>
           </div>
 
-          {/* Cross-portal Sync Notice */}
-          <div className="p-3 bg-purple-50/70 border border-purple-200/80 rounded-xl text-[11px] font-semibold text-purple-900 flex items-center space-x-2">
-            <Sparkles size={15} className="text-purple-600 flex-shrink-0" />
-            <span>Automatic sync with <strong>verify.mscprpcem.tech</strong></span>
-          </div>
-
           {error && (
             <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs font-bold flex items-center space-x-2 animate-fade-in">
               <AlertTriangle size={16} className="flex-shrink-0" />
@@ -230,20 +287,21 @@ export default function StudentAuth() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Full Name for Register */}
+            
+            {/* Full Name field (Register only) */}
             {mode === 'register' && (
               <div className="space-y-1.5 animate-fade-in">
-                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500">Full Name *</label>
+                <label className="block text-xs font-bold text-slate-700">Full Name</label>
                 <div className="relative">
-                  <User size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <User size={16} className="absolute left-3.5 top-3 text-slate-400" />
                   <input
                     type="text"
                     name="name"
                     value={formData.name}
                     onChange={handleChange}
-                    placeholder="e.g. John Doe"
+                    placeholder="Enter your Full Name"
                     required={mode === 'register'}
-                    className="w-full pl-10 pr-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 bg-white focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
                   />
                 </div>
               </div>
@@ -251,53 +309,122 @@ export default function StudentAuth() {
 
             {/* Email Address */}
             <div className="space-y-1.5">
-              <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500">Student Email *</label>
+              <label className="block text-xs font-bold text-slate-700">Email Address</label>
               <div className="relative">
-                <Mail size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Mail size={16} className="absolute left-3.5 top-3 text-slate-400" />
                 <input
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  placeholder="student@prpcem.ac.in"
+                  placeholder="Enter your email"
                   required
-                  className="w-full pl-10 pr-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 bg-white focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
                 />
               </div>
             </div>
 
+            {/* Username Handle (Register only) */}
+            {mode === 'register' && (
+              <div className="space-y-1.5 animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-bold text-slate-700">Username Handle</label>
+                  <span className="text-[10px] text-slate-400 font-semibold">(for public profile URL)</span>
+                </div>
+                <div className="relative flex items-center">
+                  <span className="absolute left-3.5 text-xs font-black text-slate-400 select-none">@</span>
+                  <input
+                    type="text"
+                    name="username"
+                    placeholder="e.g. amityadav"
+                    value={formData.username}
+                    onChange={handleChange}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleCheckHandle(formData.username);
+                      }
+                    }}
+                    required={mode === 'register'}
+                    className="w-full border border-slate-200 rounded-xl pl-8 pr-12 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
+                  />
+                  <div className="absolute right-3 flex items-center space-x-1.5">
+                    {usernameChecking ? (
+                      <Loader2 size={15} className="animate-spin text-blue-600" />
+                    ) : usernameAvailable === true ? (
+                      <CheckCircle2 size={15} className="text-emerald-500" />
+                    ) : usernameAvailable === false ? (
+                      <X size={15} className="text-red-500" />
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => handleCheckHandle(formData.username)}
+                      disabled={usernameChecking || !formData.username.trim()}
+                      className="text-slate-400 hover:text-blue-600 p-1 cursor-pointer disabled:opacity-30"
+                      title="Check handle availability"
+                    >
+                      <Search size={14} />
+                    </button>
+                  </div>
+                </div>
+                {usernameAvailable === true && (
+                  <span className="text-[10px] font-bold text-emerald-600 block">Available</span>
+                )}
+                {usernameError && (
+                  <span className="text-[10px] font-bold text-red-500 block">{usernameError}</span>
+                )}
+              </div>
+            )}
+
             {/* Password */}
             <div className="space-y-1.5">
-              <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500">Password *</label>
+              <label className="block text-xs font-bold text-slate-700">Password</label>
               <div className="relative">
-                <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Lock size={16} className="absolute left-3.5 top-3 text-slate-400" />
                 <input
-                  type="password"
+                  type={showPassword ? 'text' : 'password'}
                   name="password"
                   value={formData.password}
                   onChange={handleChange}
-                  placeholder="••••••••"
+                  placeholder="••••••••••••"
                   required
-                  className="w-full pl-10 pr-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 bg-white focus:ring-2 focus:ring-blue-500"
+                  className="w-full border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
               </div>
+              {mode === 'register' && (
+                <span className="text-[10px] text-slate-400 font-semibold block">Password must be at least 8 characters</span>
+              )}
             </div>
 
             {/* Confirm Password for Register */}
             {mode === 'register' && (
               <div className="space-y-1.5 animate-fade-in">
-                <label className="block text-[10px] font-black uppercase tracking-wider text-slate-500">Confirm Password *</label>
+                <label className="block text-xs font-bold text-slate-700">Confirm Password</label>
                 <div className="relative">
-                  <Lock size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Lock size={16} className="absolute left-3.5 top-3 text-slate-400" />
                   <input
-                    type="password"
+                    type={showConfirmPassword ? 'text' : 'password'}
                     name="confirmPassword"
                     value={formData.confirmPassword}
                     onChange={handleChange}
-                    placeholder="••••••••"
+                    placeholder="Confirm your password"
                     required={mode === 'register'}
-                    className="w-full pl-10 pr-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 bg-white focus:ring-2 focus:ring-blue-500"
+                    className="w-full border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
                 </div>
               </div>
             )}
@@ -305,31 +432,41 @@ export default function StudentAuth() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all disabled:opacity-50"
+              className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all disabled:opacity-50 mt-2"
             >
               {loading ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
-                  <span>Processing...</span>
+                  <span>Authenticating...</span>
                 </>
               ) : (
                 <>
-                  <span>{mode === 'register' ? 'Create Account & Sync' : 'Sign In to Quiz Platform'}</span>
+                  <span>{mode === 'register' ? 'Create Account' : 'Sign In'}</span>
                   <ArrowRight size={15} />
                 </>
               )}
             </button>
           </form>
 
-          {/* Bottom Switch to Admin */}
-          <div className="border-t border-slate-100 pt-4 text-center space-y-2">
-            <Link
-              to="/admin/login"
-              className="text-xs text-slate-500 hover:text-blue-600 font-extrabold flex items-center justify-center space-x-1 hover:underline"
-            >
-              <span>Are you an Administrator? Sign in to Admin Portal</span>
-              <ArrowRight size={13} />
-            </Link>
+          {/* Footer Switch Link */}
+          <div className="text-center pt-2 border-t border-slate-100">
+            {mode === 'register' ? (
+              <button
+                type="button"
+                onClick={() => { setMode('login'); setError(''); }}
+                className="text-xs text-slate-500 font-bold hover:text-blue-600 transition-colors cursor-pointer"
+              >
+                Already have an account? <span className="text-blue-600 font-extrabold underline">Sign In</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => { setMode('register'); setError(''); }}
+                className="text-xs text-slate-500 font-bold hover:text-blue-600 transition-colors cursor-pointer"
+              >
+                Don't have an account? <span className="text-blue-600 font-extrabold underline">Create Account</span>
+              </button>
+            )}
           </div>
 
         </div>

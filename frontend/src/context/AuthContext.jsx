@@ -120,16 +120,51 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const studentRegister = async (name, email, password, username) => {
+  const checkUsername = async (handleVal) => {
+    const clean = (handleVal || '').toLowerCase().trim();
+    if (!clean || clean.length < 3) {
+      return { available: false, error: 'Username handle must be at least 3 characters.' };
+    }
+    if (!/^[a-zA-Z0-9_-]{3,20}$/.test(clean)) {
+      return { available: false, error: 'Only letters, numbers, underscores, or hyphens allowed.' };
+    }
+    try {
+      const res = await api.get(`/api/student/check-username?username=${encodeURIComponent(clean)}`);
+      return res.data;
+    } catch (err) {
+      return { available: false, error: err.response?.data?.error || 'Error verifying username availability.' };
+    }
+  };
+
+  const studentRegister = async (param1, param2, param3, param4) => {
+    let name, email, password, username;
+    if (typeof param1 === 'object' && param1 !== null) {
+      name = param1.name;
+      email = param1.email;
+      password = param1.password;
+      username = param1.username;
+    } else if (typeof param1 === 'string' && param1.includes('@')) {
+      email = param1;
+      name = param2;
+      password = param3;
+      username = param4;
+    } else {
+      name = param1;
+      email = param2;
+      password = param3;
+      username = param4;
+    }
+
     const cleanEmail = email ? email.toLowerCase().trim() : '';
     const cleanName = name || (cleanEmail ? cleanEmail.split('@')[0] : 'Student');
+    const cleanUsername = (username || cleanEmail.split('@')[0]).toLowerCase().trim().replace(/[^a-z0-9_-]/g, '');
 
     if (!cleanEmail || !password || !cleanName) {
       return { success: false, error: 'Full Name, Email Address, and Password are required.' };
     }
 
     try {
-      const res = await api.post('/api/student/register', { name: cleanName, email: cleanEmail, password, username });
+      const res = await api.post('/api/student/register', { name: cleanName, email: cleanEmail, password, username: cleanUsername });
       if (res.data && res.data.user) {
         setStudentAccount(res.data.user);
         localStorage.setItem('msc_student_account', JSON.stringify(res.data.user));
@@ -181,6 +216,7 @@ export const AuthProvider = ({ children }) => {
       studentLogin,
       studentRegister,
       studentLogout,
+      checkUsername,
       issueStudentCertificate
     }}>
       {children}

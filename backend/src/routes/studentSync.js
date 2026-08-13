@@ -30,6 +30,42 @@ let studentCertificates = [];
 // Helper to normalize email
 const normalizeEmail = (email) => (email ? email.toLowerCase().trim() : '');
 
+// Username Availability Check Route
+router.get('/check-username', async (req, res) => {
+  try {
+    const rawUsername = req.query.username;
+    const clean = (rawUsername || '').toLowerCase().trim().replace(/[^a-z0-9_-]/g, '');
+    if (!clean || clean.length < 3) {
+      return res.status(400).json({ available: false, error: 'Username handle must be at least 3 characters.' });
+    }
+    if (!/^[a-zA-Z0-9_-]{3,20}$/.test(clean)) {
+      return res.status(400).json({ available: false, error: 'Only letters, numbers, underscores, or hyphens allowed.' });
+    }
+
+    const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'http://localhost:3000';
+    try {
+      const checkRes = await axios.get(`${verificationPortalUrl}/api/auth/check-username?username=${encodeURIComponent(clean)}`, { timeout: 3000 });
+      if (checkRes.data && checkRes.data.available !== undefined) {
+        return res.json(checkRes.data);
+      }
+    } catch (e) {}
+
+    let taken = false;
+    for (let [_, s] of registeredStudents.entries()) {
+      if (s.username && s.username.toLowerCase() === clean) {
+        taken = true;
+        break;
+      }
+    }
+    if (taken) {
+      return res.json({ available: false, error: 'Username handle is already taken.' });
+    }
+    return res.json({ available: true, message: 'Username handle is available!' });
+  } catch (err) {
+    return res.status(500).json({ available: false, error: 'Error verifying username availability.' });
+  }
+});
+
 // =======================
 // Student Login & Cross-Portal Sync Registration
 // =======================
