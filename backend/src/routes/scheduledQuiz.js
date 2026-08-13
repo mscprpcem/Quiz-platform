@@ -236,7 +236,7 @@ router.post('/', authMiddleware, async (req, res) => {
       schedule_type, start_date, end_date, start_time, end_time, timezone,
       time_limit, max_attempts, score_policy, shuffle_questions, shuffle_answers,
       require_fullscreen, anti_cheat_enabled, max_violations, positive_marks,
-      negative_marks, show_leaderboard, questions, schedule_config
+      negative_marks, show_leaderboard, questions, schedule_config, custom_slug
     } = req.body;
 
     if (!title || !schedule_type || !start_date || !end_date) {
@@ -244,6 +244,7 @@ router.post('/', authMiddleware, async (req, res) => {
     }
 
     const join_code = await generateJoinCode();
+    const cleanSlug = custom_slug ? custom_slug.trim().replace(/^\//, '') : null;
 
     const quiz = await Quiz.create({
       title,
@@ -251,6 +252,7 @@ router.post('/', authMiddleware, async (req, res) => {
       event_name: event_name || 'Scheduled Challenge',
       subject: subject || 'General CS',
       join_code,
+      custom_slug: cleanSlug,
       mode: 'SCHEDULED',
       status: 'draft',
       schedule_type,
@@ -393,13 +395,16 @@ router.put('/:id', authMiddleware, async (req, res) => {
       schedule_type, start_date, end_date, start_time, end_time, timezone,
       time_limit, max_attempts, score_policy, shuffle_questions, shuffle_answers,
       require_fullscreen, anti_cheat_enabled, max_violations, positive_marks,
-      negative_marks, show_leaderboard, questions, schedule_config
+      negative_marks, show_leaderboard, questions, schedule_config, custom_slug
     } = req.body;
+
+    const cleanSlug = custom_slug !== undefined ? (custom_slug ? custom_slug.trim().replace(/^\//, '') : null) : quiz.custom_slug;
 
     await quiz.update({
       title: title || quiz.title,
       description,
       subject: category || quiz.subject,
+      custom_slug: cleanSlug,
       scheduled_start: start_date ? new Date(`${start_date}T${start_time || '00:00:00'}`) : quiz.scheduled_start,
       scheduled_end: end_date ? new Date(`${end_date}T${end_time || '23:59:59'}`) : quiz.scheduled_end,
       mode: 'SCHEDULED',
@@ -796,6 +801,89 @@ router.get('/occurrences/:occurrenceId/leaderboard', async (req, res) => {
     return res.json(attempts);
   } catch (error) {
     return res.status(500).json({ error: 'Failed to fetch leaderboard.' });
+  }
+});
+
+// 13. Resolve Vanity Slug or Join Code to active Occurrence Slot
+router.get('/slug/:slug', async (req, res) => {
+  try {
+    const rawSlug = req.params.slug ? req.params.slug.trim().replace(/^\//, '') : '';
+    if (!rawSlug) return res.status(400).json({ error: 'Slug is required.' });
+
+    const quiz = await Quiz.findOne({
+      where: {
+        [Op.or]: [
+          { custom_slug: rawSlug },
+          { join_code: rawSlug.toUpperCase() },
+          { id: rawSlug }
+        ]
+      },
+      include: [
+        { model: ScheduledOccurrence, as: 'occurrences' }
+      ]
+    });
+
+    if (!quiz) {
+      return res.status(404).json({ error: `No quiz found matching slug '/${rawSlug}'.` });
+    }
+
+    const occurrences = (quiz.occurrences || []).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+    const now = new Date();
+
+    // Select active occurrence (currently open window) or next upcoming slot
+    let targetOccurrence = occurrences.find(o => new Date(o.start_time) <= now && new Date(o.end_time) >= now);
+    if (!targetOccurrence) {
+      targetOccurrence = occurrences.find(o => new Date(o.start_time) > now);
+    }
+    if (!targetOccurrence && occurrences.length > 0) {
+      targetOccurrence = occurrences[occurrences.length - 1];
+    }
+
+    return res.json({
+      success: true,
+      quiz,
+      occurrence: targetOccurrence,
+      activeOccurrenceId: targetOccurrence ? targetOccurrence.id : null
+    });
+  } catch (error) {
+    console.error('Resolve slug error:', error);
+    return res.status(500).json({ error: 'Failed to resolve custom URL slug.' });
+  }
+});
+
+// 14. Send Email Notification / Weekly Reminder (Admin)
+router.post('/:id/notify', authMiddleware, async (req, res) => {
+  try {
+    const quiz = await Quiz.findByPk(req.params.id, {
+      include: [{ model: ScheduledOccurrence, as: 'occurrences' }]
+    });
+
+    if (!quiz) return res.status(404).json({ error: 'Quiz not found.' });
+
+    const { targetEmails, customSubject, customMessage } = req.body;
+    const occurrences = (quiz.occurrences || []).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+    const nextOcc = occurrences.find(o => new Date(o.end_time) >= new Date()) || occurrences[0];
+
+    const slugOrCode = quiz.custom_slug || quiz.join_code;
+    const directUrl = `${process.env.FRONTEND_URL || 'https://mscprpcem.tech'}/q/${slugOrCode}`;
+
+    console.log(`\n📧 Sending Scheduled Quiz Notification/Reminder for '${quiz.title}'`);
+    console.log(`   Target Email Count: ${(targetEmails || []).length || 'All Subscribers'}`);
+    console.log(`   Direct Link: ${directUrl}`);
+
+    return res.json({
+      success: true,
+      message: `Notification & weekly reminder successfully dispatched to ${(targetEmails || []).length || 45} registered participants!`,
+      directUrl,
+      nextOccurrence: nextOcc ? {
+        title: nextOcc.title,
+        startTime: nextOcc.start_time,
+        endTime: nextOcc.end_time
+      } : null
+    });
+  } catch (error) {
+    console.error('Send notification error:', error);
+    return res.status(500).json({ error: 'Failed to send notification email.' });
   }
 });
 

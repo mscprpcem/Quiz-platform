@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
+import { QRCodeSVG } from 'qrcode.react';
 import api from '../services/api';
 import {
   Calendar, ArrowLeft, ArrowRight, Plus, Trash2, Upload, FileSpreadsheet,
-  CheckCircle, AlertTriangle, Clock, ShieldCheck, HelpCircle, Layers, CheckSquare, Sparkles, RefreshCw
+  CheckCircle, AlertTriangle, Clock, ShieldCheck, HelpCircle, Layers, CheckSquare, Sparkles, RefreshCw, QrCode, Mail
 } from 'lucide-react';
 
 export default function CreateScheduledQuiz() {
@@ -24,6 +25,7 @@ export default function CreateScheduledQuiz() {
 
   const [formData, setFormData] = useState({
     title: '',
+    custom_slug: '',
     description: '',
     category: 'Cloud',
     difficulty: 'Intermediate',
@@ -82,6 +84,7 @@ export default function CreateScheduledQuiz() {
 
           setFormData({
             title: q.title || '',
+            custom_slug: q.custom_slug || '',
             description: q.description || '',
             category: q.subject || 'Cloud',
             difficulty: q.difficulty || 'Intermediate',
@@ -288,6 +291,7 @@ export default function CreateScheduledQuiz() {
 
     const payload = {
       title: formData.title,
+      custom_slug: formData.custom_slug,
       description: formData.description,
       category: formData.category,
       difficulty: formData.difficulty,
@@ -434,6 +438,53 @@ export default function CreateScheduledQuiz() {
                 onChange={e => setFormData({ ...formData, title: e.target.value })}
                 className="w-full border rounded-xl px-4 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600"
               />
+            </div>
+
+            <div className="p-5 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/80 rounded-2xl space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <QrCode size={18} className="text-blue-600" />
+                  <span className="text-xs font-black text-blue-900 uppercase tracking-wider">
+                    Custom URL Slug & QR Code Direct Join
+                  </span>
+                </div>
+                <span className="px-2.5 py-0.5 bg-blue-600 text-white rounded-full text-[9px] font-black uppercase">
+                  Instant Mobile Access
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                <div className="md:col-span-2 space-y-2">
+                  <label className="block text-xs font-bold text-slate-700">Custom Short Link (Vanity Slug)</label>
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-extrabold text-slate-500 bg-white border border-slate-200 px-3 py-2 rounded-xl whitespace-nowrap">
+                      mscprpcem.tech/
+                    </span>
+                    <input
+                      type="text"
+                      placeholder="e.g. visionXS2"
+                      value={formData.custom_slug}
+                      onChange={e => setFormData({ ...formData, custom_slug: e.target.value.replace(/[^a-zA-Z0-9_-]/g, '') })}
+                      className="w-full border border-blue-300 rounded-xl px-3.5 py-2 text-xs font-black text-blue-700 bg-white focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  <p className="text-[10px] text-slate-500 font-semibold leading-normal">
+                    Students visiting <strong className="text-blue-600">mscprpcem.tech/{formData.custom_slug || 'visionXS2'}</strong> or scanning the QR code will open this quiz session directly.
+                  </p>
+                </div>
+
+                {/* Live QR Code Preview */}
+                <div className="bg-white p-3 border border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-1.5 shadow-2xs">
+                  <QRCodeSVG
+                    value={`https://mscprpcem.tech/q/${formData.custom_slug || 'visionXS2'}`}
+                    size={84}
+                    bgColor="#FFFFFF"
+                    fgColor="#0F172A"
+                    level="M"
+                  />
+                  <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Scan to Join Direct</span>
+                </div>
+              </div>
             </div>
 
             <div className="space-y-1">

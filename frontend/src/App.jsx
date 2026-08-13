@@ -37,6 +37,7 @@ import AdminScheduledQuizzes from './pages/AdminScheduledQuizzes';
 import ScheduledQuizDetails from './pages/ScheduledQuizDetails';
 import ScheduledQuizTake from './pages/ScheduledQuizTake';
 import CreateScheduledQuiz from './pages/CreateScheduledQuiz';
+import VanityRedirect from './pages/VanityRedirect';
 
 // Private Route Enforcer for Admin pages
 const AdminRoute = ({ children }) => {
@@ -78,6 +79,8 @@ export default function App() {
                 <Route path="/practice/:category" element={<PracticeQuiz />} />
                 <Route path="/courses" element={<Courses />} />
                 <Route path="/scheduled-quiz/:occurrenceId" element={<ScheduledQuizTake />} />
+                <Route path="/q/:slug" element={<VanityRedirect />} />
+                <Route path="/:slug" element={<VanityRedirect />} />
 
                 {/* Footer Policy Pages */}
                 <Route path="/privacy" element={<PrivacyPolicy />} />

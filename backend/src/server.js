@@ -201,7 +201,8 @@ async function startServer() {
       `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}verification_synced_at${quote} ${dateType};`,
       `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}verification_event_id${quote} VARCHAR(255);`,
       `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}verification_error${quote} TEXT;`,
-      `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}svg_template${quote} TEXT;`
+      `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}svg_template${quote} TEXT;`,
+      `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}custom_slug${quote} VARCHAR(255);`
     ];
 
     for (const query of columns) {

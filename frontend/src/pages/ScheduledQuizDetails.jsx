@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 import api from '../services/api';
 import {
   Calendar, Clock, CheckCircle, ArrowLeft, Users, Trophy, Pause, 
-  Play, ExternalLink, ShieldCheck, HelpCircle, Layers
+  Play, ExternalLink, ShieldCheck, HelpCircle, Layers, QrCode, Mail, Send, Copy, Check
 } from 'lucide-react';
 
 export default function ScheduledQuizDetails() {
@@ -12,6 +13,9 @@ export default function ScheduledQuizDetails() {
 
   const [quizData, setQuizData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [sendingMail, setSendingMail] = useState(false);
+  const [mailSentMessage, setMailSentMessage] = useState('');
+  const [copiedLink, setCopiedLink] = useState(false);
 
   useEffect(() => {
     fetchDetails();
@@ -29,6 +33,23 @@ export default function ScheduledQuizDetails() {
     }
   };
 
+  const handleSendWeeklyReminder = async () => {
+    try {
+      setSendingMail(true);
+      setMailSentMessage('');
+      const res = await api.post(`/api/scheduled-quizzes/${id}/notify`, {
+        customSubject: `[MSC Reminder] Join ${quizData?.quiz?.title || 'Weekly Assessment'}`,
+        customMessage: `Weekly recurring quiz reminder. Scan the QR code or click the direct short link to attempt your scheduled assessment.`
+      });
+      setMailSentMessage(res.data.message || 'Notification dispatched successfully!');
+      setTimeout(() => setMailSentMessage(''), 5000);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to dispatch email notification.');
+    } finally {
+      setSendingMail(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="py-20 text-center text-slate-400 font-extrabold animate-pulse">
@@ -41,21 +62,88 @@ export default function ScheduledQuizDetails() {
   const occurrences = quiz?.occurrences || [];
   const attempts = quizData?.attempts || [];
 
+  const slugOrCode = quiz?.custom_slug || quiz?.join_code || id;
+  const vanityUrl = `https://mscprpcem.tech/q/${slugOrCode}`;
+
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(vanityUrl);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
   return (
-    <div className="space-y-8 text-left font-segoe">
+    <div className="space-y-8 text-left font-segoe pb-16">
       
       {/* Header */}
-      <div className="flex items-center space-x-4 bg-white border border-slate-200 p-6 rounded-3xl shadow-2xs">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white border border-slate-200 p-6 rounded-3xl shadow-2xs">
+        <div className="flex items-center space-x-4">
+          <button
+            onClick={() => navigate('/admin/scheduled-quizzes')}
+            className="p-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-600 cursor-pointer"
+          >
+            <ArrowLeft size={18} />
+          </button>
+          <div>
+            <span className="text-[10px] font-black uppercase text-blue-600 tracking-wider">Scheduled Quiz Manager</span>
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900">{quiz?.title}</h1>
+            <p className="text-xs text-slate-500 font-medium">{quiz?.description || 'No description provided.'}</p>
+          </div>
+        </div>
+
         <button
-          onClick={() => navigate('/admin/scheduled-quizzes')}
-          className="p-2 border border-slate-200 hover:bg-slate-50 rounded-xl text-slate-600 cursor-pointer"
+          onClick={handleSendWeeklyReminder}
+          disabled={sendingMail}
+          className="px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center space-x-2 shadow-md cursor-pointer transition-all"
         >
-          <ArrowLeft size={18} />
+          <Mail size={16} />
+          <span>{sendingMail ? 'Dispatching...' : 'Send Email Reminder to Participants'}</span>
         </button>
-        <div>
-          <span className="text-[10px] font-black uppercase text-blue-600 tracking-wider">Scheduled Quiz Overview</span>
-          <h1 className="text-xl sm:text-2xl font-black text-slate-900">{quiz?.title}</h1>
-          <p className="text-xs text-slate-500 font-medium">{quiz?.description || 'No description provided.'}</p>
+      </div>
+
+      {mailSentMessage && (
+        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-extrabold flex items-center space-x-2">
+          <CheckCircle size={18} className="text-emerald-600" />
+          <span>{mailSentMessage}</span>
+        </div>
+      )}
+
+      {/* Custom Vanity Link & QR Code Direct Join Card */}
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 rounded-3xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="space-y-3 max-w-lg text-left">
+          <div className="inline-flex items-center space-x-2 px-3 py-1 bg-amber-400/20 text-amber-300 border border-amber-400/30 rounded-full text-[10px] font-black uppercase">
+            <QrCode size={13} />
+            <span>Direct QR Code & Short Link</span>
+          </div>
+
+          <h2 className="text-xl font-black">Direct Student Join Link</h2>
+          
+          <div className="flex items-center space-x-2">
+            <input
+              type="text"
+              readOnly
+              value={vanityUrl}
+              className="bg-white/10 border border-white/20 text-amber-300 font-mono font-bold text-xs px-3.5 py-2 rounded-xl w-full"
+            />
+            <button
+              onClick={handleCopyLink}
+              className="px-3.5 py-2 bg-white/20 hover:bg-white/30 text-white text-xs font-bold rounded-xl flex items-center space-x-1 cursor-pointer"
+            >
+              {copiedLink ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+              <span>{copiedLink ? 'Copied' : 'Copy'}</span>
+            </button>
+          </div>
+          <p className="text-xs text-slate-300">Students scanning the QR code or visiting this short URL join the active quiz occurrence directly.</p>
+        </div>
+
+        <div className="bg-white p-4 rounded-2xl shadow-lg flex flex-col items-center justify-center space-y-2">
+          <QRCodeSVG
+            value={vanityUrl}
+            size={120}
+            bgColor="#FFFFFF"
+            fgColor="#0F172A"
+            level="H"
+          />
+          <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider">Scan to Join</span>
         </div>
       </div>
 

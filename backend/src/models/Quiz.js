@@ -127,6 +127,11 @@ const Quiz = sequelize.define('Quiz', {
   svg_template: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  custom_slug: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: true
   }
 });
 
