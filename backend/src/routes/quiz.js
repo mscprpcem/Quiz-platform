@@ -255,13 +255,14 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 // Create new quiz
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { title, event_name, subject, description, scheduled_start, scheduled_end } = req.body;
+    const { title, event_name, subject, description, scheduled_start, scheduled_end, custom_slug } = req.body;
 
     if (!title || !event_name) {
       return res.status(400).json({ error: 'Title and event name are required' });
     }
 
     const join_code = await generateJoinCode();
+    const cleanSlug = custom_slug ? custom_slug.trim().replace(/^\//, '') : null;
 
     const quiz = await Quiz.create({
       title,
@@ -269,6 +270,7 @@ router.post('/', authMiddleware, async (req, res) => {
       subject: subject || 'DBMS',
       description,
       join_code,
+      custom_slug: cleanSlug,
       status: 'draft',
       scheduled_start: scheduled_start || null,
       scheduled_end: scheduled_end || null
@@ -284,17 +286,20 @@ router.post('/', authMiddleware, async (req, res) => {
 // Update quiz details
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
-    const { title, event_name, subject, description, scheduled_start, scheduled_end } = req.body;
+    const { title, event_name, subject, description, scheduled_start, scheduled_end, custom_slug } = req.body;
     const quiz = await Quiz.findByPk(req.params.id);
 
     if (!quiz) {
       return res.status(404).json({ error: 'Quiz not found' });
     }
 
+    const cleanSlug = custom_slug !== undefined ? (custom_slug ? custom_slug.trim().replace(/^\//, '') : null) : quiz.custom_slug;
+
     await quiz.update({
       title: title || quiz.title,
       event_name: event_name || quiz.event_name,
       subject: subject || quiz.subject,
+      custom_slug: cleanSlug,
       description: description !== undefined ? description : quiz.description,
       scheduled_start: scheduled_start !== undefined ? (scheduled_start || null) : quiz.scheduled_start,
       scheduled_end: scheduled_end !== undefined ? (scheduled_end || null) : quiz.scheduled_end

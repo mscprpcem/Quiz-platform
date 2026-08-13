@@ -871,6 +871,15 @@ router.get('/slug/:slug', async (req, res) => {
       return res.status(404).json({ error: `No quiz found matching slug '/${rawSlug}'.` });
     }
 
+    if (quiz.mode === 'LIVE') {
+      return res.json({
+        success: true,
+        isLive: true,
+        quiz,
+        joinCode: quiz.join_code
+      });
+    }
+
     const occurrences = (quiz.occurrences || []).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
     const now = new Date();
 
