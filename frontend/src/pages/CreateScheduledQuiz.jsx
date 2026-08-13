@@ -77,6 +77,17 @@ export default function CreateScheduledQuiz() {
     questions: []
   });
 
+  // Helper to format Date object into local YYYY-MM-DD string
+  const formatLocalDate = (d) => {
+    if (!d) return '';
+    const dateObj = new Date(d);
+    if (isNaN(dateObj.getTime())) return '';
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   // Pre-fill quiz data if editing
   useEffect(() => {
     if (!id) return;
@@ -89,6 +100,36 @@ export default function CreateScheduledQuiz() {
           let sConf = {};
           try { sConf = typeof q.schedule_config === 'string' ? JSON.parse(q.schedule_config) : (q.schedule_config || {}); } catch(e){}
 
+          const occurrences = q.occurrences || [];
+          const firstOcc = occurrences.length > 0 ? occurrences[0] : null;
+          const startDateRaw = firstOcc?.start_time || q.scheduled_start;
+          const endDateRaw = firstOcc?.end_time || q.scheduled_end;
+
+          let sHh = '10', sMm = '00', sSs = '00', sAmpm = 'AM';
+          let eHh = '11', eMm = '00', eSs = '00', eAmpm = 'AM';
+
+          if (startDateRaw) {
+            const sD = new Date(startDateRaw);
+            if (!isNaN(sD.getTime())) {
+              const h = sD.getHours();
+              sAmpm = h >= 12 ? 'PM' : 'AM';
+              sHh = String((h % 12) || 12).padStart(2, '0');
+              sMm = String(sD.getMinutes()).padStart(2, '0');
+              sSs = String(sD.getSeconds()).padStart(2, '0');
+            }
+          }
+
+          if (endDateRaw) {
+            const eD = new Date(endDateRaw);
+            if (!isNaN(eD.getTime())) {
+              const h = eD.getHours();
+              eAmpm = h >= 12 ? 'PM' : 'AM';
+              eHh = String((h % 12) || 12).padStart(2, '0');
+              eMm = String(eD.getMinutes()).padStart(2, '0');
+              eSs = String(eD.getSeconds()).padStart(2, '0');
+            }
+          }
+
           setFormData({
             title: q.title || '',
             custom_slug: q.custom_slug || '',
@@ -97,16 +138,16 @@ export default function CreateScheduledQuiz() {
             difficulty: q.difficulty || 'Intermediate',
             instructions: q.instructions || '',
             schedule_type: q.schedule_type || 'ONE_TIME',
-            start_date: q.scheduled_start ? new Date(q.scheduled_start).toISOString().split('T')[0] : today,
-            end_date: q.scheduled_end ? new Date(q.scheduled_end).toISOString().split('T')[0] : nextMonth,
-            start_time_hh: '10',
-            start_time_mm: '00',
-            start_time_ss: '00',
-            start_time_ampm: 'AM',
-            end_time_hh: '11',
-            end_time_mm: '00',
-            end_time_ss: '00',
-            end_time_ampm: 'AM',
+            start_date: startDateRaw ? formatLocalDate(startDateRaw) : today,
+            end_date: endDateRaw ? formatLocalDate(endDateRaw) : nextMonth,
+            start_time_hh: sHh,
+            start_time_mm: sMm,
+            start_time_ss: sSs,
+            start_time_ampm: sAmpm,
+            end_time_hh: eHh,
+            end_time_mm: eMm,
+            end_time_ss: eSs,
+            end_time_ampm: eAmpm,
             timezone: q.timezone || 'Asia/Kolkata',
             days_of_week: sConf.daysOfWeek || ['MON'],
             weeks_pattern: sConf.weeksPattern || '1_3',
@@ -296,6 +337,23 @@ export default function CreateScheduledQuiz() {
     const startTimeStr = buildTimeString(formData.start_time_hh, formData.start_time_mm, formData.start_time_ss, formData.start_time_ampm);
     const endTimeStr = buildTimeString(formData.end_time_hh, formData.end_time_mm, formData.end_time_ss, formData.end_time_ampm);
 
+    // Compute exact local ISO strings
+    let startIso = null;
+    let endIso = null;
+    try {
+      const [sY, sM, sD] = formData.start_date.split('-').map(Number);
+      const [sH, sMin, sSec] = startTimeStr.split(':').map(Number);
+      const sDateObj = new Date(sY, sM - 1, sD, sH, sMin, sSec);
+      startIso = sDateObj.toISOString();
+
+      const [eY, eM, eD] = (formData.end_date || formData.start_date).split('-').map(Number);
+      const [eH, eMin, eSec] = endTimeStr.split(':').map(Number);
+      const eDateObj = new Date(eY, eM - 1, eD, eH, eMin, eSec);
+      endIso = eDateObj.toISOString();
+    } catch(e) {
+      console.warn('ISO date calculation warning:', e);
+    }
+
     const payload = {
       title: formData.title,
       custom_slug: formData.custom_slug,
@@ -308,6 +366,8 @@ export default function CreateScheduledQuiz() {
       end_date: formData.end_date,
       start_time: startTimeStr,
       end_time: endTimeStr,
+      start_iso: startIso,
+      end_iso: endIso,
       timezone: formData.timezone,
       time_limit: formData.time_limit,
       max_attempts: formData.max_attempts,
@@ -325,7 +385,9 @@ export default function CreateScheduledQuiz() {
         daysOfWeek: formData.days_of_week,
         weeksPattern: formData.weeks_pattern,
         dayOfMonth: formData.day_of_month,
-        customIntervalDays: formData.custom_interval_days
+        customIntervalDays: formData.custom_interval_days,
+        start_iso: startIso,
+        end_iso: endIso
       }
     };
 

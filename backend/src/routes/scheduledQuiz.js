@@ -67,9 +67,8 @@ const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, e
   let count = 1;
 
   if (scheduleType === 'ONE_TIME') {
-    const oStart = parseTime(startTimeStr || '00:00:00', start);
-    const occurrenceEndDate = (endDate && parseDateParts(endDate) >= start && String(endDate).split('T')[0] !== String(startDate).split('T')[0]) ? end : start;
-    let oEnd = parseTime(endTimeStr || '23:59:59', occurrenceEndDate);
+    let oStart = (config?.start_iso) ? new Date(config.start_iso) : parseTime(startTimeStr || '00:00:00', start);
+    let oEnd = (config?.end_iso) ? new Date(config.end_iso) : parseTime(endTimeStr || '23:59:59', (endDate && parseDateParts(endDate) >= start && String(endDate).split('T')[0] !== String(startDate).split('T')[0]) ? end : start);
     if (oEnd <= oStart) {
       oEnd = new Date(oStart.getTime() + 24 * 60 * 60 * 1000);
     }
@@ -245,6 +244,7 @@ router.post('/', authMiddleware, async (req, res) => {
     const {
       title, description, event_name, subject, difficulty, instructions,
       schedule_type, start_date, end_date, start_time, end_time, timezone,
+      start_iso, end_iso,
       time_limit, max_attempts, score_policy, shuffle_questions, shuffle_answers,
       require_fullscreen, anti_cheat_enabled, max_violations, positive_marks,
       negative_marks, show_leaderboard, questions, schedule_config, custom_slug
@@ -267,8 +267,8 @@ router.post('/', authMiddleware, async (req, res) => {
       mode: 'SCHEDULED',
       status: 'draft',
       schedule_type,
-      scheduled_start: new Date(start_date),
-      scheduled_end: new Date(end_date),
+      scheduled_start: start_iso ? new Date(start_iso) : new Date(start_date),
+      scheduled_end: end_iso ? new Date(end_iso) : new Date(end_date),
       timezone: timezone || 'Asia/Kolkata',
       time_limit: parseInt(time_limit || 30, 10),
       max_attempts: parseInt(max_attempts || 1, 10),
@@ -302,7 +302,16 @@ router.post('/', authMiddleware, async (req, res) => {
     }
 
     // Generate occurrence slots
-    await generateOccurrences(quiz.id, quiz.title, schedule_type, start_date, end_date, start_time, end_time, schedule_config);
+    await generateOccurrences(
+      quiz.id,
+      quiz.title,
+      schedule_type,
+      start_date,
+      end_date,
+      start_time,
+      end_time,
+      { ...(schedule_config || {}), start_iso, end_iso }
+    );
 
     return res.status(201).json({ message: 'Scheduled Quiz created successfully!', quiz });
   } catch (error) {
@@ -404,6 +413,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const {
       title, description, category, difficulty, instructions,
       schedule_type, start_date, end_date, start_time, end_time, timezone,
+      start_iso, end_iso,
       time_limit, max_attempts, score_policy, shuffle_questions, shuffle_answers,
       require_fullscreen, anti_cheat_enabled, max_violations, positive_marks,
       negative_marks, show_leaderboard, questions, schedule_config, custom_slug
@@ -416,8 +426,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
       description,
       subject: category || quiz.subject,
       custom_slug: cleanSlug,
-      scheduled_start: start_date ? new Date(`${start_date}T${start_time || '00:00:00'}`) : quiz.scheduled_start,
-      scheduled_end: end_date ? new Date(`${end_date}T${end_time || '23:59:59'}`) : quiz.scheduled_end,
+      scheduled_start: start_iso ? new Date(start_iso) : (start_date ? new Date(`${start_date}T${start_time || '00:00:00'}`) : quiz.scheduled_start),
+      scheduled_end: end_iso ? new Date(end_iso) : (end_date ? new Date(`${end_date}T${end_time || '23:59:59'}`) : quiz.scheduled_end),
       mode: 'SCHEDULED',
       schedule_type: schedule_type || quiz.schedule_type,
       timezone: timezone || quiz.timezone,
@@ -453,14 +463,9 @@ router.put('/:id', authMiddleware, async (req, res) => {
       await Question.bulkCreate(qRecords);
     }
 
-    // Update Future Scheduled Occurrences while preserving past completed occurrences
-    const now = new Date();
+    // Regenerate Occurrences with updated times
     await ScheduledOccurrence.destroy({
-      where: {
-        quiz_id: quiz.id,
-        start_time: { [Op.gt]: now },
-        status: 'SCHEDULED'
-      }
+      where: { quiz_id: quiz.id }
     });
 
     await generateOccurrences(
@@ -471,7 +476,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       end_date || quiz.scheduled_end,
       start_time,
       end_time,
-      schedule_config || {}
+      { ...(schedule_config || {}), start_iso, end_iso }
     );
 
     return res.json({ message: 'Scheduled Quiz updated successfully!', quiz });
