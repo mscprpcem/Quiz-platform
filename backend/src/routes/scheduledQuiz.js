@@ -57,7 +57,9 @@ const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, e
 
   if (scheduleType === 'ONE_TIME') {
     const oStart = parseTime(startTimeStr, start);
-    const oEnd = parseTime(endTimeStr, end);
+    // For ONE_TIME schedule, default the occurrence end time on the start date so it doesn't default across an entire month
+    const occurrenceEndDate = (endDate && new Date(endDate) >= new Date(startDate) && endDate !== startDate) ? end : start;
+    const oEnd = parseTime(endTimeStr, occurrenceEndDate);
     occurrences.push({
       quiz_id: quizId,
       occurrence_number: 1,

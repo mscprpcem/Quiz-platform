@@ -5,6 +5,7 @@ import {
   Clock, CheckSquare, AlertTriangle, Trophy, CheckCircle, 
   Square, ShieldCheck, ArrowRight, RefreshCw, User, Lock, Award
 } from 'lucide-react';
+import DigitalBadgeCard from '../components/DigitalBadgeCard';
 
 export default function ScheduledQuizTake() {
   const { occurrenceId } = useParams();
@@ -203,8 +204,8 @@ export default function ScheduledQuizTake() {
   if (quizSubmitted && resultData) {
     const att = resultData.attempt;
     return (
-      <div className="max-w-lg mx-auto py-12 px-4 text-center space-y-6 font-segoe">
-        <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-md space-y-6">
+      <div className="max-w-xl mx-auto py-12 px-4 text-center space-y-6 font-segoe">
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-md space-y-6">
           <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto font-black shadow-xs">
             <Award size={36} />
           </div>
@@ -236,9 +237,20 @@ export default function ScheduledQuizTake() {
             </div>
           </div>
 
+          {/* 🌟 Automatically Issued Official Digital Badge */}
+          <div className="pt-2">
+            <DigitalBadgeCard
+              quizTitle={occData?.occurrence?.title || occData?.quiz?.title || 'Scheduled Challenge'}
+              eventName="MSC Scheduled Challenge"
+              score={att?.score || 100}
+              studentName={name}
+              studentEmail={email}
+            />
+          </div>
+
           <button
             onClick={() => navigate('/')}
-            className="w-full py-3 bg-blue-600 text-white font-extrabold rounded-xl text-xs shadow-md cursor-pointer"
+            className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs shadow-md transition-all cursor-pointer"
           >
             Return to Home
           </button>

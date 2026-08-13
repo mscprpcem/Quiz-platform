@@ -489,7 +489,14 @@ export default function CreateScheduledQuiz() {
                   <button
                     key={st}
                     type="button"
-                    onClick={() => setFormData({ ...formData, schedule_type: st })}
+                    onClick={() => {
+                      const isOneTime = st === 'ONE_TIME';
+                      setFormData(prev => ({
+                        ...prev,
+                        schedule_type: st,
+                        end_date: isOneTime ? prev.start_date : (prev.end_date === prev.start_date ? nextMonth : prev.end_date)
+                      }));
+                    }}
                     className={`p-3 rounded-xl border text-center transition-all cursor-pointer ${
                       formData.schedule_type === st 
                         ? 'bg-blue-600 text-white font-black border-blue-600 shadow-xs' 
@@ -601,34 +608,58 @@ export default function CreateScheduledQuiz() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {formData.schedule_type === 'ONE_TIME' ? (
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-600">Start Date <span className="text-red-500">*</span></label>
+                <label className="block text-xs font-bold text-slate-600">
+                  Date of Event / Quiz <span className="text-red-500">*</span>
+                </label>
                 <input
                   type="date"
                   required
                   value={formData.start_date}
-                  onChange={e => setFormData({ ...formData, start_date: e.target.value })}
+                  onChange={e => {
+                    const val = e.target.value;
+                    setFormData(prev => ({ ...prev, start_date: val, end_date: val }));
+                  }}
                   className="w-full border rounded-xl px-3.5 py-2 text-xs font-bold bg-white"
                 />
               </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-600">
+                    Start Date (Series Starts) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.start_date}
+                    onChange={e => setFormData({ ...formData, start_date: e.target.value })}
+                    className="w-full border rounded-xl px-3.5 py-2 text-xs font-bold bg-white"
+                  />
+                </div>
 
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-600">End Date <span className="text-red-500">*</span></label>
-                <input
-                  type="date"
-                  required
-                  value={formData.end_date}
-                  onChange={e => setFormData({ ...formData, end_date: e.target.value })}
-                  className="w-full border rounded-xl px-3.5 py-2 text-xs font-bold bg-white"
-                />
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-600">
+                    End Date (Series Ends) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="date"
+                    required
+                    value={formData.end_date}
+                    onChange={e => setFormData({ ...formData, end_date: e.target.value })}
+                    className="w-full border rounded-xl px-3.5 py-2 text-xs font-bold bg-white"
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Time Window with Seconds & 12h / 24h Toggle */}
             <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
               <div className="flex justify-between items-center">
-                <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Time Window (HH:MM:SS)</span>
+                <span className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                  {formData.schedule_type === 'ONE_TIME' ? 'Quiz Slot Time Window' : 'Daily Time Window (HH:MM:SS)'}
+                </span>
                 
                 <div className="flex items-center space-x-2 text-xs font-bold">
                   <span className="text-slate-400">Format:</span>
@@ -647,7 +678,9 @@ export default function CreateScheduledQuiz() {
                 
                 {/* Start Time */}
                 <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-600">Daily Start Time</label>
+                  <label className="block text-xs font-bold text-slate-600">
+                    {formData.schedule_type === 'ONE_TIME' ? 'Quiz Start Time' : 'Daily Start Time'}
+                  </label>
                   <div className="flex items-center space-x-1.5">
                     <input
                       type="number"
@@ -683,7 +716,7 @@ export default function CreateScheduledQuiz() {
                       <select
                         value={formData.start_time_ampm}
                         onChange={e => setFormData({ ...formData, start_time_ampm: e.target.value })}
-                        className="border rounded-xl p-2 text-xs font-black bg-white"
+                        className="border rounded-xl p-2 text-xs font-bold bg-white"
                       >
                         <option value="AM">AM</option>
                         <option value="PM">PM</option>
@@ -694,7 +727,9 @@ export default function CreateScheduledQuiz() {
 
                 {/* End Time */}
                 <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-600">Daily End Time</label>
+                  <label className="block text-xs font-bold text-slate-600">
+                    {formData.schedule_type === 'ONE_TIME' ? 'Quiz End Time' : 'Daily End Time'}
+                  </label>
                   <div className="flex items-center space-x-1.5">
                     <input
                       type="number"
@@ -730,7 +765,7 @@ export default function CreateScheduledQuiz() {
                       <select
                         value={formData.end_time_ampm}
                         onChange={e => setFormData({ ...formData, end_time_ampm: e.target.value })}
-                        className="border rounded-xl p-2 text-xs font-black bg-white"
+                        className="border rounded-xl p-2 text-xs font-bold bg-white"
                       >
                         <option value="AM">AM</option>
                         <option value="PM">PM</option>
