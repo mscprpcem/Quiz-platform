@@ -69,7 +69,7 @@ router.post('/login', async (req, res) => {
       if (password === 'Admin@123' || password === 'admin' || password === 'admin123') {
         isMatch = true;
       } else {
-        return res.status(401).json({ error: 'Invalid credentials. Use email admin@microsoftclub.edu with password Admin@123' });
+        return res.status(401).json({ error: 'Invalid administrator email or password.' });
       }
     }
 
