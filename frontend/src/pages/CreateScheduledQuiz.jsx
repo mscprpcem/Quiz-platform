@@ -5,7 +5,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import api from '../services/api';
 import {
   Calendar, ArrowLeft, ArrowRight, Plus, Trash2, Upload, FileSpreadsheet,
-  CheckCircle, AlertTriangle, Clock, ShieldCheck, HelpCircle, Layers, CheckSquare, Sparkles, RefreshCw, QrCode, Mail
+  CheckCircle, AlertTriangle, Clock, ShieldCheck, HelpCircle, Layers, CheckSquare, Sparkles, RefreshCw, QrCode, Mail, Award, ExternalLink
 } from 'lucide-react';
 
 export default function CreateScheduledQuiz() {
@@ -19,6 +19,8 @@ export default function CreateScheduledQuiz() {
   const [loadingQuiz, setLoadingQuiz] = useState(isEditMode);
   const [errorMessage, setErrorMessage] = useState('');
   const [timeFormat12, setTimeFormat12] = useState(true);
+  const [availableBadges, setAvailableBadges] = useState([]);
+  const [loadingBadges, setLoadingBadges] = useState(false);
 
   const today = new Date().toISOString().split('T')[0];
   const nextMonth = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
@@ -73,6 +75,10 @@ export default function CreateScheduledQuiz() {
     negative_marks: 0,
     show_leaderboard: true,
 
+    // Digital Badge & Certification
+    issue_badge: true,
+    badge_title: 'Microsoft Azure & Cloud Fundamentals Master',
+
     // Questions List
     questions: []
   });
@@ -87,6 +93,24 @@ export default function CreateScheduledQuiz() {
     const day = String(dateObj.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
   };
+
+  // Fetch Available Badges from Verification Portal
+  useEffect(() => {
+    const fetchBadges = async () => {
+      try {
+        setLoadingBadges(true);
+        const res = await api.get('/api/student/available-badges');
+        if (res.data?.badges && Array.isArray(res.data.badges)) {
+          setAvailableBadges(res.data.badges);
+        }
+      } catch (err) {
+        console.warn('Failed to load badges list:', err);
+      } finally {
+        setLoadingBadges(false);
+      }
+    };
+    fetchBadges();
+  }, []);
 
   // Pre-fill quiz data if editing
   useEffect(() => {
@@ -164,6 +188,8 @@ export default function CreateScheduledQuiz() {
             positive_marks: q.positive_marks || 1,
             negative_marks: q.negative_marks || 0,
             show_leaderboard: q.show_leaderboard !== undefined ? q.show_leaderboard : true,
+            issue_badge: Boolean(q.badge_title),
+            badge_title: q.badge_title || 'Microsoft Azure & Cloud Fundamentals Master',
             questions: q.questions || []
           });
         }
@@ -380,6 +406,7 @@ export default function CreateScheduledQuiz() {
       positive_marks: formData.positive_marks,
       negative_marks: formData.negative_marks,
       show_leaderboard: formData.show_leaderboard,
+      badge_title: formData.issue_badge ? (formData.badge_title || 'Certified Master') : null,
       questions: formData.questions,
       schedule_config: {
         daysOfWeek: formData.days_of_week,
@@ -1127,6 +1154,81 @@ export default function CreateScheduledQuiz() {
               />
               <span>Enable Anti-Cheat Detection</span>
             </label>
+          </div>
+
+          {/* Digital Badge & Verification Portal Integration */}
+          <div className="p-5 bg-gradient-to-r from-amber-500/10 via-amber-400/5 to-indigo-500/10 border border-amber-300/60 rounded-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-amber-400/20 text-amber-600 flex items-center justify-center font-black">
+                  <Award size={18} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Official Digital Badge & Certificate</h4>
+                  <p className="text-[11px] text-slate-500 font-medium">Issue verifiable credentials upon completing or passing this quiz</p>
+                </div>
+              </div>
+
+              <label className="relative inline-flex items-center cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.issue_badge}
+                  onChange={e => setFormData({ ...formData, issue_badge: e.target.checked })}
+                  className="sr-only peer"
+                />
+                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+              </label>
+            </div>
+
+            {formData.issue_badge && (
+              <div className="space-y-4 pt-3 border-t border-amber-200/60">
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center">
+                    <label className="block text-xs font-bold text-slate-700">Select Available Verification Badge</label>
+                    <a
+                      href="https://verify.mscprpcem.tech/admin/events"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-[10px] text-amber-700 hover:text-amber-900 font-extrabold flex items-center space-x-1 hover:underline"
+                    >
+                      <span>Create Badge on Portal</span>
+                      <ExternalLink size={11} />
+                    </a>
+                  </div>
+
+                  <select
+                    value={formData.badge_title}
+                    onChange={e => setFormData({ ...formData, badge_title: e.target.value })}
+                    className="w-full border border-amber-300 rounded-xl px-3.5 py-2.5 text-xs font-bold bg-white text-slate-800 shadow-2xs focus:ring-2 focus:ring-amber-500"
+                  >
+                    {availableBadges.map(b => (
+                      <option key={b.id || b.title} value={b.title}>
+                        [{b.category || 'MSC'}] {b.title}
+                      </option>
+                    ))}
+                    <option value="CUSTOM">+ Custom Badge Title...</option>
+                  </select>
+                </div>
+
+                {formData.badge_title === 'CUSTOM' || !availableBadges.some(b => b.title === formData.badge_title) ? (
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-slate-600">Custom Badge Title</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Master in Cloud Computing"
+                      value={formData.badge_title === 'CUSTOM' ? '' : formData.badge_title}
+                      onChange={e => setFormData({ ...formData, badge_title: e.target.value })}
+                      className="w-full border border-amber-300 rounded-xl px-3.5 py-2 text-xs font-bold bg-white"
+                    />
+                  </div>
+                ) : null}
+
+                <div className="p-3 bg-white/80 border border-amber-200 rounded-xl flex items-center space-x-2.5 text-xs font-semibold text-slate-700">
+                  <Sparkles size={16} className="text-amber-500 flex-shrink-0" />
+                  <span>Credential awarded to students: <strong className="text-amber-900">{formData.badge_title}</strong></span>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="flex justify-between items-center pt-4 border-t">

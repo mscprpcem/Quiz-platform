@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import {
   Clock, CheckSquare, AlertTriangle, Trophy, CheckCircle, 
-  Square, ShieldCheck, ArrowRight, RefreshCw, User, Lock, Award, LogIn, ExternalLink, Sparkles
+  Square, ShieldCheck, ArrowRight, RefreshCw, User, Lock, Award, LogIn, ExternalLink, Sparkles, Maximize
 } from 'lucide-react';
 import DigitalBadgeCard from '../components/DigitalBadgeCard';
 
@@ -33,6 +33,8 @@ export default function ScheduledQuizTake() {
   const [violationsCount, setViolationsCount] = useState(0);
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [resultData, setResultData] = useState(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [showFullscreenModal, setShowFullscreenModal] = useState(false);
 
   const timerRef = useRef(null);
 
@@ -156,6 +158,59 @@ export default function ScheduledQuizTake() {
     };
   }, [attempt, quizSubmitted]);
 
+  const requireFullscreen = Boolean(occData?.quiz?.require_fullscreen);
+
+  const enterFullscreen = async () => {
+    try {
+      const el = document.documentElement;
+      if (el.requestFullscreen) {
+        await el.requestFullscreen();
+      } else if (el.webkitRequestFullscreen) {
+        await el.webkitRequestFullscreen();
+      } else if (el.mozRequestFullScreen) {
+        await el.mozRequestFullScreen();
+      } else if (el.msRequestFullscreen) {
+        await el.msRequestFullscreen();
+      }
+      setIsFullscreen(true);
+      setShowFullscreenModal(false);
+    } catch (err) {
+      console.warn('Fullscreen request rejected or not supported:', err);
+    }
+  };
+
+  // Fullscreen Change & Violation Detection
+  useEffect(() => {
+    if (!attempt || quizSubmitted) return;
+
+    const handleFullscreenChange = () => {
+      const isFull = Boolean(
+        document.fullscreenElement ||
+        document.webkitFullscreenElement ||
+        document.mozFullScreenElement ||
+        document.msFullscreenElement
+      );
+      setIsFullscreen(isFull);
+
+      if (requireFullscreen && !isFull) {
+        recordViolation('FULLSCREEN_EXIT');
+        setShowFullscreenModal(true);
+      }
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
+  }, [attempt, quizSubmitted, requireFullscreen]);
+
   const recordViolation = async (type) => {
     if (!attempt || quizSubmitted) return;
     try {
@@ -197,6 +252,11 @@ export default function ScheduledQuizTake() {
         setQuestions(res.data.questions);
       }
 
+      // If quiz requires fullscreen, enter fullscreen mode
+      if (requireFullscreen) {
+        enterFullscreen();
+      }
+
       // Restore previously saved answers if resuming
       if (res.data.restoredAnswers) {
         const restoredMap = {};
@@ -235,6 +295,13 @@ export default function ScheduledQuizTake() {
       const res = await api.post(`/api/scheduled-quizzes/attempts/${attempt.id}/submit`);
       setResultData(res.data);
       setQuizSubmitted(true);
+
+      // Cleanly exit fullscreen on finish
+      if (document.fullscreenElement) {
+        try {
+          if (document.exitFullscreen) await document.exitFullscreen();
+        } catch (e) {}
+      }
     } catch (err) {
       console.error('Submit error:', err);
       alert('Failed to submit quiz attempt.');
@@ -329,7 +396,8 @@ export default function ScheduledQuizTake() {
           <div className="pt-2">
             <DigitalBadgeCard
               quizTitle={occData?.occurrence?.title || occData?.quiz?.title || 'Scheduled Challenge'}
-              eventName="MSC Scheduled Challenge"
+              eventName={occData?.quiz?.event_name || 'MSC Scheduled Challenge'}
+              badgeTitle={occData?.quiz?.badge_title || `${occData?.occurrence?.title || occData?.quiz?.title || 'Scheduled Challenge'} Certified Master`}
               score={att?.score || 100}
               studentName={name || studentAccount?.name || 'Student'}
               studentEmail={email || studentAccount?.email || ''}
@@ -533,19 +601,60 @@ export default function ScheduledQuizTake() {
   return (
     <div className="max-w-3xl mx-auto py-8 px-4 font-segoe text-left space-y-6">
       
-      {/* Top Bar with Server Timer */}
+      {/* Fullscreen Required Modal Overlay */}
+      {showFullscreenModal && requireFullscreen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center space-y-5 shadow-2xl animate-fade-in">
+            <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
+              <AlertTriangle size={28} />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-lg font-black text-slate-900">Fullscreen Mode Required</h3>
+              <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+                This quiz has anti-cheat full-screen proctoring enabled. Please re-enter full-screen mode to continue your assessment.
+              </p>
+            </div>
+            <button
+              onClick={enterFullscreen}
+              className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all active:scale-98"
+            >
+              <Maximize size={16} />
+              <span>Re-enter Fullscreen Mode</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Top Bar with Server Timer & Fullscreen Status */}
       <div className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between shadow-2xs">
         <div>
           <h3 className="text-sm font-black text-slate-900">{occData?.quiz?.title}</h3>
           <span className="text-[10px] font-bold text-slate-400">Question {currentQIndex + 1} of {questions.length}</span>
         </div>
 
-        {/* Server Authoritative Timer Display */}
-        <div className={`px-4 py-2 rounded-xl border flex items-center space-x-2 text-xs font-black ${
-          timeLeftSeconds < 180 ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-blue-50 text-blue-700 border-blue-200'
-        }`}>
-          <Clock size={16} />
-          <span>{formatTime(timeLeftSeconds)}</span>
+        <div className="flex items-center space-x-2">
+          {requireFullscreen && (
+            <button
+              onClick={enterFullscreen}
+              className={`px-3 py-2 rounded-xl border text-xs font-extrabold flex items-center space-x-1.5 cursor-pointer transition-all ${
+                isFullscreen 
+                  ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
+                  : 'bg-amber-50 text-amber-700 border-amber-300 animate-pulse'
+              }`}
+              title={isFullscreen ? 'Fullscreen active' : 'Click to re-enter fullscreen'}
+            >
+              <Maximize size={13} />
+              <span>{isFullscreen ? 'Fullscreen Active' : 'Enter Fullscreen'}</span>
+            </button>
+          )}
+
+          {/* Server Authoritative Timer Display */}
+          <div className={`px-4 py-2 rounded-xl border flex items-center space-x-2 text-xs font-black ${
+            timeLeftSeconds < 180 ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-blue-50 text-blue-700 border-blue-200'
+          }`}>
+            <Clock size={16} />
+            <span>{formatTime(timeLeftSeconds)}</span>
+          </div>
         </div>
       </div>
 

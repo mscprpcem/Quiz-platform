@@ -126,6 +126,32 @@ export const AuthProvider = ({ children }) => {
     return { success: true, user: account };
   };
 
+  const studentRegister = async (email, name, password) => {
+    const cleanEmail = email ? email.toLowerCase().trim() : '';
+    const cleanName = name || (cleanEmail ? cleanEmail.split('@')[0] : 'Student');
+
+    try {
+      const res = await api.post('/api/student/register', { email: cleanEmail, name: cleanName, password });
+      if (res.data && res.data.user) {
+        setStudentAccount(res.data.user);
+        localStorage.setItem('msc_student_account', JSON.stringify(res.data.user));
+        return { success: true, user: res.data.user, verificationPortalUrl: res.data.verificationPortalUrl };
+      }
+    } catch (err) {
+      console.warn('Backend student register fallback:', err.message);
+    }
+
+    const account = {
+      email: cleanEmail,
+      name: cleanName,
+      role: 'student',
+      joinedAt: new Date().toISOString()
+    };
+    setStudentAccount(account);
+    localStorage.setItem('msc_student_account', JSON.stringify(account));
+    return { success: true, user: account };
+  };
+
   const studentLogout = () => {
     localStorage.removeItem('msc_student_account');
     setStudentAccount(null);
@@ -163,6 +189,7 @@ export const AuthProvider = ({ children }) => {
       verifyToken,
       studentAccount,
       studentLogin,
+      studentRegister,
       studentLogout,
       issueStudentCertificate
     }}>

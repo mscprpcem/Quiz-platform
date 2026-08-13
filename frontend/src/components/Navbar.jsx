@@ -112,23 +112,17 @@ export default function Navbar() {
 
               {/* Student Account Status Button */}
               {studentAccount ? (
-                <div className="flex items-center space-x-2 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-full text-xs">
+                <div 
+                  onClick={() => navTo('/login')}
+                  className="flex items-center space-x-2 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-full text-xs cursor-pointer transition-all"
+                  title="View Student Profile & Sync Status"
+                >
                   <ShieldCheck size={14} className="text-purple-600 flex-shrink-0" />
                   <span className="font-bold text-purple-900 truncate max-w-[140px]">{studentAccount.email}</span>
-                  <a
-                    href={verificationPortalUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-purple-600 hover:text-purple-800 font-extrabold flex items-center gap-0.5 ml-1 border-l border-purple-200 pl-2"
-                    title="View Account on Verification Portal"
-                  >
-                    <span>Portal</span>
-                    <ExternalLink size={11} />
-                  </a>
                 </div>
               ) : (
                 <button
-                  onClick={() => setShowStudentModal(true)}
+                  onClick={() => navTo('/login')}
                   className="px-4 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-full text-xs font-extrabold shadow-2xs transition-all flex items-center space-x-1.5 cursor-pointer active:scale-95"
                 >
                   <User size={14} />
@@ -200,14 +194,11 @@ export default function Navbar() {
                 </div>
               ) : (
                 <button
-                  onClick={() => {
-                    setShowStudentModal(true);
-                    setMobileOpen(false);
-                  }}
-                  className="w-full text-left flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-extrabold text-white bg-purple-600"
+                  onClick={() => navTo('/login')}
+                  className="w-full text-left flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-extrabold text-white bg-purple-600 cursor-pointer"
                 >
                   <User size={16} />
-                  Student Login
+                  Student Login / Register
                 </button>
               )}
             </div>

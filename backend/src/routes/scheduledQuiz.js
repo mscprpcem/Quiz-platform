@@ -247,7 +247,8 @@ router.post('/', authMiddleware, async (req, res) => {
       start_iso, end_iso,
       time_limit, max_attempts, score_policy, shuffle_questions, shuffle_answers,
       require_fullscreen, anti_cheat_enabled, max_violations, positive_marks,
-      negative_marks, show_leaderboard, questions, schedule_config, custom_slug
+      negative_marks, show_leaderboard, questions, schedule_config, custom_slug,
+      badge_title
     } = req.body;
 
     if (!title || !schedule_type || !start_date || !end_date) {
@@ -264,6 +265,7 @@ router.post('/', authMiddleware, async (req, res) => {
       subject: subject || 'General CS',
       join_code,
       custom_slug: cleanSlug,
+      badge_title: badge_title || null,
       mode: 'SCHEDULED',
       status: 'draft',
       schedule_type,
@@ -416,7 +418,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
       start_iso, end_iso,
       time_limit, max_attempts, score_policy, shuffle_questions, shuffle_answers,
       require_fullscreen, anti_cheat_enabled, max_violations, positive_marks,
-      negative_marks, show_leaderboard, questions, schedule_config, custom_slug
+      negative_marks, show_leaderboard, questions, schedule_config, custom_slug,
+      badge_title
     } = req.body;
 
     const cleanSlug = custom_slug !== undefined ? (custom_slug ? custom_slug.trim().replace(/^\//, '') : null) : quiz.custom_slug;
@@ -426,6 +429,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       description,
       subject: category || quiz.subject,
       custom_slug: cleanSlug,
+      badge_title: badge_title !== undefined ? badge_title : quiz.badge_title,
       scheduled_start: start_iso ? new Date(start_iso) : (start_date ? new Date(`${start_date}T${start_time || '00:00:00'}`) : quiz.scheduled_start),
       scheduled_end: end_iso ? new Date(end_iso) : (end_date ? new Date(`${end_date}T${end_time || '23:59:59'}`) : quiz.scheduled_end),
       mode: 'SCHEDULED',

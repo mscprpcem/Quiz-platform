@@ -5,6 +5,7 @@ import api from '../services/api';
 export default function DigitalBadgeCard({
   quizTitle,
   eventName,
+  badgeTitle,
   score,
   totalQuestions,
   studentName,
@@ -26,14 +27,14 @@ export default function DigitalBadgeCard({
     const issueBadge = async () => {
       try {
         setLoading(true);
-        const badgeTitle = `${quizTitle || eventName || 'MSC Assessment'} Certified Specialist`;
+        const resolvedBadgeTitle = badgeTitle || `${quizTitle || eventName || 'MSC Assessment'} Certified Specialist`;
         const res = await api.post('/api/student/issue-certificate', {
           email: cleanEmail,
           name: cleanName,
           courseTitle: quizTitle || eventName || 'MSC Assessment',
           score: typeof score === 'number' ? score : 100,
           passingScore: 60,
-          badgeTitle
+          badgeTitle: resolvedBadgeTitle
         });
 
         if (isMounted && res.data?.certificate) {
@@ -49,7 +50,7 @@ export default function DigitalBadgeCard({
             studentName: cleanName,
             email: cleanEmail,
             courseTitle: quizTitle || eventName || 'MSC Assessment',
-            badgeTitle: `${quizTitle || eventName || 'MSC Assessment'} Certified Specialist`,
+            badgeTitle: badgeTitle || `${quizTitle || eventName || 'MSC Assessment'} Certified Specialist`,
             score: typeof score === 'number' ? score : 100,
             issuedAt: new Date().toISOString(),
             verificationUrl: `${verificationPortalUrl}/verify/${certId}`
@@ -75,29 +76,29 @@ export default function DigitalBadgeCard({
   const certUrl = certificate?.certificateId ? `${verificationPortalUrl}/verify/${certificate.certificateId}` : verificationPortalUrl;
 
   return (
-    <div className="w-full max-w-lg mx-auto bg-gradient-to-b from-slate-900 via-slate-850 to-slate-900 border-2 border-amber-400/40 rounded-3xl p-6 sm:p-7 text-white shadow-2xl relative overflow-hidden text-left animate-fade-in font-segoe">
+    <div className="w-full max-w-lg mx-auto bg-white border-2 border-amber-300/80 rounded-3xl p-6 sm:p-7 text-slate-800 shadow-xl relative overflow-hidden text-left animate-fade-in font-segoe">
       
-      {/* Decorative Gold Ambient Glows */}
-      <div className="absolute -top-12 -right-12 w-40 h-40 bg-amber-500/20 rounded-full blur-3xl pointer-events-none"></div>
-      <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl pointer-events-none"></div>
+      {/* Decorative Light Ambient Accents */}
+      <div className="absolute -top-12 -right-12 w-40 h-40 bg-amber-200/40 rounded-full blur-3xl pointer-events-none"></div>
+      <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-blue-200/40 rounded-full blur-3xl pointer-events-none"></div>
 
       {/* Top Header Badge */}
-      <div className="flex items-center justify-between border-b border-white/10 pb-4">
+      <div className="flex items-center justify-between border-b border-amber-100 pb-4">
         <div className="flex items-center space-x-2.5">
-          <div className="w-9 h-9 rounded-xl bg-amber-400/20 border border-amber-400/40 text-amber-300 flex items-center justify-center font-black shadow-inner">
+          <div className="w-9 h-9 rounded-xl bg-amber-100 border border-amber-300 text-amber-700 flex items-center justify-center font-black shadow-xs">
             <Award size={20} />
           </div>
           <div>
-            <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 block">
+            <span className="text-[10px] font-black uppercase tracking-widest text-amber-700 block">
               Official Digital Credential
             </span>
-            <span className="text-xs font-bold text-slate-300">
+            <span className="text-xs font-bold text-slate-700">
               Microsoft Student Club PRPCEM
             </span>
           </div>
         </div>
 
-        <span className="px-2.5 py-1 bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center space-x-1">
+        <span className="px-2.5 py-1 bg-emerald-50 border border-emerald-300 text-emerald-700 rounded-full text-[10px] font-black uppercase tracking-wider flex items-center space-x-1">
           <CheckCircle2 size={11} />
           <span>Issued & Verified</span>
         </span>
@@ -107,42 +108,42 @@ export default function DigitalBadgeCard({
       <div className="py-5 space-y-4">
         <div>
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Awarded To</span>
-          <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">{cleanName}</h3>
-          <span className="text-xs text-slate-400">{cleanEmail}</span>
+          <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">{cleanName}</h3>
+          <span className="text-xs text-slate-500 font-semibold">{cleanEmail}</span>
         </div>
 
-        <div className="p-4 bg-white/5 border border-white/10 rounded-2xl space-y-2 relative">
+        <div className="p-4 bg-gradient-to-r from-amber-50/80 via-amber-100/40 to-indigo-50/60 border border-amber-200 rounded-2xl space-y-1.5 relative">
           <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-wider text-amber-300">
-              {certificate?.badgeTitle || `${quizTitle || 'Quiz'} Certified Specialist`}
+            <span className="text-[11px] font-black uppercase tracking-wider text-amber-900">
+              {certificate?.badgeTitle || resolvedBadgeTitle}
             </span>
-            <Sparkles size={14} className="text-amber-400 animate-pulse" />
+            <Sparkles size={15} className="text-amber-600 animate-pulse" />
           </div>
-          <p className="text-xs text-slate-300 font-semibold leading-relaxed">
+          <p className="text-xs text-slate-600 font-semibold leading-relaxed">
             Has demonstrated verified mastery in <strong>{quizTitle || eventName}</strong> on the MSC Quiz Platform.
           </p>
         </div>
 
         {/* Credential Metadata Grid */}
         <div className="grid grid-cols-2 gap-3 text-xs">
-          <div className="p-3 bg-white/5 rounded-xl border border-white/10">
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
             <span className="text-[9px] font-bold uppercase text-slate-400 block">Issuing Authority</span>
-            <span className="font-extrabold text-slate-200">Microsoft Student Club</span>
+            <span className="font-extrabold text-slate-800">Microsoft Student Club</span>
           </div>
 
-          <div className="p-3 bg-white/5 rounded-xl border border-white/10">
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
             <span className="text-[9px] font-bold uppercase text-slate-400 block">Credential Status</span>
-            <span className="font-extrabold text-emerald-400">Authenticated & Active</span>
+            <span className="font-extrabold text-emerald-600">Authenticated & Active</span>
           </div>
         </div>
 
         {/* Certificate Verification Code */}
-        <div className="p-3.5 bg-black/40 border border-amber-400/30 rounded-xl flex items-center justify-between">
+        <div className="p-3.5 bg-amber-50/60 border border-amber-200 rounded-xl flex items-center justify-between">
           <div className="space-y-0.5">
-            <span className="text-[9px] font-black uppercase tracking-wider text-slate-400 block">
+            <span className="text-[9px] font-black uppercase tracking-wider text-amber-800 block">
               Unique Credential ID
             </span>
-            <span className="font-mono text-xs font-black text-amber-400">
+            <span className="font-mono text-xs font-black text-amber-900">
               {loading ? 'Generating...' : (certificate?.certificateId || 'CERT-MSC-PRPCEM')}
             </span>
           </div>
@@ -150,10 +151,10 @@ export default function DigitalBadgeCard({
           <button
             onClick={handleCopyCode}
             disabled={loading || !certificate?.certificateId}
-            className="px-2.5 py-1.5 bg-white/10 hover:bg-white/20 text-slate-200 text-xs font-bold rounded-lg flex items-center space-x-1 cursor-pointer transition-all active:scale-95"
+            className="px-2.5 py-1.5 bg-white hover:bg-amber-100 border border-amber-300 text-amber-900 text-xs font-bold rounded-lg flex items-center space-x-1 cursor-pointer transition-all active:scale-95 shadow-2xs"
             title="Copy Credential ID"
           >
-            {copied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+            {copied ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
             <span>{copied ? 'Copied!' : 'Copy'}</span>
           </button>
         </div>
@@ -165,7 +166,7 @@ export default function DigitalBadgeCard({
           href={certUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="flex-1 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-md transition-all cursor-pointer"
+          className="flex-1 py-3 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-md transition-all cursor-pointer"
         >
           <ShieldCheck size={15} />
           <span>Verify on Portal</span>
@@ -174,7 +175,7 @@ export default function DigitalBadgeCard({
 
         <button
           onClick={() => window.print()}
-          className="px-4 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 transition-all cursor-pointer border border-white/10"
+          className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-750 font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 transition-all cursor-pointer border border-slate-200"
         >
           <Download size={14} />
           <span>Save / Print</span>

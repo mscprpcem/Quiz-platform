@@ -132,6 +132,10 @@ const Quiz = sequelize.define('Quiz', {
     type: DataTypes.STRING,
     allowNull: true,
     unique: true
+  },
+  badge_title: {
+    type: DataTypes.STRING,
+    allowNull: true
   }
 });
 

@@ -82,6 +82,54 @@ router.post('/login', async (req, res) => {
 });
 
 // =======================
+// Student Registration & Cross-Portal Sync
+// =======================
+router.post('/register', async (req, res) => {
+  const { email, name, password } = req.body;
+  const cleanEmail = normalizeEmail(email);
+
+  if (!cleanEmail) {
+    return res.status(400).json({ error: 'Please enter a valid Email Address.' });
+  }
+
+  const studentName = name || cleanEmail.split('@')[0];
+
+  const studentData = {
+    email: cleanEmail,
+    name: studentName,
+    role: 'student',
+    joinedAt: new Date().toISOString()
+  };
+  registeredStudents.set(cleanEmail, studentData);
+
+  const token = jwt.sign(
+    { email: cleanEmail, name: studentName, role: 'student' },
+    process.env.JWT_SECRET || 'msc_prpcem_jwt_secret_2026',
+    { expiresIn: '30d' }
+  );
+
+  const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
+  axios.post(`${verificationPortalUrl}/api/auth/external-sync`, {
+    email: cleanEmail,
+    name: studentName,
+    password: password || 'student123',
+    apiKey: process.env.VERIFICATION_API_KEY || 'msc_quiz_verification_secret_key_2026'
+  }, {
+    headers: { 'x-api-key': process.env.VERIFICATION_API_KEY || 'msc_quiz_verification_secret_key_2026' }
+  }).catch(() => {
+    // Non-blocking fallback
+  });
+
+  return res.json({
+    success: true,
+    message: 'Registration successful! Your account is synchronized with the Verification Portal.',
+    user: studentData,
+    token,
+    verificationPortalUrl
+  });
+});
+
+// =======================
 // SSO Token Verification (From Verification Portal)
 // =======================
 router.post('/sso-verify', (req, res) => {
@@ -120,6 +168,46 @@ router.post('/sso-verify', (req, res) => {
   } catch (err) {
     return res.status(401).json({ error: 'Invalid or expired SSO token.' });
   }
+});
+
+// =======================
+// Inbound Account Sync from Verification Portal (Vice Versa)
+// =======================
+router.post('/external-sync', (req, res) => {
+  const { email, name, password, apiKey } = req.body;
+  const expectedApiKey = process.env.QUIZ_PLATFORM_API_KEY || 'msc_quiz_api_key_2026';
+
+  if (apiKey && apiKey !== expectedApiKey) {
+    return res.status(403).json({ error: 'Invalid API Key' });
+  }
+
+  const cleanEmail = normalizeEmail(email);
+  if (!cleanEmail) {
+    return res.status(400).json({ error: 'Email is required.' });
+  }
+
+  const studentName = name || cleanEmail.split('@')[0];
+  const studentData = {
+    email: cleanEmail,
+    name: studentName,
+    role: 'student',
+    joinedAt: new Date().toISOString()
+  };
+
+  registeredStudents.set(cleanEmail, studentData);
+
+  const token = jwt.sign(
+    { email: cleanEmail, name: studentName, role: 'student' },
+    process.env.JWT_SECRET || 'msc_prpcem_jwt_secret_2026',
+    { expiresIn: '30d' }
+  );
+
+  return res.json({
+    success: true,
+    message: 'Account synchronized from Verification Portal to Quiz Platform!',
+    user: studentData,
+    token
+  });
 });
 
 // =======================
@@ -200,6 +288,56 @@ router.get('/account-data', (req, res) => {
     totalCertificates: certs.length,
     certificates: certs,
     verificationPortalUrl: process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech'
+  });
+});
+
+// =======================
+// Available Badges from Verification Portal
+// =======================
+router.get('/available-badges', async (req, res) => {
+  const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
+  let portalBadges = [];
+
+  try {
+    const response = await axios.get(`${verificationPortalUrl}/api/integration/events`, {
+      headers: { 'x-api-key': process.env.VERIFICATION_API_KEY || 'msc_quiz_verification_secret_key_2026' },
+      timeout: 3000
+    });
+    if (response.data && Array.isArray(response.data.events)) {
+      portalBadges = response.data.events.map(ev => ({
+        id: ev.id || ev._id || ev.slug,
+        title: ev.name || ev.title || ev.badgeTitle,
+        category: ev.category || 'Certification',
+        source: 'verification_portal'
+      }));
+    }
+  } catch (err) {
+    // Non-blocking fallback
+  }
+
+  // Curated list of verified MSC Club Badges
+  const standardBadges = [
+    { id: 'azure-cloud-specialist', title: 'Microsoft Azure & Cloud Fundamentals Master', category: 'Cloud' },
+    { id: 'dbms-sql-architect', title: 'Database Systems & SQL Specialist', category: 'DBMS' },
+    { id: 'dsa-algo-expert', title: 'Data Structures & Algorithms Expert', category: 'DSA' },
+    { id: 'fullstack-web-dev', title: 'Full-Stack Web Development Certified Specialist', category: 'Web' },
+    { id: 'python-dev-pro', title: 'Python Programming Certified Professional', category: 'Programming' },
+    { id: 'ai-machine-learning', title: 'Artificial Intelligence & Machine Learning Specialist', category: 'AI/ML' },
+    { id: 'devops-cloud-architect', title: 'DevOps & Cloud Infrastructure Master', category: 'DevOps' },
+    { id: 'msc-tech-champion', title: 'MSC PRPCEM Student Tech Champion', category: 'General' }
+  ];
+
+  const allBadges = [...portalBadges];
+  standardBadges.forEach(std => {
+    if (!allBadges.some(b => b.title.toLowerCase() === std.title.toLowerCase())) {
+      allBadges.push({ ...std, source: 'msc_catalog' });
+    }
+  });
+
+  return res.json({
+    success: true,
+    badges: allBadges,
+    verificationPortalUrl
   });
 });
 

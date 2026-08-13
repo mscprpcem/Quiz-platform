@@ -38,6 +38,7 @@ import ScheduledQuizDetails from './pages/ScheduledQuizDetails';
 import ScheduledQuizTake from './pages/ScheduledQuizTake';
 import CreateScheduledQuiz from './pages/CreateScheduledQuiz';
 import VanityRedirect from './pages/VanityRedirect';
+import StudentAuth from './pages/StudentAuth';
 
 // Private Route Enforcer for Admin pages
 const AdminRoute = ({ children }) => {
@@ -81,6 +82,12 @@ export default function App() {
                 <Route path="/scheduled-quiz/:occurrenceId" element={<ScheduledQuizTake />} />
                 <Route path="/q/:slug" element={<VanityRedirect />} />
                 <Route path="/:slug" element={<VanityRedirect />} />
+
+                {/* Student Auth Routes with Verification Portal Sync */}
+                <Route path="/login" element={<StudentAuth />} />
+                <Route path="/register" element={<StudentAuth />} />
+                <Route path="/student/login" element={<StudentAuth />} />
+                <Route path="/student/register" element={<StudentAuth />} />
 
                 {/* Footer Policy Pages */}
                 <Route path="/privacy" element={<PrivacyPolicy />} />
