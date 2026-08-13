@@ -25,15 +25,8 @@ export default function VanityRedirect() {
         return;
       }
 
-      if (activeOccurrenceId) {
-        navigate(`/scheduled-quiz/${activeOccurrenceId}`, { replace: true });
-      } else if (quiz?.id) {
-        navigate(`/scheduled-quiz/${quiz.id}`, { replace: true });
-      } else if (quiz?.join_code) {
-        navigate('/join', { state: { code: quiz.join_code }, replace: true });
-      } else {
-        setError(`No active session found for link '/${cleanSlug}'.`);
-      }
+      const targetSlug = quiz?.custom_slug || cleanSlug;
+      navigate(`/q/${targetSlug}`, { replace: true });
     } catch (err) {
       console.error('Vanity redirect error:', err);
       setError(err.response?.data?.error || `Could not find quiz associated with '/${slug}'.`);

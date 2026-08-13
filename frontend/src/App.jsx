@@ -78,9 +78,9 @@ export default function App() {
                 <Route path="/results/:participantId" element={<Results />} />
                 <Route path="/practice" element={<PracticeQuiz />} />
                 <Route path="/practice/:category" element={<PracticeQuiz />} />
-                <Route path="/courses" element={<Courses />} />
                 <Route path="/scheduled-quiz/:occurrenceId" element={<ScheduledQuizTake />} />
-                <Route path="/q/:slug" element={<VanityRedirect />} />
+                <Route path="/q/:slug" element={<ScheduledQuizTake />} />
+                <Route path="/quiz/:slug" element={<ScheduledQuizTake />} />
                 <Route path="/:slug" element={<VanityRedirect />} />
 
                 {/* Student Auth Routes with Verification Portal Sync */}

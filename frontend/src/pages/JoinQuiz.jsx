@@ -159,9 +159,10 @@ export default function JoinQuiz() {
     // 1. Try resolving as a Scheduled Quiz or Vanity Slug (/visionXS2)
     try {
       const slugRes = await api.get(`/api/scheduled-quizzes/slug/${cleanCode}`);
-      if (slugRes.data?.activeOccurrenceId) {
+      if (slugRes.data?.quiz) {
+        const slugName = slugRes.data.quiz.custom_slug || slugRes.data.quiz.join_code || cleanCode;
         setLoading(false);
-        navigate(`/scheduled-quiz/${slugRes.data.activeOccurrenceId}`);
+        navigate(`/q/${slugName}`);
         return;
       }
     } catch (err) {

@@ -9,7 +9,8 @@ import {
 import DigitalBadgeCard from '../components/DigitalBadgeCard';
 
 export default function ScheduledQuizTake() {
-  const { occurrenceId } = useParams();
+  const { occurrenceId, slug, identifier } = useParams();
+  const targetIdentifier = slug || occurrenceId || identifier;
   const navigate = useNavigate();
   const { studentAccount, user, studentLogin, studentLogout } = useAuth();
 
@@ -35,6 +36,8 @@ export default function ScheduledQuizTake() {
   const [resultData, setResultData] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showFullscreenModal, setShowFullscreenModal] = useState(false);
+  const [leaderboardList, setLeaderboardList] = useState([]);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
 
   const timerRef = useRef(null);
 
@@ -55,16 +58,37 @@ export default function ScheduledQuizTake() {
   }, [studentAccount, user]);
 
   useEffect(() => {
-    if (occurrenceId) {
+    if (targetIdentifier) {
       fetchOccurrence();
     }
-  }, [occurrenceId]);
+  }, [targetIdentifier]);
+
+  useEffect(() => {
+    if (quizSubmitted) {
+      fetchLeaderboard();
+    }
+  }, [quizSubmitted]);
+
+  const fetchLeaderboard = async () => {
+    try {
+      setLoadingLeaderboard(true);
+      const targetOccId = occData?.occurrence?.id || targetIdentifier;
+      const res = await api.get(`/api/scheduled-quizzes/occurrences/${targetOccId}/leaderboard`);
+      if (Array.isArray(res.data)) {
+        setLeaderboardList(res.data);
+      }
+    } catch (err) {
+      console.warn('Fetch leaderboard error:', err);
+    } finally {
+      setLoadingLeaderboard(false);
+    }
+  };
 
   const fetchOccurrence = async () => {
     try {
       setLoading(true);
       setLoadError('');
-      const res = await api.get(`/api/scheduled-quizzes/occurrences/${occurrenceId}`);
+      const res = await api.get(`/api/scheduled-quizzes/occurrences/${targetIdentifier}`);
       setOccData(res.data);
     } catch (err) {
       console.error('Fetch occurrence error:', err);
@@ -241,7 +265,7 @@ export default function ScheduledQuizTake() {
     try {
       setStartError('');
       setLoading(true);
-      const targetOccId = occData?.occurrence?.id || occurrenceId;
+      const targetOccId = occData?.occurrence?.id || targetIdentifier;
       const res = await api.post(`/api/scheduled-quizzes/occurrences/${targetOccId}/start`, {
         name: targetName,
         email: targetEmail
@@ -355,62 +379,293 @@ export default function ScheduledQuizTake() {
     );
   }
 
-  // ════════ RENDER RESULT SCREEN ════════
+  // ════════ RENDER RESULT SCREEN (SCORE BOARD + TOP 10 LEADERBOARD) ════════
   if (quizSubmitted && resultData) {
     const att = resultData.attempt;
+    const totalQuestions = resultData.totalQuestions || questions.length || 1;
+    const accuracyPercent = Math.round(((att?.correct_count || 0) / totalQuestions) * 100);
+    const userEmail = email || studentAccount?.email || user?.email || '';
+    const myRank = resultData?.rank || 1;
+    const totalParticipants = resultData?.totalParticipants || leaderboardList.length || 1;
+    const top10List = leaderboardList.slice(0, 10);
+    const isInsideTop10 = top10List.some(p => userEmail && p.email && p.email.toLowerCase() === userEmail.toLowerCase());
+
     return (
-      <div className="max-w-xl mx-auto py-12 px-4 text-center space-y-6 font-segoe">
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-md space-y-6">
-          <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-2xl flex items-center justify-center mx-auto font-black shadow-xs">
-            <Award size={36} />
-          </div>
-
-          <div className="space-y-1">
-            <h2 className="text-2xl font-black text-slate-900">Quiz Completed!</h2>
-            <p className="text-xs text-slate-500 font-semibold">Your responses have been recorded successfully.</p>
-          </div>
-
-          {/* Score Box */}
-          <div className="p-5 bg-emerald-50 rounded-2xl border border-emerald-100 text-center space-y-1">
-            <span className="text-xs font-extrabold text-slate-400 uppercase">Final Score</span>
-            <div className="text-4xl font-black text-emerald-600">{att?.score} pts</div>
-          </div>
-
-          {/* Breakdown Grid */}
-          <div className="grid grid-cols-3 gap-3 text-xs font-bold">
-            <div className="p-3 bg-slate-50 rounded-xl">
-              <span className="text-slate-400 block text-[9px] uppercase">Correct</span>
-              <span className="text-emerald-600 text-lg font-black">{att?.correct_count}</span>
+      <div className="max-w-2xl mx-auto py-10 px-4 text-center space-y-7 font-segoe animate-fade-in">
+        
+        {/* 1. Official Score Board & Matrix Card */}
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-md space-y-6 text-left">
+          
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div className="flex items-center space-x-3">
+              <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center font-black shadow-2xs">
+                <CheckCircle size={26} />
+              </div>
+              <div>
+                <h2 className="text-xl font-black text-slate-900 tracking-tight">Assessment Completed</h2>
+                <p className="text-xs text-slate-500 font-semibold">{occData?.quiz?.title || 'Scheduled Quiz'} • Submission Recorded</p>
+              </div>
             </div>
-            <div className="p-3 bg-slate-50 rounded-xl">
-              <span className="text-slate-400 block text-[9px] uppercase">Incorrect</span>
-              <span className="text-red-500 text-lg font-black">{att?.incorrect_count}</span>
+            <span className="px-3 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-full text-[10px] font-black uppercase tracking-wider">
+              Verified Attempt
+            </span>
+          </div>
+
+          {/* Primary Score Banner */}
+          <div className="p-5 bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 rounded-2xl border border-emerald-100 flex items-center justify-between">
+            <div className="space-y-0.5">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">Total Score Earned</span>
+              <div className="text-3xl sm:text-4xl font-black text-emerald-700 tracking-tight">
+                {att?.score || 0} <span className="text-base font-bold text-slate-500">pts</span>
+              </div>
             </div>
-            <div className="p-3 bg-slate-50 rounded-xl">
-              <span className="text-slate-400 block text-[9px] uppercase">Current Rank</span>
-              <span className="text-blue-600 text-lg font-black">#{resultData?.rank || 1}</span>
+            <div className="text-right space-y-0.5">
+              <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 block">Accuracy Rate</span>
+              <div className="text-2xl sm:text-3xl font-black text-blue-700">
+                {accuracyPercent}%
+              </div>
             </div>
           </div>
 
-          {/* Automatically Issued Official Digital Badge */}
-          <div className="pt-2">
-            <DigitalBadgeCard
-              quizTitle={occData?.occurrence?.title || occData?.quiz?.title || 'Scheduled Challenge'}
-              eventName={occData?.quiz?.event_name || 'MSC Scheduled Challenge'}
-              badgeTitle={occData?.quiz?.badge_title || `${occData?.occurrence?.title || occData?.quiz?.title || 'Scheduled Challenge'} Certified Master`}
-              score={att?.score || 100}
-              studentName={name || studentAccount?.name || 'Student'}
-              studentEmail={email || studentAccount?.email || ''}
-            />
+          {/* Your Official Position / Standing Highlight */}
+          <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <div className="w-11 h-11 rounded-xl bg-blue-600 text-white font-black text-sm flex items-center justify-center shadow-xs">
+                #{myRank}
+              </div>
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-blue-900 block">
+                  Your Official Standing
+                </span>
+                <span className="text-xs font-bold text-slate-700">
+                  Position <strong className="text-blue-700 font-black">#{myRank}</strong> of {totalParticipants} Participant{totalParticipants === 1 ? '' : 's'}
+                </span>
+              </div>
+            </div>
+            <span className="text-[10px] font-extrabold text-blue-700 bg-white border border-blue-200 px-3 py-1.5 rounded-full shadow-2xs">
+              Score & Speed Evaluated
+            </span>
           </div>
 
+          {/* Performance Matrix 4-Grid */}
+          <div className="space-y-1.5">
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block">
+              Performance Evaluation Matrix
+            </span>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                <span className="text-slate-400 block text-[9px] font-black uppercase">Correct Answers</span>
+                <span className="text-emerald-700 text-lg font-black">{att?.correct_count || 0} / {totalQuestions}</span>
+                <span className="text-[10px] text-emerald-600 block font-semibold">+{occData?.quiz?.positive_marks || 1} pts each</span>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                <span className="text-slate-400 block text-[9px] font-black uppercase">Incorrect / Skipped</span>
+                <span className="text-rose-600 text-lg font-black">{(att?.incorrect_count || 0) + (att?.unanswered_count || 0)}</span>
+                <span className="text-[10px] text-slate-500 block font-semibold">-{occData?.quiz?.negative_marks || 0} deduction</span>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                <span className="text-slate-400 block text-[9px] font-black uppercase">Time Taken</span>
+                <span className="text-blue-700 text-lg font-black">
+                  {Math.floor((att?.time_taken_seconds || 0) / 60)}m {(att?.time_taken_seconds || 0) % 60}s
+                </span>
+                <span className="text-[10px] text-slate-500 block font-semibold">of {occData?.quiz?.time_limit || 30}m limit</span>
+              </div>
+
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/80">
+                <span className="text-slate-400 block text-[9px] font-black uppercase">Average Pace</span>
+                <span className="text-purple-700 text-lg font-black">
+                  {Math.max(1, Math.round((att?.time_taken_seconds || 0) / totalQuestions))}s
+                </span>
+                <span className="text-[10px] text-slate-500 block font-semibold">per question</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* 2. Top 10 Leaderboard (Ranked by Score & Speed Matrix) */}
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-md space-y-5 text-left">
+          
+          <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div className="flex items-center space-x-2.5">
+              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center font-black">
+                <Trophy size={20} />
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">Top 10 Leaderboard</h3>
+                <p className="text-[11px] font-semibold text-slate-500">Ranked by: 1. Total Score  2. Time Taken (Speed)  3. Accuracy</p>
+              </div>
+            </div>
+            
+            <button
+              onClick={fetchLeaderboard}
+              disabled={loadingLeaderboard}
+              className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-all cursor-pointer"
+              title="Refresh Leaderboard Standings"
+            >
+              <RefreshCw size={15} className={loadingLeaderboard ? 'animate-spin' : ''} />
+            </button>
+          </div>
+
+          {loadingLeaderboard ? (
+            <div className="py-8 text-center space-y-2">
+              <RefreshCw size={24} className="text-blue-600 animate-spin mx-auto" />
+              <p className="text-xs text-slate-500 font-bold">Calculating real-time standings...</p>
+            </div>
+          ) : top10List.length === 0 ? (
+            <div className="py-6 text-center text-xs text-slate-500 font-semibold">
+              No standings recorded yet. Your submission is the first!
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {top10List.map((player) => {
+                const isCurrentPlayer = userEmail && player.email && player.email.toLowerCase() === userEmail.toLowerCase();
+                
+                let rankBadge = (
+                  <span className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-black text-xs border border-slate-200">
+                    {player.rank}
+                  </span>
+                );
+
+                let cardStyle = "bg-white hover:bg-slate-50/80 border-slate-200";
+
+                if (player.rank === 1) {
+                  rankBadge = (
+                    <span className="w-7 h-7 rounded-full bg-amber-400 text-amber-950 flex items-center justify-center font-black text-xs shadow-xs">
+                      🥇
+                    </span>
+                  );
+                  cardStyle = "bg-amber-50/40 border-amber-200";
+                } else if (player.rank === 2) {
+                  rankBadge = (
+                    <span className="w-7 h-7 rounded-full bg-slate-300 text-slate-800 flex items-center justify-center font-black text-xs">
+                      🥈
+                    </span>
+                  );
+                  cardStyle = "bg-slate-50 border-slate-300";
+                } else if (player.rank === 3) {
+                  rankBadge = (
+                    <span className="w-7 h-7 rounded-full bg-amber-200 text-amber-900 flex items-center justify-center font-black text-xs">
+                      🥉
+                    </span>
+                  );
+                  cardStyle = "bg-amber-50/20 border-amber-200/60";
+                }
+
+                if (isCurrentPlayer) {
+                  cardStyle += " ring-2 ring-blue-500 bg-blue-50/70 border-blue-300 font-bold";
+                }
+
+                return (
+                  <div
+                    key={player.id}
+                    className={`p-3 sm:p-3.5 rounded-2xl border flex items-center justify-between gap-3 transition-all ${cardStyle}`}
+                  >
+                    {/* Left Rank & User */}
+                    <div className="flex items-center space-x-3 truncate">
+                      {rankBadge}
+
+                      <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-black text-xs flex items-center justify-center flex-shrink-0">
+                        {player.participant_name ? player.participant_name.substring(0, 2).toUpperCase() : 'ST'}
+                      </div>
+
+                      <div className="truncate text-left">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span className="font-extrabold text-xs sm:text-sm text-slate-900 truncate">
+                            {player.participant_name || 'Participant'}
+                          </span>
+                          {isCurrentPlayer && (
+                            <span className="text-[9px] font-black uppercase tracking-wider bg-blue-600 text-white px-2 py-0.5 rounded-md">
+                              You
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-[10px] font-semibold text-slate-500 truncate">
+                          {player.correct_count || 0} Correct • {Math.floor((player.time_taken_seconds || 0) / 60)}m {(player.time_taken_seconds || 0) % 60}s
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Right Points */}
+                    <div className="flex items-center space-x-2 flex-shrink-0">
+                      <span className="font-black text-xs sm:text-sm text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full whitespace-nowrap">
+                        {player.score || 0} <span className="text-[9px] font-bold text-slate-500 uppercase">pts</span>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* If current player is ranked outside Top 10, pin their position below */}
+              {!isInsideTop10 && myRank > 10 && (
+                <div className="mt-3 pt-3 border-t border-dashed border-slate-200">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1.5">Your Position</span>
+                  <div className="p-3 sm:p-3.5 rounded-2xl border ring-2 ring-blue-500 bg-blue-50/70 border-blue-300 flex items-center justify-between gap-3 font-bold">
+                    <div className="flex items-center space-x-3 truncate">
+                      <span className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-black text-xs">
+                        #{myRank}
+                      </span>
+                      <div className="w-8 h-8 rounded-full bg-blue-200 text-blue-800 font-black text-xs flex items-center justify-center flex-shrink-0">
+                        {(name || 'You').substring(0, 2).toUpperCase()}
+                      </div>
+                      <div className="truncate text-left">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <span className="font-extrabold text-xs sm:text-sm text-slate-900 truncate">
+                            {name || studentAccount?.name || 'You'}
+                          </span>
+                          <span className="text-[9px] font-black uppercase tracking-wider bg-blue-600 text-white px-2 py-0.5 rounded-md">
+                            You
+                          </span>
+                        </div>
+                        <p className="text-[10px] font-semibold text-slate-500 truncate">
+                          {att?.correct_count || 0} Correct • {Math.floor((att?.time_taken_seconds || 0) / 60)}m {(att?.time_taken_seconds || 0) % 60}s
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2 flex-shrink-0">
+                      <span className="font-black text-xs sm:text-sm text-blue-700 bg-white border border-blue-200 px-3 py-1 rounded-full whitespace-nowrap">
+                        {att?.score || 0} <span className="text-[9px] font-bold text-slate-500 uppercase">pts</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>
+
+        {/* 3. Official Digital Credential & Badge */}
+        <div className="pt-1">
+          <DigitalBadgeCard
+            quizTitle={occData?.occurrence?.title || occData?.quiz?.title || 'Scheduled Challenge'}
+            eventName={occData?.quiz?.event_name || 'MSC Scheduled Challenge'}
+            badgeTitle={occData?.quiz?.badge_title || `${occData?.occurrence?.title || occData?.quiz?.title || 'Scheduled Challenge'} Certified Master`}
+            score={att?.score || 100}
+            studentName={name || studentAccount?.name || 'Student'}
+            studentEmail={email || studentAccount?.email || ''}
+          />
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex flex-col sm:flex-row gap-3 pt-2">
+          <button
+            onClick={() => navigate('/courses')}
+            className="flex-1 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-2xl text-xs shadow-md transition-all cursor-pointer active:scale-98"
+          >
+            Explore More Quizzes
+          </button>
           <button
             onClick={() => navigate('/')}
-            className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs shadow-md transition-all cursor-pointer"
+            className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold rounded-2xl text-xs border border-slate-200 transition-all cursor-pointer"
           >
             Return to Home
           </button>
         </div>
+
       </div>
     );
   }

@@ -907,22 +907,29 @@ router.post('/attempts/:attemptId/submit', async (req, res) => {
     attempt.status = 'completed';
     await attempt.save();
 
-    // Calculate Rank in Occurrence
-    const higherAttempts = await QuizAttempt.count({
+    // Calculate Exact Rank strictly by Score (DESC), Time Taken / Speed (ASC), Correct Answers (DESC)
+    // Independent of calendar submission time so participants can take the quiz at any hour
+    const allCompleted = await QuizAttempt.findAll({
       where: {
         occurrence_id: attempt.occurrence_id,
-        status: 'completed',
-        [Op.or]: [
-          { score: { [Op.gt]: attempt.score } },
-          { score: attempt.score, time_taken_seconds: { [Op.lt]: timeTaken } }
-        ]
-      }
+        status: 'completed'
+      },
+      order: [
+        ['score', 'DESC'],
+        ['time_taken_seconds', 'ASC'],
+        ['correct_count', 'DESC']
+      ]
     });
+
+    const totalParticipants = allCompleted.length;
+    const myIndex = allCompleted.findIndex(a => a.id === attempt.id);
+    const myRank = myIndex !== -1 ? myIndex + 1 : 1;
 
     return res.json({
       message: 'Quiz submitted successfully.',
       attempt,
-      rank: higherAttempts + 1,
+      rank: myRank,
+      totalParticipants,
       totalQuestions: questions.length
     });
   } catch (error) {
@@ -931,17 +938,60 @@ router.post('/attempts/:attemptId/submit', async (req, res) => {
   }
 });
 
-// 12. Occurrence Leaderboard
+// 12. Occurrence Leaderboard with Score & Speed Matrix Ranking (Top 10 & Full Standings)
 router.get('/occurrences/:occurrenceId/leaderboard', async (req, res) => {
   try {
+    const rawParam = req.params.occurrenceId ? req.params.occurrenceId.trim() : '';
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawParam);
+
+    let occurrence = null;
+    let quiz = null;
+
+    if (isUUID) {
+      occurrence = await ScheduledOccurrence.findByPk(rawParam);
+      if (!occurrence) {
+        quiz = await Quiz.findByPk(rawParam);
+      }
+    }
+
+    if (!occurrence && !quiz) {
+      quiz = await Quiz.findOne({
+        where: {
+          [Op.or]: [
+            { custom_slug: rawParam },
+            { join_code: rawParam.toUpperCase() }
+          ]
+        }
+      });
+    }
+
+    let whereClause = { status: 'completed' };
+    if (occurrence) {
+      whereClause.occurrence_id = occurrence.id;
+    } else if (quiz) {
+      whereClause.quiz_id = quiz.id;
+    } else if (isUUID) {
+      whereClause.occurrence_id = rawParam;
+    }
+
     const attempts = await QuizAttempt.findAll({
-      where: { occurrence_id: req.params.occurrenceId, status: 'completed' },
-      order: [['score', 'DESC'], ['time_taken_seconds', 'ASC'], ['submitted_at', 'ASC']],
-      limit: 50
+      where: whereClause,
+      order: [
+        ['score', 'DESC'],
+        ['time_taken_seconds', 'ASC'],
+        ['correct_count', 'DESC']
+      ],
+      limit: 100
     });
 
-    return res.json(attempts);
+    const ranked = attempts.map((att, idx) => ({
+      ...att.toJSON(),
+      rank: idx + 1
+    }));
+
+    return res.json(ranked);
   } catch (error) {
+    console.error('Fetch leaderboard error:', error);
     return res.status(500).json({ error: 'Failed to fetch leaderboard.' });
   }
 });
