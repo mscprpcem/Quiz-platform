@@ -31,6 +31,10 @@ export default function ScheduledQuizTake() {
 
   useEffect(() => {
     fetchOccurrence();
+    const storedName = localStorage.getItem('msc_student_name') || localStorage.getItem('msc_participant_name') || '';
+    const storedEmail = localStorage.getItem('msc_student_email') || localStorage.getItem('msc_participant_email') || '';
+    if (storedName) setName(storedName);
+    if (storedEmail) setEmail(storedEmail);
   }, [occurrenceId]);
 
   const fetchOccurrence = async () => {
@@ -281,6 +285,21 @@ export default function ScheduledQuizTake() {
               <span>{message}</span>
             </div>
           ) : (
+            <div className="space-y-4">
+              <div className="p-3.5 bg-blue-50/70 border border-blue-100 rounded-2xl text-[11px] font-semibold text-blue-900 flex items-center justify-between">
+                <div className="flex items-center space-x-2">
+                  <Clock size={15} className="text-blue-600 flex-shrink-0" />
+                  <span>Entry Window Closes:</span>
+                </div>
+                <span className="font-extrabold text-blue-700">
+                  {occData?.occurrence?.end_time ? new Date(occData.occurrence.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'End of Session'}
+                </span>
+              </div>
+
+              <div className="text-[10px] text-slate-400 font-semibold bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex items-center space-x-1.5">
+                <ShieldCheck size={13} className="text-emerald-600 flex-shrink-0" />
+                <span>Starting near window close guarantees your full {occData?.quiz?.time_limit || 30}-min duration.</span>
+              </div>
             <form onSubmit={handleStartAttempt} className="space-y-4 pt-2 border-t">
               {startError && (
                 <div className="p-3 bg-red-50 text-red-600 rounded-xl text-xs font-bold">
@@ -319,6 +338,7 @@ export default function ScheduledQuizTake() {
                 <ArrowRight size={16} />
               </button>
             </form>
+            </div>
           )}
         </div>
       </div>

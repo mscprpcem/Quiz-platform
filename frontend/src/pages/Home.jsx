@@ -363,31 +363,6 @@ export default function Home() {
               })}
             </div>
           )}
-
-          {/* Featured Subject Module Card (DBMS) */}
-          <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 rounded-2xl p-6 sm:p-8 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
-            <div className="space-y-2 max-w-xl text-left">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full text-[10px] font-black uppercase tracking-wider">
-                <Sparkles size={12} className="animate-pulse" />
-                <span>Featured Subject Quiz Module</span>
-              </div>
-              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
-                Database Management Systems (DBMS)
-              </h3>
-              <p className="text-xs sm:text-sm text-slate-300 leading-relaxed font-medium">
-                Test your knowledge in SQL Queries, 1NF-BCNF Normalization, ACID Transactions, Indexing B-Trees, and Two-Phase Locking (2PL) protocols.
-              </p>
-            </div>
-            <div className="flex gap-3 w-full md:w-auto">
-              <button
-                onClick={() => navigate('/practice/dbms')}
-                className="w-full md:w-auto px-6 py-3.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider shadow-lg transition-all active:scale-95 cursor-pointer flex items-center justify-center gap-2"
-              >
-                <span>Launch DBMS Module</span>
-                <ArrowRight size={14} />
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* ════════ 5. PLATFORM FEATURES ════════ */}
