@@ -34,15 +34,26 @@ const shuffleArray = (array) => {
 
 // Helper: Generate occurrence slots based on schedule configuration
 const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, endDate, startTimeStr, endTimeStr, config = {}) => {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
+  const parseDateParts = (dateInput) => {
+    if (!dateInput) return new Date();
+    if (dateInput instanceof Date) return new Date(dateInput);
+    const dateStr = String(dateInput).split('T')[0];
+    const parts = dateStr.split('-').map(Number);
+    if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+      return new Date(parts[0], parts[1] - 1, parts[2]);
+    }
+    return new Date(dateInput);
+  };
+
+  const start = parseDateParts(startDate);
+  const end = parseDateParts(endDate || startDate);
   const occurrences = [];
 
-  // Parse time strings HH:MM:SS or HH:MM
+  // Parse time strings HH:MM:SS or HH:MM safely into baseDate
   const parseTime = (timeStr, baseDate) => {
-    const d = new Date(baseDate);
+    const d = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), 0, 0, 0, 0);
     if (!timeStr) return d;
-    const parts = timeStr.split(':').map(Number);
+    const parts = String(timeStr).split(':').map(Number);
     const h = parts[0] || 0;
     const m = parts[1] || 0;
     const s = parts[2] || 0;
@@ -52,14 +63,16 @@ const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, e
 
   const dayMap = { 'SUN': 0, 'MON': 1, 'TUE': 2, 'WED': 3, 'THU': 4, 'FRI': 5, 'SAT': 6 };
 
-  let curr = new Date(start);
+  let curr = new Date(start.getFullYear(), start.getMonth(), start.getDate());
   let count = 1;
 
   if (scheduleType === 'ONE_TIME') {
-    const oStart = parseTime(startTimeStr, start);
-    // For ONE_TIME schedule, default the occurrence end time on the start date so it doesn't default across an entire month
-    const occurrenceEndDate = (endDate && new Date(endDate) >= new Date(startDate) && endDate !== startDate) ? end : start;
-    const oEnd = parseTime(endTimeStr, occurrenceEndDate);
+    const oStart = parseTime(startTimeStr || '00:00:00', start);
+    const occurrenceEndDate = (endDate && parseDateParts(endDate) >= start && String(endDate).split('T')[0] !== String(startDate).split('T')[0]) ? end : start;
+    let oEnd = parseTime(endTimeStr || '23:59:59', occurrenceEndDate);
+    if (oEnd <= oStart) {
+      oEnd = new Date(oStart.getTime() + 24 * 60 * 60 * 1000);
+    }
     occurrences.push({
       quiz_id: quizId,
       occurrence_number: 1,
@@ -70,8 +83,8 @@ const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, e
     });
   } else if (scheduleType === 'DAILY') {
     while (curr <= end && count <= 60) {
-      const oStart = parseTime(startTimeStr, curr);
-      const oEnd = parseTime(endTimeStr, curr);
+      const oStart = parseTime(startTimeStr || '00:00:00', curr);
+      const oEnd = parseTime(endTimeStr || '23:59:59', curr);
       occurrences.push({
         quiz_id: quizId,
         occurrence_number: count,
@@ -84,7 +97,6 @@ const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, e
       count++;
     }
   } else if (scheduleType === 'WEEKLY') {
-    // Check if specific days of week were selected (e.g. ['MON', 'WED', 'FRI'])
     const targetDays = (config.daysOfWeek && config.daysOfWeek.length > 0)
       ? config.daysOfWeek.map(d => typeof d === 'string' ? dayMap[d.toUpperCase()] : d).filter(d => d !== undefined)
       : null;
@@ -92,8 +104,8 @@ const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, e
     while (curr <= end && count <= 52) {
       const dayOfWeek = curr.getDay();
       if (!targetDays || targetDays.includes(dayOfWeek)) {
-        const oStart = parseTime(startTimeStr, curr);
-        const oEnd = parseTime(endTimeStr, curr);
+        const oStart = parseTime(startTimeStr || '00:00:00', curr);
+        const oEnd = parseTime(endTimeStr || '23:59:59', curr);
         occurrences.push({
           quiz_id: quizId,
           occurrence_number: count,
@@ -107,11 +119,10 @@ const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, e
       curr.setDate(curr.getDate() + 1);
     }
   } else if (scheduleType === 'BIWEEKLY') {
-    // Biweekly with week pattern ('1_3' vs '2_4') and specific days of week
     const targetDays = (config.daysOfWeek && config.daysOfWeek.length > 0)
       ? config.daysOfWeek.map(d => typeof d === 'string' ? dayMap[d.toUpperCase()] : d).filter(d => d !== undefined)
       : null;
-    const weeksPattern = config.weeksPattern || '1_3'; // '1_3' or '2_4'
+    const weeksPattern = config.weeksPattern || '1_3';
 
     while (curr <= end && count <= 30) {
       const dayOfWeek = curr.getDay();
@@ -122,8 +133,8 @@ const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, e
                             (weeksPattern === '2_4' && (weekOfMonth === 2 || weekOfMonth === 4));
 
       if (isMatchingWeek && (!targetDays || targetDays.includes(dayOfWeek))) {
-        const oStart = parseTime(startTimeStr, curr);
-        const oEnd = parseTime(endTimeStr, curr);
+        const oStart = parseTime(startTimeStr || '00:00:00', curr);
+        const oEnd = parseTime(endTimeStr || '23:59:59', curr);
         occurrences.push({
           quiz_id: quizId,
           occurrence_number: count,
@@ -140,8 +151,8 @@ const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, e
     const targetDayOfMonth = parseInt(config.dayOfMonth || 1, 10);
     while (curr <= end && count <= 24) {
       if (curr.getDate() === targetDayOfMonth || (targetDayOfMonth >= 28 && curr.getDate() === new Date(curr.getFullYear(), curr.getMonth() + 1, 0).getDate())) {
-        const oStart = parseTime(startTimeStr, curr);
-        const oEnd = parseTime(endTimeStr, curr);
+        const oStart = parseTime(startTimeStr || '00:00:00', curr);
+        const oEnd = parseTime(endTimeStr || '23:59:59', curr);
         occurrences.push({
           quiz_id: quizId,
           occurrence_number: count,
@@ -158,8 +169,8 @@ const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, e
     // CUSTOM
     const step = parseInt(config.customIntervalDays || 3, 10);
     while (curr <= end && count <= 30) {
-      const oStart = parseTime(startTimeStr, curr);
-      const oEnd = parseTime(endTimeStr, curr);
+      const oStart = parseTime(startTimeStr || '00:00:00', curr);
+      const oEnd = parseTime(endTimeStr || '23:59:59', curr);
       occurrences.push({
         quiz_id: quizId,
         occurrence_number: count,
@@ -504,13 +515,79 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 // 7. Check occurrence availability & server time window
 router.get('/occurrences/:occurrenceId', async (req, res) => {
   try {
-    const occ = await ScheduledOccurrence.findByPk(req.params.occurrenceId, {
-      include: [
-        { model: Quiz, as: 'quiz', include: [{ model: Question, as: 'questions' }] }
-      ]
-    });
+    const rawId = req.params.occurrenceId ? req.params.occurrenceId.trim() : '';
+    if (!rawId) return res.status(400).json({ error: 'Occurrence ID or Quiz identifier is required.' });
 
-    if (!occ) return res.status(404).json({ error: 'Occurrence not found.' });
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId);
+    let occ = null;
+
+    if (isUUID) {
+      occ = await ScheduledOccurrence.findByPk(rawId, {
+        include: [
+          { model: Quiz, as: 'quiz', include: [{ model: Question, as: 'questions' }] }
+        ]
+      });
+    }
+
+    // Fallback: If not found as occurrence ID, search by Quiz ID, custom_slug, or join_code
+    if (!occ) {
+      const orConditions = [
+        { custom_slug: rawId },
+        { custom_slug: { [Op.like]: rawId } },
+        { join_code: rawId.toUpperCase() },
+        { join_code: rawId }
+      ];
+      if (isUUID) orConditions.push({ id: rawId });
+
+      let quiz = await Quiz.findOne({
+        where: { [Op.or]: orConditions },
+        include: [
+          { model: Question, as: 'questions' },
+          { model: ScheduledOccurrence, as: 'occurrences' }
+        ]
+      });
+
+      if (!quiz) {
+        const allQuizzes = await Quiz.findAll({
+          include: [
+            { model: Question, as: 'questions' },
+            { model: ScheduledOccurrence, as: 'occurrences' }
+          ]
+        });
+        quiz = allQuizzes.find(q =>
+          (q.custom_slug && q.custom_slug.toLowerCase() === rawId.toLowerCase()) ||
+          (q.join_code && q.join_code.toLowerCase() === rawId.toLowerCase()) ||
+          (q.id === rawId)
+        );
+      }
+
+      if (quiz) {
+        const occurrences = (quiz.occurrences || []).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+        const now = new Date();
+        occ = occurrences.find(o => new Date(o.start_time) <= now && new Date(o.end_time) >= now && o.status !== 'CANCELLED');
+        if (!occ) {
+          occ = occurrences.find(o => new Date(o.start_time) > now && o.status !== 'CANCELLED');
+        }
+        if (!occ && occurrences.length > 0) {
+          occ = occurrences[occurrences.length - 1];
+        }
+        if (!occ) {
+          const defaultStart = new Date(now.getTime() - 5 * 60 * 1000);
+          const defaultEnd = quiz.scheduled_end ? new Date(quiz.scheduled_end) : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+          occ = await ScheduledOccurrence.create({
+            quiz_id: quiz.id,
+            occurrence_number: 1,
+            title: `${quiz.title} (Session 1)`,
+            start_time: defaultStart,
+            end_time: defaultEnd,
+            status: 'SCHEDULED'
+          });
+        }
+        occ.dataValues.quiz = quiz;
+      }
+    }
+
+    if (!occ) return res.status(404).json({ error: 'Quiz occurrence not found.' });
 
     const now = new Date();
     const startTime = new Date(occ.start_time);
@@ -524,7 +601,7 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
       message = "Quiz hasn't started yet.";
     } else if (now > endTime) {
       status = 'CLOSED';
-      message = 'This quiz is closed.';
+      message = 'This quiz session is closed.';
     } else if (occ.status === 'PAUSED' || occ.status === 'CANCELLED') {
       status = 'UNAVAILABLE';
       message = `This quiz session is ${occ.status.toLowerCase()}.`;
@@ -538,6 +615,7 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
       message
     });
   } catch (error) {
+    console.error('Fetch occurrence error:', error);
     return res.status(500).json({ error: 'Failed to fetch occurrence info.' });
   }
 });
@@ -548,11 +626,35 @@ router.post('/occurrences/:occurrenceId/start', async (req, res) => {
     const { name, email } = req.body;
     if (!name) return res.status(400).json({ error: 'Participant Name is required.' });
 
-    const occ = await ScheduledOccurrence.findByPk(req.params.occurrenceId, {
-      include: [{ model: Quiz, as: 'quiz' }]
-    });
+    const rawId = req.params.occurrenceId ? req.params.occurrenceId.trim() : '';
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId);
 
-    if (!occ) return res.status(404).json({ error: 'Occurrence not found.' });
+    let occ = null;
+    if (isUUID) {
+      occ = await ScheduledOccurrence.findByPk(rawId, {
+        include: [{ model: Quiz, as: 'quiz' }]
+      });
+    }
+
+    if (!occ) {
+      const orConditions = [
+        { custom_slug: rawId },
+        { join_code: rawId.toUpperCase() }
+      ];
+      if (isUUID) orConditions.push({ id: rawId });
+
+      const quiz = await Quiz.findOne({
+        where: { [Op.or]: orConditions },
+        include: [{ model: ScheduledOccurrence, as: 'occurrences' }]
+      });
+
+      if (quiz && quiz.occurrences && quiz.occurrences.length > 0) {
+        occ = quiz.occurrences[0];
+        occ.dataValues.quiz = quiz;
+      }
+    }
+
+    if (!occ) return res.status(404).json({ error: 'Quiz occurrence not found.' });
 
     const now = new Date();
     const startTime = new Date(occ.start_time);
@@ -842,17 +944,21 @@ router.get('/slug/:slug', async (req, res) => {
     if (!rawSlug) return res.status(400).json({ error: 'Slug is required.' });
 
     const cleanSlug = rawSlug.toLowerCase();
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawSlug);
+
+    const orConditions = [
+      { custom_slug: { [Op.like]: rawSlug } },
+      { join_code: { [Op.like]: rawSlug } },
+      { custom_slug: rawSlug },
+      { join_code: rawSlug.toUpperCase() }
+    ];
+
+    if (isUUID) {
+      orConditions.push({ id: rawSlug });
+    }
 
     let quiz = await Quiz.findOne({
-      where: {
-        [Op.or]: [
-          { custom_slug: { [Op.like]: rawSlug } },
-          { join_code: { [Op.like]: rawSlug } },
-          { custom_slug: rawSlug },
-          { join_code: rawSlug.toUpperCase() },
-          { id: rawSlug }
-        ]
-      },
+      where: { [Op.or]: orConditions },
       include: [{ model: ScheduledOccurrence, as: 'occurrences' }]
     });
 
@@ -880,16 +986,30 @@ router.get('/slug/:slug', async (req, res) => {
       });
     }
 
-    const occurrences = (quiz.occurrences || []).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+    let occurrences = (quiz.occurrences || []).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
     const now = new Date();
 
     // Select active occurrence (currently open window) or next upcoming slot
-    let targetOccurrence = occurrences.find(o => new Date(o.start_time) <= now && new Date(o.end_time) >= now);
+    let targetOccurrence = occurrences.find(o => new Date(o.start_time) <= now && new Date(o.end_time) >= now && o.status !== 'CANCELLED');
     if (!targetOccurrence) {
-      targetOccurrence = occurrences.find(o => new Date(o.start_time) > now);
+      targetOccurrence = occurrences.find(o => new Date(o.start_time) > now && o.status !== 'CANCELLED');
     }
     if (!targetOccurrence && occurrences.length > 0) {
       targetOccurrence = occurrences[occurrences.length - 1];
+    }
+
+    // Auto-create a default occurrence if none exist
+    if (!targetOccurrence) {
+      const defaultStart = new Date(now.getTime() - 5 * 60 * 1000);
+      const defaultEnd = quiz.scheduled_end ? new Date(quiz.scheduled_end) : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      targetOccurrence = await ScheduledOccurrence.create({
+        quiz_id: quiz.id,
+        occurrence_number: 1,
+        title: `${quiz.title} (Session 1)`,
+        start_time: defaultStart,
+        end_time: defaultEnd,
+        status: 'SCHEDULED'
+      });
     }
 
     return res.json({

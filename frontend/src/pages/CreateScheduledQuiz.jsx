@@ -22,6 +22,13 @@ export default function CreateScheduledQuiz() {
 
   const today = new Date().toISOString().split('T')[0];
   const nextMonth = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
+  const now = new Date();
+  const currentHour = now.getHours();
+  const currentAmpm = currentHour >= 12 ? 'PM' : 'AM';
+  const startHh = String((currentHour % 12) || 12).padStart(2, '0');
+  const endHour = (currentHour + 2) % 24;
+  const endAmpm = endHour >= 12 ? 'PM' : 'AM';
+  const endHh = String((endHour % 12) || 12).padStart(2, '0');
 
   const [formData, setFormData] = useState({
     title: '',
@@ -35,15 +42,15 @@ export default function CreateScheduledQuiz() {
     end_date: nextMonth,
     
     // Time with seconds & AM/PM
-    start_time_hh: '10',
+    start_time_hh: startHh,
     start_time_mm: '00',
     start_time_ss: '00',
-    start_time_ampm: 'AM',
+    start_time_ampm: currentAmpm,
 
-    end_time_hh: '11',
+    end_time_hh: endHh,
     end_time_mm: '00',
     end_time_ss: '00',
-    end_time_ampm: 'AM',
+    end_time_ampm: endAmpm,
 
     timezone: 'Asia/Kolkata',
 
@@ -458,7 +465,7 @@ export default function CreateScheduledQuiz() {
                   <label className="block text-xs font-bold text-slate-700">Custom Short Link (Vanity Slug)</label>
                   <div className="flex items-center space-x-2">
                     <span className="text-xs font-extrabold text-slate-500 bg-white border border-slate-200 px-3 py-2 rounded-xl whitespace-nowrap">
-                      quiz.mscprpcem.tech/q/
+                      {typeof window !== 'undefined' ? `${window.location.host}/q/` : 'quiz.mscprpcem.tech/q/'}
                     </span>
                     <input
                       type="text"
@@ -469,14 +476,14 @@ export default function CreateScheduledQuiz() {
                     />
                   </div>
                   <p className="text-[10px] text-slate-500 font-semibold leading-normal">
-                    Students visiting <strong className="text-blue-600">quiz.mscprpcem.tech/q/{formData.custom_slug || 'test'}</strong> or scanning the QR code will open this quiz session directly.
+                    Students visiting <strong className="text-blue-600">{typeof window !== 'undefined' ? window.location.host : 'quiz.mscprpcem.tech'}/q/{formData.custom_slug || 'test'}</strong> or scanning the QR code will open this quiz session directly.
                   </p>
                 </div>
 
                 {/* Live QR Code Preview */}
                 <div className="bg-white p-3 border border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-1.5 shadow-2xs">
                   <QRCodeSVG
-                    value={`https://quiz.mscprpcem.tech/q/${formData.custom_slug || 'test'}`}
+                    value={`${typeof window !== 'undefined' ? window.location.origin : 'https://quiz.mscprpcem.tech'}/q/${formData.custom_slug || 'test'}`}
                     size={84}
                     bgColor="#FFFFFF"
                     fgColor="#0F172A"

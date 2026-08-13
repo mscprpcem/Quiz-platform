@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import { RefreshCw, AlertTriangle } from 'lucide-react';
+import { RefreshCw, AlertTriangle, ArrowRight } from 'lucide-react';
 
 export default function VanityRedirect() {
   const { slug } = useParams();
@@ -16,15 +16,23 @@ export default function VanityRedirect() {
   const resolveSlug = async () => {
     try {
       setError('');
-      const res = await api.get(`/api/scheduled-quizzes/slug/${slug}`);
-      const { activeOccurrenceId, quiz } = res.data;
+      const cleanSlug = slug.trim().replace(/^\//, '');
+      const res = await api.get(`/api/scheduled-quizzes/slug/${cleanSlug}`);
+      const { activeOccurrenceId, quiz, isLive } = res.data;
+
+      if (isLive && quiz?.join_code) {
+        navigate(`/join/${quiz.join_code}`, { replace: true });
+        return;
+      }
 
       if (activeOccurrenceId) {
         navigate(`/scheduled-quiz/${activeOccurrenceId}`, { replace: true });
+      } else if (quiz?.id) {
+        navigate(`/scheduled-quiz/${quiz.id}`, { replace: true });
       } else if (quiz?.join_code) {
         navigate('/join', { state: { code: quiz.join_code }, replace: true });
       } else {
-        setError(`No active session found for link '/${slug}'.`);
+        setError(`No active session found for link '/${cleanSlug}'.`);
       }
     } catch (err) {
       console.error('Vanity redirect error:', err);
@@ -42,12 +50,20 @@ export default function VanityRedirect() {
             </div>
             <h2 className="text-xl font-black text-slate-900">Quiz Link Not Found</h2>
             <p className="text-xs text-slate-500 font-semibold">{error}</p>
-            <button
-              onClick={() => navigate('/')}
-              className="w-full py-3 bg-blue-600 text-white font-extrabold rounded-xl text-xs cursor-pointer"
-            >
-              Return to Homepage
-            </button>
+            <div className="flex gap-2 pt-2">
+              <button
+                onClick={() => navigate('/')}
+                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold rounded-xl text-xs cursor-pointer"
+              >
+                Return Home
+              </button>
+              <button
+                onClick={() => navigate('/join')}
+                className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs cursor-pointer shadow-md"
+              >
+                Join Lobby
+              </button>
+            </div>
           </>
         ) : (
           <>

@@ -1,20 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import {
   Clock, CheckSquare, AlertTriangle, Trophy, CheckCircle, 
-  Square, ShieldCheck, ArrowRight, RefreshCw, User, Lock, Award
+  Square, ShieldCheck, ArrowRight, RefreshCw, User, Lock, Award, LogIn, ExternalLink, Sparkles
 } from 'lucide-react';
 import DigitalBadgeCard from '../components/DigitalBadgeCard';
 
 export default function ScheduledQuizTake() {
   const { occurrenceId } = useParams();
   const navigate = useNavigate();
+  const { studentAccount, user, studentLogin, studentLogout } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [occData, setOccData] = useState(null);
+  const [loadError, setLoadError] = useState('');
+  
+  // Student input state
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loggingIn, setLoggingIn] = useState(false);
   const [startError, setStartError] = useState('');
 
   // Active Attempt State
@@ -29,23 +36,63 @@ export default function ScheduledQuizTake() {
 
   const timerRef = useRef(null);
 
+  // Sync user credentials from auth context or local storage
   useEffect(() => {
-    fetchOccurrence();
-    const storedName = localStorage.getItem('msc_student_name') || localStorage.getItem('msc_participant_name') || '';
-    const storedEmail = localStorage.getItem('msc_student_email') || localStorage.getItem('msc_participant_email') || '';
-    if (storedName) setName(storedName);
-    if (storedEmail) setEmail(storedEmail);
+    if (studentAccount?.email) {
+      setEmail(studentAccount.email);
+      setName(studentAccount.name || studentAccount.email.split('@')[0]);
+    } else if (user?.email) {
+      setEmail(user.email);
+      setName(user.name || user.email.split('@')[0]);
+    } else {
+      const storedName = localStorage.getItem('msc_student_name') || localStorage.getItem('msc_participant_name') || '';
+      const storedEmail = localStorage.getItem('msc_student_email') || localStorage.getItem('msc_participant_email') || '';
+      if (storedName) setName(storedName);
+      if (storedEmail) setEmail(storedEmail);
+    }
+  }, [studentAccount, user]);
+
+  useEffect(() => {
+    if (occurrenceId) {
+      fetchOccurrence();
+    }
   }, [occurrenceId]);
 
   const fetchOccurrence = async () => {
     try {
       setLoading(true);
+      setLoadError('');
       const res = await api.get(`/api/scheduled-quizzes/occurrences/${occurrenceId}`);
       setOccData(res.data);
     } catch (err) {
       console.error('Fetch occurrence error:', err);
+      setLoadError(err.response?.data?.error || 'Scheduled quiz session could not be loaded.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const isLoggedIn = Boolean(studentAccount || (user && user.email));
+
+  const handleStudentAuth = async (e) => {
+    e.preventDefault();
+    if (!email || !name) {
+      setStartError('Please enter both your name and email.');
+      return;
+    }
+
+    try {
+      setLoggingIn(true);
+      setStartError('');
+      const res = await studentLogin(email, name, password || 'student123');
+      if (res.success) {
+        localStorage.setItem('msc_student_name', name);
+        localStorage.setItem('msc_student_email', email);
+      }
+    } catch (err) {
+      setStartError(err.message || 'Failed to authenticate student account.');
+    } finally {
+      setLoggingIn(false);
     }
   };
 
@@ -126,17 +173,23 @@ export default function ScheduledQuizTake() {
   };
 
   const handleStartAttempt = async (e) => {
-    e.preventDefault();
-    if (!name) {
-      setStartError('Please enter your name.');
+    if (e && e.preventDefault) e.preventDefault();
+
+    const targetName = name || studentAccount?.name || user?.name;
+    const targetEmail = email || studentAccount?.email || user?.email;
+
+    if (!targetName) {
+      setStartError('Please enter your full name or sign in to begin.');
       return;
     }
+
     try {
       setStartError('');
       setLoading(true);
-      const res = await api.post(`/api/scheduled-quizzes/occurrences/${occurrenceId}/start`, {
-        name,
-        email
+      const targetOccId = occData?.occurrence?.id || occurrenceId;
+      const res = await api.post(`/api/scheduled-quizzes/occurrences/${targetOccId}/start`, {
+        name: targetName,
+        email: targetEmail
       });
 
       setAttempt(res.data.attempt);
@@ -196,10 +249,41 @@ export default function ScheduledQuizTake() {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  if (loading && !attempt) {
+  if (loading && !attempt && !occData) {
     return (
-      <div className="py-20 text-center text-slate-400 font-extrabold animate-pulse">
-        Checking quiz availability...
+      <div className="py-24 text-center space-y-3 font-segoe">
+        <RefreshCw size={36} className="text-blue-600 animate-spin mx-auto" />
+        <div className="text-sm text-slate-600 font-extrabold">Checking quiz availability...</div>
+      </div>
+    );
+  }
+
+  if (loadError && !occData) {
+    return (
+      <div className="max-w-md mx-auto py-16 px-4 font-segoe text-center space-y-6">
+        <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-md space-y-5">
+          <div className="w-14 h-14 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center mx-auto">
+            <AlertTriangle size={28} />
+          </div>
+          <div className="space-y-1">
+            <h2 className="text-xl font-black text-slate-900">Quiz Link Not Found</h2>
+            <p className="text-xs text-slate-500 font-semibold">{loadError}</p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => navigate('/')}
+              className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold rounded-xl text-xs cursor-pointer"
+            >
+              Return Home
+            </button>
+            <button
+              onClick={() => navigate('/join')}
+              className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs cursor-pointer shadow-md"
+            >
+              Join Lobby
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
@@ -241,14 +325,14 @@ export default function ScheduledQuizTake() {
             </div>
           </div>
 
-          {/* 🌟 Automatically Issued Official Digital Badge */}
+          {/* Automatically Issued Official Digital Badge */}
           <div className="pt-2">
             <DigitalBadgeCard
               quizTitle={occData?.occurrence?.title || occData?.quiz?.title || 'Scheduled Challenge'}
               eventName="MSC Scheduled Challenge"
               score={att?.score || 100}
-              studentName={name}
-              studentEmail={email}
+              studentName={name || studentAccount?.name || 'Student'}
+              studentEmail={email || studentAccount?.email || ''}
             />
           </div>
 
@@ -263,20 +347,27 @@ export default function ScheduledQuizTake() {
     );
   }
 
-  // ════════ RENDER PRE-QUIZ AVAILABILITY CARD ════════
+  // ════════ RENDER PRE-QUIZ AVAILABILITY & LOGIN CARD ════════
   if (!attempt) {
     const status = occData?.status;
     const message = occData?.message;
+    const displayName = studentAccount?.name || user?.name || name;
+    const displayEmail = studentAccount?.email || user?.email || email;
 
     return (
-      <div className="max-w-md mx-auto py-12 px-4 font-segoe text-left">
-        <div className="bg-white border border-slate-200 rounded-3xl p-8 shadow-md space-y-6">
+      <div className="max-w-md mx-auto py-10 px-4 font-segoe text-left">
+        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-md space-y-6">
           <div className="space-y-2">
-            <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full inline-block">
-              Scheduled Quiz Session
-            </span>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full inline-block">
+                Scheduled Assessment
+              </span>
+              <span className="text-[10px] font-bold text-slate-400">
+                {occData?.quiz?.time_limit || 30} mins limit
+              </span>
+            </div>
             <h2 className="text-xl font-black text-slate-900">{occData?.quiz?.title || 'Scheduled Quiz'}</h2>
-            <p className="text-xs text-slate-500 font-medium">{occData?.quiz?.description}</p>
+            <p className="text-xs text-slate-500 font-medium">{occData?.quiz?.description || 'Complete the assessment questions within the active time window.'}</p>
           </div>
 
           {status === 'NOT_STARTED' ? (
@@ -310,55 +401,125 @@ export default function ScheduledQuizTake() {
               <div className="p-3.5 bg-blue-50/70 border border-blue-100 rounded-2xl text-[11px] font-semibold text-blue-900 flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <Clock size={15} className="text-blue-600 flex-shrink-0" />
-                  <span>Entry Window Closes:</span>
+                  <span>Session Window:</span>
                 </div>
                 <span className="font-extrabold text-blue-700">
-                  {occData?.occurrence?.end_time ? new Date(occData.occurrence.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'End of Session'}
+                  {occData?.occurrence?.end_time ? new Date(occData.occurrence.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Open Now'}
                 </span>
               </div>
 
-              <div className="text-[10px] text-slate-400 font-semibold bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex items-center space-x-1.5">
-                <ShieldCheck size={13} className="text-emerald-600 flex-shrink-0" />
-                <span>Starting near window close guarantees your full {occData?.quiz?.time_limit || 30}-min duration.</span>
-              </div>
-            <form onSubmit={handleStartAttempt} className="space-y-4 pt-2 border-t">
               {startError && (
-                <div className="p-3 bg-red-50 text-red-600 rounded-xl text-xs font-bold">
+                <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-xl text-xs font-bold">
                   {startError}
                 </div>
               )}
 
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-600">Full Name *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Enter your name"
-                  value={name}
-                  onChange={e => setName(e.target.value)}
-                  className="w-full border rounded-xl px-4 py-2.5 text-xs font-bold bg-slate-50"
-                />
-              </div>
+              {/* ════════ AUTHENTICATION GATE ════════ */}
+              {isLoggedIn ? (
+                /* Authenticated State: Show verified student badge and 1-click start */
+                <div className="space-y-4 pt-2 border-t border-slate-100">
+                  <div className="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2.5">
+                        <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                          {(displayName || 'S').charAt(0).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="text-xs font-black text-slate-900 flex items-center space-x-1.5">
+                            <span>{displayName}</span>
+                            <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black uppercase flex items-center space-x-0.5">
+                              <ShieldCheck size={11} />
+                              <span>Verified</span>
+                            </span>
+                          </div>
+                          <span className="text-[11px] text-slate-500 font-semibold">{displayEmail}</span>
+                        </div>
+                      </div>
 
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-600">Email Address (Optional)</label>
-                <input
-                  type="email"
-                  placeholder="name@college.edu"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  className="w-full border rounded-xl px-4 py-2.5 text-xs font-bold bg-slate-50"
-                />
-              </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (studentLogout) studentLogout();
+                        }}
+                        className="text-[10px] text-purple-600 hover:text-purple-800 font-extrabold hover:underline cursor-pointer"
+                      >
+                        Switch
+                      </button>
+                    </div>
+                  </div>
 
-              <button
-                type="submit"
-                className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer"
-              >
-                <span>Start Quiz Attempt</span>
-                <ArrowRight size={16} />
-              </button>
-            </form>
+                  <div className="text-[10px] text-slate-400 font-semibold bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex items-center space-x-1.5">
+                    <ShieldCheck size={13} className="text-emerald-600 flex-shrink-0" />
+                    <span>Your attempt and official certificate will be linked to your student account.</span>
+                  </div>
+
+                  <button
+                    onClick={handleStartAttempt}
+                    className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all active:scale-98"
+                  >
+                    <span>Start Quiz Attempt</span>
+                    <ArrowRight size={16} />
+                  </button>
+                </div>
+              ) : (
+                /* Unauthenticated State: Prompt for Student Login / Sign In */
+                <div className="space-y-4 pt-2 border-t border-slate-100">
+                  <div className="flex items-center space-x-2 text-xs font-black text-purple-900 bg-purple-50 border border-purple-200 px-3.5 py-2.5 rounded-xl">
+                    <LogIn size={16} className="text-purple-600 flex-shrink-0" />
+                    <span>Student Login Required to Attempt Quiz</span>
+                  </div>
+
+                  <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                    Please sign in with your student credentials to verify your identity and start your scheduled quiz attempt.
+                  </p>
+
+                  <form onSubmit={handleStudentAuth} className="space-y-3">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-slate-600">Full Name *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. Amit Sharma"
+                        value={name}
+                        onChange={e => setName(e.target.value)}
+                        className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold bg-slate-50 focus:bg-white focus:border-purple-600"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-slate-600">Email Address *</label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="student@gmail.com"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold bg-slate-50 focus:bg-white focus:border-purple-600"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-slate-600">Password</label>
+                      <input
+                        type="password"
+                        placeholder="•••••••• (Optional for guest)"
+                        value={password}
+                        onChange={e => setPassword(e.target.value)}
+                        className="w-full border border-slate-200 rounded-xl px-3.5 py-2 text-xs font-bold bg-slate-50 focus:bg-white focus:border-purple-600"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={loggingIn}
+                      className="w-full py-3 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all active:scale-98"
+                    >
+                      <User size={15} />
+                      <span>{loggingIn ? 'Signing In...' : 'Sign In & Unlock Quiz'}</span>
+                    </button>
+                  </form>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -438,7 +599,7 @@ export default function ScheduledQuizTake() {
             <button
               onClick={() => setCurrentQIndex(prev => Math.max(0, prev - 1))}
               disabled={currentQIndex === 0}
-              className="px-4 py-2 border rounded-xl text-xs font-bold disabled:opacity-40"
+              className="px-4 py-2 border rounded-xl text-xs font-bold disabled:opacity-40 cursor-pointer"
             >
               Previous
             </button>
@@ -446,14 +607,14 @@ export default function ScheduledQuizTake() {
             {currentQIndex < questions.length - 1 ? (
               <button
                 onClick={() => setCurrentQIndex(prev => Math.min(questions.length - 1, prev + 1))}
-                className="px-5 py-2 bg-blue-600 text-white font-extrabold rounded-xl text-xs"
+                className="px-5 py-2 bg-blue-600 text-white font-extrabold rounded-xl text-xs cursor-pointer hover:bg-blue-700"
               >
                 Next Question
               </button>
             ) : (
               <button
                 onClick={() => handleFinalSubmit(false)}
-                className="px-6 py-2 bg-emerald-600 text-white font-extrabold rounded-xl text-xs shadow-md"
+                className="px-6 py-2 bg-emerald-600 text-white font-extrabold rounded-xl text-xs shadow-md cursor-pointer hover:bg-emerald-700"
               >
                 Submit Quiz
               </button>
