@@ -174,11 +174,14 @@ export default function Home() {
           <div className="lg:col-span-7 space-y-6">
             <div className="inline-flex items-center space-x-2 hero-vibrant-badge text-brand-blue px-4 py-2 rounded-full text-xs font-extrabold shadow-sm">
               <Sparkles size={14} className="text-brand-blue animate-pulse" />
-              <span>Microsoft Student Club (MSC)</span>
+              <span>Campus Interactive Learning & Events</span>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl font-black text-brand-textMain tracking-tight leading-[1.1]">
-              MSCPRPCEM <br/>Quiz Platform
+            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-brand-textMain tracking-tight leading-[1.15]">
+              Microsoft Student Club PRPCEM <br/>
+              <span className="text-brand-blue bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 text-transparent">
+                Quiz Platform
+              </span>
             </h1>
 
             <p className="text-sm sm:text-base text-brand-textMuted leading-relaxed">

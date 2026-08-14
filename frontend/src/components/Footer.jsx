@@ -30,7 +30,7 @@ export default function Footer() {
                 <div className="bg-[#FFB900] rounded-[0.5px]"></div>
               </div>
               <div className="text-left">
-                <span className="font-black text-sm tracking-wide text-brand-textMain uppercase block leading-none">MSCPRPCEM</span>
+                <span className="font-black text-sm tracking-wide text-brand-textMain uppercase block leading-none">Microsoft Student Club PRPCEM</span>
                 <span className="font-extrabold text-[9px] text-brand-blue tracking-widest uppercase block mt-1">Quiz Platform</span>
               </div>
             </div>
