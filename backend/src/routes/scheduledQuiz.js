@@ -739,10 +739,24 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
       message = "Quiz hasn't started yet.";
     } else if (now > endTime) {
       status = 'CLOSED';
-      message = 'This quiz session is closed.';
+      message = 'This quiz has already ended.';
     } else if (occ.status === 'PAUSED' || occ.status === 'CANCELLED') {
       status = 'UNAVAILABLE';
       message = `This quiz session is ${occ.status.toLowerCase()}.`;
+    }
+
+    // Check if current user already completed an attempt for this occurrence
+    let userAttempt = null;
+    const cleanEmail = req.query.email ? req.query.email.trim().toLowerCase() : null;
+    const cleanName = req.query.name ? req.query.name.trim() : null;
+    if (cleanEmail || cleanName) {
+      userAttempt = await QuizAttempt.findOne({
+        where: {
+          occurrence_id: occ.id,
+          ...(cleanEmail ? { participant_email: cleanEmail } : { participant_name: cleanName })
+        },
+        order: [['createdAt', 'DESC']]
+      });
     }
 
     const finalQuiz = quiz || occ.quiz || (await Quiz.findByPk(occ.quiz_id, { include: [{ model: Question, as: 'questions' }] }));
@@ -758,7 +772,8 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
       quiz: quizJson,
       serverTime: now,
       status,
-      message
+      message,
+      userAttempt
     });
   } catch (error) {
     console.error('Fetch occurrence info error:', error);
@@ -823,7 +838,7 @@ router.post('/occurrences/:occurrenceId/start', async (req, res) => {
     const endTime = new Date(occ.end_time);
 
     if (now < startTime) return res.status(403).json({ error: "Quiz hasn't started yet." });
-    if (now > endTime) return res.status(403).json({ error: 'This quiz is closed.' });
+    if (now > endTime) return res.status(403).json({ error: 'This quiz has already ended.' });
 
     const targetQuiz = quiz || occ.quiz || (await Quiz.findByPk(occ.quiz_id));
     const cleanEmail = email ? email.trim().toLowerCase() : null;
@@ -845,6 +860,7 @@ router.post('/occurrences/:occurrenceId/start', async (req, res) => {
       if (now >= expireTime) {
         activeAttempt.status = 'expired';
         await activeAttempt.save();
+        return res.status(403).json({ error: 'Your quiz time has ended.' });
       } else {
         const answers = await AttemptAnswer.findAll({ where: { attempt_id: activeAttempt.id } });
         return res.json({

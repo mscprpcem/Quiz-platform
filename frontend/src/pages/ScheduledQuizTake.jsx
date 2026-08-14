@@ -5,7 +5,7 @@ import api from '../services/api';
 import StudentAuthModal from '../components/StudentAuthModal';
 import {
   Clock, CheckSquare, AlertTriangle, Trophy, CheckCircle, 
-  Square, ShieldCheck, ArrowRight, RefreshCw, User, Lock, Award, LogIn, ExternalLink, Sparkles, Maximize, KeyRound
+  Square, ShieldCheck, ArrowRight, RefreshCw, User, Lock, Award, LogIn, ExternalLink, Sparkles, Maximize, KeyRound, Timer, AlertOctagon, XCircle
 } from 'lucide-react';
 
 export default function ScheduledQuizTake() {
@@ -32,6 +32,7 @@ export default function ScheduledQuizTake() {
   const [currentQIndex, setCurrentQIndex] = useState(0);
   const [selectedAnswers, setSelectedAnswers] = useState({});
   const [timeLeftSeconds, setTimeLeftSeconds] = useState(0);
+  const [isTimeExpired, setIsTimeExpired] = useState(false);
   const [violationsCount, setViolationsCount] = useState(0);
   const [quizSubmitted, setQuizSubmitted] = useState(false);
   const [resultData, setResultData] = useState(null);
@@ -90,8 +91,19 @@ export default function ScheduledQuizTake() {
     try {
       setLoading(true);
       setLoadError('');
-      const res = await api.get(`/api/scheduled-quizzes/occurrences/${targetIdentifier}`);
+      const targetEmail = email || studentAccount?.email || user?.email || localStorage.getItem('msc_student_email') || '';
+      const targetName = name || studentAccount?.name || user?.name || localStorage.getItem('msc_student_name') || '';
+      const queryParams = new URLSearchParams();
+      if (targetEmail) queryParams.append('email', targetEmail);
+      if (targetName) queryParams.append('name', targetName);
+      const queryString = queryParams.toString() ? `?${queryParams.toString()}` : '';
+
+      const res = await api.get(`/api/scheduled-quizzes/occurrences/${targetIdentifier}${queryString}`);
       setOccData(res.data);
+
+      if (res.data?.status === 'CLOSED' || (res.data?.occurrence?.end_time && new Date(res.data.occurrence.end_time) < new Date())) {
+        fetchLeaderboard();
+      }
     } catch (err) {
       console.error('Fetch occurrence error:', err);
       setLoadError(err.response?.data?.error || 'Scheduled quiz session could not be loaded.');
@@ -662,12 +674,248 @@ export default function ScheduledQuizTake() {
     );
   }
 
-  // ════════ RENDER PRE-QUIZ AVAILABILITY & LOGIN CARD ════════
+  // ════════ RENDER PRE-QUIZ AVAILABILITY & LOGIN CARD OR ALREADY ENDED SCREEN ════════
   if (!attempt) {
     const status = occData?.status;
     const message = occData?.message;
     const displayName = studentAccount?.name || user?.name || name;
     const displayEmail = studentAccount?.email || user?.email || email;
+    const endTime = occData?.occurrence?.end_time ? new Date(occData.occurrence.end_time) : null;
+    const isQuizEnded = status === 'CLOSED' || (endTime && endTime < new Date());
+
+    if (isQuizEnded) {
+      const formattedEndTime = endTime ? endTime.toLocaleString([], { dateStyle: 'full', timeStyle: 'short' }) : 'Scheduled timeframe has expired';
+      const userAttempt = occData?.userAttempt;
+      const totalQuestions = occData?.quiz?.questions?.length || (userAttempt ? ((userAttempt.correct_count || 0) + (userAttempt.incorrect_count || 0) + (userAttempt.unanswered_count || 0)) : 0) || 10;
+      const accuracyPercent = userAttempt ? Math.round(((userAttempt.correct_count || 0) / Math.max(1, totalQuestions)) * 100) : 0;
+      const top10List = leaderboardList.slice(0, 10);
+      const userEmail = displayEmail || '';
+
+      return (
+        <div className="max-w-2xl mx-auto py-10 px-4 font-segoe text-center space-y-7 animate-fade-in">
+          {/* Main Already Ended Banner Card */}
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-md space-y-6 text-left">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-5">
+              <div className="flex items-center space-x-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center font-black shadow-xs flex-shrink-0">
+                  <AlertOctagon size={26} />
+                </div>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-rose-100/70 text-rose-700 border border-rose-200 inline-block mb-1">
+                    Assessment Concluded
+                  </span>
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                    This Quiz Has Already Ended
+                  </h2>
+                </div>
+              </div>
+              <span className="px-3 py-1 bg-slate-100 text-slate-600 border border-slate-200 rounded-full text-[10px] font-black uppercase tracking-wider self-start sm:self-center">
+                Submissions Closed
+              </span>
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-base font-extrabold text-slate-900">{occData?.quiz?.title || 'Scheduled Quiz'}</h3>
+              <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                The scheduled time window for this assessment has officially concluded. New attempts and submissions are no longer being accepted.
+              </p>
+            </div>
+
+            {/* End Time Notice Alert */}
+            <div className="p-4 bg-gradient-to-r from-rose-50/80 via-amber-50/60 to-orange-50/80 border border-rose-200/80 rounded-2xl flex items-start space-x-3 text-left">
+              <Clock size={20} className="text-rose-600 flex-shrink-0 mt-0.5" />
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-rose-800 block">
+                  Concluded At
+                </span>
+                <span className="text-xs font-bold text-slate-800">
+                  {formattedEndTime}
+                </span>
+              </div>
+            </div>
+
+            {/* Assessment Meta Summary Grid */}
+            <div className="grid grid-cols-3 gap-3 text-center">
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/70">
+                <span className="text-[9px] font-black uppercase text-slate-400 block">Subject / Track</span>
+                <span className="text-xs font-extrabold text-slate-800 truncate block mt-0.5">{occData?.quiz?.subject || 'Technical'}</span>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/70">
+                <span className="text-[9px] font-black uppercase text-slate-400 block">Time Limit</span>
+                <span className="text-xs font-extrabold text-slate-800 block mt-0.5">{occData?.quiz?.time_limit || 30} mins</span>
+              </div>
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200/70">
+                <span className="text-[9px] font-black uppercase text-slate-400 block">Questions</span>
+                <span className="text-xs font-extrabold text-slate-800 block mt-0.5">{occData?.quiz?.questions?.length || 'Full Set'}</span>
+              </div>
+            </div>
+
+            {/* If the current student took this quiz before it ended, display their official score breakdown! */}
+            {userAttempt && (
+              <div className="p-5 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border border-blue-200 rounded-2xl space-y-4 text-left">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <CheckCircle size={18} className="text-blue-600" />
+                    <span className="text-xs font-black text-slate-900">Your Recorded Submission</span>
+                  </div>
+                  <span className="text-[10px] font-extrabold text-blue-700 bg-white border border-blue-200 px-2.5 py-0.5 rounded-full shadow-2xs">
+                    Verified Result
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                  <div className="p-3 bg-white rounded-xl border border-blue-100 shadow-2xs">
+                    <span className="text-slate-400 block text-[9px] font-black uppercase">Total Score</span>
+                    <span className="text-blue-700 text-lg font-black">{userAttempt.score || 0} <span className="text-xs font-bold text-slate-500">pts</span></span>
+                  </div>
+                  <div className="p-3 bg-white rounded-xl border border-blue-100 shadow-2xs">
+                    <span className="text-slate-400 block text-[9px] font-black uppercase">Accuracy</span>
+                    <span className="text-emerald-600 text-lg font-black">{accuracyPercent}%</span>
+                  </div>
+                  <div className="p-3 bg-white rounded-xl border border-blue-100 shadow-2xs">
+                    <span className="text-slate-400 block text-[9px] font-black uppercase">Correct</span>
+                    <span className="text-slate-800 text-lg font-black">{userAttempt.correct_count || 0}</span>
+                  </div>
+                  <div className="p-3 bg-white rounded-xl border border-blue-100 shadow-2xs">
+                    <span className="text-slate-400 block text-[9px] font-black uppercase">Time Taken</span>
+                    <span className="text-slate-800 text-lg font-black">{Math.floor((userAttempt.time_taken_seconds || 0) / 60)}m {(userAttempt.time_taken_seconds || 0) % 60}s</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Top 10 Official Final Standings / Leaderboard */}
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-md space-y-5 text-left">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center font-black">
+                  <Trophy size={20} />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">Official Final Standings</h3>
+                  <p className="text-[11px] font-semibold text-slate-500">Official winners and rank matrix for this concluded session</p>
+                </div>
+              </div>
+
+              <button
+                onClick={fetchLeaderboard}
+                disabled={loadingLeaderboard}
+                className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-all cursor-pointer"
+                title="Refresh Standings"
+              >
+                <RefreshCw size={15} className={loadingLeaderboard ? 'animate-spin' : ''} />
+              </button>
+            </div>
+
+            {loadingLeaderboard ? (
+              <div className="py-8 text-center space-y-2">
+                <RefreshCw size={24} className="text-blue-600 animate-spin mx-auto" />
+                <p className="text-xs text-slate-500 font-bold">Loading official standings...</p>
+              </div>
+            ) : top10List.length === 0 ? (
+              <div className="py-6 text-center text-xs text-slate-500 font-semibold">
+                No participant records for this concluded session.
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {top10List.map((player) => {
+                  const isCurrentPlayer = userEmail && player.email && player.email.toLowerCase() === userEmail.toLowerCase();
+                  
+                  let rankBadge = (
+                    <span className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-black text-xs border border-slate-200">
+                      {player.rank}
+                    </span>
+                  );
+
+                  let cardStyle = "bg-white hover:bg-slate-50/80 border-slate-200";
+
+                  if (player.rank === 1) {
+                    rankBadge = (
+                      <span className="w-7 h-7 rounded-full bg-amber-400 text-amber-950 flex items-center justify-center font-black text-xs shadow-xs">
+                        🥇
+                      </span>
+                    );
+                    cardStyle = "bg-amber-50/40 border-amber-200";
+                  } else if (player.rank === 2) {
+                    rankBadge = (
+                      <span className="w-7 h-7 rounded-full bg-slate-300 text-slate-800 flex items-center justify-center font-black text-xs">
+                        🥈
+                      </span>
+                    );
+                    cardStyle = "bg-slate-50 border-slate-300";
+                  } else if (player.rank === 3) {
+                    rankBadge = (
+                      <span className="w-7 h-7 rounded-full bg-amber-200 text-amber-900 flex items-center justify-center font-black text-xs">
+                        🥉
+                      </span>
+                    );
+                    cardStyle = "bg-amber-50/20 border-amber-200/60";
+                  }
+
+                  if (isCurrentPlayer) {
+                    cardStyle += " ring-2 ring-blue-500 bg-blue-50/70 border-blue-300 font-bold";
+                  }
+
+                  return (
+                    <div
+                      key={player.id}
+                      className={`p-3 sm:p-3.5 rounded-2xl border flex items-center justify-between gap-3 transition-all ${cardStyle}`}
+                    >
+                      <div className="flex items-center space-x-3 truncate">
+                        {rankBadge}
+
+                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-black text-xs flex items-center justify-center flex-shrink-0">
+                          {player.participant_name ? player.participant_name.substring(0, 2).toUpperCase() : 'ST'}
+                        </div>
+
+                        <div className="truncate text-left">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <span className="font-extrabold text-xs sm:text-sm text-slate-900 truncate">
+                              {player.participant_name || 'Participant'}
+                            </span>
+                            {isCurrentPlayer && (
+                              <span className="text-[9px] font-black uppercase tracking-wider bg-blue-600 text-white px-2 py-0.5 rounded-md">
+                                You
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] font-semibold text-slate-500 truncate">
+                            {player.correct_count || 0} Correct • {Math.floor((player.time_taken_seconds || 0) / 60)}m {(player.time_taken_seconds || 0) % 60}s
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2 flex-shrink-0">
+                        <span className="font-black text-xs sm:text-sm text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full whitespace-nowrap">
+                          {player.score || 0} <span className="text-[9px] font-bold text-slate-500 uppercase">pts</span>
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Action CTAs */}
+          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+            <button
+              onClick={() => navigate('/courses')}
+              className="flex-1 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-2xl text-xs shadow-md transition-all cursor-pointer active:scale-98"
+            >
+              Explore Active Quizzes & Courses
+            </button>
+            <button
+              onClick={() => navigate('/')}
+              className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold rounded-2xl text-xs border border-slate-200 transition-all cursor-pointer"
+            >
+              Return to Homepage
+            </button>
+          </div>
+        </div>
+      );
+    }
 
     return (
       <div className="max-w-md mx-auto py-10 px-4 font-segoe text-left">
@@ -697,14 +945,6 @@ export default function ScheduledQuizTake() {
               <p className="text-[11px] text-blue-700 font-medium leading-relaxed">
                 This scheduled session will automatically open for attempts at the start time above. Please stay on this page!
               </p>
-            </div>
-          ) : status === 'CLOSED' ? (
-            <div className="p-5 bg-slate-100 border border-slate-200 text-slate-700 rounded-2xl space-y-2">
-              <div className="flex items-center space-x-2 text-xs font-extrabold text-slate-800">
-                <AlertTriangle size={18} className="text-amber-500" />
-                <span>Session Closed</span>
-              </div>
-              <p className="text-xs text-slate-600 font-medium">This scheduled quiz session has closed. Check back for the next upcoming slot!</p>
             </div>
           ) : status !== 'AVAILABLE' ? (
             <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl text-xs font-semibold flex items-center space-x-3">
@@ -820,6 +1060,26 @@ export default function ScheduledQuizTake() {
   return (
     <div className="max-w-3xl mx-auto py-8 px-4 font-segoe text-left space-y-6">
       
+      {/* Quiz Time Ended Modal Notification Overlay */}
+      {isTimeExpired && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center space-y-4 shadow-2xl">
+            <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner animate-pulse">
+              <Clock size={32} />
+            </div>
+            <div className="space-y-1.5">
+              <h3 className="text-xl font-black text-slate-900">Quiz Time Has Ended!</h3>
+              <p className="text-xs text-slate-600 font-semibold leading-relaxed">
+                The time limit for this assessment has expired. Your answers are being automatically saved and submitted to compute your standing.
+              </p>
+            </div>
+            <div className="flex justify-center pt-2">
+              <RefreshCw size={24} className="text-blue-600 animate-spin" />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Fullscreen Required Modal Overlay */}
       {showFullscreenModal && requireFullscreen && (
         <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4">
