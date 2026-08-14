@@ -1,9 +1,6 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const { User, sequelize } = require('../models');
-const { Op } = require('sequelize');
-const bcrypt = require('bcryptjs');
 let axios;
 try {
   axios = require('axios');
@@ -26,14 +23,15 @@ try {
   };
 }
 
-// In-memory student certificates & OTP store
+// In-memory student certificates cache
 let studentCertificates = [];
-const otpStore = new Map();
 
 // Helper to normalize email
 const normalizeEmail = (email) => (email ? email.toLowerCase().trim() : '');
 
-// Username Availability Check Route
+// =======================
+// Username Availability Check (Forwarded to Verification Portal)
+// =======================
 router.get('/check-username', async (req, res) => {
   try {
     const rawUsername = req.query.username;
@@ -45,28 +43,17 @@ router.get('/check-username', async (req, res) => {
       return res.status(400).json({ available: false, error: 'Only letters, numbers, underscores, or hyphens allowed.' });
     }
 
-    // Check in local database
-    const existingUser = await User.findOne({
-      where: {
-        [Op.or]: [
-          { username: clean },
-          sequelize.where(sequelize.fn('LOWER', sequelize.col('username')), clean)
-        ]
-      }
-    });
-
-    if (existingUser) {
-      return res.json({ available: false, error: 'Username handle is already taken.' });
-    }
-
-    // Check in external verification portal if reachable
     const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
     try {
-      const checkRes = await axios.get(`${verificationPortalUrl}/api/auth/check-username?username=${encodeURIComponent(clean)}`, { timeout: 2500 });
+      const checkRes = await axios.get(`${verificationPortalUrl}/api/auth/check-username?username=${encodeURIComponent(clean)}`, { timeout: 4000 });
       if (checkRes.data && checkRes.data.available !== undefined) {
         return res.json(checkRes.data);
       }
-    } catch (e) {}
+    } catch (e) {
+      if (e.response && e.response.data) {
+        return res.status(e.response.status || 400).json(e.response.data);
+      }
+    }
 
     return res.json({ available: true, message: 'Username handle is available!' });
   } catch (err) {
@@ -75,7 +62,7 @@ router.get('/check-username', async (req, res) => {
 });
 
 // =======================
-// OTP Verification Routes
+// OTP Verification Routes (Forwarded to Verification Portal)
 // =======================
 router.post('/send-otp', async (req, res) => {
   try {
@@ -86,22 +73,24 @@ router.post('/send-otp', async (req, res) => {
       return res.status(400).json({ error: 'Please provide a valid email address.' });
     }
 
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
-
-    otpStore.set(cleanEmail, { otp: otpCode, expiresAt, verified: false });
-    console.log(`🔑 Verification OTP generated for ${cleanEmail}: ${otpCode}`);
-
-    // Forward to Verification Portal email service if configured
     const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
-    axios.post(`${verificationPortalUrl}/api/auth/send-otp`, {
-      email: cleanEmail,
-      otp: otpCode
-    }, { timeout: 3000 }).catch(() => {});
+    try {
+      const response = await axios.post(`${verificationPortalUrl}/api/auth/send-otp`, {
+        email: cleanEmail
+      }, { timeout: 5000 });
+
+      if (response.data) {
+        return res.json(response.data);
+      }
+    } catch (portalErr) {
+      if (portalErr.response && portalErr.response.data) {
+        return res.status(portalErr.response.status || 400).json(portalErr.response.data);
+      }
+    }
 
     return res.json({
       success: true,
-      message: `OTP sent successfully to ${cleanEmail}. (Code valid for 10 minutes)`
+      message: `OTP sent successfully to ${cleanEmail}.`
     });
   } catch (err) {
     console.error('Send OTP error:', err);
@@ -118,34 +107,30 @@ router.post('/verify-otp', async (req, res) => {
       return res.status(400).json({ error: 'Email address and OTP code are required.' });
     }
 
-    const record = otpStore.get(cleanEmail);
-    if (!record) {
-      return res.status(400).json({ error: 'No active OTP request found. Please request a new OTP code.' });
+    const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
+    try {
+      const response = await axios.post(`${verificationPortalUrl}/api/auth/verify-otp`, {
+        email: cleanEmail,
+        otp: otp
+      }, { timeout: 5000 });
+
+      if (response.data) {
+        return res.json(response.data);
+      }
+    } catch (portalErr) {
+      if (portalErr.response && portalErr.response.data) {
+        return res.status(portalErr.response.status || 400).json(portalErr.response.data);
+      }
     }
 
-    if (Date.now() > record.expiresAt) {
-      otpStore.delete(cleanEmail);
-      return res.status(400).json({ error: 'OTP code has expired. Please request a new code.' });
-    }
-
-    if (record.otp !== otp.toString().trim()) {
-      return res.status(400).json({ error: 'Invalid OTP code. Please enter the correct 6-digit code.' });
-    }
-
-    record.verified = true;
-    otpStore.set(cleanEmail, record);
-
-    return res.json({
-      success: true,
-      message: 'Email address verified successfully!'
-    });
+    return res.status(400).json({ error: 'Invalid or expired OTP code.' });
   } catch (err) {
     return res.status(500).json({ error: 'Failed to verify OTP.' });
   }
 });
 
 // =======================
-// Student Login with Database Verification
+// Student Login (Directly Authenticated Against Verification Portal)
 // =======================
 router.post('/login', async (req, res) => {
   try {
@@ -156,81 +141,61 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Both Email Address and Password are required.' });
     }
 
-    // 1. Find user in database
-    let user = await User.findOne({
-      where: {
-        [Op.or]: [
-          { email: cleanEmail },
-          sequelize.where(sequelize.fn('LOWER', sequelize.col('email')), cleanEmail)
-        ]
-      }
-    });
-
     const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
 
-    // 2. If not found in local DB, check verification portal
-    if (!user) {
-      try {
-        const syncRes = await axios.post(`${verificationPortalUrl}/api/auth/login`, {
+    try {
+      // Direct authentication against Verification Portal API
+      const response = await axios.post(`${verificationPortalUrl}/api/auth/login`, {
+        email: cleanEmail,
+        password: password
+      }, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 8000
+      });
+
+      if (response.data && (response.data.user || response.data.token || response.data.success)) {
+        const portalUser = response.data.user || {};
+        const studentData = {
+          id: portalUser.id || portalUser._id || `STU-${cleanEmail.replace(/[^a-zA-Z0-9]/g, '')}`,
           email: cleanEmail,
-          password: password
-        }, { timeout: 3500 });
+          name: portalUser.name || cleanEmail.split('@')[0],
+          username: portalUser.username || cleanEmail.split('@')[0],
+          role: 'student',
+          joinedAt: portalUser.createdAt || new Date().toISOString()
+        };
 
-        if (syncRes.data && syncRes.data.user) {
-          user = await User.create({
-            name: syncRes.data.user.name || cleanEmail.split('@')[0],
-            email: cleanEmail,
-            username: syncRes.data.user.username || cleanEmail.split('@')[0],
-            password: password,
-            role: 'student'
-          });
-        }
-      } catch (syncErr) {
-        // Portal also does not have user
+        const token = response.data.token || jwt.sign(
+          { id: studentData.id, email: cleanEmail, name: studentData.name, role: 'student' },
+          process.env.JWT_SECRET || 'msc_prpcem_jwt_secret_2026',
+          { expiresIn: '30d' }
+        );
+
+        return res.json({
+          success: true,
+          message: 'Authenticated successfully via Verification Portal!',
+          user: studentData,
+          token,
+          verificationPortalUrl
+        });
+      } else {
+        return res.status(400).json({ error: response.data?.error || 'Invalid email or password.' });
       }
+    } catch (portalErr) {
+      if (portalErr.response && portalErr.response.data && portalErr.response.data.error) {
+        return res.status(portalErr.response.status || 400).json({ error: portalErr.response.data.error });
+      }
+      return res.status(401).json({
+        error: 'No account found or invalid credentials on Verification Portal (verify.mscprpcem.tech).'
+      });
     }
-
-    // 3. If account still not found, return explicit error
-    if (!user) {
-      return res.status(404).json({ error: 'No account found with this email. Please register first.' });
-    }
-
-    // 4. Verify password with bcrypt
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({ error: 'Incorrect password. Please check your credentials.' });
-    }
-
-    const studentData = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      username: user.username || user.email.split('@')[0],
-      role: user.role || 'student',
-      joinedAt: user.createdAt
-    };
-
-    const token = jwt.sign(
-      { id: user.id, email: user.email, name: user.name, role: user.role || 'student' },
-      process.env.JWT_SECRET || 'msc_prpcem_jwt_secret_2026',
-      { expiresIn: '30d' }
-    );
-
-    return res.json({
-      success: true,
-      message: 'Logged in successfully!',
-      user: studentData,
-      token,
-      verificationPortalUrl
-    });
   } catch (err) {
     console.error('Student login error:', err);
-    return res.status(500).json({ error: err.message || 'Server error during login.' });
+    return res.status(500).json({ error: 'Authentication service temporarily unavailable. Please try again.' });
   }
 });
 
 // =======================
-// Student Registration with Database Persistence
+// Student Registration (Forwarded to Verification Portal)
 // =======================
 router.post('/register', async (req, res) => {
   try {
@@ -245,78 +210,57 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
     }
 
-    // Check if account already exists
-    const existingUser = await User.findOne({
-      where: {
-        [Op.or]: [
-          { email: cleanEmail },
-          sequelize.where(sequelize.fn('LOWER', sequelize.col('email')), cleanEmail)
-        ]
-      }
-    });
-
-    if (existingUser) {
-      return res.status(400).json({ error: 'An account with this email already exists. Please log in instead.' });
-    }
-
-    const studentUsername = (username || cleanEmail.split('@')[0]).toLowerCase().trim().replace(/[^a-z0-9_-]/g, '');
-    if (studentUsername) {
-      const existingUsername = await User.findOne({
-        where: {
-          [Op.or]: [
-            { username: studentUsername },
-            sequelize.where(sequelize.fn('LOWER', sequelize.col('username')), studentUsername)
-          ]
-        }
-      });
-      if (existingUsername) {
-        return res.status(400).json({ error: 'This username handle is already taken. Please choose another one.' });
-      }
-    }
-
-    // Create persistent User in DB (bcrypt hook in model automatically hashes password)
-    const newUser = await User.create({
-      name: name.trim(),
-      email: cleanEmail,
-      username: studentUsername,
-      password: password,
-      role: 'student'
-    });
-
     const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
-    // Async sync with verification portal
-    axios.post(`${verificationPortalUrl}/api/auth/external-sync`, {
-      email: cleanEmail,
-      name: name.trim(),
-      username: studentUsername,
-      password: password
-    }, { timeout: 3500 }).catch(() => {});
 
-    const studentData = {
-      id: newUser.id,
-      email: newUser.email,
-      name: newUser.name,
-      username: newUser.username,
-      role: 'student',
-      joinedAt: newUser.createdAt
-    };
+    try {
+      const response = await axios.post(`${verificationPortalUrl}/api/auth/register`, {
+        name: name.trim(),
+        email: cleanEmail,
+        password: password,
+        username: username || cleanEmail.split('@')[0]
+      }, {
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 8000
+      });
 
-    const token = jwt.sign(
-      { id: newUser.id, email: newUser.email, name: newUser.name, role: 'student' },
-      process.env.JWT_SECRET || 'msc_prpcem_jwt_secret_2026',
-      { expiresIn: '30d' }
-    );
+      if (response.data && (response.data.user || response.data.success)) {
+        const portalUser = response.data.user || {};
+        const studentData = {
+          id: portalUser.id || portalUser._id || `STU-${cleanEmail.replace(/[^a-zA-Z0-9]/g, '')}`,
+          email: cleanEmail,
+          name: portalUser.name || name.trim(),
+          username: portalUser.username || username || cleanEmail.split('@')[0],
+          role: 'student',
+          joinedAt: new Date().toISOString()
+        };
 
-    return res.status(201).json({
-      success: true,
-      message: 'Account successfully registered!',
-      user: studentData,
-      token,
-      verificationPortalUrl
-    });
+        const token = response.data.token || jwt.sign(
+          { id: studentData.id, email: cleanEmail, name: studentData.name, role: 'student' },
+          process.env.JWT_SECRET || 'msc_prpcem_jwt_secret_2026',
+          { expiresIn: '30d' }
+        );
+
+        return res.status(201).json({
+          success: true,
+          message: 'Account successfully registered on Verification Portal!',
+          user: studentData,
+          token,
+          verificationPortalUrl
+        });
+      } else {
+        return res.status(400).json({ error: response.data?.error || 'Registration failed.' });
+      }
+    } catch (portalErr) {
+      if (portalErr.response && portalErr.response.data && portalErr.response.data.error) {
+        return res.status(portalErr.response.status || 400).json({ error: portalErr.response.data.error });
+      }
+      return res.status(400).json({
+        error: 'Registration failed on Verification Portal. Please check your details.'
+      });
+    }
   } catch (err) {
     console.error('Student registration error:', err);
-    return res.status(500).json({ error: err.message || 'Server error during registration.' });
+    return res.status(500).json({ error: 'Registration service temporarily unavailable.' });
   }
 });
 
