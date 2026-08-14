@@ -133,8 +133,7 @@ router.post('/send-otp', async (req, res) => {
     if (localUser) {
       return res.json({
         success: true,
-        message: `OTP verification code (${generatedOtp}) sent to your registered email (${cleanEmail}).`,
-        otp: generatedOtp
+        message: `Verification code sent to your registered email address (${cleanEmail}).`
       });
     }
 
@@ -236,8 +235,7 @@ router.post('/forgot-password', async (req, res) => {
     if (localUser) {
       return res.json({
         success: true,
-        message: `Password reset OTP (${generatedOtp}) sent to ${cleanEmail}.`,
-        otp: generatedOtp
+        message: `Password reset verification code sent to ${cleanEmail}.`
       });
     }
 
@@ -647,8 +645,7 @@ router.post('/register', async (req, res) => {
         success: true,
         requireVerification: true,
         email: cleanEmail,
-        message: `Verification code (${generatedOtp}) sent to ${cleanEmail}. Please enter your 6-digit OTP code to complete registration.`,
-        otp: generatedOtp
+        message: `Verification code sent to ${cleanEmail}. Please enter your 6-digit OTP code to complete registration.`
       });
     }
 

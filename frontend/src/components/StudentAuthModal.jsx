@@ -96,7 +96,6 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
 
     if (res.success) {
       setSuccessMessage(res.message || `Verification code sent to ${email.trim()}. Please enter your code.`);
-      if (res.otp) setResetOtp(res.otp);
       setResetStep(2);
     } else {
       setErrorMessage(res.error || 'Failed to send verification code. Check your email address.');
@@ -205,7 +204,6 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
 
       if (res.requireVerification) {
         setRegStep(2);
-        if (res.otp) setRegisterOtp(res.otp);
         setSuccessMessage(res.message || `Verification code sent to ${email.trim()}. Please enter your 6-digit code below.`);
       } else if (res.success) {
         setSuccessMessage('Email verified and account created successfully!');

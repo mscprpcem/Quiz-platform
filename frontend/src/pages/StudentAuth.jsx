@@ -117,7 +117,6 @@ export default function StudentAuth() {
 
     if (res.success) {
       setSuccessMsg(res.message || `Verification code sent to ${formData.email.trim()}. Please enter your code.`);
-      if (res.otp) setResetOtp(res.otp);
       setResetStep(2);
     } else {
       setError(res.error || 'Failed to send verification code. Check your email address.');
@@ -232,7 +231,6 @@ export default function StudentAuth() {
 
         if (res.requireVerification) {
           setRegStep(2);
-          if (res.otp) setRegisterOtp(res.otp);
           setSuccessMsg(res.message || `Verification code sent to ${cleanEmail}. Please enter your 6-digit code below.`);
         } else if (res.success) {
           setSuccessMsg('Email verified and account created successfully!');
