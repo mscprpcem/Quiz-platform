@@ -100,7 +100,7 @@ export default function StudentAuth() {
     }
   };
 
-  // Handle Send Reset OTP
+  // Handle Send Reset OTP (Step 1)
   const handleSendResetOtp = async (e) => {
     e.preventDefault();
     if (!formData.email.trim() || !formData.email.includes('@')) {
@@ -116,21 +116,40 @@ export default function StudentAuth() {
     setLoading(false);
 
     if (res.success) {
-      setSuccessMsg(res.message || 'OTP verification code sent to your email.');
+      setSuccessMsg(res.message || `Verification code sent to ${formData.email.trim()}. Please enter your code.`);
       if (res.otp) setResetOtp(res.otp);
       setResetStep(2);
     } else {
-      setError(res.error || 'Failed to send OTP code. Please check your email.');
+      setError(res.error || 'Failed to send verification code. Check your email address.');
     }
   };
 
-  // Handle Complete Password Reset
-  const handleCompletePasswordReset = async (e) => {
+  // Handle Verify Reset OTP (Step 2)
+  const handleVerifyResetOtp = async (e) => {
     e.preventDefault();
     if (!resetOtp.trim()) {
       setError('Please enter the 6-digit verification code.');
       return;
     }
+
+    setLoading(true);
+    setError('');
+    setSuccessMsg('');
+
+    const res = await verifyOtp(formData.email.trim(), resetOtp.trim());
+    setLoading(false);
+
+    if (res.success) {
+      setSuccessMsg('Verification code confirmed! Please enter your new password.');
+      setResetStep(3);
+    } else {
+      setError(res.error || 'Invalid or expired verification code. Please try again.');
+    }
+  };
+
+  // Handle Complete Password Reset (Step 3)
+  const handleCompletePasswordReset = async (e) => {
+    e.preventDefault();
     if (newPassword.length < 8) {
       setError('New password must be at least 8 characters long.');
       return;
@@ -148,7 +167,7 @@ export default function StudentAuth() {
     setLoading(false);
 
     if (res.success) {
-      setSuccessMsg('Password reset successfully! You can now sign in with your new password.');
+      setSuccessMsg('Password updated successfully! Redirecting to Sign In...');
       setTimeout(() => {
         setMode('login');
         setFormData(prev => ({ ...prev, password: '' }));
@@ -158,7 +177,7 @@ export default function StudentAuth() {
         setConfirmNewPassword('');
       }, 1500);
     } else {
-      setError(res.error || 'Failed to reset password. Please check your OTP code.');
+      setError(res.error || 'Failed to update password. Please try again.');
     }
   };
 
@@ -413,22 +432,22 @@ export default function StudentAuth() {
                   )}
                 </button>
               </form>
-            ) : (
-              <form onSubmit={handleCompletePasswordReset} className="space-y-3.5">
+            ) : resetStep === 2 ? (
+              /* RESET STEP 2: VERIFY OTP CODE */
+              <form onSubmit={handleVerifyResetOtp} className="space-y-4">
                 <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs">
-                  <span className="font-bold text-blue-900 truncate">Resetting: {formData.email}</span>
+                  <span className="font-bold text-blue-900 truncate">Email: {formData.email}</span>
                   <button
                     type="button"
                     onClick={() => setResetStep(1)}
                     className="text-[11px] text-blue-700 font-extrabold underline cursor-pointer"
                   >
-                    Change
+                    Change Email
                   </button>
                 </div>
 
-                {/* OTP Code */}
                 <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-slate-700">6-Digit OTP Verification Code</label>
+                  <label className="block text-xs font-bold text-slate-700">6-Digit Verification OTP Code</label>
                   <div className="relative">
                     <KeyRound size={16} className="absolute left-3.5 top-3 text-slate-400" />
                     <input
@@ -437,10 +456,36 @@ export default function StudentAuth() {
                       required
                       placeholder="123456"
                       value={resetOtp}
-                      onChange={(e) => setResetOtp(e.target.value)}
-                      className="w-full border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs font-black tracking-widest bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
+                      onChange={(e) => setResetOtp(e.target.value.replace(/[^0-9]/g, ''))}
+                      className="w-full border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm font-black tracking-widest bg-slate-50 focus:bg-white focus:border-blue-600 transition-all text-center"
                     />
                   </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading || resetOtp.length < 6}
+                  className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all disabled:opacity-50"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Verifying OTP...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Verify Code</span>
+                      <ArrowRight size={16} />
+                    </>
+                  )}
+                </button>
+              </form>
+            ) : (
+              /* RESET STEP 3: UPDATE PASSWORD */
+              <form onSubmit={handleCompletePasswordReset} className="space-y-3.5">
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-xs">
+                  <span className="font-bold text-emerald-900 truncate">OTP Confirmed for {formData.email}</span>
+                  <span className="text-[10px] font-black uppercase text-emerald-700">Verified</span>
                 </div>
 
                 {/* New Password */}
@@ -486,7 +531,7 @@ export default function StudentAuth() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all disabled:opacity-50"
+                  className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all disabled:opacity-50"
                 >
                   {loading ? (
                     <>
@@ -495,7 +540,7 @@ export default function StudentAuth() {
                     </>
                   ) : (
                     <>
-                      <span>Reset Password & Sign In</span>
+                      <span>Update Password & Sign In</span>
                       <ArrowRight size={16} />
                     </>
                   )}
