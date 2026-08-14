@@ -153,9 +153,9 @@ const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, e
 
   if (scheduleType === 'ONE_TIME') {
     let oStart = (config?.start_iso) ? new Date(config.start_iso) : parseTime(startTimeStr || '00:00:00', start);
-    let oEnd = (config?.end_iso) ? new Date(config.end_iso) : parseTime(endTimeStr || '23:59:59', (endDate && parseDateParts(endDate) >= start && String(endDate).split('T')[0] !== String(startDate).split('T')[0]) ? end : start);
+    let oEnd = (config?.end_iso) ? new Date(config.end_iso) : parseTime(endTimeStr || '23:59:59', end);
     if (oEnd <= oStart) {
-      oEnd = new Date(oStart.getTime() + 24 * 60 * 60 * 1000);
+      oEnd = new Date(oStart.getTime() + 60 * 60 * 1000);
     }
     occurrences.push({
       quiz_id: quizId,
@@ -712,7 +712,7 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
         }
         if (!occ) {
           const defaultStart = quiz.scheduled_start ? new Date(quiz.scheduled_start) : new Date(now.getTime() - 5 * 60 * 1000);
-          const defaultEnd = quiz.scheduled_end ? new Date(quiz.scheduled_end) : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+          const defaultEnd = quiz.scheduled_end ? new Date(quiz.scheduled_end) : new Date(defaultStart.getTime() + (quiz.time_limit || 60) * 60 * 1000);
           occ = await ScheduledOccurrence.create({
             quiz_id: quiz.id,
             occurrence_number: 1,
@@ -1244,8 +1244,8 @@ router.get('/slug/:slug', async (req, res) => {
 
     // Auto-create a default occurrence if none exist
     if (!targetOccurrence) {
-      const defaultStart = new Date(now.getTime() - 5 * 60 * 1000);
-      const defaultEnd = quiz.scheduled_end ? new Date(quiz.scheduled_end) : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+      const defaultStart = quiz.scheduled_start ? new Date(quiz.scheduled_start) : new Date(now.getTime() - 5 * 60 * 1000);
+      const defaultEnd = quiz.scheduled_end ? new Date(quiz.scheduled_end) : new Date(defaultStart.getTime() + (quiz.time_limit || 60) * 60 * 1000);
       targetOccurrence = await ScheduledOccurrence.create({
         quiz_id: quiz.id,
         occurrence_number: 1,

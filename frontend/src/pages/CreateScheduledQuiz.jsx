@@ -89,7 +89,7 @@ export default function CreateScheduledQuiz() {
     instructions: 'Complete all questions within the allocated time window.',
     schedule_type: 'ONE_TIME',
     start_date: today,
-    end_date: nextMonth,
+    end_date: today,
     
     // Time with seconds & AM/PM
     start_time_hh: startHh,
@@ -211,7 +211,7 @@ export default function CreateScheduledQuiz() {
             instructions: q.instructions || '',
             schedule_type: q.schedule_type || 'ONE_TIME',
             start_date: startDateRaw ? formatLocalDate(startDateRaw) : today,
-            end_date: endDateRaw ? formatLocalDate(endDateRaw) : nextMonth,
+            end_date: endDateRaw ? formatLocalDate(endDateRaw) : (startDateRaw ? formatLocalDate(startDateRaw) : today),
             start_time_hh: sHh,
             start_time_mm: sMm,
             start_time_ss: sSs,
@@ -1041,7 +1041,7 @@ export default function CreateScheduledQuiz() {
                       setFormData(prev => ({
                         ...prev,
                         schedule_type: st,
-                        end_date: isOneTime ? prev.start_date : (prev.end_date === prev.start_date ? nextMonth : prev.end_date)
+                        end_date: isOneTime ? prev.start_date : (prev.end_date || nextMonth)
                       }));
                     }}
                     className={`p-3 rounded-xl border text-center transition-all cursor-pointer ${
@@ -1156,20 +1156,45 @@ export default function CreateScheduledQuiz() {
             )}
 
             {formData.schedule_type === 'ONE_TIME' ? (
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-600">
-                  Date of Event / Quiz <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="date"
-                  required
-                  value={formData.start_date}
-                  onChange={e => {
-                    const val = e.target.value;
-                    setFormData(prev => ({ ...prev, start_date: val, end_date: val }));
-                  }}
-                  className="w-full border rounded-xl px-3.5 py-2 text-xs font-bold bg-white"
-                />
+              <div className="space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-slate-600">
+                      Quiz Start Date <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={formData.start_date}
+                      onChange={e => {
+                        const val = e.target.value;
+                        setFormData(prev => ({
+                          ...prev,
+                          start_date: val,
+                          end_date: (prev.end_date < val || prev.end_date === prev.start_date) ? val : prev.end_date
+                        }));
+                      }}
+                      className="w-full border rounded-xl px-3.5 py-2 text-xs font-bold bg-white"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-slate-600">
+                      Quiz End Date <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      min={formData.start_date}
+                      value={formData.end_date || formData.start_date}
+                      onChange={e => setFormData({ ...formData, end_date: e.target.value })}
+                      className="w-full border rounded-xl px-3.5 py-2 text-xs font-bold bg-white"
+                    />
+                  </div>
+                </div>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  For single-day assessments, keep Start Date and End Date the same. For multi-day window access, select your concluding End Date.
+                </p>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1193,6 +1218,7 @@ export default function CreateScheduledQuiz() {
                   <input
                     type="date"
                     required
+                    min={formData.start_date}
                     value={formData.end_date}
                     onChange={e => setFormData({ ...formData, end_date: e.target.value })}
                     className="w-full border rounded-xl px-3.5 py-2 text-xs font-bold bg-white"
