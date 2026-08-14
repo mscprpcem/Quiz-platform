@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   LayoutDashboard, Radio, Calendar, BookOpen,
-  LogOut, Menu, Search, Plus, X, GraduationCap, ChevronLeft, ChevronRight
+  LogOut, Menu, X, GraduationCap, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 export default function AdminLayout({ children }) {
@@ -12,7 +12,6 @@ export default function AdminLayout({ children }) {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileDrawerOpen, setMobileDrawerOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
 
   const currentPath = location.pathname;
 
@@ -210,44 +209,33 @@ export default function AdminLayout({ children }) {
 
         {/* Top Sticky Header */}
         <header className="bg-white border-b border-slate-200 px-4 sm:px-6 py-3.5 flex items-center justify-between sticky top-0 z-30 shadow-2xs flex-shrink-0">
-          <div className="flex items-center space-x-3 flex-1 max-w-xl">
+          <div className="flex items-center space-x-3">
             <button
               onClick={() => setMobileDrawerOpen(true)}
               className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 cursor-pointer md:hidden"
             >
               <Menu size={20} />
             </button>
-
-            {/* Search input */}
-            <div className="relative w-full">
-              <Search size={16} className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-slate-400" />
-              <input
-                type="text"
-                placeholder="Search quizzes, participants..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 placeholder-slate-400 bg-slate-50 focus:outline-none focus:bg-white focus:border-purple-500 transition-all"
-              />
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                Microsoft Student Club
+              </span>
+              <span className="text-xs text-slate-400 font-bold">•</span>
+              <span className="text-xs text-blue-600 font-extrabold">
+                Admin Workspace
+              </span>
             </div>
           </div>
 
-          {/* Quick Actions */}
-          <div className="flex items-center space-x-2 ml-3">
-            <button
-              onClick={() => navigate('/admin/quizzes')}
-              className="px-3 sm:px-3.5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-xl text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer"
-            >
-              <Plus size={15} />
-              <span className="hidden sm:inline">Live Quiz</span>
-            </button>
-
-            <button
-              onClick={() => navigate('/admin/scheduled-quizzes')}
-              className="px-3 sm:px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center space-x-1.5 shadow-xs transition-all cursor-pointer"
-            >
-              <Calendar size={15} />
-              <span className="hidden sm:inline">Scheduled Quiz</span>
-            </button>
+          <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center font-black text-xs shadow-2xs">
+                {user?.name ? user.name.slice(0, 2).toUpperCase() : 'AD'}
+              </div>
+              <span className="text-xs font-black text-slate-700 hidden sm:inline">
+                {user?.name || 'Administrator'}
+              </span>
+            </div>
           </div>
         </header>
 
