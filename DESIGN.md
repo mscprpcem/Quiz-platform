@@ -63,7 +63,7 @@ The **MSC PRPCEM Quiz & Assessment Platform** is a dual-mode interactive testing
 - **Mode A: Real-Time Live Quiz (Host-Driven)**:
   - Participants join a synchronized lobby via PIN code.
   - Admin controls question transitions (`question_open`, `timer_tick`, `question_close`, `show_leaderboard`).
-  - Scoring incorporates time-decay bonuses ($Score = BasePoints \times \frac{TimeRemaining}{TotalTime}$).
+  - Scoring incorporates time-decay bonuses: `Score = BasePoints * (TimeRemaining / TotalTime)`.
 - **Mode B: Scheduled Self-Paced Exam (Candidate-Driven)**:
   - Candidate takes an individual attempt within an active time window (`valid_from` to `valid_until`).
   - Independent countdown timer, randomized question order, answer persistence on every selection.
@@ -303,19 +303,19 @@ flowchart TD
     Monitor -->|Tab Switched| V1[Trigger visibilitychange event]
     Monitor -->|Window Minimized| V2[Trigger window blur event]
     Monitor -->|Fullscreen Exited| V3[Trigger fullscreenchange event]
-    Monitor -->|DevTools Opened| V4[Trigger resize / keydown inspection]
+    Monitor -->|DevTools Opened| V4[Trigger inspect detection]
 
-    V1 --> LogTelemetry[Dispatch POST /api/scheduled-quizzes/attempts/:id/violation]
+    V1 --> LogTelemetry[Dispatch violation telemetry]
     V2 --> LogTelemetry
     V3 --> LogTelemetry
     V4 --> LogTelemetry
 
     LogTelemetry --> ServerCheck{Server Evaluation}
     ServerCheck --> InsertDB[Insert AttemptViolation record]
-    ServerCheck --> CountCheck{Total Violations > Max Threshold?}
+    ServerCheck --> CountCheck{Total Violations Exceed Limit}
     
-    CountCheck -->|Exceeded (e.g. > 3)| AutoDisqualify[Force Terminate Attempt<br/>Status: DISQUALIFIED<br/>Score: 0]
-    CountCheck -->|Within Limits| WarningAlert[Emit Warning Toast to Candidate<br/>Deduct Proctoring Score]
+    CountCheck -->|Limit Exceeded| AutoDisqualify[Force Terminate Attempt - Status DISQUALIFIED]
+    CountCheck -->|Within Limits| WarningAlert[Emit Warning Alert - Deduct Proctoring Score]
 ```
 
 ---
@@ -332,17 +332,17 @@ sequenceDiagram
     participant CertAPI as MSC Certificate Gateway
     participant CertDB as Certificate DB
 
-    Note over QuizClient,CertAPI: Username Availability Check (Forwarded)
-    QuizClient->>QuizAPI: GET /api/student-sync/check-username?username=janedoe
-    QuizAPI->>CertAPI: GET /api/auth/check-username?username=janedoe
-    CertAPI-->>QuizAPI: 200 OK { available: true }
-    QuizAPI-->>QuizClient: 200 OK { available: true }
+    Note over QuizClient,CertAPI: Step 1 - Username Availability Check
+    QuizClient->>QuizAPI: GET /api/student-sync/check-username with username
+    QuizAPI->>CertAPI: GET /api/auth/check-username with username
+    CertAPI-->>QuizAPI: 200 OK with availability status
+    QuizAPI-->>QuizClient: 200 OK with availability status
 
-    Note over QuizClient,CertAPI: Automated Credential Dispatch on Passing Quiz
-    QuizAPI->>CertAPI: POST /api/credentials/external-issue<br/>Header: X-API-KEY: [SECRET]<br/>Body: { email, title, category, score, system_issue_id }
+    Note over QuizClient,CertAPI: Step 2 - Automated Credential Dispatch
+    QuizAPI->>CertAPI: POST /api/credentials/external-issue with result payload
     CertAPI->>CertDB: Deduplicate and persist credential
     CertDB-->>CertAPI: Credential Record Created
-    CertAPI-->>QuizAPI: 200 OK { success: true, credential_id: "MSC-QZ-2026-00412" }
+    CertAPI-->>QuizAPI: 200 OK with credential ID
 ```
 
 ---
@@ -351,11 +351,11 @@ sequenceDiagram
 
 - **Question Types**:
   - `MCQ_SINGLE`: Single correct choice with instant radio evaluation.
-  - `MCQ_MULTI`: Multiple correct choices (partial credit calculated proportionally).
+  - `MCQ_MULTI`: Multiple correct choices (partial credit calculated proportionally: `Score = Points * ((CorrectSelected - IncorrectSelected) / TotalCorrect)`).
   - `TRUE_FALSE`: Binary boolean question.
   - `CODE_SNIPPET`: Syntax-highlighted code with output prediction.
 - **Difficulty Index Analysis**:
-  - Automatically calculates item difficulty ($P = \frac{\text{Correct Responses}}{\text{Total Responses}}$) and discrimination index ($D = P_{Upper27\%} - P_{Lower27\%}$) to highlight ambiguous questions.
+  - Automatically calculates item difficulty `P = (Correct Responses) / (Total Responses)` and discrimination index `D = P(Upper 27%) - P(Lower 27%)` to highlight ambiguous questions.
 
 ---
 
