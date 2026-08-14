@@ -1,5 +1,6 @@
 const sequelize = require('../config/database');
 const Admin = require('./Admin');
+const User = require('./User');
 const Quiz = require('./Quiz');
 const Question = require('./Question');
 const Participant = require('./Participant');
@@ -61,6 +62,7 @@ AttemptViolation.belongsTo(QuizAttempt, { foreignKey: 'attempt_id', as: 'attempt
 module.exports = {
   sequelize,
   Admin,
+  User,
   Quiz,
   Question,
   Participant,
