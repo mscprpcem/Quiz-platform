@@ -172,10 +172,7 @@ export default function Home() {
         {/* ════════ 1. HERO SECTION ════════ */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center text-left">
           <div className="lg:col-span-7 space-y-6">
-            <div className="inline-flex items-center space-x-2 hero-vibrant-badge text-brand-blue px-4 py-2 rounded-full text-xs font-extrabold shadow-sm">
-              <Sparkles size={14} className="text-brand-blue animate-pulse" />
-              <span>Campus Interactive Learning & Events</span>
-            </div>
+          
 
             <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-brand-textMain tracking-tight leading-[1.15]">
               Microsoft Student Club PRPCEM <br/>
