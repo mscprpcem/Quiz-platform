@@ -4,7 +4,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import api from '../services/api';
 import {
   Calendar, Clock, CheckCircle, ArrowLeft, Users, Trophy, Pause, 
-  Play, ExternalLink, ShieldCheck, HelpCircle, Layers, QrCode, Mail, Send, Copy, Check, Trash2
+  Play, ExternalLink, ShieldCheck, HelpCircle, Layers, QrCode, Mail, Send, Copy, Check, Trash2, Download
 } from 'lucide-react';
 
 export default function ScheduledQuizDetails() {
@@ -62,14 +62,6 @@ export default function ScheduledQuizDetails() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="py-20 text-center text-slate-400 font-extrabold animate-pulse">
-        Loading scheduled quiz details...
-      </div>
-    );
-  }
-
   const quiz = quizData?.quiz;
   const occurrences = quiz?.occurrences || [];
   const attempts = quizData?.attempts || [];
@@ -83,6 +75,111 @@ export default function ScheduledQuizDetails() {
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
   };
+
+  const handleDownloadQR = () => {
+    const svg = document.getElementById('scheduled-quiz-qr-svg');
+    if (!svg) return;
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    
+    // High-res card dimensions
+    canvas.width = 600;
+    canvas.height = 700;
+
+    img.onload = () => {
+      // Draw background gradient
+      const bgGrad = ctx.createLinearGradient(0, 0, 600, 700);
+      bgGrad.addColorStop(0, '#0F172A');
+      bgGrad.addColorStop(0.5, '#1E1B4B');
+      bgGrad.addColorStop(1, '#0F172A');
+      ctx.fillStyle = bgGrad;
+      if (ctx.roundRect) {
+        ctx.beginPath();
+        ctx.roundRect(0, 0, 600, 700, 32);
+        ctx.fill();
+      } else {
+        ctx.fillRect(0, 0, 600, 700);
+      }
+
+      // Microsoft 4-quadrant accent bar
+      ctx.fillStyle = '#F25022';
+      ctx.fillRect(40, 40, 130, 4);
+      ctx.fillStyle = '#7FBA00';
+      ctx.fillRect(170, 40, 130, 4);
+      ctx.fillStyle = '#00A4EF';
+      ctx.fillRect(300, 40, 130, 4);
+      ctx.fillStyle = '#FFB900';
+      ctx.fillRect(430, 40, 130, 4);
+
+      // Club name & Subtitle
+      ctx.fillStyle = '#FBBF24';
+      ctx.font = 'bold 12px Segoe UI, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('MICROSOFT STUDENT CLUB PRPCEM', 300, 75);
+
+      // Quiz Title
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 22px Segoe UI, system-ui, sans-serif';
+      const titleText = quiz?.title || 'Scheduled Quiz';
+      ctx.fillText(titleText.length > 36 ? titleText.slice(0, 36) + '...' : titleText, 300, 115);
+
+      // QR Code container white box
+      ctx.fillStyle = '#FFFFFF';
+      if (ctx.roundRect) {
+        ctx.beginPath();
+        ctx.roundRect(140, 150, 320, 320, 24);
+        ctx.fill();
+      } else {
+        ctx.fillRect(140, 150, 320, 320);
+      }
+
+      // Draw QR Image
+      ctx.drawImage(img, 160, 170, 280, 280);
+
+      // Direct Link URL text
+      ctx.fillStyle = '#FDE68A';
+      ctx.font = 'bold 14px Segoe UI, monospace';
+      ctx.fillText(vanityUrl, 300, 520);
+
+      // Instructions
+      ctx.fillStyle = '#94A3B8';
+      ctx.font = '600 13px Segoe UI, sans-serif';
+      ctx.fillText('Scan QR or visit link to join quiz session directly', 300, 560);
+
+      // Footer badge
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+      if (ctx.roundRect) {
+        ctx.beginPath();
+        ctx.roundRect(160, 600, 280, 40, 12);
+        ctx.fill();
+      } else {
+        ctx.fillRect(160, 600, 280, 40);
+      }
+
+      ctx.fillStyle = '#38BDF8';
+      ctx.font = 'bold 12px Segoe UI, sans-serif';
+      ctx.fillText('Official Assessment • MSC Platform', 300, 625);
+
+      // Trigger download
+      const pngUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = pngUrl;
+      a.download = `msc-quiz-${slugOrCode}-join-card.png`;
+      a.click();
+    };
+
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+  };
+
+  if (loading) {
+    return (
+      <div className="py-20 text-center text-slate-400 font-extrabold animate-pulse">
+        Loading scheduled quiz details...
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 text-left font-segoe pb-16">
@@ -159,8 +256,9 @@ export default function ScheduledQuizDetails() {
           <p className="text-xs text-slate-300">Students scanning the QR code or visiting this short URL join the active quiz occurrence directly.</p>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl shadow-lg flex flex-col items-center justify-center space-y-2">
+        <div className="bg-white p-4 rounded-2xl shadow-lg flex flex-col items-center justify-center space-y-2.5">
           <QRCodeSVG
+            id="scheduled-quiz-qr-svg"
             value={vanityUrl}
             size={120}
             bgColor="#FFFFFF"
@@ -168,6 +266,14 @@ export default function ScheduledQuizDetails() {
             level="H"
           />
           <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider">Scan to Join</span>
+          <button
+            onClick={handleDownloadQR}
+            className="w-full py-1.5 px-3 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl text-[11px] flex items-center justify-center space-x-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
+            title="Download Direct Join Card Image"
+          >
+            <Download size={13} />
+            <span>Download Card</span>
+          </button>
         </div>
       </div>
 

@@ -49,15 +49,30 @@ export default function Home() {
     const fetchHomeData = async () => {
       try {
         setLoadingData(true);
-        const [quizzesRes, leaderboardRes] = await Promise.all([
+        const [quizzesRes, scheduledRes, leaderboardRes] = await Promise.all([
           api.get('/api/quizzes/public').catch(() => ({ data: [] })),
+          api.get('/api/scheduled-quizzes/public/all').catch(() => ({ data: [] })),
           api.get('/api/analytics/public/leaderboard').catch(() => ({ data: { leaderboard: [], recentEvents: [] } }))
         ]);
 
+        const allPublicQuizzes = [];
         if (Array.isArray(quizzesRes?.data)) {
-          const activeOrScheduled = quizzesRes.data.filter((q) => q && q.status !== 'completed');
-          setUpcomingQuizzes(activeOrScheduled);
+          allPublicQuizzes.push(...quizzesRes.data.filter((q) => q && q.status !== 'completed'));
         }
+        if (Array.isArray(scheduledRes?.data)) {
+          scheduledRes.data.forEach(sQuiz => {
+            if (!allPublicQuizzes.some(q => q.id === sQuiz.quizId || q.id === sQuiz.occurrenceId)) {
+              allPublicQuizzes.push({
+                ...sQuiz,
+                id: sQuiz.occurrenceId || sQuiz.quizId,
+                mode: 'SCHEDULED',
+                status: sQuiz.availability === 'ACTIVE' ? 'in_progress' : 'draft',
+                subject: sQuiz.category
+              });
+            }
+          });
+        }
+        setUpcomingQuizzes(allPublicQuizzes);
 
         if (leaderboardRes?.data) {
           setLeaderboard(Array.isArray(leaderboardRes.data.leaderboard) ? leaderboardRes.data.leaderboard : []);
@@ -352,7 +367,7 @@ export default function Home() {
                           {q.status === 'in_progress' ? 'Live Now' : q.status === 'waiting_lobby' ? 'Lobby Open' : 'Scheduled'}
                         </span>
                         <button
-                          onClick={() => navigate(q.occurrenceId ? `/q/${qSlug}` : `/join/${q.join_code}`)}
+                          onClick={() => navigate(q.mode === 'SCHEDULED' || q.occurrenceId ? `/q/${q.custom_slug || q.slug || qSlug}` : `/join/${q.join_code}`)}
                           className="flex items-center justify-center space-x-1.5 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-lg shadow-sm transition-all active:scale-95 cursor-pointer text-[10px] uppercase tracking-wider"
                         >
                           <span>Join Quiz</span>

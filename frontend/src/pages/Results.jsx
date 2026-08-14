@@ -1,7 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Award, CheckCircle, Clock, Home, ExternalLink } from 'lucide-react';
-import DigitalBadgeCard from '../components/DigitalBadgeCard';
 
 export default function Results() {
   const navigate = useNavigate();
@@ -88,18 +87,6 @@ export default function Results() {
             <span className="text-[9px] sm:text-[10px] font-bold text-brand-textMuted uppercase tracking-wider">Speed</span>
             <span className="text-sm sm:text-lg font-extrabold text-brand-textMain mt-0.5">{stats.avgResponseTime}s</span>
           </div>
-        </div>
-
-        {/* 🌟 Automatically Issued Official Digital Badge */}
-        <div className="pt-2">
-          <DigitalBadgeCard
-            quizTitle={stats.title}
-            eventName={stats.eventName}
-            score={stats.score}
-            studentName={stats.name}
-            studentEmail={stats.email}
-            isLive={true}
-          />
         </div>
 
         {/* Return Home Button */}

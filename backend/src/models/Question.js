@@ -48,6 +48,19 @@ const Question = sequelize.define('Question', {
   order_index: {
     type: DataTypes.INTEGER,
     defaultValue: 0
+  },
+  occurrence_number: {
+    type: DataTypes.INTEGER,
+    defaultValue: 1,
+    allowNull: true
+  },
+  section_name: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
+  section_description: {
+    type: DataTypes.TEXT,
+    allowNull: true
   }
 });
 

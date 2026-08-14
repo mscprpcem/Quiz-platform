@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const ExcelJS = require('exceljs');
-const { Quiz, Question, Participant, Answer, Violation, ScheduledOccurrence } = require('../models');
+const { Quiz, Question, Participant, QuizAttempt, Answer, Violation, ScheduledOccurrence } = require('../models');
 const authMiddleware = require('../middleware/auth');
 const { Op } = require('sequelize');
 
@@ -43,10 +43,10 @@ const generateJoinCode = async () => {
 };
 
 // ----------------------------------------------------
-// QUIZ ROUTES
+// PUBLIC ROUTES (No Auth Required)
 // ----------------------------------------------------
 
-// Public quizzes endpoint (for homepage without auth)
+// Get All Public / Active / Scheduled Quizzes
 router.get('/public', async (req, res) => {
   try {
     const quizzes = await Quiz.findAll({
@@ -56,15 +56,23 @@ router.get('/public', async (req, res) => {
     const quizzesWithCounts = await Promise.all(
       quizzes.map(async (quiz) => {
         const questionCount = await Question.count({ where: { quiz_id: quiz.id } });
-        const participantCount = await Participant.count({ where: { quiz_id: quiz.id } });
+        const [liveParticipantCount, attemptCount] = await Promise.all([
+          Participant.count({ where: { quiz_id: quiz.id } }),
+          QuizAttempt.count({ where: { quiz_id: quiz.id } })
+        ]);
+        const participantCount = liveParticipantCount + attemptCount;
+
         return {
           id: quiz.id,
           title: quiz.title,
+          custom_slug: quiz.custom_slug,
+          slug: quiz.custom_slug || (quiz.title ? quiz.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : quiz.join_code),
           event_name: quiz.event_name,
           subject: quiz.subject || 'DBMS',
           description: quiz.description,
           join_code: quiz.join_code,
           status: quiz.status,
+          mode: quiz.mode,
           scheduled_start: quiz.scheduled_start,
           scheduled_end: quiz.scheduled_end,
           createdAt: quiz.createdAt,

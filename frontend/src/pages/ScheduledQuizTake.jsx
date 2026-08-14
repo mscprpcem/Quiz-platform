@@ -7,7 +7,6 @@ import {
   Clock, CheckSquare, AlertTriangle, Trophy, CheckCircle, 
   Square, ShieldCheck, ArrowRight, RefreshCw, User, Lock, Award, LogIn, ExternalLink, Sparkles, Maximize, KeyRound
 } from 'lucide-react';
-import DigitalBadgeCard from '../components/DigitalBadgeCard';
 
 export default function ScheduledQuizTake() {
   const { occurrenceId, slug, identifier } = useParams();
@@ -642,20 +641,6 @@ export default function ScheduledQuizTake() {
           )}
 
         </div>
-
-        {/* 3. Official Digital Credential & Badge (Only if enabled for quiz) */}
-        {occData?.quiz?.badge_title && (
-          <div className="pt-1">
-            <DigitalBadgeCard
-              quizTitle={occData?.occurrence?.title || occData?.quiz?.title || 'Scheduled Challenge'}
-              eventName={occData?.quiz?.event_name || 'MSC Scheduled Challenge'}
-              badgeTitle={occData.quiz.badge_title}
-              score={att?.score || 100}
-              studentName={name || studentAccount?.name || 'Student'}
-              studentEmail={email || studentAccount?.email || ''}
-            />
-          </div>
-        )}
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-3 pt-2">

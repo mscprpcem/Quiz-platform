@@ -211,11 +211,11 @@ export default function AdminScheduledQuizzes() {
                     <span 
                       onClick={() => {
                         const slug = quiz.custom_slug || (quiz.title ? quiz.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : quiz.join_code);
-                        navigator.clipboard.writeText(`${window.location.origin}/q/${slug}`);
-                        alert(`Copied link to clipboard: ${window.location.origin}/q/${slug}`);
+                        const url = `${window.location.origin}/q/${slug}`;
+                        window.open(url, '_blank');
                       }}
                       className="font-mono font-bold text-blue-600 hover:underline cursor-pointer truncate max-w-[140px]"
-                      title="Click to copy direct slug link"
+                      title="Open Quiz Link in New Page (/q/slug)"
                     >
                       /q/{quiz.custom_slug || (quiz.title ? quiz.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : quiz.join_code)}
                     </span>
@@ -256,13 +256,12 @@ export default function AdminScheduledQuizzes() {
 
                 <button
                   onClick={() => {
-                    const slug = quiz.custom_slug || quiz.join_code;
+                    const slug = quiz.custom_slug || (quiz.title ? quiz.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : quiz.join_code);
                     const url = `${window.location.origin}/q/${slug}`;
-                    navigator.clipboard.writeText(url);
-                    alert(`Copied direct short link to clipboard:\n${url}`);
+                    window.open(url, '_blank');
                   }}
                   className="p-2 border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs transition-colors cursor-pointer"
-                  title="Copy Short Link /q/slug"
+                  title="Open Quiz Link in New Page (/q/slug)"
                 >
                   <ExternalLink size={14} />
                 </button>

@@ -387,7 +387,10 @@ router.post('/', authMiddleware, async (req, res) => {
         correct_answer: q.correct_answer || 'A',
         timer: quiz.time_limit * 60,
         marks: quiz.positive_marks,
-        order_index: idx + 1
+        order_index: q.order_index || idx + 1,
+        occurrence_number: q.occurrence_number !== undefined ? q.occurrence_number : (q.section_number || 1),
+        section_name: q.section_name || null,
+        section_description: q.section_description || null
       }));
       await Question.bulkCreate(qRecords);
     }
@@ -447,11 +450,25 @@ router.get('/public/all', async (req, res) => {
         if (now >= sTime && now <= eTime) availability = 'ACTIVE';
         else if (now > eTime) availability = 'COMPLETED';
 
-        const titleSlug = q.title ? q.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'quiz';
+        const [occAttempts, totalQuizAttempts] = await Promise.all([
+          QuizAttempt.count({
+            where: {
+              quiz_id: q.id,
+              occurrence_id: occ.id
+            }
+          }),
+          QuizAttempt.count({
+            where: { quiz_id: q.id }
+          })
+        ]);
+        const participantCount = occAttempts > 0 ? occAttempts : totalQuizAttempts;
+
+        const titleSlug = q.custom_slug || (q.title ? q.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'quiz');
         publicList.push({
           occurrenceId: occ.id,
           quizId: q.id,
           title: q.title,
+          custom_slug: q.custom_slug,
           slug: titleSlug,
           join_code: q.join_code,
           description: q.description,
@@ -462,6 +479,7 @@ router.get('/public/all', async (req, res) => {
           scheduled_end: occ.end_time,
           timeLimit: q.time_limit,
           questionCount,
+          participantCount,
           availability,
           positiveMarks: q.positive_marks,
           negativeMarks: q.negative_marks
@@ -563,9 +581,12 @@ router.put('/:id', authMiddleware, async (req, res) => {
         option_c: q.option_c,
         option_d: q.option_d,
         correct_answer: q.correct_answer || 'A',
-        timer: (time_limit || 30) * 60,
-        marks: positive_marks || 1,
-        order_index: idx + 1
+        timer: (time_limit || quiz.time_limit || 30) * 60,
+        marks: positive_marks || quiz.positive_marks || 1,
+        order_index: q.order_index || idx + 1,
+        occurrence_number: q.occurrence_number !== undefined ? q.occurrence_number : (q.section_number || 1),
+        section_name: q.section_name || null,
+        section_description: q.section_description || null
       }));
       await Question.bulkCreate(qRecords);
     }
@@ -839,11 +860,25 @@ router.post('/occurrences/:occurrenceId/start', async (req, res) => {
       return res.status(403).json({ error: `Maximum attempt limit (${targetQuiz.max_attempts}) reached for this quiz.` });
     }
 
-    // Fetch questions
-    let questions = await Question.findAll({
-      where: { quiz_id: targetQuiz.id },
-      order: [['order_index', 'ASC']]
-    });
+    // Fetch questions: Check for occurrence-specific round questions first (preventing repetition across days/weeks)
+    let questions = [];
+    if (occ && occ.occurrence_number) {
+      questions = await Question.findAll({
+        where: {
+          quiz_id: targetQuiz.id,
+          occurrence_number: occ.occurrence_number
+        },
+        order: [['order_index', 'ASC']]
+      });
+    }
+
+    // Fallback: If no questions specific to this occurrence number, load all quiz questions
+    if (questions.length === 0) {
+      questions = await Question.findAll({
+        where: { quiz_id: targetQuiz.id },
+        order: [['order_index', 'ASC']]
+      });
+    }
 
     if (questions.length === 0) {
       return res.status(400).json({ error: 'This quiz does not have any questions added yet.' });

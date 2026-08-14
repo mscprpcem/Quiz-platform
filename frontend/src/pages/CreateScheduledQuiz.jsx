@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { QRCodeSVG } from 'qrcode.react';
 import api from '../services/api';
 import {
   Calendar, ArrowLeft, ArrowRight, Plus, Trash2, Upload, FileSpreadsheet,
-  CheckCircle, AlertTriangle, Clock, ShieldCheck, HelpCircle, Layers, CheckSquare, Sparkles, RefreshCw, QrCode, Mail, Award, ExternalLink
+  CheckCircle, AlertTriangle, Clock, ShieldCheck, HelpCircle, Layers, CheckSquare, Sparkles, RefreshCw, QrCode, Mail, Award, ExternalLink, Download, Search, ChevronDown, Check
 } from 'lucide-react';
 
 export default function CreateScheduledQuiz() {
@@ -22,6 +22,54 @@ export default function CreateScheduledQuiz() {
   const [availableBadges, setAvailableBadges] = useState([]);
   const [loadingBadges, setLoadingBadges] = useState(false);
 
+  // Category Search & Create State
+  const DEFAULT_CATEGORIES = [
+    'Cloud & Azure',
+    'Database Management (DBMS)',
+    'Data Structures & Algorithms (DSA)',
+    'DevOps & CI/CD',
+    'Web Development',
+    'Artificial Intelligence & ML',
+    'Cybersecurity',
+    'Programming Languages',
+    'General CS'
+  ];
+  const [categoriesList, setCategoriesList] = useState(DEFAULT_CATEGORIES);
+  const [categorySearch, setCategorySearch] = useState('');
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const categoryDropdownRef = useRef(null);
+
+  // Occurrence Sections State
+  const [customSections, setCustomSections] = useState({});
+  const [activeSectionFilter, setActiveSectionFilter] = useState(0); // 0 = All Sections
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(event.target)) {
+        setIsCategoryOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const fetchExistingCategories = async () => {
+      try {
+        const res = await api.get('/api/quizzes');
+        const existing = (res.data || [])
+          .map(q => q.subject)
+          .filter(Boolean);
+        if (existing.length > 0) {
+          setCategoriesList(prev => Array.from(new Set([...prev, ...existing])));
+        }
+      } catch (e) {
+        // fallback
+      }
+    };
+    fetchExistingCategories();
+  }, []);
+
   const today = new Date().toISOString().split('T')[0];
   const nextMonth = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
   const now = new Date();
@@ -36,7 +84,7 @@ export default function CreateScheduledQuiz() {
     title: '',
     custom_slug: '',
     description: '',
-    category: 'Cloud',
+    category: 'Cloud & Azure',
     difficulty: 'Intermediate',
     instructions: 'Complete all questions within the allocated time window.',
     schedule_type: 'ONE_TIME',
@@ -192,6 +240,21 @@ export default function CreateScheduledQuiz() {
             badge_title: q.badge_title || 'Microsoft Azure & Cloud Fundamentals Master',
             questions: q.questions || []
           });
+
+          // Populate custom sections from loaded questions if present
+          if (q.questions && Array.isArray(q.questions)) {
+            const loadedSections = {};
+            q.questions.forEach(ques => {
+              const occNum = ques.occurrence_number || 1;
+              if (ques.section_name) {
+                loadedSections[occNum] = {
+                  name: ques.section_name,
+                  description: ques.section_description || ''
+                };
+              }
+            });
+            setCustomSections(loadedSections);
+          }
         }
       } catch (err) {
         console.error('Fetch quiz for edit error:', err);
@@ -215,6 +278,92 @@ export default function CreateScheduledQuiz() {
     const mStr = (mm || '00').padStart(2, '0');
     const sStr = (ss || '00').padStart(2, '0');
     return `${hStr}:${mStr}:${sStr}`;
+  };
+
+  const handleDownloadPreviewQR = () => {
+    const svg = document.getElementById('create-scheduled-quiz-qr-svg');
+    if (!svg) return;
+    const svgData = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const img = new Image();
+    canvas.width = 600;
+    canvas.height = 700;
+
+    img.onload = () => {
+      const bgGrad = ctx.createLinearGradient(0, 0, 600, 700);
+      bgGrad.addColorStop(0, '#0F172A');
+      bgGrad.addColorStop(0.5, '#1E1B4B');
+      bgGrad.addColorStop(1, '#0F172A');
+      ctx.fillStyle = bgGrad;
+      if (ctx.roundRect) {
+        ctx.beginPath();
+        ctx.roundRect(0, 0, 600, 700, 32);
+        ctx.fill();
+      } else {
+        ctx.fillRect(0, 0, 600, 700);
+      }
+
+      ctx.fillStyle = '#F25022';
+      ctx.fillRect(40, 40, 130, 4);
+      ctx.fillStyle = '#7FBA00';
+      ctx.fillRect(170, 40, 130, 4);
+      ctx.fillStyle = '#00A4EF';
+      ctx.fillRect(300, 40, 130, 4);
+      ctx.fillStyle = '#FFB900';
+      ctx.fillRect(430, 40, 130, 4);
+
+      ctx.fillStyle = '#FBBF24';
+      ctx.font = 'bold 12px Segoe UI, system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('MICROSOFT STUDENT CLUB PRPCEM', 300, 75);
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.font = 'bold 22px Segoe UI, system-ui, sans-serif';
+      const titleText = formData.title || 'Scheduled Assessment';
+      ctx.fillText(titleText.length > 36 ? titleText.slice(0, 36) + '...' : titleText, 300, 115);
+
+      ctx.fillStyle = '#FFFFFF';
+      if (ctx.roundRect) {
+        ctx.beginPath();
+        ctx.roundRect(140, 150, 320, 320, 24);
+        ctx.fill();
+      } else {
+        ctx.fillRect(140, 150, 320, 320);
+      }
+
+      ctx.drawImage(img, 160, 170, 280, 280);
+
+      const vanityUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://quiz.mscprpcem.tech'}/q/${formData.custom_slug || 'preview'}`;
+      ctx.fillStyle = '#FDE68A';
+      ctx.font = 'bold 14px Segoe UI, monospace';
+      ctx.fillText(vanityUrl, 300, 520);
+
+      ctx.fillStyle = '#94A3B8';
+      ctx.font = '600 13px Segoe UI, sans-serif';
+      ctx.fillText('Scan QR or visit link to join quiz session directly', 300, 560);
+
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+      if (ctx.roundRect) {
+        ctx.beginPath();
+        ctx.roundRect(160, 600, 280, 40, 12);
+        ctx.fill();
+      } else {
+        ctx.fillRect(160, 600, 280, 40);
+      }
+
+      ctx.fillStyle = '#38BDF8';
+      ctx.font = 'bold 12px Segoe UI, sans-serif';
+      ctx.fillText('Official Assessment • MSC Platform', 300, 625);
+
+      const pngUrl = canvas.toDataURL('image/png');
+      const a = document.createElement('a');
+      a.href = pngUrl;
+      a.download = `msc-quiz-${formData.custom_slug || 'preview'}-join-card.png`;
+      a.click();
+    };
+
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
   };
 
   // Step Validation Enforcer
@@ -262,6 +411,7 @@ export default function CreateScheduledQuiz() {
           return;
         }
 
+        const sections = calculateScheduleOccurrences();
         const parsedQuestions = rawData.map((row, idx) => {
           // Normalize column names flexibly
           const qText = row.Question || row.question || row.QuestionText || row.Prompt || '';
@@ -272,6 +422,19 @@ export default function CreateScheduledQuiz() {
           const correct = (row['Correct Answer'] || row.correct_answer || row.Correct || row.Answer || 'A').toString().trim().toUpperCase();
           const explanation = row.Explanation || row.explanation || '';
 
+          let secNum = activeSectionFilter > 0 ? activeSectionFilter : 1;
+          const rawSec = row.Section || row.section || row.Occurrence || row.occurrence || row.Round || row.round || row.Week || row.Day;
+          if (rawSec !== undefined && rawSec !== '') {
+            const parsedNum = parseInt(String(rawSec).replace(/[^0-9]/g, ''), 10);
+            if (!isNaN(parsedNum) && parsedNum > 0) {
+              secNum = parsedNum;
+            }
+          }
+
+          const secInfo = sections.find(s => s.number === secNum) || sections[0];
+          const secName = customSections[secNum]?.name || secInfo?.name || `Section ${secNum}`;
+          const secDesc = customSections[secNum]?.description || secInfo?.description || '';
+
           return {
             question: qText,
             option_a: optA,
@@ -279,7 +442,10 @@ export default function CreateScheduledQuiz() {
             option_c: optC,
             option_d: optD,
             correct_answer: ['A', 'B', 'C', 'D'].includes(correct) ? correct : 'A',
-            explanation
+            explanation,
+            occurrence_number: secNum,
+            section_name: secName,
+            section_description: secDesc
           };
         }).filter(q => q.question);
 
@@ -291,34 +457,201 @@ export default function CreateScheduledQuiz() {
         alert(`Successfully imported ${parsedQuestions.length} questions from ${file.name}!`);
       } catch (err) {
         console.error('CSV/Excel parse error:', err);
-        alert('Failed to parse spreadsheet. Please ensure standard column headers: Question, Option A, Option B, Option C, Option D, Correct Answer.');
+        alert('Failed to parse spreadsheet. Please ensure standard column headers: Section, Question, Option A, Option B, Option C, Option D, Correct Answer.');
       }
     };
     reader.readAsBinaryString(file);
   };
 
-  const handleAddQuestion = () => {
+  // Calculate schedule occurrences dynamically from date range and frequency pattern
+  const calculateScheduleOccurrences = () => {
+    if (!formData.start_date) return [{ number: 1, name: 'Round 1', dateLabel: '', description: '' }];
+    try {
+      const [sY, sM, sD] = formData.start_date.split('-').map(Number);
+      const start = new Date(sY, sM - 1, sD);
+      const [eY, eM, eD] = (formData.end_date || formData.start_date).split('-').map(Number);
+      const end = new Date(eY, eM - 1, eD);
+
+      const dayMap = { 'SUN': 0, 'MON': 1, 'TUE': 2, 'WED': 3, 'THU': 4, 'FRI': 5, 'SAT': 6 };
+      const list = [];
+      let count = 1;
+      let curr = new Date(start);
+
+      if (formData.schedule_type === 'ONE_TIME') {
+        const title = customSections[1]?.name || `${formData.title || 'Session 1'} (One-Time)`;
+        const desc = customSections[1]?.description || 'Complete all questions in this session.';
+        list.push({
+          number: 1,
+          name: title,
+          dateLabel: start.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+          description: desc
+        });
+      } else if (formData.schedule_type === 'DAILY') {
+        while (curr <= end && count <= 60) {
+          const title = customSections[count]?.name || `Day ${count}`;
+          const desc = customSections[count]?.description || `Daily assessment round for Day ${count}`;
+          list.push({
+            number: count,
+            name: title,
+            dateLabel: curr.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+            description: desc
+          });
+          curr.setDate(curr.getDate() + 1);
+          count++;
+        }
+      } else if (formData.schedule_type === 'WEEKLY') {
+        const targetDays = (formData.days_of_week && formData.days_of_week.length > 0)
+          ? formData.days_of_week.map(d => dayMap[d]).filter(d => d !== undefined)
+          : null;
+
+        while (curr <= end && count <= 52) {
+          const dayOfWeek = curr.getDay();
+          if (!targetDays || targetDays.includes(dayOfWeek)) {
+            const title = customSections[count]?.name || `Week ${count}`;
+            const desc = customSections[count]?.description || `Weekly assessment round for Week ${count}`;
+            list.push({
+              number: count,
+              name: title,
+              dateLabel: curr.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+              description: desc
+            });
+            count++;
+          }
+          curr.setDate(curr.getDate() + 1);
+        }
+      } else if (formData.schedule_type === 'BIWEEKLY') {
+        while (curr <= end && count <= 30) {
+          const title = customSections[count]?.name || `Biweekly #${count}`;
+          const desc = customSections[count]?.description || `Biweekly round #${count}`;
+          list.push({
+            number: count,
+            name: title,
+            dateLabel: curr.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+            description: desc
+          });
+          curr.setDate(curr.getDate() + 14);
+          count++;
+        }
+      } else if (formData.schedule_type === 'MONTHLY') {
+        while (curr <= end && count <= 24) {
+          const title = customSections[count]?.name || `Month ${count}`;
+          const desc = customSections[count]?.description || `Monthly assessment round #${count}`;
+          list.push({
+            number: count,
+            name: title,
+            dateLabel: curr.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+            description: desc
+          });
+          curr.setMonth(curr.getMonth() + 1);
+          count++;
+        }
+      } else {
+        // CUSTOM
+        const step = parseInt(formData.custom_interval_days || 3, 10);
+        while (curr <= end && count <= 30) {
+          const title = customSections[count]?.name || `Round ${count}`;
+          const desc = customSections[count]?.description || `Custom interval round #${count}`;
+          list.push({
+            number: count,
+            name: title,
+            dateLabel: curr.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+            description: desc
+          });
+          curr.setDate(curr.getDate() + step);
+          count++;
+        }
+      }
+
+      return list.length > 0 ? list : [{ number: 1, name: 'Round 1', dateLabel: start.toLocaleDateString(), description: '' }];
+    } catch (e) {
+      return [{ number: 1, name: 'Round 1', dateLabel: '', description: '' }];
+    }
+  };
+
+  const handleAddQuestion = (targetOccurrenceNumber, count = 1) => {
+    const occNumber = (targetOccurrenceNumber !== undefined && targetOccurrenceNumber > 0)
+      ? targetOccurrenceNumber 
+      : (activeSectionFilter > 0 ? activeSectionFilter : 1);
+    const sections = calculateScheduleOccurrences();
+    const sectionInfo = sections.find(s => s.number === occNumber);
+    const secName = customSections[occNumber]?.name || sectionInfo?.name || `Section ${occNumber}`;
+    const secDesc = customSections[occNumber]?.description || sectionInfo?.description || '';
+
+    const newQuestions = Array.from({ length: count }, () => ({
+      question: '',
+      option_a: '',
+      option_b: '',
+      option_c: '',
+      option_d: '',
+      correct_answer: 'A',
+      explanation: '',
+      occurrence_number: occNumber,
+      section_name: secName,
+      section_description: secDesc
+    }));
+
     setFormData(prev => ({
       ...prev,
-      questions: [
-        ...prev.questions,
-        {
-          question: '',
-          option_a: '',
-          option_b: '',
-          option_c: '',
-          option_d: '',
-          correct_answer: 'A',
-          explanation: ''
+      questions: [...prev.questions, ...newQuestions]
+    }));
+  };
+
+  const handleDistributeEvenly = () => {
+    const sections = calculateScheduleOccurrences();
+    if (sections.length === 0 || formData.questions.length === 0) {
+      alert('Please add questions first to distribute across sections.');
+      return;
+    }
+    
+    const updated = formData.questions.map((q, idx) => {
+      const sectionIdx = idx % sections.length;
+      const targetSec = sections[sectionIdx];
+      return {
+        ...q,
+        occurrence_number: targetSec.number,
+        section_name: customSections[targetSec.number]?.name || targetSec.name,
+        section_description: customSections[targetSec.number]?.description || targetSec.description
+      };
+    });
+
+    setFormData(prev => ({ ...prev, questions: updated }));
+    alert(`Successfully distributed ${formData.questions.length} questions across ${sections.length} sections (${Math.ceil(formData.questions.length / sections.length)} questions per section)!`);
+  };
+
+  const handleUpdateSectionMeta = (secNumber, field, value) => {
+    setCustomSections(prev => ({
+      ...prev,
+      [secNumber]: {
+        ...(prev[secNumber] || {}),
+        [field]: value
+      }
+    }));
+    // Also update questions in this section
+    setFormData(prev => ({
+      ...prev,
+      questions: prev.questions.map(q => {
+        if ((q.occurrence_number || 1) === secNumber) {
+          return {
+            ...q,
+            section_name: field === 'name' ? value : q.section_name,
+            section_description: field === 'description' ? value : q.section_description
+          };
         }
-      ]
+        return q;
+      })
     }));
   };
 
   const handleQuestionChange = (index, field, value) => {
-    const updated = [...formData.questions];
-    updated[index][field] = value;
-    setFormData(prev => ({ ...prev, questions: updated }));
+    setFormData(prev => ({
+      ...prev,
+      questions: prev.questions.map((q, idx) => {
+        if (idx === index) {
+          return { ...q, [field]: value };
+        }
+        return q;
+      })
+    }));
   };
 
   const handleRemoveQuestion = (index) => {
@@ -338,12 +671,13 @@ export default function CreateScheduledQuiz() {
     });
   };
 
-  // Download Excel Template with sample rows
+  // Download Excel Template with sample rows & Section column
   const handleDownloadTemplate = () => {
     const sampleData = [
-      { 'Question': 'What does CPU stand for?', 'Option A': 'Central Processing Unit', 'Option B': 'Central Program Utility', 'Option C': 'Computer Personal Unit', 'Option D': 'Central Processor Unifier', 'Correct Answer': 'A', 'Explanation': 'CPU = Central Processing Unit' },
-      { 'Question': 'Which data structure uses FIFO?', 'Option A': 'Stack', 'Option B': 'Queue', 'Option C': 'Tree', 'Option D': 'Graph', 'Correct Answer': 'B', 'Explanation': 'Queue uses First In First Out' },
-      { 'Question': 'HTML stands for?', 'Option A': 'Hyper Trainer Marking Language', 'Option B': 'Hyper Text Marketing Language', 'Option C': 'Hyper Text Markup Language', 'Option D': 'Hyper Text Markup Leveler', 'Correct Answer': 'C', 'Explanation': '' }
+      { 'Section': 1, 'Question': 'What does CPU stand for?', 'Option A': 'Central Processing Unit', 'Option B': 'Central Program Utility', 'Option C': 'Computer Personal Unit', 'Option D': 'Central Processor Unifier', 'Correct Answer': 'A', 'Explanation': 'CPU = Central Processing Unit' },
+      { 'Section': 1, 'Question': 'Which data structure uses FIFO?', 'Option A': 'Stack', 'Option B': 'Queue', 'Option C': 'Tree', 'Option D': 'Graph', 'Correct Answer': 'B', 'Explanation': 'Queue uses First In First Out' },
+      { 'Section': 2, 'Question': 'What is the default port for HTTP?', 'Option A': '80', 'Option B': '443', 'Option C': '8080', 'Option D': '22', 'Correct Answer': 'A', 'Explanation': 'HTTP uses port 80' },
+      { 'Section': 2, 'Question': 'HTML stands for?', 'Option A': 'Hyper Trainer Marking Language', 'Option B': 'Hyper Text Marketing Language', 'Option C': 'Hyper Text Markup Language', 'Option D': 'Hyper Text Markup Leveler', 'Correct Answer': 'C', 'Explanation': '' }
     ];
     const ws = XLSX.utils.json_to_sheet(sampleData);
     const wb = XLSX.utils.book_new();
@@ -351,10 +685,10 @@ export default function CreateScheduledQuiz() {
     
     // Set column widths
     ws['!cols'] = [
-      { wch: 40 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 15 }, { wch: 40 }
+      { wch: 12 }, { wch: 40 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 15 }, { wch: 40 }
     ];
     
-    XLSX.writeFile(wb, 'quiz_questions_template.xlsx');
+    XLSX.writeFile(wb, 'scheduled_quiz_sections_template.xlsx');
   };
 
   const handlePublishSubmit = async () => {
@@ -537,21 +871,16 @@ export default function CreateScheduledQuiz() {
             </div>
 
             <div className="p-5 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/80 rounded-2xl space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <QrCode size={18} className="text-blue-600" />
-                  <span className="text-xs font-black text-blue-900 uppercase tracking-wider">
-                    Custom URL Slug & QR Code Direct Join
-                  </span>
-                </div>
-                <span className="px-2.5 py-0.5 bg-blue-600 text-white rounded-full text-[9px] font-black uppercase">
-                  Instant Mobile Access
+              <div className="flex items-center space-x-2">
+                <QrCode size={18} className="text-blue-600" />
+                <span className="text-xs font-black text-blue-900 uppercase tracking-wider">
+                  Custom URL
                 </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
                 <div className="md:col-span-2 space-y-2">
-                  <label className="block text-xs font-bold text-slate-700">Custom Short Link (Vanity Slug)</label>
+                  <label className="block text-xs font-bold text-slate-700">Custom URL</label>
                   <div className="flex items-center space-x-2">
                     <span className="text-xs font-extrabold text-slate-500 bg-white border border-slate-200 px-3 py-2 rounded-xl whitespace-nowrap">
                       {typeof window !== 'undefined' ? `${window.location.host}/q/` : 'quiz.mscprpcem.tech/q/'}
@@ -570,8 +899,9 @@ export default function CreateScheduledQuiz() {
                 </div>
 
                 {/* Live QR Code Preview */}
-                <div className="bg-white p-3 border border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-1.5 shadow-2xs">
+                <div className="bg-white p-3 border border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-2 shadow-2xs">
                   <QRCodeSVG
+                    id="create-scheduled-quiz-qr-svg"
                     value={`${typeof window !== 'undefined' ? window.location.origin : 'https://quiz.mscprpcem.tech'}/q/${formData.custom_slug || 'test'}`}
                     size={84}
                     bgColor="#FFFFFF"
@@ -579,6 +909,15 @@ export default function CreateScheduledQuiz() {
                     level="M"
                   />
                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Scan to Join Direct</span>
+                  <button
+                    type="button"
+                    onClick={handleDownloadPreviewQR}
+                    className="w-full py-1 px-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold rounded-lg text-[10px] flex items-center justify-center space-x-1 transition-colors cursor-pointer"
+                    title="Download Direct Join Card Image"
+                  >
+                    <Download size={11} />
+                    <span>Download Card</span>
+                  </button>
                 </div>
               </div>
             </div>
@@ -595,19 +934,80 @@ export default function CreateScheduledQuiz() {
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1">
+              {/* Category Searchable & Creatable Combobox */}
+              <div className="space-y-1 relative" ref={categoryDropdownRef}>
                 <label className="block text-xs font-bold text-slate-600">Category</label>
-                <select
-                  value={formData.category}
-                  onChange={e => setFormData({ ...formData, category: e.target.value })}
-                  className="w-full border rounded-xl px-3.5 py-2 text-xs font-bold bg-white"
-                >
-                  <option value="Cloud">Cloud & Azure</option>
-                  <option value="DBMS">Database Management</option>
-                  <option value="DSA">Data Structures & Algo</option>
-                  <option value="DevOps">DevOps</option>
-                  <option value="Programming">Programming Languages</option>
-                </select>
+                <div className="relative">
+                  <div 
+                    onClick={() => setIsCategoryOpen(prev => !prev)}
+                    className="w-full border rounded-xl px-3.5 py-2 text-xs font-bold bg-white text-slate-800 flex items-center justify-between cursor-pointer focus:ring-2 focus:ring-blue-500 hover:border-slate-300 shadow-2xs"
+                  >
+                    <span className="truncate">{formData.category || 'Select Category...'}</span>
+                    <ChevronDown size={14} className={`text-slate-400 transition-transform ${isCategoryOpen ? 'rotate-180' : ''}`} />
+                  </div>
+
+                  {isCategoryOpen && (
+                    <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 space-y-1.5 animate-in fade-in zoom-in-95 duration-100">
+                      <div className="relative">
+                        <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          autoFocus
+                          placeholder="Search or create category..."
+                          value={categorySearch}
+                          onChange={(e) => setCategorySearch(e.target.value)}
+                          className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+
+                      <div className="max-h-48 overflow-y-auto space-y-0.5 custom-scrollbar">
+                        {categoriesList
+                          .filter(cat => cat.toLowerCase().includes(categorySearch.trim().toLowerCase()))
+                          .map((cat) => (
+                            <button
+                              key={cat}
+                              type="button"
+                              onClick={() => {
+                                setFormData({ ...formData, category: cat });
+                                setIsCategoryOpen(false);
+                                setCategorySearch('');
+                              }}
+                              className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition-colors cursor-pointer ${
+                                formData.category === cat ? 'bg-blue-50 text-blue-700 font-black' : 'text-slate-700 hover:bg-slate-50'
+                              }`}
+                            >
+                              <span>{cat}</span>
+                              {formData.category === cat && <Check size={13} className="text-blue-600" />}
+                            </button>
+                          ))}
+
+                        {/* If typed search query doesn't match any category, give option to create */}
+                        {categorySearch.trim() && !categoriesList.some(c => c.toLowerCase() === categorySearch.trim().toLowerCase()) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newCat = categorySearch.trim();
+                              setCategoriesList(prev => [...prev, newCat]);
+                              setFormData({ ...formData, category: newCat });
+                              setIsCategoryOpen(false);
+                              setCategorySearch('');
+                            }}
+                            className="w-full text-left px-3 py-2.5 rounded-xl text-xs font-black bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-700 hover:from-blue-100 hover:to-indigo-100 flex items-center space-x-1.5 transition-all cursor-pointer"
+                          >
+                            <Plus size={14} className="text-blue-600 flex-shrink-0" />
+                            <span className="truncate">+ Create "<strong>{categorySearch.trim()}</strong>"</span>
+                          </button>
+                        )}
+
+                        {categoriesList.filter(cat => cat.toLowerCase().includes(categorySearch.trim().toLowerCase())).length === 0 && !categorySearch.trim() && (
+                          <div className="text-center py-3 text-[11px] text-slate-400 font-semibold">
+                            No categories available
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="space-y-1">
@@ -923,6 +1323,34 @@ export default function CreateScheduledQuiz() {
 
               </div>
             </div>
+
+            {/* Dynamic Calculated Occurrences & Section Breakdown */}
+            {(() => {
+              const calculatedOccs = calculateScheduleOccurrences();
+              return (
+                <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black shadow-xs flex-shrink-0">
+                      <Layers size={20} />
+                    </div>
+                    <div>
+                      <div className="text-xs font-black text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                        <span>⚡ {calculatedOccs.length} {formData.schedule_type === 'DAILY' ? 'Daily' : formData.schedule_type === 'WEEKLY' ? 'Weekly' : 'Scheduled'} Rounds Calculated</span>
+                        <span className="px-2 py-0.5 bg-blue-200/80 text-blue-900 rounded-full text-[9px] font-black uppercase">
+                          Non-Repeating Pool
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-blue-700 font-semibold mt-0.5">
+                        {calculatedOccs.length} dedicated question sections ({calculatedOccs[0]?.name || 'Round 1'} to {calculatedOccs[calculatedOccs.length - 1]?.name || `Round ${calculatedOccs.length}`}) will be created. Questions assigned to each round will not repeat.
+                      </p>
+                    </div>
+                  </div>
+                  <span className="px-3.5 py-1.5 bg-blue-600 text-white font-black rounded-xl text-xs shadow-xs whitespace-nowrap">
+                    {calculatedOccs.length} Sections
+                  </span>
+                </div>
+              );
+            })()}
           </div>
 
           <div className="flex justify-end pt-4 border-t">
@@ -930,7 +1358,7 @@ export default function CreateScheduledQuiz() {
               onClick={handleNextTab}
               className="px-6 py-2.5 bg-blue-600 text-white font-extrabold rounded-xl text-xs flex items-center space-x-2 cursor-pointer shadow-sm"
             >
-              <span>Next: Add Questions & Import</span>
+              <span>Next: Manage Questions by Section</span>
               <ArrowRight size={16} />
             </button>
           </div>
@@ -938,148 +1366,495 @@ export default function CreateScheduledQuiz() {
         </div>
       )}
 
-      {/* ════════ TAB 2: QUESTIONS & CSV/EXCEL BULK IMPORT ════════ */}
-      {activeTab === 2 && (
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xs">
-          
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
-            <div>
-              <h3 className="text-base font-black text-slate-900">Questions Management ({formData.questions.length})</h3>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">Upload a CSV/Excel file or add questions manually.</p>
-            </div>
+      {/* ════════ TAB 2: QUESTIONS & SECTIONS MANAGEMENT ════════ */}
+      {activeTab === 2 && (() => {
+        const sections = calculateScheduleOccurrences();
+        const isMultiSection = sections.length > 1;
+        const currentSection = activeSectionFilter > 0 ? sections.find(s => s.number === activeSectionFilter) : null;
+        
+        // Helper to render a question card
+        const renderQuestionCard = (q, origIdx) => {
+          const currentOccNum = q.occurrence_number || 1;
+          const secInfo = sections.find(s => s.number === currentOccNum) || sections[0];
+          const secDisplayName = customSections[currentOccNum]?.name || secInfo?.name || `Section ${currentOccNum}`;
 
-            <div className="flex flex-wrap items-center gap-2.5">
-              {/* Download Template Button */}
-              <button
-                onClick={handleDownloadTemplate}
-                type="button"
-                className="px-4 py-2.5 bg-slate-100 text-slate-700 hover:bg-slate-200 border border-slate-200 font-extrabold rounded-xl text-xs flex items-center space-x-2 cursor-pointer transition-all"
-              >
-                <ArrowLeft size={14} className="rotate-[-90deg]" />
-                <span>Download Template</span>
-              </button>
+          return (
+            <div key={origIdx} className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-4 text-left shadow-2xs hover:border-slate-300 transition-colors">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-200 pb-3">
+                <div className="flex items-center space-x-2.5">
+                  <span className="text-xs font-black text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
+                    Q #{origIdx + 1}
+                  </span>
+                  
+                  {/* Section Assignment Dropdown */}
+                  {isMultiSection && (
+                    <div className="flex items-center space-x-1.5">
+                      <span className="text-[11px] font-bold text-slate-500">Assigned Round:</span>
+                      <select
+                        value={currentOccNum}
+                        onChange={(e) => {
+                          const newSecNum = parseInt(e.target.value, 10);
+                          const newSec = sections.find(s => s.number === newSecNum);
+                          handleQuestionChange(origIdx, 'occurrence_number', newSecNum);
+                          handleQuestionChange(origIdx, 'section_name', customSections[newSecNum]?.name || newSec?.name || `Section ${newSecNum}`);
+                          handleQuestionChange(origIdx, 'section_description', customSections[newSecNum]?.description || newSec?.description || '');
+                        }}
+                        className="bg-white border border-blue-300 text-blue-800 text-xs font-black rounded-lg px-2.5 py-1 focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                      >
+                        {sections.map(s => (
+                          <option key={s.number} value={s.number}>
+                            {customSections[s.number]?.name || s.name} ({s.dateLabel})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
 
-              {/* CSV / Excel Bulk Uploader Button */}
-              <label className="px-4 py-2.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-extrabold rounded-xl text-xs flex items-center space-x-2 cursor-pointer transition-all">
-                <FileSpreadsheet size={16} />
-                <span>Upload CSV / Excel</span>
-                <input
-                  type="file"
-                  accept=".csv, .xlsx, .xls"
-                  onChange={handleFileUpload}
-                  className="hidden"
-                />
-              </label>
-
-              <button
-                onClick={handleAddQuestion}
-                className="px-4 py-2.5 bg-blue-600 text-white font-extrabold rounded-xl text-xs flex items-center space-x-1.5 cursor-pointer shadow-sm"
-              >
-                <Plus size={16} />
-                <span>Add Question</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Verification Table Preview */}
-          {formData.questions.length === 0 ? (
-            <div className="p-12 border-2 border-dashed border-slate-200 rounded-3xl text-center space-y-4">
-              <FileSpreadsheet size={44} className="mx-auto text-slate-300" />
-              <div className="space-y-1">
-                <h4 className="text-base font-black text-slate-800">No Questions Added Yet</h4>
-                <p className="text-xs text-slate-500 max-w-sm mx-auto">Upload a `.csv` or `.xlsx` spreadsheet with headers: <code>Question, Option A, Option B, Option C, Option D, Correct Answer</code> or add questions manually.</p>
+                <button 
+                  type="button" 
+                  onClick={() => handleRemoveQuestion(origIdx)} 
+                  className="p-1.5 text-red-500 hover:text-red-700 hover:bg-red-50 rounded-lg cursor-pointer transition-colors"
+                  title="Delete Question"
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
-            </div>
-          ) : (
-            <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-1">
-              {formData.questions.map((q, idx) => (
-                <div key={idx} className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-4 text-left">
-                  <div className="flex justify-between items-center">
-                    <span className="text-xs font-black text-blue-600">Question #{idx + 1}</span>
-                    <button onClick={() => handleRemoveQuestion(idx)} className="text-red-500 hover:text-red-700 cursor-pointer">
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
 
+              <div className="space-y-1">
+                <label className="block text-xs font-bold text-slate-700">Question Statement</label>
+                <input
+                  type="text"
+                  placeholder="Enter question text..."
+                  value={q.question}
+                  onChange={e => handleQuestionChange(origIdx, 'question', e.target.value)}
+                  className="w-full border rounded-xl px-4 py-2.5 text-xs font-bold bg-white text-slate-800 focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-slate-500">Option A</label>
                   <input
                     type="text"
-                    placeholder="Enter question text..."
-                    value={q.question}
-                    onChange={e => handleQuestionChange(idx, 'question', e.target.value)}
-                    className="w-full border rounded-xl px-4 py-2 text-xs font-bold bg-white"
+                    placeholder="Option A"
+                    value={q.option_a}
+                    onChange={e => handleQuestionChange(origIdx, 'option_a', e.target.value)}
+                    className="w-full border rounded-xl px-3 py-2 text-xs bg-white font-medium focus:ring-2 focus:ring-blue-500"
                   />
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <input
-                      type="text"
-                      placeholder="Option A"
-                      value={q.option_a}
-                      onChange={e => handleQuestionChange(idx, 'option_a', e.target.value)}
-                      className="border rounded-xl px-3 py-2 text-xs bg-white font-medium"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Option B"
-                      value={q.option_b}
-                      onChange={e => handleQuestionChange(idx, 'option_b', e.target.value)}
-                      className="border rounded-xl px-3 py-2 text-xs bg-white font-medium"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Option C"
-                      value={q.option_c}
-                      onChange={e => handleQuestionChange(idx, 'option_c', e.target.value)}
-                      className="border rounded-xl px-3 py-2 text-xs bg-white font-medium"
-                    />
-                    <input
-                      type="text"
-                      placeholder="Option D"
-                      value={q.option_d}
-                      onChange={e => handleQuestionChange(idx, 'option_d', e.target.value)}
-                      className="border rounded-xl px-3 py-2 text-xs bg-white font-medium"
-                    />
-                  </div>
-
-                  <div className="flex items-center space-x-3 text-xs">
-                    <span className="font-bold text-slate-600">Correct Option:</span>
-                    {['A', 'B', 'C', 'D'].map((opt) => (
-                      <button
-                        key={opt}
-                        type="button"
-                        onClick={() => handleQuestionChange(idx, 'correct_answer', opt)}
-                        className={`w-8 h-8 rounded-xl font-black text-xs cursor-pointer ${
-                          q.correct_answer === opt ? 'bg-emerald-600 text-white shadow-xs' : 'bg-white border text-slate-700'
-                        }`}
-                      >
-                        {opt}
-                      </button>
-                    ))}
-                  </div>
                 </div>
-              ))}
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-slate-500">Option B</label>
+                  <input
+                    type="text"
+                    placeholder="Option B"
+                    value={q.option_b}
+                    onChange={e => handleQuestionChange(origIdx, 'option_b', e.target.value)}
+                    className="w-full border rounded-xl px-3 py-2 text-xs bg-white font-medium focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-slate-500">Option C</label>
+                  <input
+                    type="text"
+                    placeholder="Option C"
+                    value={q.option_c}
+                    onChange={e => handleQuestionChange(origIdx, 'option_c', e.target.value)}
+                    className="w-full border rounded-xl px-3 py-2 text-xs bg-white font-medium focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-bold text-slate-500">Option D</label>
+                  <input
+                    type="text"
+                    placeholder="Option D"
+                    value={q.option_d}
+                    onChange={e => handleQuestionChange(origIdx, 'option_d', e.target.value)}
+                    className="w-full border rounded-xl px-3 py-2 text-xs bg-white font-medium focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <div className="flex items-center space-x-2 text-xs">
+                  <span className="font-bold text-slate-600">Correct Option:</span>
+                  {['A', 'B', 'C', 'D'].map((opt) => (
+                    <button
+                      key={opt}
+                      type="button"
+                      onClick={() => handleQuestionChange(origIdx, 'correct_answer', opt)}
+                      className={`w-8 h-8 rounded-xl font-black text-xs cursor-pointer transition-all ${
+                        q.correct_answer === opt ? 'bg-emerald-600 text-white shadow-xs scale-105' : 'bg-white border text-slate-700 hover:bg-slate-100'
+                      }`}
+                    >
+                      {opt}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="text-[11px] font-semibold text-slate-400">
+                  Assigned to: <span className="font-bold text-slate-700">{secDisplayName}</span>
+                </div>
+              </div>
             </div>
-          )}
+          );
+        };
 
-          <div className="flex justify-between items-center pt-4 border-t">
-            <button
-              onClick={() => setActiveTab(1)}
-              className="px-5 py-2.5 bg-slate-100 text-slate-700 font-bold rounded-xl text-xs flex items-center space-x-1"
-            >
-              <ArrowLeft size={16} />
-              <span>Previous Step</span>
-            </button>
+        return (
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xs">
+            
+            {/* Header & Global Actions */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-4">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-base font-black text-slate-900">
+                    Questions & Sections ({formData.questions.length})
+                  </h3>
+                  {isMultiSection && (
+                    <span className="px-2.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-black uppercase">
+                      {sections.length} Rounds
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  {isMultiSection 
+                    ? 'Configure distinct question sets for each day/week. Questions will never repeat across rounds.'
+                    : 'Upload a CSV/Excel file or add questions manually.'}
+                </p>
+              </div>
 
-            <button
-              onClick={() => setActiveTab(3)}
-              className="px-6 py-2.5 bg-blue-600 text-white font-extrabold rounded-xl text-xs flex items-center space-x-2 shadow-sm"
-            >
-              <span>Next: Rules & Proctoring</span>
-              <ArrowRight size={16} />
-            </button>
+              <div className="flex flex-wrap items-center gap-2">
+                {/* Download Template Button */}
+                <button
+                  onClick={handleDownloadTemplate}
+                  type="button"
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 font-extrabold rounded-xl text-xs flex items-center space-x-1.5 cursor-pointer transition-all"
+                  title="Download template with Section column"
+                >
+                  <ArrowLeft size={13} className="rotate-[-90deg]" />
+                  <span>Template (.xlsx)</span>
+                </button>
+
+                {/* Distribute Evenly Button */}
+                {isMultiSection && formData.questions.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleDistributeEvenly}
+                    className="px-3.5 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-extrabold rounded-xl text-xs flex items-center space-x-1.5 cursor-pointer transition-all"
+                    title="Evenly distribute all questions across all rounds"
+                  >
+                    <Sparkles size={13} className="text-amber-600" />
+                    <span>Distribute Evenly</span>
+                  </button>
+                )}
+
+                {/* CSV / Excel Bulk Uploader Button */}
+                <label className="px-3.5 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-extrabold rounded-xl text-xs flex items-center space-x-1.5 cursor-pointer transition-all">
+                  <FileSpreadsheet size={14} />
+                  <span>Import Excel</span>
+                  <input
+                    type="file"
+                    accept=".csv, .xlsx, .xls"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                </label>
+
+                {/* Add Question Button */}
+                <button
+                  type="button"
+                  onClick={() => handleAddQuestion(activeSectionFilter > 0 ? activeSectionFilter : 1, 1)}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center space-x-1.5 cursor-pointer shadow-sm"
+                >
+                  <Plus size={14} />
+                  <span>Add Question</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Section Switcher Tabs (For Recurring Quizzes) */}
+            {isMultiSection && (
+              <div className="flex border border-slate-200 bg-slate-50 rounded-2xl p-1.5 space-x-1.5 overflow-x-auto shadow-2xs">
+                <button
+                  type="button"
+                  onClick={() => setActiveSectionFilter(0)}
+                  className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all whitespace-nowrap cursor-pointer ${
+                    activeSectionFilter === 0
+                      ? 'bg-blue-600 text-white shadow-xs'
+                      : 'text-slate-600 hover:bg-white'
+                  }`}
+                >
+                  All Sections Overview ({formData.questions.length})
+                </button>
+
+                {sections.map(sec => {
+                  const qCount = formData.questions.filter(q => (q.occurrence_number || 1) === sec.number).length;
+                  const customName = customSections[sec.number]?.name || sec.name;
+                  return (
+                    <button
+                      key={sec.number}
+                      type="button"
+                      onClick={() => setActiveSectionFilter(sec.number)}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-black transition-all whitespace-nowrap cursor-pointer flex items-center space-x-1.5 ${
+                        activeSectionFilter === sec.number
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-slate-600 hover:bg-white'
+                      }`}
+                    >
+                      <span>{customName}</span>
+                      <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
+                        activeSectionFilter === sec.number ? 'bg-blue-800 text-white' : 'bg-slate-200 text-slate-700'
+                      }`}>
+                        {qCount}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* VIEW 1: SINGLE SECTION VIEW */}
+            {activeSectionFilter > 0 && currentSection && (() => {
+              const currentSectionQuestions = formData.questions
+                .map((q, origIdx) => ({ ...q, origIdx }))
+                .filter(q => (q.occurrence_number || 1) === activeSectionFilter);
+              const secDisplayName = customSections[activeSectionFilter]?.name || currentSection.name;
+
+              return (
+                <div className="space-y-6">
+                  {/* Active Section Custom Name & Description Editor */}
+                  <div className="p-5 bg-gradient-to-r from-blue-50/70 to-indigo-50/70 border border-blue-200 rounded-2xl space-y-3">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                      <div className="flex items-center space-x-2">
+                        <span className="px-2.5 py-1 bg-blue-600 text-white font-black rounded-lg text-[10px] uppercase">
+                          Round #{currentSection.number}
+                        </span>
+                        <span className="text-xs font-bold text-slate-600">
+                          Scheduled Date: <strong>{currentSection.dateLabel}</strong>
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <button
+                          type="button"
+                          onClick={() => handleAddQuestion(activeSectionFilter, 1)}
+                          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg cursor-pointer shadow-xs inline-flex items-center space-x-1"
+                        >
+                          <Plus size={13} />
+                          <span>+1 Question</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAddQuestion(activeSectionFilter, 5)}
+                          className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg cursor-pointer shadow-xs inline-flex items-center space-x-1"
+                        >
+                          <Plus size={13} />
+                          <span>+5 Questions</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-slate-700">Section / Round Name</label>
+                        <input
+                          type="text"
+                          placeholder={`e.g. ${currentSection.name}: Core Concepts`}
+                          value={customSections[activeSectionFilter]?.name || currentSection.name}
+                          onChange={(e) => handleUpdateSectionMeta(activeSectionFilter, 'name', e.target.value)}
+                          className="w-full border border-blue-200 rounded-xl px-3.5 py-2 text-xs font-bold bg-white text-slate-800 focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="block text-xs font-bold text-slate-700">Section Description / Syllabus</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Topics covered in this assessment round..."
+                          value={customSections[activeSectionFilter]?.description !== undefined ? customSections[activeSectionFilter].description : currentSection.description}
+                          onChange={(e) => handleUpdateSectionMeta(activeSectionFilter, 'description', e.target.value)}
+                          className="w-full border border-blue-200 rounded-xl px-3.5 py-2 text-xs font-medium bg-white text-slate-800 focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Questions List for this Section */}
+                  {currentSectionQuestions.length === 0 ? (
+                    <div className="p-10 border-2 border-dashed border-slate-200 rounded-3xl text-center space-y-3">
+                      <FileSpreadsheet size={40} className="mx-auto text-slate-300" />
+                      <div className="space-y-1">
+                        <h4 className="text-sm font-black text-slate-800">
+                          No Questions Added for {secDisplayName} Yet
+                        </h4>
+                        <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                          Add one or multiple questions directly to this round.
+                        </p>
+                      </div>
+                      <div className="flex justify-center items-center gap-2 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => handleAddQuestion(activeSectionFilter, 1)}
+                          className="px-4 py-2 bg-blue-600 text-white font-extrabold rounded-xl text-xs cursor-pointer shadow-sm inline-flex items-center space-x-1.5"
+                        >
+                          <Plus size={14} />
+                          <span>Add 1 Question</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAddQuestion(activeSectionFilter, 5)}
+                          className="px-4 py-2 bg-indigo-600 text-white font-extrabold rounded-xl text-xs cursor-pointer shadow-sm inline-flex items-center space-x-1.5"
+                        >
+                          <Plus size={14} />
+                          <span>Add 5 Questions</span>
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-5">
+                      <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+                        {currentSectionQuestions.map(q => renderQuestionCard(q, q.origIdx))}
+                      </div>
+
+                      {/* Prominent Add Question Buttons at Bottom of Section */}
+                      <div className="flex flex-col sm:flex-row items-center gap-2.5 pt-2">
+                        <button
+                          type="button"
+                          onClick={() => handleAddQuestion(activeSectionFilter, 1)}
+                          className="flex-1 w-full py-3 border-2 border-dashed border-blue-300 hover:border-blue-500 hover:bg-blue-50 text-blue-700 font-extrabold rounded-2xl text-xs flex items-center justify-center space-x-1.5 cursor-pointer transition-all"
+                        >
+                          <Plus size={15} />
+                          <span>+ Add Another Question to {secDisplayName}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleAddQuestion(activeSectionFilter, 5)}
+                          className="w-full sm:w-auto px-5 py-3 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-extrabold rounded-2xl text-xs flex items-center justify-center space-x-1.5 cursor-pointer transition-all"
+                        >
+                          <Plus size={15} />
+                          <span>+ Add 5 Questions</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
+
+            {/* VIEW 2: ALL SECTIONS OVERVIEW (Grouped by Day/Round) */}
+            {activeSectionFilter === 0 && (
+              <div className="space-y-6">
+                {sections.map(sec => {
+                  const secQuestions = formData.questions
+                    .map((q, origIdx) => ({ ...q, origIdx }))
+                    .filter(q => (q.occurrence_number || 1) === sec.number);
+                  const secTitle = customSections[sec.number]?.name || sec.name;
+                  const secDesc = customSections[sec.number]?.description || sec.description;
+
+                  return (
+                    <div key={sec.number} className="border border-slate-200 bg-white rounded-3xl p-5 space-y-4 shadow-2xs">
+                      {/* Section Card Header */}
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-100 pb-3">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center text-xs font-black shadow-xs">
+                            #{sec.number}
+                          </div>
+                          <div>
+                            <div className="flex items-center space-x-2">
+                              <h4 className="text-sm font-black text-slate-900">{secTitle}</h4>
+                              <span className="px-2 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-[10px] font-bold">
+                                {secQuestions.length} {secQuestions.length === 1 ? 'Question' : 'Questions'}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 font-semibold mt-0.5">
+                              Scheduled Date: {sec.dateLabel} {secDesc ? `• ${secDesc}` : ''}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <button
+                            type="button"
+                            onClick={() => setActiveSectionFilter(sec.number)}
+                            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer transition-all"
+                          >
+                            Focus {sec.name}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleAddQuestion(sec.number, 1)}
+                            className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-extrabold shadow-xs cursor-pointer inline-flex items-center space-x-1 transition-all"
+                          >
+                            <Plus size={13} />
+                            <span>Add Question</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Section Questions */}
+                      {secQuestions.length === 0 ? (
+                        <div className="py-6 border border-dashed border-slate-200 rounded-2xl text-center space-y-2">
+                          <p className="text-xs text-slate-400 font-bold">No questions added for {secTitle} yet.</p>
+                          <button
+                            type="button"
+                            onClick={() => handleAddQuestion(sec.number, 1)}
+                            className="px-4 py-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 rounded-xl text-xs font-black cursor-pointer inline-flex items-center space-x-1"
+                          >
+                            <Plus size={13} />
+                            <span>Add First Question to {secTitle}</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          {secQuestions.map(q => renderQuestionCard(q, q.origIdx))}
+
+                          <div className="flex items-center gap-2 pt-1">
+                            <button
+                              type="button"
+                              onClick={() => handleAddQuestion(sec.number, 1)}
+                              className="flex-1 py-2.5 border-2 border-dashed border-blue-200 hover:border-blue-400 hover:bg-blue-50/50 text-blue-600 font-extrabold rounded-2xl text-xs flex items-center justify-center space-x-1.5 cursor-pointer transition-all"
+                            >
+                              <Plus size={14} />
+                              <span>+ Add Another Question to {secTitle}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleAddQuestion(sec.number, 5)}
+                              className="px-4 py-2.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-indigo-700 font-extrabold rounded-2xl text-xs cursor-pointer transition-all"
+                            >
+                              +5
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Bottom Step Navigation */}
+            <div className="flex justify-between items-center pt-4 border-t">
+              <button
+                type="button"
+                onClick={() => setActiveTab(1)}
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center space-x-1 cursor-pointer transition-all"
+              >
+                <ArrowLeft size={16} />
+                <span>Previous Step</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setActiveTab(3)}
+                className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center space-x-2 shadow-sm cursor-pointer transition-all"
+              >
+                <span>Next: Rules & Proctoring</span>
+                <ArrowRight size={16} />
+              </button>
+            </div>
+
           </div>
-
-        </div>
-      )}
+        );
+      })()}
 
       {/* ════════ TAB 3: RULES & PROCTORING ════════ */}
       {activeTab === 3 && (
@@ -1154,81 +1929,6 @@ export default function CreateScheduledQuiz() {
               />
               <span>Enable Anti-Cheat Detection</span>
             </label>
-          </div>
-
-          {/* Digital Badge & Verification Portal Integration */}
-          <div className="p-5 bg-gradient-to-r from-amber-500/10 via-amber-400/5 to-indigo-500/10 border border-amber-300/60 rounded-2xl space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2.5">
-                <div className="w-8 h-8 rounded-xl bg-amber-400/20 text-amber-600 flex items-center justify-center font-black">
-                  <Award size={18} />
-                </div>
-                <div>
-                  <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Official Digital Badge & Certificate</h4>
-                  <p className="text-[11px] text-slate-500 font-medium">Issue verifiable credentials upon completing or passing this quiz</p>
-                </div>
-              </div>
-
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={formData.issue_badge}
-                  onChange={e => setFormData({ ...formData, issue_badge: e.target.checked })}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
-              </label>
-            </div>
-
-            {formData.issue_badge && (
-              <div className="space-y-4 pt-3 border-t border-amber-200/60">
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center">
-                    <label className="block text-xs font-bold text-slate-700">Select Available Verification Badge</label>
-                    <a
-                      href="https://verify.mscprpcem.tech/admin/events"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-[10px] text-amber-700 hover:text-amber-900 font-extrabold flex items-center space-x-1 hover:underline"
-                    >
-                      <span>Create Badge on Portal</span>
-                      <ExternalLink size={11} />
-                    </a>
-                  </div>
-
-                  <select
-                    value={formData.badge_title}
-                    onChange={e => setFormData({ ...formData, badge_title: e.target.value })}
-                    className="w-full border border-amber-300 rounded-xl px-3.5 py-2.5 text-xs font-bold bg-white text-slate-800 shadow-2xs focus:ring-2 focus:ring-amber-500"
-                  >
-                    {availableBadges.map(b => (
-                      <option key={b.id || b.title} value={b.title}>
-                        [{b.category || 'MSC'}] {b.title}
-                      </option>
-                    ))}
-                    <option value="CUSTOM">+ Custom Badge Title...</option>
-                  </select>
-                </div>
-
-                {formData.badge_title === 'CUSTOM' || !availableBadges.some(b => b.title === formData.badge_title) ? (
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold text-slate-600">Custom Badge Title</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Master in Cloud Computing"
-                      value={formData.badge_title === 'CUSTOM' ? '' : formData.badge_title}
-                      onChange={e => setFormData({ ...formData, badge_title: e.target.value })}
-                      className="w-full border border-amber-300 rounded-xl px-3.5 py-2 text-xs font-bold bg-white"
-                    />
-                  </div>
-                ) : null}
-
-                <div className="p-3 bg-white/80 border border-amber-200 rounded-xl flex items-center space-x-2.5 text-xs font-semibold text-slate-700">
-                  <Sparkles size={16} className="text-amber-500 flex-shrink-0" />
-                  <span>Credential awarded to students: <strong className="text-amber-900">{formData.badge_title}</strong></span>
-                </div>
-              </div>
-            )}
           </div>
 
           <div className="flex justify-between items-center pt-4 border-t">
