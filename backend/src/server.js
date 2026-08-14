@@ -19,6 +19,7 @@ const exportRoutes = require('./routes/export');
 const brandingRoutes = require('./routes/branding');
 
 const app = express();
+app.set('trust proxy', 1); // Trust first proxy for Azure App Service / Cloudflare / Nginx
 const server = http.createServer(app);
 
 const PORT = process.env.PORT || 5000;
