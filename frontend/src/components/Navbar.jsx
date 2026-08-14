@@ -109,9 +109,7 @@ export default function Navbar() {
                 label="Join Quiz"
               />
 
-              <div className="h-5 w-px mx-2 bg-slate-200"></div>
-
-              {/* Student Account Status Button */}
+              {/* Student Account Status / Login */}
               {studentAccount ? (
                 <div 
                   onClick={() => navTo('/login')}
@@ -122,13 +120,12 @@ export default function Navbar() {
                   <span className="font-bold text-purple-900 truncate max-w-[140px]">{studentAccount.email}</span>
                 </div>
               ) : (
-                <button
+                <NavButton
                   onClick={() => navTo('/login')}
-                  className="px-4 py-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white rounded-full text-xs font-extrabold shadow-2xs transition-all flex items-center space-x-1.5 cursor-pointer active:scale-95"
-                >
-                  <User size={14} />
-                  <span>Student Login</span>
-                </button>
+                  isActive={isActive('/login')}
+                  icon={User}
+                  label="Login"
+                />
               )}
             </div>
 
@@ -176,8 +173,18 @@ export default function Navbar() {
               Join Quiz
             </button>
 
-            <div className="border-t border-slate-200 pt-2 mt-2">
-              {studentAccount ? (
+            <button
+              onClick={() => navTo('/login')}
+              className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all ${
+                isActive('/login') ? 'text-brand-blue bg-brand-lightBlue' : 'text-brand-textMuted hover:bg-brand-lightBlue/60'
+              }`}
+            >
+              <User size={16} />
+              Login
+            </button>
+
+            {studentAccount && (
+              <div className="border-t border-slate-200 pt-2 mt-2">
                 <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl space-y-1.5">
                   <div className="flex items-center space-x-2 text-xs font-extrabold text-purple-900">
                     <ShieldCheck size={15} className="text-purple-600" />
@@ -193,16 +200,8 @@ export default function Navbar() {
                     <ExternalLink size={12} />
                   </a>
                 </div>
-              ) : (
-                <button
-                  onClick={() => navTo('/login')}
-                  className="w-full text-left flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-extrabold text-white bg-purple-600 cursor-pointer"
-                >
-                  <User size={16} />
-                  Student Login / Register
-                </button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
       </nav>
