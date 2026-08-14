@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Lock, Mail, User, Eye, EyeOff, ShieldCheck, CheckCircle2, AlertCircle, ArrowRight, X, Sparkles, Search, Loader2 } from 'lucide-react';
+import { Lock, Mail, User, Eye, EyeOff, ShieldCheck, CheckCircle2, AlertCircle, ArrowRight, X, Sparkles, Search, Loader2, ExternalLink } from 'lucide-react';
 
 export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTab = 'login' }) {
   const { studentLogin, studentRegister, checkUsername } = useAuth();
@@ -332,7 +332,20 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
 
             {/* Password field */}
             <div className="space-y-1">
-              <label className="block text-xs font-bold text-slate-700">Password</label>
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-bold text-slate-700">Password</label>
+                {activeTab === 'login' && (
+                  <a
+                    href="https://verify.mscprpcem.tech/forgot-password"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-[11px] text-blue-600 font-bold hover:underline inline-flex items-center space-x-1"
+                  >
+                    <span>Forgot password?</span>
+                    <ExternalLink size={10} />
+                  </a>
+                )}
+              </div>
               <div className="relative">
                 <Lock size={16} className="absolute left-3.5 top-3 text-slate-400" />
                 <input
