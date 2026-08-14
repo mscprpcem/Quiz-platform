@@ -182,6 +182,42 @@ export const AuthProvider = ({ children }) => {
     setStudentAccount(null);
   };
 
+  const sendOtp = async (email) => {
+    try {
+      const res = await api.post('/api/student/send-otp', { email });
+      return { success: true, message: res.data?.message || 'OTP sent successfully.' };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.error || 'Failed to send OTP.' };
+    }
+  };
+
+  const verifyOtp = async (email, otp) => {
+    try {
+      const res = await api.post('/api/student/verify-otp', { email, otp });
+      return { success: true, message: res.data?.message || 'Email verified successfully.' };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.error || 'Invalid OTP code.' };
+    }
+  };
+
+  const forgotPassword = async (email) => {
+    try {
+      const res = await api.post('/api/student/forgot-password', { email });
+      return { success: true, message: res.data?.message || 'Password reset OTP sent to your email.' };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.error || 'Failed to send password reset OTP.' };
+    }
+  };
+
+  const resetPassword = async (email, otp, newPassword) => {
+    try {
+      const res = await api.post('/api/student/reset-password', { email, otp, newPassword });
+      return { success: true, message: res.data?.message || 'Password reset successfully!' };
+    } catch (err) {
+      return { success: false, error: err.response?.data?.error || 'Failed to reset password.' };
+    }
+  };
+
   // Issue Certificate & Digital Badge (Syncs to API & Verification Portal)
   const issueStudentCertificate = async ({ courseTitle, score, passingScore, badgeTitle, name, email }) => {
     const targetEmail = email || studentAccount?.email;
@@ -217,6 +253,10 @@ export const AuthProvider = ({ children }) => {
       studentRegister,
       studentLogout,
       checkUsername,
+      sendOtp,
+      verifyOtp,
+      forgotPassword,
+      resetPassword,
       issueStudentCertificate
     }}>
       {children}

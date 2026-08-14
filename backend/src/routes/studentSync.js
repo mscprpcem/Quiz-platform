@@ -130,6 +130,81 @@ router.post('/verify-otp', async (req, res) => {
 });
 
 // =======================
+// In-App Forgot Password & Password Reset (Forwarded to Verification Portal)
+// =======================
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body;
+    const cleanEmail = normalizeEmail(email);
+
+    if (!cleanEmail || !cleanEmail.includes('@')) {
+      return res.status(400).json({ error: 'Please provide a valid email address.' });
+    }
+
+    const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
+    try {
+      const response = await axios.post(`${verificationPortalUrl}/api/auth/forgot-password`, {
+        email: cleanEmail
+      }, { timeout: 6000 });
+
+      if (response.data) {
+        return res.json(response.data);
+      }
+    } catch (portalErr) {
+      if (portalErr.response && portalErr.response.data && portalErr.response.data.error) {
+        return res.status(portalErr.response.status || 400).json({ error: portalErr.response.data.error });
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: `Password reset OTP has been sent to ${cleanEmail}.`
+    });
+  } catch (err) {
+    console.error('Forgot password error:', err);
+    return res.status(500).json({ error: 'Failed to request password reset OTP.' });
+  }
+});
+
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, otp, newPassword } = req.body;
+    const cleanEmail = normalizeEmail(email);
+
+    if (!cleanEmail || !otp || !newPassword) {
+      return res.status(400).json({ error: 'Email, OTP code, and new password are all required.' });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters long.' });
+    }
+
+    const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
+    try {
+      const response = await axios.post(`${verificationPortalUrl}/api/auth/reset-password`, {
+        email: cleanEmail,
+        otp: otp.toString().trim(),
+        newPassword,
+        password: newPassword
+      }, { timeout: 6000 });
+
+      if (response.data) {
+        return res.json(response.data);
+      }
+    } catch (portalErr) {
+      if (portalErr.response && portalErr.response.data && portalErr.response.data.error) {
+        return res.status(portalErr.response.status || 400).json({ error: portalErr.response.data.error });
+      }
+    }
+
+    return res.status(400).json({ error: 'Unable to reset password. Please check your OTP code and try again.' });
+  } catch (err) {
+    console.error('Reset password error:', err);
+    return res.status(500).json({ error: 'Failed to reset password.' });
+  }
+});
+
+// =======================
 // Student Login (Directly Authenticated Against Verification Portal)
 // =======================
 router.post('/login', async (req, res) => {

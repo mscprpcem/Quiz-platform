@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Lock, Mail, User, Eye, EyeOff, ShieldCheck, CheckCircle2, AlertCircle, ArrowRight, X, Sparkles, Search, Loader2, ExternalLink } from 'lucide-react';
+import { Lock, Mail, User, Eye, EyeOff, ShieldCheck, CheckCircle2, AlertCircle, ArrowRight, X, Sparkles, Search, Loader2, KeyRound, ArrowLeft } from 'lucide-react';
 
 export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTab = 'login' }) {
-  const { studentLogin, studentRegister, checkUsername } = useAuth();
-  const [activeTab, setActiveTab] = useState(initialTab);
+  const { studentLogin, studentRegister, checkUsername, forgotPassword, resetPassword } = useAuth();
+  const [activeTab, setActiveTab] = useState(initialTab); // 'login' | 'register' | 'forgot-password'
 
   // Form Fields
   const [name, setName] = useState('');
@@ -12,6 +12,13 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  // Forgot Password / OTP State
+  const [resetStep, setResetStep] = useState(1); // 1 = Enter Email, 2 = Enter OTP & New Password
+  const [resetOtp, setResetOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   // Username availability state
   const [usernameChecking, setUsernameChecking] = useState(false);
@@ -68,6 +75,67 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
     setUsernameError('');
   };
 
+  // Handle Send Reset OTP
+  const handleSendResetOtp = async (e) => {
+    e.preventDefault();
+    if (!email.trim() || !email.includes('@')) {
+      setErrorMessage('Please enter a valid registered email address.');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    const res = await forgotPassword(email.trim());
+    setLoading(false);
+
+    if (res.success) {
+      setSuccessMessage(res.message || 'OTP verification code sent to your email.');
+      setResetStep(2);
+    } else {
+      setErrorMessage(res.error || 'Failed to send OTP code. Please check your email.');
+    }
+  };
+
+  // Handle Verify OTP & Reset Password
+  const handleCompletePasswordReset = async (e) => {
+    e.preventDefault();
+    if (!resetOtp.trim()) {
+      setErrorMessage('Please enter the 6-digit verification code.');
+      return;
+    }
+    if (newPassword.length < 8) {
+      setErrorMessage('New password must be at least 8 characters long.');
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      setErrorMessage('New passwords do not match.');
+      return;
+    }
+
+    setLoading(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+
+    const res = await resetPassword(email.trim(), resetOtp.trim(), newPassword);
+    setLoading(false);
+
+    if (res.success) {
+      setSuccessMessage('Password reset successfully! You can now sign in with your new password.');
+      setTimeout(() => {
+        setActiveTab('login');
+        setPassword('');
+        setResetStep(1);
+        setResetOtp('');
+        setNewPassword('');
+        setConfirmNewPassword('');
+      }, 1500);
+    } else {
+      setErrorMessage(res.error || 'Failed to reset password. Please check your OTP code.');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage('');
@@ -119,7 +187,7 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
       } else {
         setErrorMessage(res.error || 'Registration failed.');
       }
-    } else {
+    } else if (activeTab === 'login') {
       if (!email.trim()) {
         setErrorMessage('Please enter your Email Address.');
         return;
@@ -159,7 +227,7 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
           </button>
         )}
 
-        {/* Left Banner (Replica of Verification Portal Auth Banner) */}
+        {/* Left Banner */}
         <div className="w-full md:w-5/12 bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 p-8 text-white flex flex-col justify-between relative overflow-hidden">
           <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
           
@@ -171,10 +239,12 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
 
             <div className="space-y-2">
               <h2 className="text-2xl sm:text-3xl font-black text-white leading-tight">
-                Your Achievements, Verified.
+                {activeTab === 'forgot-password' ? 'Instant Account Recovery.' : 'Your Achievements, Verified.'}
               </h2>
               <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                Create your account to explore, earn and showcase your achievements. Synchronized across Quiz Platform and Verification Portal.
+                {activeTab === 'forgot-password'
+                  ? 'Reset your password securely with a 6-digit OTP code sent directly to your registered email.'
+                  : 'Access live & scheduled quizzes, track global leaderboards, and issue verifiable digital credentials seamlessly.'}
               </p>
             </div>
           </div>
@@ -186,46 +256,67 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
               </div>
               <div className="text-xs">
                 <span className="font-extrabold text-white block">Single Sign-On (SSO)</span>
-                <span className="text-[10px] text-slate-300">Same Account ID on verify.mscprpcem.tech</span>
+                <span className="text-[10px] text-slate-300">Connected with verify.mscprpcem.tech</span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Right Form (Exact Replica of Verification Portal Register/Login Form) */}
+        {/* Right Form */}
         <div className="w-full md:w-7/12 p-6 sm:p-8 flex flex-col justify-center space-y-5">
           
           {/* Header Tabs */}
           <div className="flex justify-between items-center border-b border-slate-100 pb-3">
             <div>
               <h2 className="text-xl font-black text-slate-900 tracking-tight">
-                {activeTab === 'register' ? 'Create Your Account' : 'Sign In to Your Account'}
+                {activeTab === 'forgot-password'
+                  ? 'Reset Password'
+                  : activeTab === 'register'
+                  ? 'Create Your Account'
+                  : 'Sign In to Your Account'}
               </h2>
               <p className="text-xs text-slate-500 font-semibold">
-                {activeTab === 'register' ? 'Fill in the details to get started' : 'Enter your credentials to continue'}
+                {activeTab === 'forgot-password'
+                  ? resetStep === 1
+                    ? 'Enter your email to receive an OTP code'
+                    : 'Enter OTP and your new password'
+                  : activeTab === 'register'
+                  ? 'Fill in the details to get started'
+                  : 'Enter your credentials to continue'}
               </p>
             </div>
 
-            <div className="flex space-x-1.5 bg-slate-100 p-1 rounded-xl">
+            {activeTab !== 'forgot-password' ? (
+              <div className="flex space-x-1.5 bg-slate-100 p-1 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab('login'); setErrorMessage(''); setSuccessMessage(''); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                    activeTab === 'login' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setActiveTab('register'); setErrorMessage(''); setSuccessMessage(''); }}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
+                    activeTab === 'register' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  Create Account
+                </button>
+              </div>
+            ) : (
               <button
                 type="button"
                 onClick={() => { setActiveTab('login'); setErrorMessage(''); setSuccessMessage(''); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                  activeTab === 'login' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'
-                }`}
+                className="inline-flex items-center space-x-1.5 text-xs font-bold text-blue-600 hover:text-blue-800 transition-colors cursor-pointer"
               >
-                Sign In
+                <ArrowLeft size={14} />
+                <span>Back to Login</span>
               </button>
-              <button
-                type="button"
-                onClick={() => { setActiveTab('register'); setErrorMessage(''); setSuccessMessage(''); }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-black transition-all cursor-pointer ${
-                  activeTab === 'register' ? 'bg-white text-blue-600 shadow-xs' : 'text-slate-500 hover:text-slate-800'
-                }`}
-              >
-                Create Account
-              </button>
-            </div>
+            )}
           </div>
 
           {/* Feedback Alerts */}
@@ -243,189 +334,321 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-3.5">
-            
-            {/* Full Name field (Register only) */}
-            {activeTab === 'register' && (
+          {/* FORGOT PASSWORD FLOW */}
+          {activeTab === 'forgot-password' ? (
+            resetStep === 1 ? (
+              <form onSubmit={handleSendResetOtp} className="space-y-4">
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-700">Registered Email Address</label>
+                  <div className="relative">
+                    <Mail size={16} className="absolute left-3.5 top-3 text-slate-400" />
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. yourname@gmail.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md transition-all active:scale-98 cursor-pointer disabled:opacity-50"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Sending OTP Code...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Send 6-Digit OTP Code</span>
+                      <ArrowRight size={16} />
+                    </>
+                  )}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleCompletePasswordReset} className="space-y-3.5">
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs">
+                  <span className="font-bold text-blue-900 truncate">Resetting for: {email}</span>
+                  <button
+                    type="button"
+                    onClick={() => setResetStep(1)}
+                    className="text-[11px] text-blue-700 font-extrabold underline cursor-pointer"
+                  >
+                    Change
+                  </button>
+                </div>
+
+                {/* OTP Code */}
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-700">6-Digit OTP Verification Code</label>
+                  <div className="relative">
+                    <KeyRound size={16} className="absolute left-3.5 top-3 text-slate-400" />
+                    <input
+                      type="text"
+                      maxLength={6}
+                      required
+                      placeholder="123456"
+                      value={resetOtp}
+                      onChange={(e) => setResetOtp(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs font-black tracking-widest bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* New Password */}
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-700">New Password</label>
+                  <div className="relative">
+                    <Lock size={16} className="absolute left-3.5 top-3 text-slate-400" />
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      required
+                      placeholder="••••••••••••"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showNewPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-semibold block">Must be at least 8 characters</span>
+                </div>
+
+                {/* Confirm New Password */}
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-700">Confirm New Password</label>
+                  <div className="relative">
+                    <Lock size={16} className="absolute left-3.5 top-3 text-slate-400" />
+                    <input
+                      type={showNewPassword ? 'text' : 'password'}
+                      required
+                      placeholder="Confirm new password"
+                      value={confirmNewPassword}
+                      onChange={(e) => setConfirmNewPassword(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md transition-all active:scale-98 cursor-pointer disabled:opacity-50"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 size={16} className="animate-spin" />
+                      <span>Updating Password...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Reset Password & Sign In</span>
+                      <ArrowRight size={16} />
+                    </>
+                  )}
+                </button>
+              </form>
+            )
+          ) : (
+            /* LOGIN & REGISTER FORMS */
+            <form onSubmit={handleSubmit} className="space-y-3.5">
+              
+              {/* Full Name field (Register only) */}
+              {activeTab === 'register' && (
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-700">Full Name</label>
+                  <div className="relative">
+                    <User size={16} className="absolute left-3.5 top-3 text-slate-400" />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter your Full Name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Email Address field */}
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">Full Name</label>
+                <label className="block text-xs font-bold text-slate-700">Email Address</label>
                 <div className="relative">
-                  <User size={16} className="absolute left-3.5 top-3 text-slate-400" />
+                  <Mail size={16} className="absolute left-3.5 top-3 text-slate-400" />
                   <input
-                    type="text"
+                    type="email"
                     required
-                    placeholder="Enter your Full Name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Enter your email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     className="w-full border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
                   />
                 </div>
               </div>
-            )}
 
-            {/* Email Address field */}
-            <div className="space-y-1">
-              <label className="block text-xs font-bold text-slate-700">Email Address</label>
-              <div className="relative">
-                <Mail size={16} className="absolute left-3.5 top-3 text-slate-400" />
-                <input
-                  type="email"
-                  required
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
-                />
-              </div>
-            </div>
+              {/* Username Handle Field (Register only) */}
+              {activeTab === 'register' && (
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-slate-700">Username Handle</label>
+                    <span className="text-[10px] text-slate-400 font-semibold">(for public profile URL)</span>
+                  </div>
+                  <div className="relative flex items-center">
+                    <span className="absolute left-3.5 text-xs font-black text-slate-400 select-none">@</span>
+                    <input
+                      type="text"
+                      placeholder="e.g. amityadav"
+                      value={username}
+                      onChange={handleUsernameChange}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleCheckHandle(username);
+                        }
+                      }}
+                      required
+                      className="w-full border border-slate-200 rounded-xl pl-8 pr-12 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
+                    />
+                    <div className="absolute right-3 flex items-center space-x-1.5">
+                      {usernameChecking ? (
+                        <Loader2 size={15} className="animate-spin text-blue-600" />
+                      ) : usernameAvailable === true ? (
+                        <CheckCircle2 size={15} className="text-emerald-500" />
+                      ) : usernameAvailable === false ? (
+                        <X size={15} className="text-red-500" />
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => handleCheckHandle(username)}
+                        disabled={usernameChecking || !username.trim()}
+                        className="text-slate-400 hover:text-blue-600 p-1 cursor-pointer disabled:opacity-30"
+                        title="Check handle availability"
+                      >
+                        <Search size={14} />
+                      </button>
+                    </div>
+                  </div>
+                  {usernameAvailable === true && (
+                    <span className="text-[10px] font-bold text-emerald-600 block">Available</span>
+                  )}
+                  {usernameError && (
+                    <span className="text-[10px] font-bold text-red-500 block">{usernameError}</span>
+                  )}
+                </div>
+              )}
 
-            {/* Username Handle Field (Register only - Exact Replica of Verification Platform) */}
-            {activeTab === 'register' && (
+              {/* Password field */}
               <div className="space-y-1">
                 <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-700">Username Handle</label>
-                  <span className="text-[10px] text-slate-400 font-semibold">(for public profile URL)</span>
-                </div>
-                <div className="relative flex items-center">
-                  <span className="absolute left-3.5 text-xs font-black text-slate-400 select-none">@</span>
-                  <input
-                    type="text"
-                    placeholder="e.g. amityadav"
-                    value={username}
-                    onChange={handleUsernameChange}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleCheckHandle(username);
-                      }
-                    }}
-                    required
-                    className="w-full border border-slate-200 rounded-xl pl-8 pr-12 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
-                  />
-                  <div className="absolute right-3 flex items-center space-x-1.5">
-                    {usernameChecking ? (
-                      <Loader2 size={15} className="animate-spin text-blue-600" />
-                    ) : usernameAvailable === true ? (
-                      <CheckCircle2 size={15} className="text-emerald-500" />
-                    ) : usernameAvailable === false ? (
-                      <X size={15} className="text-red-500" />
-                    ) : null}
+                  <label className="block text-xs font-bold text-slate-700">Password</label>
+                  {activeTab === 'login' && (
                     <button
                       type="button"
-                      onClick={() => handleCheckHandle(username)}
-                      disabled={usernameChecking || !username.trim()}
-                      className="text-slate-400 hover:text-blue-600 p-1 cursor-pointer disabled:opacity-30"
-                      title="Check handle availability"
+                      onClick={() => {
+                        setActiveTab('forgot-password');
+                        setResetStep(1);
+                        setErrorMessage('');
+                        setSuccessMessage('');
+                      }}
+                      className="text-[11px] text-blue-600 font-bold hover:underline cursor-pointer"
                     >
-                      <Search size={14} />
+                      Forgot password?
                     </button>
-                  </div>
+                  )}
                 </div>
-                {usernameAvailable === true && (
-                  <span className="text-[10px] font-bold text-emerald-600 block">Available</span>
-                )}
-                {usernameError && (
-                  <span className="text-[10px] font-bold text-red-500 block">{usernameError}</span>
-                )}
-              </div>
-            )}
-
-            {/* Password field */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <label className="block text-xs font-bold text-slate-700">Password</label>
-                {activeTab === 'login' && (
-                  <a
-                    href="https://verify.mscprpcem.tech/forgot-password"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[11px] text-blue-600 font-bold hover:underline inline-flex items-center space-x-1"
-                  >
-                    <span>Forgot password?</span>
-                    <ExternalLink size={10} />
-                  </a>
-                )}
-              </div>
-              <div className="relative">
-                <Lock size={16} className="absolute left-3.5 top-3 text-slate-400" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  placeholder="••••••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
-                >
-                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-              {activeTab === 'register' && (
-                <span className="text-[10px] text-slate-400 font-semibold block">Password must be at least 8 characters</span>
-              )}
-            </div>
-
-            {/* Confirm Password field (Register only) */}
-            {activeTab === 'register' && (
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">Confirm Password</label>
                 <div className="relative">
                   <Lock size={16} className="absolute left-3.5 top-3 text-slate-400" />
                   <input
-                    type={showConfirmPassword ? 'text' : 'password'}
+                    type={showPassword ? 'text' : 'password'}
                     required
-                    placeholder="Confirm your password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                     className="w-full border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
                   />
                   <button
                     type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
                   >
-                    {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+                {activeTab === 'register' && (
+                  <span className="text-[10px] text-slate-400 font-semibold block">Password must be at least 8 characters</span>
+                )}
               </div>
-            )}
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md transition-all active:scale-98 cursor-pointer disabled:opacity-50 mt-2"
-            >
-              <span>{loading ? 'Authenticating across portals...' : activeTab === 'register' ? 'Create Account' : 'Sign In'}</span>
-              <ArrowRight size={16} />
-            </button>
-
-            {/* Footer Navigation Switch Link */}
-            <div className="text-center pt-2 border-t border-slate-100">
-              {activeTab === 'register' ? (
-                <button
-                  type="button"
-                  onClick={() => { setActiveTab('login'); setErrorMessage(''); setSuccessMessage(''); }}
-                  className="text-xs text-slate-500 font-bold hover:text-blue-600 transition-colors cursor-pointer"
-                >
-                  Already have an account? <span className="text-blue-600 font-extrabold underline">Sign In</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => { setActiveTab('register'); setErrorMessage(''); setSuccessMessage(''); }}
-                  className="text-xs text-slate-500 font-bold hover:text-blue-600 transition-colors cursor-pointer"
-                >
-                  Don't have an account? <span className="text-blue-600 font-extrabold underline">Create Account</span>
-                </button>
+              {/* Confirm Password field (Register only) */}
+              {activeTab === 'register' && (
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-700">Confirm Password</label>
+                  <div className="relative">
+                    <Lock size={16} className="absolute left-3.5 top-3 text-slate-400" />
+                    <input
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      required
+                      placeholder="Confirm your password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      className="w-full border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    >
+                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                  </div>
+                </div>
               )}
-            </div>
 
-          </form>
+              {/* Submit Button */}
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md transition-all active:scale-98 cursor-pointer disabled:opacity-50 mt-2"
+              >
+                <span>{loading ? 'Authenticating...' : activeTab === 'register' ? 'Create Account' : 'Sign In'}</span>
+                <ArrowRight size={16} />
+              </button>
+
+              {/* Footer Navigation Switch Link */}
+              <div className="text-center pt-2 border-t border-slate-100">
+                {activeTab === 'register' ? (
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('login'); setErrorMessage(''); setSuccessMessage(''); }}
+                    className="text-xs text-slate-500 font-bold hover:text-blue-600 transition-colors cursor-pointer"
+                  >
+                    Already have an account? <span className="text-blue-600 font-extrabold underline">Sign In</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => { setActiveTab('register'); setErrorMessage(''); setSuccessMessage(''); }}
+                    className="text-xs text-slate-500 font-bold hover:text-blue-600 transition-colors cursor-pointer"
+                  >
+                    Don't have an account? <span className="text-blue-600 font-extrabold underline">Create Account</span>
+                  </button>
+                )}
+              </div>
+
+            </form>
+          )}
 
         </div>
       </div>
