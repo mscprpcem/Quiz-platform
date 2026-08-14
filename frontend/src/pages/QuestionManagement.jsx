@@ -13,6 +13,7 @@ import {
   HelpCircle,
   X,
   FileSpreadsheet,
+  FileText,
   Download
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -137,17 +138,32 @@ export default function QuestionManagement() {
     return <div className="text-center py-24 font-semibold text-brand-textMuted animate-pulse">Loading question sheet...</div>;
   }
 
-  const handleDownloadTemplate = () => {
+  const handleDownloadTemplate = (format = 'xlsx') => {
     const sampleData = [
-      { 'Question': 'What does CPU stand for?', 'Option A': 'Central Processing Unit', 'Option B': 'Central Program Utility', 'Option C': 'Computer Personal Unit', 'Option D': 'Central Processor Unifier', 'Correct Answer': 'A' },
-      { 'Question': 'Which data structure uses FIFO?', 'Option A': 'Stack', 'Option B': 'Queue', 'Option C': 'Tree', 'Option D': 'Graph', 'Correct Answer': 'B' },
-      { 'Question': 'HTML stands for?', 'Option A': 'Hyper Trainer Marking Language', 'Option B': 'Hyper Text Marketing Language', 'Option C': 'Hyper Text Markup Language', 'Option D': 'Hyper Text Markup Leveler', 'Correct Answer': 'C' }
+      { 'Question': 'What does CPU stand for?', 'Option A': 'Central Processing Unit', 'Option B': 'Central Program Utility', 'Option C': 'Computer Personal Unit', 'Option D': 'Central Processor Unifier', 'Correct Answer': 'A', 'Explanation': 'CPU is the Central Processing Unit.' },
+      { 'Question': 'Which data structure uses FIFO?', 'Option A': 'Stack', 'Option B': 'Queue', 'Option C': 'Tree', 'Option D': 'Graph', 'Correct Answer': 'B', 'Explanation': 'Queue operates on First In First Out.' },
+      { 'Question': 'HTML stands for?', 'Option A': 'Hyper Trainer Marking Language', 'Option B': 'Hyper Text Marketing Language', 'Option C': 'Hyper Text Markup Language', 'Option D': 'Hyper Text Markup Leveler', 'Correct Answer': 'C', 'Explanation': 'HTML is Hyper Text Markup Language.' }
     ];
-    const ws = XLSX.utils.json_to_sheet(sampleData);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'Questions');
-    ws['!cols'] = [{ wch: 40 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 15 }];
-    XLSX.writeFile(wb, 'live_quiz_questions_template.xlsx');
+    
+    if (format === 'csv') {
+      const ws = XLSX.utils.json_to_sheet(sampleData);
+      const csvOutput = XLSX.utils.sheet_to_csv(ws);
+      const blob = new Blob([csvOutput], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'live_quiz_questions_template.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } else {
+      const ws = XLSX.utils.json_to_sheet(sampleData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Questions');
+      ws['!cols'] = [{ wch: 40 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 15 }, { wch: 35 }];
+      XLSX.writeFile(wb, 'live_quiz_questions_template.xlsx');
+    }
   };
 
   const handleExcelUpload = async (e) => {
@@ -221,20 +237,32 @@ export default function QuestionManagement() {
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap relative z-10">
-          {/* Download Template */}
-          <button
-            onClick={handleDownloadTemplate}
-            type="button"
-            className="flex items-center justify-center gap-1.5 border border-brand-border bg-white hover:bg-zinc-50 text-zinc-650 hover:text-brand-textMain px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer"
-          >
-            <Download size={14} />
-            Download Template
-          </button>
+          {/* Download Template Buttons */}
+          <div className="flex items-center space-x-1.5">
+            <button
+              onClick={() => handleDownloadTemplate('xlsx')}
+              type="button"
+              className="flex items-center justify-center gap-1.5 border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-3 py-2 rounded-xl text-xs font-extrabold shadow-2xs transition-all active:scale-95 cursor-pointer"
+              title="Download Microsoft Excel (.xlsx) Template"
+            >
+              <FileSpreadsheet size={13} className="text-emerald-600" />
+              <span>Excel Template</span>
+            </button>
+            <button
+              onClick={() => handleDownloadTemplate('csv')}
+              type="button"
+              className="flex items-center justify-center gap-1.5 border border-blue-300 bg-blue-50 hover:bg-blue-100 text-blue-800 px-3 py-2 rounded-xl text-xs font-extrabold shadow-2xs transition-all active:scale-95 cursor-pointer"
+              title="Download Standard CSV (.csv) Template"
+            >
+              <FileText size={13} className="text-blue-600" />
+              <span>CSV Template</span>
+            </button>
+          </div>
 
-          {/* Upload Excel */}
-          <label className="flex items-center justify-center gap-1.5 border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-4 py-2.5 rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer">
-            <FileSpreadsheet size={14} />
-            Upload Excel
+          {/* Upload Excel / CSV */}
+          <label className="flex items-center justify-center gap-1.5 border border-emerald-600 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer">
+            <Upload size={14} />
+            <span>Import (.xlsx / .csv)</span>
             <input type="file" accept=".csv,.xlsx,.xls" onChange={handleExcelUpload} className="hidden" />
           </label>
 
