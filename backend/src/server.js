@@ -123,6 +123,7 @@ app.use("/api", limiter);
 
 const scheduledQuizRoutes = require('./routes/scheduledQuiz');
 const studentSyncRoutes = require('./routes/studentSync');
+const ssoRoutes = require('./routes/sso');
 
 app.use("/api/auth", authRoutes);
 app.use("/api/quizzes", quizRoutes);
@@ -131,6 +132,7 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/export", exportRoutes);
 app.use("/api/branding", brandingRoutes);
 app.use("/api/student", studentSyncRoutes);
+app.use("/oauth", ssoRoutes);
 
 // =======================
 // Root
@@ -213,10 +215,15 @@ async function startServer() {
       `ALTER TABLE ${quote}Questions${quote} ADD COLUMN ${ifNotExists}${quote}section_description${quote} TEXT;`,
 
       // Users table
+      `ALTER TABLE ${quote}Users${quote} ADD COLUMN ${ifNotExists}${quote}subject_id${quote} VARCHAR(255);`,
       `ALTER TABLE ${quote}Users${quote} ADD COLUMN ${ifNotExists}${quote}username${quote} VARCHAR(255);`,
       `ALTER TABLE ${quote}Users${quote} ADD COLUMN ${ifNotExists}${quote}otp${quote} VARCHAR(255);`,
       `ALTER TABLE ${quote}Users${quote} ADD COLUMN ${ifNotExists}${quote}otp_expiry${quote} ${dateType};`,
       `ALTER TABLE ${quote}Users${quote} ADD COLUMN ${ifNotExists}${quote}is_verified${quote} ${boolType} DEFAULT 1;`,
+
+      // Participants & QuizAttempts table
+      `ALTER TABLE ${quote}Participants${quote} ADD COLUMN ${ifNotExists}${quote}sso_user_id${quote} VARCHAR(255);`,
+      `ALTER TABLE ${quote}QuizAttempts${quote} ADD COLUMN ${ifNotExists}${quote}sso_user_id${quote} VARCHAR(255);`,
 
       // Lowercase fallback for Postgres
       ...(isPostgres ? [
@@ -228,10 +235,13 @@ async function startServer() {
         `ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS schedule_type VARCHAR(255);`,
         `ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS schedule_config TEXT;`,
         `ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS subject VARCHAR(255) DEFAULT 'DBMS';`,
+        `ALTER TABLE users ADD COLUMN IF NOT EXISTS subject_id VARCHAR(255);`,
         `ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(255);`,
         `ALTER TABLE users ADD COLUMN IF NOT EXISTS otp VARCHAR(255);`,
         `ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_expiry ${dateType};`,
-        `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified ${boolType} DEFAULT true;`
+        `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified ${boolType} DEFAULT true;`,
+        `ALTER TABLE participants ADD COLUMN IF NOT EXISTS sso_user_id VARCHAR(255);`,
+        `ALTER TABLE quizattempts ADD COLUMN IF NOT EXISTS sso_user_id VARCHAR(255);`
       ] : [])
     ];
 

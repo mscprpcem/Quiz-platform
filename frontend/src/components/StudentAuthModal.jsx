@@ -244,8 +244,8 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
               </h2>
               <p className="text-xs text-slate-300 leading-relaxed font-medium">
                 {activeTab === 'forgot-password'
-                  ? 'Reset your password securely with a 6-digit OTP code sent directly to your registered email.'
-                  : 'Access live & scheduled quizzes, track global leaderboards, and issue verifiable digital credentials seamlessly.'}
+                  ? 'Reset your password'
+                  : ''}
               </p>
             </div>
           </div>

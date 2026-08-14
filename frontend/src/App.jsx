@@ -39,6 +39,7 @@ import ScheduledQuizTake from './pages/ScheduledQuizTake';
 import CreateScheduledQuiz from './pages/CreateScheduledQuiz';
 import VanityRedirect from './pages/VanityRedirect';
 import StudentAuth from './pages/StudentAuth';
+import AuthCallback from './pages/AuthCallback';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -130,6 +131,9 @@ export default function App() {
                 <Route path="/quiz/:slug" element={<ScheduledQuizTake />} />
                 <Route path="/q" element={<Navigate to="/" replace />} />
                 <Route path="/:slug" element={<VanityRedirect />} />
+
+                {/* Central OAuth 2.0 PKCE Callback Route */}
+                <Route path="/auth/callback" element={<AuthCallback />} />
 
                 {/* Student Auth Routes with Verification Portal Sync */}
                 <Route path="/login" element={<StudentAuth />} />

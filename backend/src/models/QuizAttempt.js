@@ -23,6 +23,10 @@ const QuizAttempt = sequelize.define('QuizAttempt', {
     type: DataTypes.STRING,
     allowNull: true
   },
+  sso_user_id: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   attempt_number: {
     type: DataTypes.INTEGER,
     defaultValue: 1

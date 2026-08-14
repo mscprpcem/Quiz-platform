@@ -11,6 +11,10 @@ const Participant = sequelize.define('Participant', {
     type: DataTypes.UUID,
     allowNull: false
   },
+  sso_user_id: {
+    type: DataTypes.STRING,
+    allowNull: true
+  },
   name: {
     type: DataTypes.STRING,
     allowNull: false

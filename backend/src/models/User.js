@@ -1,12 +1,18 @@
 const { DataTypes } = require('sequelize');
 const sequelize = require('../config/database');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 
 const User = sequelize.define('User', {
   id: {
     type: DataTypes.UUID,
     defaultValue: DataTypes.UUIDV4,
     primaryKey: true
+  },
+  subject_id: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    unique: true
   },
   name: {
     type: DataTypes.STRING,
@@ -52,7 +58,11 @@ const User = sequelize.define('User', {
 }, {
   hooks: {
     beforeCreate: async (user) => {
-      if (user.password) {
+      if (!user.subject_id) {
+        const randomHex = crypto.randomBytes(4).toString('hex').toUpperCase();
+        user.subject_id = `usr_${randomHex}`;
+      }
+      if (user.password && !user.password.startsWith('$2a$') && !user.password.startsWith('$2b$')) {
         const salt = await bcrypt.genSalt(10);
         user.password = await bcrypt.hash(user.password, salt);
       }

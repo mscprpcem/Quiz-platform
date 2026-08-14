@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const { Op } = require('sequelize');
-const { User } = require('../models');
+const { User, QuizAttempt, Participant } = require('../models');
+const { exchangeCodeForTokens, generateSubjectId } = require('../services/ssoProvider');
 let axios;
 try {
   axios = require('axios');
@@ -312,6 +313,157 @@ router.post('/reset-password', async (req, res) => {
   } catch (err) {
     console.error('Reset password error:', err);
     return res.status(500).json({ error: 'Failed to reset password.' });
+  }
+});
+
+// =======================
+// Central OAuth 2.0 Code Exchange Endpoint
+// POST /api/student/oauth/exchange
+// =======================
+router.post('/oauth/exchange', async (req, res) => {
+  try {
+    const { code, client_id, code_verifier, redirect_uri } = req.body;
+
+    if (!code) {
+      return res.status(400).json({ error: 'invalid_request', error_description: 'Authorization code is required.' });
+    }
+
+    const clientId = client_id || 'msc-quiz-web';
+
+    const tokenResponse = await exchangeCodeForTokens({
+      code,
+      clientId,
+      codeVerifier: code_verifier,
+      redirectUri
+    });
+
+    const ssoUser = tokenResponse.user;
+    const cleanEmail = normalizeEmail(ssoUser.email);
+    const subjectId = ssoUser.sub || generateSubjectId();
+
+    // Find or sync central user in local database
+    let localUser = await User.findOne({
+      where: {
+        [Op.or]: [
+          { email: cleanEmail },
+          { subject_id: subjectId }
+        ]
+      }
+    });
+
+    if (!localUser) {
+      localUser = await User.create({
+        subject_id: subjectId,
+        name: ssoUser.name,
+        email: cleanEmail,
+        username: ssoUser.username || cleanEmail.split('@')[0],
+        password: 'SSO_CENTRAL_MANAGED_ACCOUNT',
+        role: ssoUser.role || 'student',
+        is_verified: true
+      });
+    } else {
+      let updated = false;
+      if (!localUser.subject_id) {
+        localUser.subject_id = subjectId;
+        updated = true;
+      }
+      if (ssoUser.name && localUser.name !== ssoUser.name) {
+        localUser.name = ssoUser.name;
+        updated = true;
+      }
+      if (updated) {
+        await localUser.save();
+      }
+    }
+
+    // Auto-link existing QuizAttempts and Participants by email to sso_user_id
+    if (QuizAttempt) {
+      await QuizAttempt.update(
+        { sso_user_id: subjectId },
+        { where: { participant_email: cleanEmail, sso_user_id: null } }
+      ).catch(() => {});
+    }
+
+    if (Participant) {
+      await Participant.update(
+        { sso_user_id: subjectId },
+        { where: { email: cleanEmail, sso_user_id: null } }
+      ).catch(() => {});
+    }
+
+    const studentData = {
+      id: localUser.id,
+      subject_id: subjectId,
+      sso_user_id: subjectId,
+      email: cleanEmail,
+      name: localUser.name,
+      username: localUser.username || cleanEmail.split('@')[0],
+      role: localUser.role || 'student',
+      joinedAt: localUser.createdAt || new Date().toISOString()
+    };
+
+    const JWT_SECRET = process.env.JWT_SECRET || 'msc_quiz_secret_key_2026';
+    const token = jwt.sign(
+      { id: localUser.id, sub: subjectId, sso_user_id: subjectId, email: cleanEmail, name: localUser.name, role: studentData.role },
+      JWT_SECRET,
+      { expiresIn: '30d' }
+    );
+
+    return res.json({
+      success: true,
+      message: 'Authenticated successfully via MSC Central SSO!',
+      user: studentData,
+      token,
+      idToken: tokenResponse.idToken
+    });
+  } catch (err) {
+    console.error('OAuth Exchange Error:', err.message);
+    return res.status(400).json({ error: 'invalid_grant', error_description: err.message });
+  }
+});
+
+// =======================
+// Get Current Session Student User Info
+// GET /api/student/me
+// =======================
+router.get('/me', async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const JWT_SECRET = process.env.JWT_SECRET || 'msc_quiz_secret_key_2026';
+    const decoded = jwt.verify(token, JWT_SECRET);
+
+    const localUser = await User.findOne({
+      where: {
+        [Op.or]: [
+          ...(decoded.sub ? [{ subject_id: decoded.sub }] : []),
+          ...(decoded.email ? [{ email: decoded.email }] : [])
+        ]
+      }
+    });
+
+    if (!localUser) {
+      return res.status(404).json({ error: 'Student account not found.' });
+    }
+
+    return res.json({
+      success: true,
+      user: {
+        id: localUser.id,
+        subject_id: localUser.subject_id,
+        sso_user_id: localUser.subject_id,
+        email: localUser.email,
+        name: localUser.name,
+        username: localUser.username,
+        role: localUser.role
+      }
+    });
+  } catch (err) {
+    return res.status(401).json({ error: 'Session expired or invalid token.' });
   }
 });
 

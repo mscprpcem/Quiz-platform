@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import api from '../services/api';
+import { generateCodeVerifier, generateCodeChallenge } from '../utils/pkce';
 
 const AuthContext = createContext(null);
 
@@ -77,6 +78,35 @@ export const AuthProvider = ({ children }) => {
         .catch(err => console.warn('SSO Token verification error:', err.message));
     }
   }, []);
+
+  // Initiate Central OAuth 2.0 PKCE Flow
+  const initiateSsoLogin = async (returnUrl = '/') => {
+    try {
+      const verifier = generateCodeVerifier();
+      const challenge = await generateCodeChallenge(verifier);
+
+      sessionStorage.setItem('msc_pkce_verifier', verifier);
+      sessionStorage.setItem('msc_sso_return_url', returnUrl);
+
+      const redirectUri = `${window.location.origin}/auth/callback`;
+      const authUrl = new URL(`/oauth/authorize`, window.location.origin);
+      authUrl.searchParams.set('client_id', 'msc-quiz-web');
+      authUrl.searchParams.set('redirect_uri', redirectUri);
+      authUrl.searchParams.set('response_type', 'code');
+      authUrl.searchParams.set('scope', 'openid profile email');
+      authUrl.searchParams.set('code_challenge', challenge);
+      authUrl.searchParams.set('code_challenge_method', 'S256');
+
+      if (studentAccount?.email) {
+        authUrl.searchParams.set('email', studentAccount.email);
+        authUrl.searchParams.set('name', studentAccount.name);
+      }
+
+      window.location.href = authUrl.toString();
+    } catch (err) {
+      console.error('Failed to initiate SSO login:', err);
+    }
+  };
 
   const login = async (email, password) => {
     try {
@@ -249,6 +279,8 @@ export const AuthProvider = ({ children }) => {
       loading, 
       verifyToken,
       studentAccount,
+      setStudentAccount,
+      initiateSsoLogin,
       studentLogin,
       studentRegister,
       studentLogout,
