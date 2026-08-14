@@ -28,12 +28,15 @@ const resolveOccurrence = async (identifier) => {
     where: {
       [Op.or]: [
         { id: rawClean },
+        { custom_slug: rawClean },
+        { custom_slug: { [Op.like]: rawClean } },
         { join_code: rawClean },
         { join_code: rawClean.toUpperCase() },
         sequelize.where(sequelize.fn('LOWER', sequelize.col('title')), rawClean.toLowerCase()),
         sequelize.where(sequelize.fn('LOWER', sequelize.fn('REPLACE', sequelize.col('title'), ' ', '-')), slugClean)
       ]
     },
+    order: [['updatedAt', 'DESC']],
     include: [
       { model: Question, as: 'questions' },
       { model: ScheduledOccurrence, as: 'occurrences' }
@@ -43,6 +46,7 @@ const resolveOccurrence = async (identifier) => {
   if (!quiz) {
     // Partial substring fallback search for title slug
     const allQuizzes = await Quiz.findAll({
+      order: [['updatedAt', 'DESC']],
       include: [
         { model: Question, as: 'questions' },
         { model: ScheduledOccurrence, as: 'occurrences' }
@@ -50,14 +54,24 @@ const resolveOccurrence = async (identifier) => {
     });
     quiz = allQuizzes.find(q => {
       const qSlug = q.title ? q.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : '';
-      return qSlug === slugClean || q.join_code?.toLowerCase() === rawClean.toLowerCase();
+      return (
+        (q.custom_slug && q.custom_slug.toLowerCase() === rawClean.toLowerCase()) ||
+        qSlug === slugClean || 
+        q.join_code?.toLowerCase() === rawClean.toLowerCase()
+      );
     });
   }
 
   if (quiz) {
-    const occurrences = quiz.occurrences || [];
+    const occurrences = (quiz.occurrences || []).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
     const now = new Date();
-    let matchedOcc = occurrences.find(o => o.status !== 'CANCELLED' && new Date(o.end_time) >= now) || occurrences[0];
+    let matchedOcc = occurrences.find(o => o.status !== 'CANCELLED' && new Date(o.start_time) <= now && new Date(o.end_time) >= now);
+    if (!matchedOcc) {
+      matchedOcc = occurrences.find(o => o.status !== 'CANCELLED' && new Date(o.start_time) > now);
+    }
+    if (!matchedOcc && occurrences.length > 0) {
+      matchedOcc = occurrences[occurrences.length - 1];
+    }
 
     if (!matchedOcc) {
       const startTime = quiz.scheduled_start || now;
@@ -71,7 +85,6 @@ const resolveOccurrence = async (identifier) => {
       });
     }
 
-    matchedOcc.quiz = quiz;
     return matchedOcc;
   }
 
@@ -330,6 +343,10 @@ router.post('/', authMiddleware, async (req, res) => {
     const join_code = await generateJoinCode();
     const cleanSlug = custom_slug ? custom_slug.trim().replace(/^\//, '') : null;
 
+    if (cleanSlug) {
+      await Quiz.update({ custom_slug: null }, { where: { custom_slug: cleanSlug } });
+    }
+
     const quiz = await Quiz.create({
       title,
       description,
@@ -501,6 +518,15 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     const cleanSlug = custom_slug !== undefined ? (custom_slug ? custom_slug.trim().replace(/^\//, '') : null) : quiz.custom_slug;
 
+    if (cleanSlug) {
+      await Quiz.update({ custom_slug: null }, {
+        where: {
+          custom_slug: cleanSlug,
+          id: { [Op.ne]: quiz.id }
+        }
+      });
+    }
+
     await quiz.update({
       title: title || quiz.title,
       description,
@@ -606,6 +632,7 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
 
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId);
     let occ = null;
+    let quiz = null;
 
     if (isUUID) {
       occ = await ScheduledOccurrence.findByPk(rawId, {
@@ -613,6 +640,9 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
           { model: Quiz, as: 'quiz', include: [{ model: Question, as: 'questions' }] }
         ]
       });
+      if (occ && occ.quiz) {
+        quiz = occ.quiz;
+      }
     }
 
     // Fallback: If not found as occurrence ID, search by Quiz ID, custom_slug, or join_code
@@ -625,8 +655,9 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
       ];
       if (isUUID) orConditions.push({ id: rawId });
 
-      let quiz = await Quiz.findOne({
+      quiz = await Quiz.findOne({
         where: { [Op.or]: orConditions },
+        order: [['updatedAt', 'DESC']],
         include: [
           { model: Question, as: 'questions' },
           { model: ScheduledOccurrence, as: 'occurrences' }
@@ -635,6 +666,7 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
 
       if (!quiz) {
         const allQuizzes = await Quiz.findAll({
+          order: [['updatedAt', 'DESC']],
           include: [
             { model: Question, as: 'questions' },
             { model: ScheduledOccurrence, as: 'occurrences' }
@@ -658,7 +690,7 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
           occ = occurrences[occurrences.length - 1];
         }
         if (!occ) {
-          const defaultStart = new Date(now.getTime() - 5 * 60 * 1000);
+          const defaultStart = quiz.scheduled_start ? new Date(quiz.scheduled_start) : new Date(now.getTime() - 5 * 60 * 1000);
           const defaultEnd = quiz.scheduled_end ? new Date(quiz.scheduled_end) : new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
           occ = await ScheduledOccurrence.create({
             quiz_id: quiz.id,
@@ -669,7 +701,6 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
             status: 'SCHEDULED'
           });
         }
-        occ.dataValues.quiz = quiz;
       }
     }
 
@@ -693,9 +724,17 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
       message = `This quiz session is ${occ.status.toLowerCase()}.`;
     }
 
+    const finalQuiz = quiz || occ.quiz || (await Quiz.findByPk(occ.quiz_id, { include: [{ model: Question, as: 'questions' }] }));
+
+    // Format clean JSON response preventing circular model serialization
+    const occJson = occ.toJSON ? occ.toJSON() : { ...occ };
+    delete occJson.quiz;
+    const quizJson = finalQuiz ? (finalQuiz.toJSON ? finalQuiz.toJSON() : { ...finalQuiz }) : null;
+    if (quizJson) delete quizJson.occurrences;
+
     return res.json({
-      occurrence: occ,
-      quiz: occ.quiz,
+      occurrence: occJson,
+      quiz: quizJson,
       serverTime: now,
       status,
       message
@@ -716,27 +755,43 @@ router.post('/occurrences/:occurrenceId/start', async (req, res) => {
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawId);
 
     let occ = null;
+    let quiz = null;
+
     if (isUUID) {
       occ = await ScheduledOccurrence.findByPk(rawId, {
         include: [{ model: Quiz, as: 'quiz' }]
       });
+      if (occ && occ.quiz) {
+        quiz = occ.quiz;
+      }
     }
 
     if (!occ) {
       const orConditions = [
         { custom_slug: rawId },
-        { join_code: rawId.toUpperCase() }
+        { custom_slug: { [Op.like]: rawId } },
+        { join_code: rawId.toUpperCase() },
+        { join_code: rawId }
       ];
       if (isUUID) orConditions.push({ id: rawId });
 
-      const quiz = await Quiz.findOne({
+      const quizRecord = await Quiz.findOne({
         where: { [Op.or]: orConditions },
+        order: [['updatedAt', 'DESC']],
         include: [{ model: ScheduledOccurrence, as: 'occurrences' }]
       });
 
-      if (quiz && quiz.occurrences && quiz.occurrences.length > 0) {
-        occ = quiz.occurrences[0];
-        occ.dataValues.quiz = quiz;
+      if (quizRecord) {
+        quiz = quizRecord;
+        const occurrences = (quizRecord.occurrences || []).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+        const now = new Date();
+        occ = occurrences.find(o => new Date(o.start_time) <= now && new Date(o.end_time) >= now && o.status !== 'CANCELLED');
+        if (!occ) {
+          occ = occurrences.find(o => new Date(o.start_time) > now && o.status !== 'CANCELLED');
+        }
+        if (!occ && occurrences.length > 0) {
+          occ = occurrences[occurrences.length - 1];
+        }
       }
     }
 
@@ -749,7 +804,7 @@ router.post('/occurrences/:occurrenceId/start', async (req, res) => {
     if (now < startTime) return res.status(403).json({ error: "Quiz hasn't started yet." });
     if (now > endTime) return res.status(403).json({ error: 'This quiz is closed.' });
 
-    const quiz = occ.quiz;
+    const targetQuiz = quiz || occ.quiz || (await Quiz.findByPk(occ.quiz_id));
     const cleanEmail = email ? email.trim().toLowerCase() : null;
 
     // Check Attempt Limit
@@ -780,13 +835,13 @@ router.post('/occurrences/:occurrenceId/start', async (req, res) => {
       }
     }
 
-    if (existingAttempts.length >= quiz.max_attempts && quiz.max_attempts > 0) {
-      return res.status(403).json({ error: `Maximum attempt limit (${quiz.max_attempts}) reached for this quiz.` });
+    if (existingAttempts.length >= targetQuiz.max_attempts && targetQuiz.max_attempts > 0) {
+      return res.status(403).json({ error: `Maximum attempt limit (${targetQuiz.max_attempts}) reached for this quiz.` });
     }
 
     // Fetch questions
     let questions = await Question.findAll({
-      where: { quiz_id: quiz.id },
+      where: { quiz_id: targetQuiz.id },
       order: [['order_index', 'ASC']]
     });
 
@@ -795,7 +850,7 @@ router.post('/occurrences/:occurrenceId/start', async (req, res) => {
     }
 
     // Question Shuffling
-    if (quiz.shuffle_questions) {
+    if (targetQuiz.shuffle_questions) {
       questions = shuffleArray(questions);
     }
 
@@ -810,7 +865,7 @@ router.post('/occurrences/:occurrenceId/start', async (req, res) => {
         { key: 'C', text: q.option_c },
         { key: 'D', text: q.option_d }
       ];
-      if (quiz.shuffle_answers) {
+      if (targetQuiz.shuffle_answers) {
         opts = shuffleArray(opts);
       }
       optionOrders[q.id] = opts;
@@ -818,12 +873,12 @@ router.post('/occurrences/:occurrenceId/start', async (req, res) => {
 
     // Server-authoritative timer: started_at and expires_at
     const startedAt = now;
-    const timeLimitMs = (quiz.time_limit > 0 ? quiz.time_limit : 60) * 60 * 1000;
+    const timeLimitMs = (targetQuiz.time_limit > 0 ? targetQuiz.time_limit : 60) * 60 * 1000;
     const expiresAt = new Date(startedAt.getTime() + timeLimitMs);
 
     const attempt = await QuizAttempt.create({
       occurrence_id: occ.id,
-      quiz_id: quiz.id,
+      quiz_id: targetQuiz.id,
       participant_name: name,
       participant_email: cleanEmail,
       attempt_number: existingAttempts.length + 1,
@@ -847,12 +902,12 @@ router.post('/occurrences/:occurrenceId/start', async (req, res) => {
       attempt,
       questions: safeQuestions,
       quizRules: {
-        timeLimitMinutes: quiz.time_limit,
-        requireFullscreen: quiz.require_fullscreen,
-        antiCheatEnabled: quiz.anti_cheat_enabled,
-        maxViolations: quiz.max_violations,
-        positiveMarks: quiz.positive_marks,
-        negativeMarks: quiz.negative_marks
+        timeLimitMinutes: targetQuiz.time_limit,
+        requireFullscreen: targetQuiz.require_fullscreen,
+        antiCheatEnabled: targetQuiz.anti_cheat_enabled,
+        maxViolations: targetQuiz.max_violations,
+        positiveMarks: targetQuiz.positive_marks,
+        negativeMarks: targetQuiz.negative_marks
       }
     });
   } catch (error) {
@@ -1095,11 +1150,13 @@ router.get('/slug/:slug', async (req, res) => {
 
     let quiz = await Quiz.findOne({
       where: { [Op.or]: orConditions },
+      order: [['updatedAt', 'DESC']],
       include: [{ model: ScheduledOccurrence, as: 'occurrences' }]
     });
 
     if (!quiz) {
       const allQuizzes = await Quiz.findAll({
+        order: [['updatedAt', 'DESC']],
         include: [{ model: ScheduledOccurrence, as: 'occurrences' }]
       });
       quiz = allQuizzes.find(q =>

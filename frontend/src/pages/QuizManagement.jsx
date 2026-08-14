@@ -23,7 +23,9 @@ import {
   Clock,
   CheckCircle2,
   Sparkles,
-  Globe
+  Globe,
+  Award,
+  ExternalLink
 } from 'lucide-react';
 
 /* ── Status badge helper ── */
@@ -43,7 +45,6 @@ function StatusBadge({ status }) {
 }
 
 /* ── Modal overlay wrapper ── */
-/* pt-16 = navbar height so the modal never hides behind the sticky bar */
 function Modal({ onClose, children }) {
   return (
     <div
@@ -85,8 +86,11 @@ export default function QuizManagement() {
     event_name: '',
     description: '',
     scheduled_start: '',
-    scheduled_end: ''
+    scheduled_end: '',
+    issue_badge: false,
+    badge_title: 'Certified Specialist'
   });
+  const [availableBadges, setAvailableBadges] = useState([]);
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadErrors, setUploadErrors] = useState([]);
   const [uploadSuccess, setUploadSuccess] = useState('');
@@ -137,6 +141,19 @@ export default function QuizManagement() {
   useEffect(() => {
     loadQuizzes();
     loadBranding();
+    
+    const fetchBadges = async () => {
+      try {
+        const res = await api.get('/api/student/available-badges');
+        if (res.data?.badges && Array.isArray(res.data.badges)) {
+          setAvailableBadges(res.data.badges);
+        }
+      } catch (err) {
+        console.warn('Failed to load badges list:', err);
+      }
+    };
+    fetchBadges();
+
     const interval = setInterval(() => {
       setNowTick(Date.now());
     }, 5000);
@@ -168,7 +185,9 @@ export default function QuizManagement() {
         event_name: quiz.event_name,
         description: quiz.description || '',
         scheduled_start: formatDateForInput(quiz.scheduled_start),
-        scheduled_end: formatDateForInput(quiz.scheduled_end)
+        scheduled_end: formatDateForInput(quiz.scheduled_end),
+        issue_badge: Boolean(quiz.badge_title),
+        badge_title: quiz.badge_title || (availableBadges[0]?.title || 'Certified Specialist')
       });
     } else {
       setSelectedQuiz(null);
@@ -178,7 +197,9 @@ export default function QuizManagement() {
         event_name: '',
         description: '',
         scheduled_start: '',
-        scheduled_end: ''
+        scheduled_end: '',
+        issue_badge: false,
+        badge_title: availableBadges[0]?.title || 'Certified Specialist'
       });
     }
     setFormError('');
@@ -193,10 +214,14 @@ export default function QuizManagement() {
     }
     try {
       setSaving(true);
+      const payload = {
+        ...quizForm,
+        badge_title: quizForm.issue_badge ? (quizForm.badge_title || `${quizForm.title || 'MSC Quiz'} Certified Specialist`) : null
+      };
       if (selectedQuiz) {
-        await api.put(`/api/quizzes/${selectedQuiz.id}`, quizForm);
+        await api.put(`/api/quizzes/${selectedQuiz.id}`, payload);
       } else {
-        await api.post('/api/quizzes', quizForm);
+        await api.post('/api/quizzes', payload);
       }
       setShowCreateModal(false);
       loadQuizzes();
@@ -840,6 +865,81 @@ export default function QuizManagement() {
                       />
                     </div>
                   </div>
+                </div>
+
+                {/* Official Digital Badge & Certificate Section */}
+                <div className="p-4 bg-gradient-to-r from-amber-500/10 via-amber-400/5 to-indigo-500/10 border border-amber-300/60 rounded-xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2.5">
+                      <div className="w-8 h-8 rounded-xl bg-amber-400/20 text-amber-600 flex items-center justify-center font-black">
+                        <Award size={18} />
+                      </div>
+                      <div>
+                        <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">Official Digital Badge & Certificate</h4>
+                        <p className="text-[11px] text-slate-500 font-medium">Issue verifiable credentials upon completing this quiz</p>
+                      </div>
+                    </div>
+
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={quizForm.issue_badge || false}
+                        onChange={e => setQuizForm({ ...quizForm, issue_badge: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-amber-500"></div>
+                    </label>
+                  </div>
+
+                  {quizForm.issue_badge && (
+                    <div className="space-y-3 pt-3 border-t border-amber-200/60">
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between items-center">
+                          <label className="block text-xs font-bold text-slate-700">Select Available Verification Badge</label>
+                          <a
+                            href="https://verify.mscprpcem.tech/admin/events"
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-[10px] text-amber-700 hover:text-amber-900 font-extrabold flex items-center space-x-1 hover:underline"
+                          >
+                            <span>Create Badge on Portal</span>
+                            <ExternalLink size={11} />
+                          </a>
+                        </div>
+
+                        <select
+                          value={quizForm.badge_title || ''}
+                          onChange={e => setQuizForm({ ...quizForm, badge_title: e.target.value })}
+                          className="w-full border border-amber-300 rounded-xl px-3 py-2 text-xs font-bold bg-white text-slate-800 shadow-2xs focus:ring-2 focus:ring-amber-500"
+                        >
+                          {availableBadges.map(b => (
+                            <option key={b.id || b.title} value={b.title}>
+                              [{b.category || 'MSC'}] {b.title}
+                            </option>
+                          ))}
+                          <option value="CUSTOM">+ Custom Badge Title...</option>
+                        </select>
+                      </div>
+
+                      {quizForm.badge_title === 'CUSTOM' || !availableBadges.some(b => b.title === quizForm.badge_title) ? (
+                        <div className="space-y-1">
+                          <label className="block text-xs font-bold text-slate-600">Custom Badge Title</label>
+                          <input
+                            type="text"
+                            placeholder="e.g. Master in Cloud Computing"
+                            value={quizForm.badge_title === 'CUSTOM' ? '' : (quizForm.badge_title || '')}
+                            onChange={e => setQuizForm({ ...quizForm, badge_title: e.target.value })}
+                            className="w-full border border-amber-300 rounded-xl px-3 py-2 text-xs font-bold bg-white"
+                          />
+                        </div>
+                      ) : null}
+
+                      <div className="p-2.5 bg-white/80 border border-amber-200 rounded-xl flex items-center space-x-2 text-xs font-semibold text-slate-700">
+                        <Sparkles size={15} className="text-amber-500 flex-shrink-0" />
+                        <span className="truncate">Credential awarded to students: <strong className="text-amber-900">{quizForm.badge_title || 'Certified Specialist'}</strong></span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Actions */}

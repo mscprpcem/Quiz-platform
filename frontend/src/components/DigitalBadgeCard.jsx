@@ -20,6 +20,7 @@ export default function DigitalBadgeCard({
 
   const cleanEmail = studentEmail || localStorage.getItem('msc_student_email') || sessionStorage.getItem('msc_participant_email') || 'student@prpcem.ac.in';
   const cleanName = studentName || localStorage.getItem('msc_student_name') || sessionStorage.getItem('msc_participant_name') || cleanEmail.split('@')[0] || 'MSC Scholar';
+  const resolvedBadgeTitle = badgeTitle || `${quizTitle || eventName || 'MSC Assessment'} Certified Specialist`;
 
   useEffect(() => {
     let isMounted = true;
@@ -27,7 +28,6 @@ export default function DigitalBadgeCard({
     const issueBadge = async () => {
       try {
         setLoading(true);
-        const resolvedBadgeTitle = badgeTitle || `${quizTitle || eventName || 'MSC Assessment'} Certified Specialist`;
         const res = await api.post('/api/student/issue-certificate', {
           email: cleanEmail,
           name: cleanName,
@@ -50,7 +50,7 @@ export default function DigitalBadgeCard({
             studentName: cleanName,
             email: cleanEmail,
             courseTitle: quizTitle || eventName || 'MSC Assessment',
-            badgeTitle: badgeTitle || `${quizTitle || eventName || 'MSC Assessment'} Certified Specialist`,
+            badgeTitle: resolvedBadgeTitle,
             score: typeof score === 'number' ? score : 100,
             issuedAt: new Date().toISOString(),
             verificationUrl: `${verificationPortalUrl}/verify/${certId}`
@@ -64,7 +64,254 @@ export default function DigitalBadgeCard({
     issueBadge();
 
     return () => { isMounted = false; };
-  }, [quizTitle, eventName, score, cleanEmail, cleanName]);
+  }, [quizTitle, eventName, score, cleanEmail, cleanName, resolvedBadgeTitle]);
+
+  const handlePrint = () => {
+    const badgeName = certificate?.badgeTitle || resolvedBadgeTitle;
+    const certCode = certificate?.certificateId || 'CERT-MSC-PRPCEM';
+    const issueDate = certificate?.issuedAt ? new Date(certificate.issuedAt).toLocaleDateString([], { dateStyle: 'long' }) : new Date().toLocaleDateString([], { dateStyle: 'long' });
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=140x140&data=${encodeURIComponent(certUrl)}`;
+
+    const printWindow = window.open('', '_blank', 'width=900,height=750');
+    if (!printWindow) {
+      window.print();
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <meta charset="utf-8" />
+          <title>MSC PRPCEM Credential - ${cleanName}</title>
+          <style>
+            @page {
+              size: A4 landscape;
+              margin: 10mm;
+            }
+            * {
+              box-sizing: border-box;
+              margin: 0;
+              padding: 0;
+              font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+            }
+            body {
+              background: #ffffff;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              min-height: 100vh;
+              padding: 20px;
+              color: #0f172a;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .cert-container {
+              width: 100%;
+              max-width: 820px;
+              border: 4px solid #f59e0b;
+              border-radius: 28px;
+              padding: 40px 48px;
+              background: linear-gradient(135deg, #ffffff 0%, #fffdf7 60%, #fef3c7 100%);
+              box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+              position: relative;
+            }
+            .quadrant-bar {
+              height: 4px;
+              width: 100%;
+              background: linear-gradient(90deg, #F25022 25%, #7FBA00 25% 50%, #00A4EF 50% 75%, #FFB900 75%);
+              border-radius: 2px;
+              margin-bottom: 24px;
+            }
+            .header-flex {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border-bottom: 2px solid #fde68a;
+              padding-bottom: 18px;
+              margin-bottom: 24px;
+            }
+            .org-title {
+              font-size: 11px;
+              font-weight: 900;
+              text-transform: uppercase;
+              letter-spacing: 0.15em;
+              color: #b45309;
+            }
+            .club-name {
+              font-size: 18px;
+              font-weight: 900;
+              color: #0f172a;
+            }
+            .auth-badge {
+              background: #ecfdf5;
+              border: 1.5px solid #10b981;
+              color: #047857;
+              padding: 6px 14px;
+              border-radius: 9999px;
+              font-size: 11px;
+              font-weight: 900;
+              text-transform: uppercase;
+              letter-spacing: 0.06em;
+            }
+            .awarded-to-label {
+              font-size: 11px;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 0.12em;
+              color: #94a3b8;
+              margin-bottom: 4px;
+            }
+            .student-name {
+              font-size: 32px;
+              font-weight: 900;
+              color: #0f172a;
+              margin-bottom: 4px;
+              letter-spacing: -0.02em;
+            }
+            .student-email {
+              font-size: 13px;
+              color: #64748b;
+              font-weight: 600;
+              margin-bottom: 22px;
+            }
+            .mastery-box {
+              background: linear-gradient(to right, #fef3c7, #ede9fe);
+              border: 1.5px solid #fde68a;
+              border-radius: 18px;
+              padding: 18px 24px;
+              margin-bottom: 22px;
+            }
+            .badge-title-text {
+              font-size: 16px;
+              font-weight: 900;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              color: #78350f;
+              margin-bottom: 6px;
+            }
+            .badge-description-text {
+              font-size: 13px;
+              color: #334155;
+              font-weight: 600;
+              line-height: 1.5;
+            }
+            .grid-meta {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 16px;
+              margin-bottom: 22px;
+            }
+            .meta-card {
+              background: #ffffff;
+              border: 1px solid #e2e8f0;
+              border-radius: 14px;
+              padding: 12px 18px;
+            }
+            .meta-card-label {
+              font-size: 9px;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 0.1em;
+              color: #94a3b8;
+              margin-bottom: 3px;
+            }
+            .meta-card-val {
+              font-size: 13px;
+              font-weight: 800;
+              color: #1e293b;
+            }
+            .footer-card {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              background: #fffbeb;
+              border: 1.5px solid #fde68a;
+              border-radius: 16px;
+              padding: 14px 20px;
+            }
+            .id-label {
+              font-size: 9px;
+              font-weight: 900;
+              text-transform: uppercase;
+              letter-spacing: 0.1em;
+              color: #92400e;
+              margin-bottom: 2px;
+            }
+            .id-code {
+              font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+              font-weight: 900;
+              font-size: 15px;
+              color: #78350f;
+              letter-spacing: 0.05em;
+            }
+            .url-text {
+              font-size: 10px;
+              font-weight: 700;
+              color: #94a3b8;
+              margin-top: 3px;
+            }
+            .qr-code-img {
+              width: 58px;
+              height: 58px;
+              border-radius: 10px;
+              border: 1px solid #fde68a;
+              background: #ffffff;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="cert-container">
+            <div class="quadrant-bar"></div>
+            
+            <div class="header-flex">
+              <div>
+                <div class="org-title">Official Digital Credential</div>
+                <div class="club-name">Microsoft Student Club PRPCEM</div>
+              </div>
+              <div class="auth-badge">✓ Authenticated & Verified</div>
+            </div>
+
+            <div class="awarded-to-label">Awarded To</div>
+            <div class="student-name">${cleanName}</div>
+            <div class="student-email">${cleanEmail}</div>
+
+            <div class="mastery-box">
+              <div class="badge-title-text">★ ${badgeName}</div>
+              <div class="badge-description-text">Has demonstrated verified mastery in <strong>${quizTitle || eventName}</strong> on the MSC Quiz Platform.</div>
+            </div>
+
+            <div class="grid-meta">
+              <div class="meta-card">
+                <div class="meta-card-label">Issuing Authority</div>
+                <div class="meta-card-val">Microsoft Student Club</div>
+              </div>
+              <div class="meta-card">
+                <div class="meta-card-label">Credential Status</div>
+                <div class="meta-card-val" style="color: #059669;">Active & Authenticated (${issueDate})</div>
+              </div>
+            </div>
+
+            <div class="footer-card">
+              <div>
+                <div class="id-label">Unique Credential ID</div>
+                <div class="id-code">${certCode}</div>
+                <div class="url-text">verify.mscprpcem.tech/verify/${certCode}</div>
+              </div>
+              <img class="qr-code-img" src="${qrUrl}" alt="Verification QR Code" />
+            </div>
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function() { window.close(); }, 800);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
 
   const handleCopyCode = () => {
     if (!certificate?.certificateId) return;
@@ -76,7 +323,7 @@ export default function DigitalBadgeCard({
   const certUrl = certificate?.certificateId ? `${verificationPortalUrl}/verify/${certificate.certificateId}` : verificationPortalUrl;
 
   return (
-    <div className="w-full max-w-lg mx-auto bg-white border-2 border-amber-300/80 rounded-3xl p-6 sm:p-7 text-slate-800 shadow-xl relative overflow-hidden text-left animate-fade-in font-segoe">
+    <div id="msc-printable-badge-card" className="w-full max-w-lg mx-auto bg-white border-2 border-amber-300/80 rounded-3xl p-6 sm:p-7 text-slate-800 shadow-xl relative overflow-hidden text-left animate-fade-in font-segoe">
       
       {/* Decorative Light Ambient Accents */}
       <div className="absolute -top-12 -right-12 w-40 h-40 bg-amber-200/40 rounded-full blur-3xl pointer-events-none"></div>
@@ -161,7 +408,7 @@ export default function DigitalBadgeCard({
       </div>
 
       {/* Bottom Action Buttons */}
-      <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+      <div className="pt-2 flex flex-col sm:flex-row gap-2.5 msc-no-print">
         <a
           href={certUrl}
           target="_blank"
@@ -174,7 +421,7 @@ export default function DigitalBadgeCard({
         </a>
 
         <button
-          onClick={() => window.print()}
+          onClick={handlePrint}
           className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-750 font-bold rounded-xl text-xs flex items-center justify-center space-x-1.5 transition-all cursor-pointer border border-slate-200"
         >
           <Download size={14} />

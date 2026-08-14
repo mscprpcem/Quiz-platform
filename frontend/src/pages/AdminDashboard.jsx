@@ -20,7 +20,8 @@ import {
   ShieldCheck,
   RefreshCw,
   FileCode,
-  Trash2
+  Trash2,
+  Clock
 } from 'lucide-react';
 import './AdminDashboard.css';
 

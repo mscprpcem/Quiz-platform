@@ -2,8 +2,9 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const ExcelJS = require('exceljs');
-const { Quiz, Question, Participant, Answer, Violation } = require('../models');
+const { Quiz, Question, Participant, Answer, Violation, ScheduledOccurrence } = require('../models');
 const authMiddleware = require('../middleware/auth');
+const { Op } = require('sequelize');
 
 
 // Multer memory storage configuration for Excel uploads
@@ -255,7 +256,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 // Create new quiz
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { title, event_name, subject, description, scheduled_start, scheduled_end, custom_slug } = req.body;
+    const { title, event_name, subject, description, scheduled_start, scheduled_end, custom_slug, badge_title } = req.body;
 
     if (!title || !event_name) {
       return res.status(400).json({ error: 'Title and event name are required' });
@@ -263,6 +264,10 @@ router.post('/', authMiddleware, async (req, res) => {
 
     const join_code = await generateJoinCode();
     const cleanSlug = custom_slug ? custom_slug.trim().replace(/^\//, '') : null;
+
+    if (cleanSlug) {
+      await Quiz.update({ custom_slug: null }, { where: { custom_slug: cleanSlug } });
+    }
 
     const quiz = await Quiz.create({
       title,
@@ -272,6 +277,7 @@ router.post('/', authMiddleware, async (req, res) => {
       join_code,
       custom_slug: cleanSlug,
       status: 'draft',
+      badge_title: badge_title || null,
       scheduled_start: scheduled_start || null,
       scheduled_end: scheduled_end || null
     });
@@ -286,7 +292,7 @@ router.post('/', authMiddleware, async (req, res) => {
 // Update quiz details
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
-    const { title, event_name, subject, description, scheduled_start, scheduled_end, custom_slug } = req.body;
+    const { title, event_name, subject, description, scheduled_start, scheduled_end, custom_slug, badge_title } = req.body;
     const quiz = await Quiz.findByPk(req.params.id);
 
     if (!quiz) {
@@ -295,15 +301,36 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     const cleanSlug = custom_slug !== undefined ? (custom_slug ? custom_slug.trim().replace(/^\//, '') : null) : quiz.custom_slug;
 
+    if (cleanSlug) {
+      await Quiz.update({ custom_slug: null }, {
+        where: {
+          custom_slug: cleanSlug,
+          id: { [Op.ne]: quiz.id }
+        }
+      });
+    }
+
     await quiz.update({
       title: title || quiz.title,
       event_name: event_name || quiz.event_name,
       subject: subject || quiz.subject,
       custom_slug: cleanSlug,
+      badge_title: badge_title !== undefined ? (badge_title || null) : quiz.badge_title,
       description: description !== undefined ? description : quiz.description,
       scheduled_start: scheduled_start !== undefined ? (scheduled_start || null) : quiz.scheduled_start,
       scheduled_end: scheduled_end !== undefined ? (scheduled_end || null) : quiz.scheduled_end
     });
+
+    // Synchronize existing occurrences if schedule times were updated
+    if (scheduled_start || scheduled_end) {
+      const occurrences = await ScheduledOccurrence.findAll({ where: { quiz_id: quiz.id } });
+      for (const occ of occurrences) {
+        await occ.update({
+          start_time: scheduled_start ? new Date(scheduled_start) : occ.start_time,
+          end_time: scheduled_end ? new Date(scheduled_end) : occ.end_time
+        });
+      }
+    }
 
     return res.json(quiz);
   } catch (error) {

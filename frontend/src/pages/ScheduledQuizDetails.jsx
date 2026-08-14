@@ -199,7 +199,7 @@ export default function ScheduledQuizDetails() {
                   </td>
                   <td className="py-3.5 px-4 text-right">
                     <button
-                      onClick={() => window.open(`/scheduled-quiz/${occ.id}`, '_blank')}
+                      onClick={() => window.open(`/q/${slugOrCode}`, '_blank')}
                       className="px-3 py-1 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 font-bold rounded-lg text-[11px] cursor-pointer"
                     >
                       Public Link

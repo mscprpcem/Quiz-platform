@@ -210,14 +210,14 @@ export default function AdminScheduledQuizzes() {
                     <span className="text-slate-400 font-semibold">Direct Slug Link:</span>
                     <span 
                       onClick={() => {
-                        const slug = quiz.title ? quiz.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : quiz.join_code;
+                        const slug = quiz.custom_slug || (quiz.title ? quiz.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : quiz.join_code);
                         navigator.clipboard.writeText(`${window.location.origin}/q/${slug}`);
                         alert(`Copied link to clipboard: ${window.location.origin}/q/${slug}`);
                       }}
                       className="font-mono font-bold text-blue-600 hover:underline cursor-pointer truncate max-w-[140px]"
                       title="Click to copy direct slug link"
                     >
-                      /q/{quiz.title ? quiz.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : quiz.join_code}
+                      /q/{quiz.custom_slug || (quiz.title ? quiz.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : quiz.join_code)}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
