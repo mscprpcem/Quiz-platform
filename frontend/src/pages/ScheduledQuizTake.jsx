@@ -1105,13 +1105,13 @@ export default function ScheduledQuizTake() {
       )}
 
       {/* Top Bar with Server Timer & Fullscreen Status */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4 flex items-center justify-between shadow-2xs">
+      <div className="bg-white border border-slate-200 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-0 shadow-2xs">
         <div>
-          <h3 className="text-sm font-black text-slate-900">{occData?.quiz?.title}</h3>
+          <h3 className="text-sm font-black text-slate-900 truncate max-w-xs">{occData?.quiz?.title}</h3>
           <span className="text-[10px] font-bold text-slate-400">Question {currentQIndex + 1} of {questions.length}</span>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center justify-between sm:justify-end space-x-2">
           {requireFullscreen && (
             <button
               onClick={enterFullscreen}
@@ -1128,7 +1128,7 @@ export default function ScheduledQuizTake() {
           )}
 
           {/* Server Authoritative Timer Display */}
-          <div className={`px-4 py-2 rounded-xl border flex items-center space-x-2 text-xs font-black ${
+          <div className={`px-3.5 sm:px-4 py-2 rounded-xl border flex items-center space-x-2 text-xs font-black ${
             timeLeftSeconds < 180 ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-blue-50 text-blue-700 border-blue-200'
           }`}>
             <Clock size={16} />
@@ -1140,14 +1140,14 @@ export default function ScheduledQuizTake() {
       {/* Violation Banner if triggered */}
       {violationsCount > 0 && (
         <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 rounded-xl text-xs font-bold flex items-center space-x-2">
-          <AlertTriangle size={16} />
+          <AlertTriangle size={16} className="flex-shrink-0" />
           <span>Anti-Cheat Notice: {violationsCount} violation(s) recorded (Tab Switch / Window Blur).</span>
         </div>
       )}
 
       {/* Question Card */}
       {currentQ && (
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-xs space-y-6">
+        <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-8 shadow-xs space-y-6">
           <div className="space-y-2">
             <span className="text-[10px] font-black text-blue-600 uppercase">Q{currentQIndex + 1}</span>
             <h2 className="text-base sm:text-lg font-extrabold text-slate-900 leading-snug">{currentQ.question}</h2>
@@ -1161,14 +1161,14 @@ export default function ScheduledQuizTake() {
                 <button
                   key={opt.key}
                   onClick={() => handleSelectOption(currentQ.id, opt.key)}
-                  className={`w-full p-4 rounded-2xl border text-left text-xs font-bold transition-all flex items-center justify-between cursor-pointer ${
+                  className={`w-full p-3.5 sm:p-4 rounded-2xl border text-left text-xs font-bold transition-all flex items-center justify-between cursor-pointer min-h-[48px] ${
                     isSelected 
                       ? 'bg-blue-50 border-blue-500 text-blue-900 shadow-xs' 
                       : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                   }`}
                 >
                   <div className="flex items-center space-x-3">
-                    <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black ${
+                    <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black flex-shrink-0 ${
                       isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
                     }`}>
                       {opt.key}
@@ -1176,18 +1176,18 @@ export default function ScheduledQuizTake() {
                     <span>{opt.text}</span>
                   </div>
 
-                  {isSelected && <CheckSquare size={16} className="text-blue-600" />}
+                  {isSelected && <CheckSquare size={16} className="text-blue-600 flex-shrink-0 ml-2" />}
                 </button>
               );
             })}
           </div>
 
           {/* Navigation Controls */}
-          <div className="flex justify-between items-center pt-4 border-t border-slate-100">
+          <div className="flex justify-between items-center pt-4 border-t border-slate-100 gap-2">
             <button
               onClick={() => setCurrentQIndex(prev => Math.max(0, prev - 1))}
               disabled={currentQIndex === 0}
-              className="px-4 py-2 border rounded-xl text-xs font-bold disabled:opacity-40 cursor-pointer"
+              className="px-4 py-2.5 border rounded-xl text-xs font-bold disabled:opacity-40 cursor-pointer min-h-[40px]"
             >
               Previous
             </button>
@@ -1195,14 +1195,14 @@ export default function ScheduledQuizTake() {
             {currentQIndex < questions.length - 1 ? (
               <button
                 onClick={() => setCurrentQIndex(prev => Math.min(questions.length - 1, prev + 1))}
-                className="px-5 py-2 bg-blue-600 text-white font-extrabold rounded-xl text-xs cursor-pointer hover:bg-blue-700"
+                className="px-5 py-2.5 bg-blue-600 text-white font-extrabold rounded-xl text-xs cursor-pointer hover:bg-blue-700 min-h-[40px] shadow-sm active:scale-98"
               >
                 Next Question
               </button>
             ) : (
               <button
                 onClick={() => handleFinalSubmit(false)}
-                className="px-6 py-2 bg-emerald-600 text-white font-extrabold rounded-xl text-xs shadow-md cursor-pointer hover:bg-emerald-700"
+                className="px-6 py-2.5 bg-emerald-600 text-white font-extrabold rounded-xl text-xs shadow-md cursor-pointer hover:bg-emerald-700 min-h-[40px] active:scale-98"
               >
                 Submit Quiz
               </button>
