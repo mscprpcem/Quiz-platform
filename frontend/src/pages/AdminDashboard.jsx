@@ -69,9 +69,9 @@ export default function AdminDashboard() {
       const response = await api.get('/api/quizzes');
       setQuizzes(response.data);
 
-      // Check if there is an active session currently running
+      // Check if there is an active session currently running (ONLY FOR LIVE QUIZZES, NOT SCHEDULED)
       const session = response.data.find(
-        (q) => q.status === 'waiting_lobby' || q.status === 'in_progress'
+        (q) => (q.mode === 'LIVE' || (!q.mode && !q.schedule_type)) && (q.status === 'waiting_lobby' || q.status === 'in_progress')
       );
       setActiveSession(session || null);
     } catch (error) {
@@ -351,6 +351,9 @@ export default function AdminDashboard() {
 
   // Status details styling helper
   const getStatusDetails = (quiz) => {
+    if (quiz.mode === 'SCHEDULED' || quiz.schedule_type) {
+      return { label: 'Scheduled', cls: 'bg-blue-50 text-blue-700 border border-blue-200' };
+    }
     const isExpired = quiz.scheduled_start && new Date(quiz.scheduled_start) < new Date() && quiz.status === 'draft';
     if (isExpired) {
       return { label: 'Expired', cls: 'bg-red-50 text-red-700 border border-red-200' };
@@ -390,7 +393,7 @@ export default function AdminDashboard() {
           </button>
         </div>
 
-        {/* Active Quiz Alert Banner */}
+        {/* Active Live Quiz Alert Banner */}
         {activeSession && (
           <div className="bg-amber-50 border border-amber-250 rounded-2xl p-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 shadow-sm animate-fade-in relative overflow-hidden">
             <div className="absolute left-0 top-0 h-full w-[4px] bg-amber-500" />
@@ -399,9 +402,9 @@ export default function AdminDashboard() {
                 <AlertTriangle size={18} className="animate-bounce" />
               </div>
               <div>
-                <h3 className="text-xs font-black uppercase text-amber-700 tracking-wider">Active Quiz Session Detected</h3>
+                <h3 className="text-xs font-black uppercase text-amber-700 tracking-wider">Active Live Quiz Detected</h3>
                 <p className="text-sm text-zinc-600 mt-1">
-                  The quiz session <strong className="text-brand-blue">"{activeSession.title}"</strong> is currently in status <strong className="uppercase font-bold text-amber-700">{activeSession.status.replace('_', ' ')}</strong>.
+                  The live quiz <strong className="text-brand-blue">"{activeSession.title}"</strong> is currently in status <strong className="uppercase font-bold text-amber-700">{activeSession.status.replace('_', ' ')}</strong>.
                 </p>
               </div>
             </div>
@@ -430,6 +433,8 @@ export default function AdminDashboard() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
               {quizzes.map((quiz) => {
                 const statusDetails = getStatusDetails(quiz);
+                const isScheduled = quiz.mode === 'SCHEDULED' || !!quiz.schedule_type;
+
                 return (
                   <div
                     key={quiz.id}
@@ -437,6 +442,7 @@ export default function AdminDashboard() {
                   >
                     {/* Top status indicator strip */}
                     <div className={`absolute top-0 left-0 w-full h-[4px] ${
+                      isScheduled ? 'bg-blue-500' :
                       quiz.status === 'in_progress' ? 'bg-emerald-500 animate-pulse' :
                       quiz.status === 'waiting_lobby' ? 'bg-amber-500' :
                       quiz.status === 'completed' ? 'bg-zinc-350' : 'bg-brand-blue'
@@ -448,52 +454,35 @@ export default function AdminDashboard() {
                       <div>
                         <div className="flex justify-between items-start gap-2 pt-1">
                           <span className="text-[9px] font-extrabold text-zinc-550 uppercase tracking-widest bg-zinc-100 px-2.5 py-0.5 rounded-full truncate max-w-[120px]">{quiz.event_name}</span>
-                          <div className="flex gap-1.5 items-center">
-                            <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider ${statusDetails.cls}`}>
-                              {statusDetails.label}
-                            </span>
-                            <button
-                              onClick={() => handleOpenCatalogQR(quiz)}
-                              className="p-1.5 hover:bg-zinc-150 text-zinc-500 hover:text-brand-blue rounded-md transition-all cursor-pointer bg-zinc-50 border border-zinc-200 active:scale-90"
-                              title="Share & QR Code Card"
-                            >
-                              <QrCode size={12} />
-                            </button>
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setDeleteQuizTarget(quiz);
-                              }}
-                              className="p-1.5 hover:bg-rose-100 text-zinc-400 hover:text-rose-600 rounded-md transition-all cursor-pointer bg-zinc-50 border border-zinc-200 active:scale-90"
-                              title="Delete Quiz"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
+                          <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${statusDetails.cls}`}>
+                            {statusDetails.label}
+                          </span>
                         </div>
-                        <div className="mt-3.5">
-                          <h3 className="text-base font-extrabold text-brand-textMain leading-snug group-hover:text-brand-blue transition-colors duration-200 truncate" title={quiz.title}>{quiz.title}</h3>
-                          <p className="text-xs text-brand-textMuted line-clamp-2 mt-1 leading-relaxed">{quiz.description || 'No description provided.'}</p>
+
+                        <div className="mt-2.5">
+                          <h3 className="font-extrabold text-sm sm:text-base text-zinc-900 group-hover:text-brand-blue transition-colors line-clamp-1 leading-snug">
+                            {quiz.title}
+                          </h3>
+                          <p className="text-[11px] text-zinc-500 line-clamp-2 mt-1 leading-relaxed">
+                            {quiz.description || 'No description provided.'}
+                          </p>
                         </div>
                       </div>
 
-                      <div className="space-y-2">
-                        {/* Date & Schedule */}
-                        <div className="flex flex-col gap-1 text-[11px] text-brand-textMuted">
-                          <div className="flex items-center gap-1.5">
-                            <Calendar size={12} className="flex-shrink-0 text-brand-blue" />
-                            <span className="truncate"><strong>Start:</strong> {quiz.scheduled_start ? new Date(quiz.scheduled_start).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Flexible'}</span>
+                      {/* Meta Information & Counts */}
+                      <div className="space-y-2 pt-2">
+                        <div className="grid grid-cols-2 gap-2 text-[10px] font-semibold text-zinc-500 bg-zinc-50/80 p-2.5 rounded-xl border border-zinc-150/60">
+                          <div>
+                            <span className="text-zinc-400 block text-[9px] uppercase font-bold tracking-wider">Join Code</span>
+                            <span className="font-mono font-bold text-zinc-800 text-xs">{quiz.join_code}</span>
                           </div>
-                          {quiz.scheduled_end && (
-                            <div className="flex items-center gap-1.5 text-emerald-600 font-semibold">
-                              <Clock size={12} className="flex-shrink-0 text-emerald-600" />
-                              <span className="truncate"><strong>End:</strong> {new Date(quiz.scheduled_end).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
-                            </div>
-                          )}
+                          <div>
+                            <span className="text-zinc-400 block text-[9px] uppercase font-bold tracking-wider">Type</span>
+                            <span className="font-bold text-zinc-800 text-xs">{isScheduled ? 'Scheduled' : 'Live Host'}</span>
+                          </div>
                         </div>
 
-                        {/* Counts section inline */}
-                        <div className="flex gap-4 items-center text-xs text-brand-textMuted border-t border-brand-border pt-2.5">
+                        <div className="flex justify-between items-center text-xs text-brand-textMuted pt-1">
                           <span className="flex items-center gap-1.5">
                             <BookOpen size={13} className="text-brand-blue" />
                             <span><strong>{quiz.questionCount || 0}</strong> Questions</span>
@@ -503,8 +492,6 @@ export default function AdminDashboard() {
                             <span><strong>{quiz.participantCount || 0}</strong> Plays</span>
                           </span>
                         </div>
-
-
                       </div>
                     </div>
 
@@ -512,23 +499,34 @@ export default function AdminDashboard() {
                     <div className="flex justify-between items-center space-x-2 mt-4 pt-3.5 border-t border-brand-border relative z-10">
                       {/* View Analytics / Report */}
                       <button
-                        onClick={() => navigate(`/admin/analytics/${quiz.id}`)}
+                        onClick={() => navigate(isScheduled ? `/admin/scheduled-quizzes/${quiz.id}` : `/admin/analytics/${quiz.id}`)}
                         className="flex items-center justify-center space-x-1 px-3.5 py-2 bg-zinc-50 hover:bg-zinc-100 border border-brand-border text-zinc-650 hover:text-brand-textMain rounded-xl transition-all text-xs font-semibold select-none cursor-pointer active:scale-95"
-                        title="View Report"
+                        title={isScheduled ? 'View Overview' : 'View Report'}
                       >
                         <BarChart2 size={13} />
-                        <span>Report</span>
+                        <span>{isScheduled ? 'Overview' : 'Report'}</span>
                       </button>
 
-                      {/* Launch Lobby / Run Quiz */}
-                      <button
-                        onClick={() => navigate(`/admin/run-quiz/${quiz.id}`)}
-                        className="flex-grow flex items-center justify-center space-x-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-extrabold rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
-                        title="Run Quiz"
-                      >
-                        <Play size={11} fill="currentColor" />
-                        <span>{quiz.status === 'completed' ? 'Results' : quiz.status === 'in_progress' ? 'Resume' : 'Run Quiz'}</span>
-                      </button>
+                      {/* Action Button: Live Control Room OR Scheduled Manager */}
+                      {isScheduled ? (
+                        <button
+                          onClick={() => navigate(`/admin/scheduled-quizzes/${quiz.id}`)}
+                          className="flex-grow flex items-center justify-center space-x-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-extrabold rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
+                          title="Manage Scheduled Quiz"
+                        >
+                          <Calendar size={12} />
+                          <span>Manage Schedule</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => navigate(`/admin/run-quiz/${quiz.id}`)}
+                          className="flex-grow flex items-center justify-center space-x-1 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-extrabold rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
+                          title="Run Live Quiz"
+                        >
+                          <Play size={11} fill="currentColor" />
+                          <span>{quiz.status === 'completed' ? 'Results' : quiz.status === 'in_progress' ? 'Resume' : 'Run Live Quiz'}</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
