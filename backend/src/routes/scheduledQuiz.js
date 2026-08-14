@@ -450,37 +450,19 @@ router.get('/public/all', async (req, res) => {
       const occurrences = q.occurrences || [];
       const questionCount = await Question.count({ where: { quiz_id: q.id } });
 
-      for (const occ of occurrences) {
-        if (occ.status === 'CANCELLED' || occ.status === 'PAUSED') continue;
-        const sTime = new Date(occ.start_time);
-        const eTime = new Date(occ.end_time);
-
-        const [occAttempts, totalQuizAttempts] = await Promise.all([
-          QuizAttempt.count({
-            where: {
-              quiz_id: q.id,
-              occurrence_id: occ.id
-            }
-          }),
-          QuizAttempt.count({
-            where: { quiz_id: q.id }
-          })
-        ]);
-        const participantCount = occAttempts > 0 ? occAttempts : totalQuizAttempts;
-
+      if (occurrences.length === 0) {
+        const sTime = q.scheduled_start ? new Date(q.scheduled_start) : new Date(now.getTime() - 5 * 60 * 1000);
+        const eTime = q.scheduled_end ? new Date(q.scheduled_end) : new Date(sTime.getTime() + (q.time_limit || 60) * 60 * 1000);
         let availability = 'UPCOMING';
         if (now >= sTime && now <= eTime) {
           availability = 'ACTIVE';
         } else if (now > eTime) {
-          availability = participantCount > 0 ? 'COMPLETED' : 'EXPIRED';
-          if (occ.status !== availability) {
-            await occ.update({ status: availability }).catch(() => {});
-          }
+          availability = 'EXPIRED';
         }
 
         const titleSlug = q.custom_slug || (q.title ? q.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'quiz');
         publicList.push({
-          occurrenceId: occ.id,
+          occurrenceId: q.id,
           quizId: q.id,
           title: q.title,
           custom_slug: q.custom_slug,
@@ -488,17 +470,68 @@ router.get('/public/all', async (req, res) => {
           join_code: q.join_code,
           description: q.description,
           category: q.subject || 'General CS',
-          startTime: occ.start_time,
-          endTime: occ.end_time,
-          scheduled_start: occ.start_time,
-          scheduled_end: occ.end_time,
-          timeLimit: q.time_limit,
+          startTime: sTime,
+          endTime: eTime,
+          scheduled_start: sTime,
+          scheduled_end: eTime,
+          timeLimit: q.time_limit || 30,
           questionCount,
-          participantCount,
+          participantCount: 0,
           availability,
           positiveMarks: q.positive_marks,
           negativeMarks: q.negative_marks
         });
+      } else {
+        for (const occ of occurrences) {
+          if (occ.status === 'CANCELLED' || occ.status === 'PAUSED') continue;
+          const sTime = new Date(occ.start_time);
+          const eTime = new Date(occ.end_time);
+
+          const [occAttempts, totalQuizAttempts] = await Promise.all([
+            QuizAttempt.count({
+              where: {
+                quiz_id: q.id,
+                occurrence_id: occ.id
+              }
+            }),
+            QuizAttempt.count({
+              where: { quiz_id: q.id }
+            })
+          ]);
+          const participantCount = occAttempts > 0 ? occAttempts : totalQuizAttempts;
+
+          let availability = 'UPCOMING';
+          if (now >= sTime && now <= eTime) {
+            availability = 'ACTIVE';
+          } else if (now > eTime) {
+            availability = participantCount > 0 ? 'COMPLETED' : 'EXPIRED';
+            if (occ.status !== availability) {
+              await occ.update({ status: availability }).catch(() => {});
+            }
+          }
+
+          const titleSlug = q.custom_slug || (q.title ? q.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'quiz');
+          publicList.push({
+            occurrenceId: occ.id,
+            quizId: q.id,
+            title: q.title,
+            custom_slug: q.custom_slug,
+            slug: titleSlug,
+            join_code: q.join_code,
+            description: q.description,
+            category: q.subject || 'General CS',
+            startTime: occ.start_time,
+            endTime: occ.end_time,
+            scheduled_start: occ.start_time,
+            scheduled_end: occ.end_time,
+            timeLimit: q.time_limit,
+            questionCount,
+            participantCount,
+            availability,
+            positiveMarks: q.positive_marks,
+            negativeMarks: q.negative_marks
+          });
+        }
       }
     }
 

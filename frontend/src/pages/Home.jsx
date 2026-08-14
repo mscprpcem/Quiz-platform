@@ -58,33 +58,27 @@ export default function Home() {
         const now = new Date();
         const allPublicQuizzes = [];
 
-        // 1. Filter Live/Standard Quizzes (Only upcoming or actively running)
+        // 1. Process Live/Standard Quizzes
         if (Array.isArray(quizzesRes?.data)) {
           quizzesRes.data.forEach((q) => {
             if (!q) return;
-            const eTime = q.scheduled_end ? new Date(q.scheduled_end) : null;
-            const isEnded = (eTime && now > eTime) || q.status === 'completed' || q.status === 'expired';
-            if (!isEnded) {
+            if (q.status !== 'archived' && q.status !== 'cancelled') {
               allPublicQuizzes.push(q);
             }
           });
         }
 
-        // 2. Filter Scheduled Quizzes (Only upcoming or actively in progress occurrences)
+        // 2. Process Scheduled Quizzes
         if (Array.isArray(scheduledRes?.data)) {
           scheduledRes.data.forEach(sQuiz => {
             if (!sQuiz) return;
-            const eTime = sQuiz.endTime || sQuiz.scheduled_end ? new Date(sQuiz.endTime || sQuiz.scheduled_end) : null;
-            const isEnded = (eTime && now > eTime) || sQuiz.availability === 'COMPLETED' || sQuiz.availability === 'EXPIRED' || sQuiz.status === 'completed' || sQuiz.status === 'expired';
-
-            // Only display in Upcoming section if not ended
-            if (!isEnded && !allPublicQuizzes.some(q => q.id === sQuiz.quizId || q.id === sQuiz.occurrenceId)) {
+            if (sQuiz.availability !== 'CANCELLED' && !allPublicQuizzes.some(q => q.id === sQuiz.occurrenceId || q.id === sQuiz.quizId)) {
               allPublicQuizzes.push({
                 ...sQuiz,
                 id: sQuiz.occurrenceId || sQuiz.quizId,
                 mode: 'SCHEDULED',
-                status: sQuiz.availability === 'ACTIVE' ? 'in_progress' : 'draft',
-                subject: sQuiz.category
+                status: sQuiz.availability === 'ACTIVE' ? 'in_progress' : (sQuiz.availability || 'draft'),
+                subject: sQuiz.category || 'DBMS'
               });
             }
           });

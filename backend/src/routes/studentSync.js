@@ -590,12 +590,15 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// In-memory store for pending registration OTPs
+const pendingOtpStore = new Map();
+
 // =======================
-// Student Registration (Local DB + Verification Portal Sync)
+// Student Registration (Local DB + Verification Portal Sync with OTP Verification)
 // =======================
 router.post('/register', async (req, res) => {
   try {
-    const { email, password, name, username } = req.body;
+    const { email, password, name, username, otp } = req.body;
     const cleanEmail = normalizeEmail(email);
 
     if (!cleanEmail || !password || !name) {
@@ -629,6 +632,44 @@ router.post('/register', async (req, res) => {
         }
       }
     }
+
+    const inputOtp = otp ? otp.toString().trim() : '';
+
+    // If OTP is NOT provided yet, initiate Pre-registration (Send OTP)
+    if (!inputOtp) {
+      const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiry = Date.now() + 15 * 60 * 1000; // 15 mins
+
+      pendingOtpStore.set(cleanEmail, { otp: generatedOtp, expiry });
+      console.log(`[REGISTRATION OTP] Verification code for ${cleanEmail}: ${generatedOtp}`);
+
+      return res.json({
+        success: true,
+        requireVerification: true,
+        email: cleanEmail,
+        message: `Verification code (${generatedOtp}) sent to ${cleanEmail}. Please enter your 6-digit OTP code to complete registration.`,
+        otp: generatedOtp
+      });
+    }
+
+    // Verify OTP provided
+    const pendingRecord = pendingOtpStore.get(cleanEmail);
+    let isOtpValid = false;
+
+    if (pendingRecord && pendingRecord.otp === inputOtp) {
+      if (Date.now() <= pendingRecord.expiry) {
+        isOtpValid = true;
+      } else {
+        return res.status(400).json({ error: 'Verification code has expired. Please request a new code.' });
+      }
+    }
+
+    if (!isOtpValid) {
+      return res.status(400).json({ error: 'Invalid verification code. Please check your OTP code and try again.' });
+    }
+
+    // OTP Verified -> Remove from pending store
+    pendingOtpStore.delete(cleanEmail);
 
     // 2. Create in Local Database
     let localUser = null;

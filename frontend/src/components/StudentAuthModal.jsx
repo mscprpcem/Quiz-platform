@@ -20,6 +20,10 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [showNewPassword, setShowNewPassword] = useState(false);
 
+  // Registration OTP State
+  const [regStep, setRegStep] = useState(1); // 1 = Form, 2 = Enter Verification OTP
+  const [registerOtp, setRegisterOtp] = useState('');
+
   // Username availability state
   const [usernameChecking, setUsernameChecking] = useState(false);
   const [usernameAvailable, setUsernameAvailable] = useState(null);
@@ -175,12 +179,19 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
         name: name.trim(),
         email: email.trim(),
         password,
-        username: username.trim()
+        username: username.trim(),
+        otp: regStep === 2 ? registerOtp.trim() : undefined
       });
       setLoading(false);
 
-      if (res.success) {
-        setSuccessMessage('Account created and synchronized with Verification Portal!');
+      if (res.requireVerification) {
+        setRegStep(2);
+        if (res.otp) setRegisterOtp(res.otp);
+        setSuccessMessage(res.message || `Verification code sent to ${email.trim()}. Please enter your 6-digit code below.`);
+      } else if (res.success) {
+        setSuccessMessage('Email verified and account created successfully!');
+        setRegStep(1);
+        setRegisterOtp('');
         setTimeout(() => {
           if (onSuccess) onSuccess(res.user);
           if (onClose) onClose();
@@ -464,168 +475,232 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
           ) : (
             /* LOGIN & REGISTER FORMS */
             <form onSubmit={handleSubmit} className="space-y-3.5">
-              
-              {/* Full Name field (Register only) */}
-              {activeTab === 'register' && (
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-700">Full Name</label>
-                  <div className="relative">
-                    <User size={16} className="absolute left-3.5 top-3 text-slate-400" />
-                    <input
-                      type="text"
-                      required
-                      placeholder="Enter your Full Name"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="w-full border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
-                    />
+              {/* Registration OTP Verification Step 2 */}
+              {activeTab === 'register' && regStep === 2 ? (
+                <div className="space-y-4 animate-fade-in">
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl space-y-1">
+                    <p className="text-xs font-bold text-blue-900">Email Verification Required</p>
+                    <p className="text-[11px] text-blue-700 font-medium leading-relaxed">
+                      We sent a 6-digit verification code to <span className="font-extrabold text-blue-950">{email}</span>.
+                    </p>
                   </div>
-                </div>
-              )}
 
-              {/* Email Address field */}
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">Email Address</label>
-                <div className="relative">
-                  <Mail size={16} className="absolute left-3.5 top-3 text-slate-400" />
-                  <input
-                    type="email"
-                    required
-                    placeholder="Enter your email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
-                  />
-                </div>
-              </div>
-
-              {/* Username Handle Field (Register only) */}
-              {activeTab === 'register' && (
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <label className="block text-xs font-bold text-slate-700">Username Handle</label>
-                    <span className="text-[10px] text-slate-400 font-semibold">(for public profile URL)</span>
-                  </div>
-                  <div className="relative flex items-center">
-                    <span className="absolute left-3.5 text-xs font-black text-slate-400 select-none">@</span>
-                    <input
-                      type="text"
-                      placeholder="e.g. amityadav"
-                      value={username}
-                      onChange={handleUsernameChange}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          handleCheckHandle(username);
-                        }
-                      }}
-                      required
-                      className="w-full border border-slate-200 rounded-xl pl-8 pr-12 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
-                    />
-                    <div className="absolute right-3 flex items-center space-x-1.5">
-                      {usernameChecking ? (
-                        <Loader2 size={15} className="animate-spin text-blue-600" />
-                      ) : usernameAvailable === true ? (
-                        <CheckCircle2 size={15} className="text-emerald-500" />
-                      ) : usernameAvailable === false ? (
-                        <X size={15} className="text-red-500" />
-                      ) : null}
-                      <button
-                        type="button"
-                        onClick={() => handleCheckHandle(username)}
-                        disabled={usernameChecking || !username.trim()}
-                        className="text-slate-400 hover:text-blue-600 p-1 cursor-pointer disabled:opacity-30"
-                        title="Check handle availability"
-                      >
-                        <Search size={14} />
-                      </button>
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-slate-700">6-Digit Verification OTP</label>
+                    <div className="relative">
+                      <KeyRound size={16} className="absolute left-3.5 top-3 text-slate-400" />
+                      <input
+                        type="text"
+                        maxLength={6}
+                        value={registerOtp}
+                        onChange={(e) => setRegisterOtp(e.target.value.replace(/[^0-9]/g, ''))}
+                        placeholder="e.g. 123456"
+                        required
+                        className="w-full border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-sm font-black tracking-widest bg-slate-50 focus:bg-white focus:border-blue-600 transition-all text-center"
+                      />
                     </div>
                   </div>
-                  {usernameAvailable === true && (
-                    <span className="text-[10px] font-bold text-emerald-600 block">Available</span>
-                  )}
-                  {usernameError && (
-                    <span className="text-[10px] font-bold text-red-500 block">{usernameError}</span>
-                  )}
-                </div>
-              )}
 
-              {/* Password field */}
-              <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="block text-xs font-bold text-slate-700">Password</label>
-                  {activeTab === 'login' && (
+                  <div className="flex items-center justify-between text-[11px]">
                     <button
                       type="button"
-                      onClick={() => {
-                        setActiveTab('forgot-password');
-                        setResetStep(1);
-                        setErrorMessage('');
-                        setSuccessMessage('');
-                      }}
-                      className="text-[11px] text-blue-600 font-bold hover:underline cursor-pointer"
+                      onClick={() => setRegStep(1)}
+                      className="text-slate-500 font-bold hover:underline cursor-pointer"
                     >
-                      Forgot password?
+                      ← Change Details
                     </button>
-                  )}
-                </div>
-                <div className="relative">
-                  <Lock size={16} className="absolute left-3.5 top-3 text-slate-400" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    required
-                    placeholder="••••••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
-                  >
-                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                {activeTab === 'register' && (
-                  <span className="text-[10px] text-slate-400 font-semibold block">Password must be at least 8 characters</span>
-                )}
-              </div>
-
-              {/* Confirm Password field (Register only) */}
-              {activeTab === 'register' && (
-                <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-700">Confirm Password</label>
-                  <div className="relative">
-                    <Lock size={16} className="absolute left-3.5 top-3 text-slate-400" />
-                    <input
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      required
-                      placeholder="Confirm your password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
-                    />
                     <button
                       type="button"
-                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      onClick={() => handleSubmit(new Event('submit'))}
+                      className="text-blue-600 font-bold hover:underline cursor-pointer"
                     >
-                      {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      Resend Code
                     </button>
                   </div>
-                </div>
-              )}
 
-              {/* Submit Button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md transition-all active:scale-98 cursor-pointer disabled:opacity-50 mt-2"
-              >
-                <span>{loading ? 'Authenticating...' : activeTab === 'register' ? 'Create Account' : 'Sign In'}</span>
-                <ArrowRight size={16} />
-              </button>
+                  <button
+                    type="submit"
+                    disabled={loading || registerOtp.length < 6}
+                    className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all disabled:opacity-50 mt-2"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        <span>Verifying Code...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Verify & Create Account</span>
+                        <ArrowRight size={16} />
+                      </>
+                    )}
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Full Name field (Register only) */}
+                  {activeTab === 'register' && (
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-slate-700">Full Name</label>
+                      <div className="relative">
+                        <User size={16} className="absolute left-3.5 top-3 text-slate-400" />
+                        <input
+                          type="text"
+                          required
+                          placeholder="Enter your Full Name"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          className="w-full border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Email Address field */}
+                  <div className="space-y-1">
+                    <label className="block text-xs font-bold text-slate-700">Email Address</label>
+                    <div className="relative">
+                      <Mail size={16} className="absolute left-3.5 top-3 text-slate-400" />
+                      <input
+                        type="email"
+                        required
+                        placeholder="Enter your email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full border border-slate-200 rounded-xl pl-10 pr-4 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Username Handle Field (Register only) */}
+                  {activeTab === 'register' && (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-bold text-slate-700">Username Handle</label>
+                        <span className="text-[10px] text-slate-400 font-semibold">(for public profile URL)</span>
+                      </div>
+                      <div className="relative flex items-center">
+                        <span className="absolute left-3.5 text-xs font-black text-slate-400 select-none">@</span>
+                        <input
+                          type="text"
+                          placeholder="e.g. amityadav"
+                          value={username}
+                          onChange={handleUsernameChange}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleCheckHandle(username);
+                            }
+                          }}
+                          required
+                          className="w-full border border-slate-200 rounded-xl pl-8 pr-12 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
+                        />
+                        <div className="absolute right-3 flex items-center space-x-1.5">
+                          {usernameChecking ? (
+                            <Loader2 size={15} className="animate-spin text-blue-600" />
+                          ) : usernameAvailable === true ? (
+                            <CheckCircle2 size={15} className="text-emerald-500" />
+                          ) : usernameAvailable === false ? (
+                            <X size={15} className="text-red-500" />
+                          ) : null}
+                          <button
+                            type="button"
+                            onClick={() => handleCheckHandle(username)}
+                            disabled={usernameChecking || !username.trim()}
+                            className="text-slate-400 hover:text-blue-600 p-1 cursor-pointer disabled:opacity-30"
+                            title="Check handle availability"
+                          >
+                            <Search size={14} />
+                          </button>
+                        </div>
+                      </div>
+                      {usernameAvailable === true && (
+                        <span className="text-[10px] font-bold text-emerald-600 block">Available</span>
+                      )}
+                      {usernameError && (
+                        <span className="text-[10px] font-bold text-red-500 block">{usernameError}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Password field */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-xs font-bold text-slate-700">Password</label>
+                      {activeTab === 'login' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setActiveTab('forgot-password');
+                            setResetStep(1);
+                            setErrorMessage('');
+                            setSuccessMessage('');
+                          }}
+                          className="text-[11px] text-blue-600 font-bold hover:underline cursor-pointer"
+                        >
+                          Forgot password?
+                        </button>
+                      )}
+                    </div>
+                    <div className="relative">
+                      <Lock size={16} className="absolute left-3.5 top-3 text-slate-400" />
+                      <input
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        placeholder="••••••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="w-full border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      >
+                        {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    {activeTab === 'register' && (
+                      <span className="text-[10px] text-slate-400 font-semibold block">Password must be at least 8 characters</span>
+                    )}
+                  </div>
+
+                  {/* Confirm Password field (Register only) */}
+                  {activeTab === 'register' && (
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-slate-700">Confirm Password</label>
+                      <div className="relative">
+                        <Lock size={16} className="absolute left-3.5 top-3 text-slate-400" />
+                        <input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          required
+                          placeholder="Confirm your password"
+                          value={confirmPassword}
+                          onChange={(e) => setConfirmPassword(e.target.value)}
+                          className="w-full border border-slate-200 rounded-xl pl-10 pr-10 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 transition-all"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3.5 top-3 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        >
+                          {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md transition-all active:scale-98 cursor-pointer disabled:opacity-50 mt-2"
+                  >
+                    <span>{loading ? 'Authenticating...' : activeTab === 'register' ? 'Send Verification Code' : 'Sign In'}</span>
+                    <ArrowRight size={16} />
+                  </button>
+                </>
+              )}
 
               {/* Footer Navigation Switch Link */}
               <div className="text-center pt-2 border-t border-slate-100">
@@ -647,7 +722,6 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
                   </button>
                 )}
               </div>
-
             </form>
           )}
 
