@@ -22,8 +22,8 @@ export default function () {
   const loginRes = http.post(
     `${BASE_URL}/api/auth/login`,
     JSON.stringify({
-      email: "admin@microsoftclub.edu",
-      password: "Admin@123"
+      email: __ENV.ADMIN_EMAIL || "admin@mscprpcem.tech",
+      password: __ENV.ADMIN_PASSWORD || ""
     }),
     {
       headers: {

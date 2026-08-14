@@ -246,27 +246,19 @@ async function startServer() {
 
     console.log("✅ Database Synced");
 
-    // Seed & Reset Default Admins
-    const defaultAdmins = [
-      { email: "admin@microsoftclub.edu", name: "MSC Admin", password: "Admin@123" },
-      { email: "admin@mscprpcem.tech", name: "MSC Club Admin", password: "Admin@123" }
-    ];
-
-    for (const item of defaultAdmins) {
-      const existingAdmin = await Admin.findOne({ where: { email: item.email } });
-      if (!existingAdmin) {
-        await Admin.create({
-          name: item.name,
-          email: item.email,
-          password: item.password,
-          role: "admin"
-        });
-        console.log(`✅ Default Admin Created: ${item.email}`);
-      } else {
-        existingAdmin.password = item.password;
-        await existingAdmin.save();
-        console.log(`✅ Default Admin Password Synced: ${item.email}`);
-      }
+    // Seed initial admin only on clean database installation
+    const adminCount = await Admin.count();
+    if (adminCount === 0) {
+      const initialEmail = process.env.ADMIN_EMAIL || "admin@mscprpcem.tech";
+      const initialPassword = process.env.ADMIN_PASSWORD || "Admin@123";
+      const initialName = process.env.ADMIN_NAME || "MSC Admin";
+      await Admin.create({
+        name: initialName,
+        email: initialEmail,
+        password: initialPassword,
+        role: "admin"
+      });
+      console.log(`✅ Initial Admin Account Initialized: ${initialEmail}`);
     }
 
     // Seed Starter Quizzes if none exist

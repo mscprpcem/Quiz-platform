@@ -142,8 +142,8 @@ export default function AdminLayout({ children }) {
           {!collapsed ? (
             <div className="flex items-center justify-between p-2.5 bg-slate-50 rounded-xl border border-slate-200">
               <div className="truncate pr-2">
-                <div className="text-xs font-black text-slate-900 truncate">{user?.name || 'Admin User'}</div>
-                <div className="text-[10px] text-slate-400 font-semibold truncate">{user?.email || 'admin@microsoftclub.edu'}</div>
+                <div className="text-xs font-black text-slate-900 truncate">{user?.name || 'Administrator'}</div>
+                <div className="text-[10px] text-slate-400 font-semibold truncate">{user?.email || 'Admin Portal'}</div>
               </div>
               <button
                 onClick={handleLogout}

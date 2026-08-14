@@ -18,7 +18,7 @@ router.post('/login', async (req, res) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    let admin = await Admin.findOne({
+    const admin = await Admin.findOne({
       where: {
         [Op.or]: [
           { email: cleanEmail },
@@ -31,18 +31,7 @@ router.post('/login', async (req, res) => {
     });
 
     if (!admin) {
-      // Search for any existing admin in the system
-      admin = await Admin.findOne({ order: [['createdAt', 'ASC']] });
-    }
-
-    // If still no admin exists, create a default admin account on the fly
-    if (!admin) {
-      admin = await Admin.create({
-        name: 'MSC Admin',
-        email: cleanEmail.includes('@') ? cleanEmail : 'admin@microsoftclub.edu',
-        password: password,
-        role: 'admin'
-      });
+      return res.status(401).json({ error: 'Invalid administrator email or password.' });
     }
 
     let isMatch = false;
@@ -53,24 +42,7 @@ router.post('/login', async (req, res) => {
     }
 
     if (!isMatch) {
-      if (admin.password === password || password === 'Admin@123' || password === 'admin123' || password === 'admin' || cleanEmail.includes('admin')) {
-        isMatch = true;
-        try {
-          admin.password = password;
-          await admin.save();
-        } catch (e) {
-          console.warn('Save updated password warning:', e.message);
-        }
-      }
-    }
-
-    if (!isMatch) {
-      // Ultimate failsafe for local dev & testing
-      if (password === 'Admin@123' || password === 'admin' || password === 'admin123') {
-        isMatch = true;
-      } else {
-        return res.status(401).json({ error: 'Invalid administrator email or password.' });
-      }
+      return res.status(401).json({ error: 'Invalid administrator email or password.' });
     }
 
     const token = jwt.sign(
