@@ -180,6 +180,7 @@ async function startServer() {
     const ifNotExists = isPostgres ? 'IF NOT EXISTS ' : '';
 
     const columns = [
+      // Quizzes table
       `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}mode${quote} VARCHAR(255) DEFAULT 'LIVE';`,
       `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}schedule_type${quote} VARCHAR(255);`,
       `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}timezone${quote} VARCHAR(255) DEFAULT 'Asia/Kolkata';`,
@@ -203,7 +204,24 @@ async function startServer() {
       `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}verification_error${quote} TEXT;`,
       `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}svg_template${quote} TEXT;`,
       `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}custom_slug${quote} VARCHAR(255);`,
-      `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}badge_title${quote} VARCHAR(255);`
+      `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}badge_title${quote} VARCHAR(255);`,
+
+      // Questions table
+      `ALTER TABLE ${quote}Questions${quote} ADD COLUMN ${ifNotExists}${quote}occurrence_number${quote} INTEGER DEFAULT 1;`,
+      `ALTER TABLE ${quote}Questions${quote} ADD COLUMN ${ifNotExists}${quote}section_name${quote} VARCHAR(255);`,
+      `ALTER TABLE ${quote}Questions${quote} ADD COLUMN ${ifNotExists}${quote}section_description${quote} TEXT;`,
+
+      // Lowercase fallback for Postgres
+      ...(isPostgres ? [
+        `ALTER TABLE questions ADD COLUMN IF NOT EXISTS occurrence_number INTEGER DEFAULT 1;`,
+        `ALTER TABLE questions ADD COLUMN IF NOT EXISTS section_name VARCHAR(255);`,
+        `ALTER TABLE questions ADD COLUMN IF NOT EXISTS section_description TEXT;`,
+        `ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS custom_slug VARCHAR(255);`,
+        `ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS mode VARCHAR(255) DEFAULT 'LIVE';`,
+        `ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS schedule_type VARCHAR(255);`,
+        `ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS schedule_config TEXT;`,
+        `ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS subject VARCHAR(255) DEFAULT 'DBMS';`
+      ] : [])
     ];
 
     for (const query of columns) {
