@@ -211,6 +211,12 @@ async function startServer() {
       `ALTER TABLE ${quote}Questions${quote} ADD COLUMN ${ifNotExists}${quote}section_name${quote} VARCHAR(255);`,
       `ALTER TABLE ${quote}Questions${quote} ADD COLUMN ${ifNotExists}${quote}section_description${quote} TEXT;`,
 
+      // Users table
+      `ALTER TABLE ${quote}Users${quote} ADD COLUMN ${ifNotExists}${quote}username${quote} VARCHAR(255);`,
+      `ALTER TABLE ${quote}Users${quote} ADD COLUMN ${ifNotExists}${quote}otp${quote} VARCHAR(255);`,
+      `ALTER TABLE ${quote}Users${quote} ADD COLUMN ${ifNotExists}${quote}otp_expiry${quote} ${dateType};`,
+      `ALTER TABLE ${quote}Users${quote} ADD COLUMN ${ifNotExists}${quote}is_verified${quote} ${boolType} DEFAULT 1;`,
+
       // Lowercase fallback for Postgres
       ...(isPostgres ? [
         `ALTER TABLE questions ADD COLUMN IF NOT EXISTS occurrence_number INTEGER DEFAULT 1;`,
@@ -220,7 +226,11 @@ async function startServer() {
         `ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS mode VARCHAR(255) DEFAULT 'LIVE';`,
         `ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS schedule_type VARCHAR(255);`,
         `ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS schedule_config TEXT;`,
-        `ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS subject VARCHAR(255) DEFAULT 'DBMS';`
+        `ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS subject VARCHAR(255) DEFAULT 'DBMS';`,
+        `ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(255);`,
+        `ALTER TABLE users ADD COLUMN IF NOT EXISTS otp VARCHAR(255);`,
+        `ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_expiry ${dateType};`,
+        `ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified ${boolType} DEFAULT true;`
       ] : [])
     ];
 

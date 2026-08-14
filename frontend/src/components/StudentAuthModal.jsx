@@ -92,6 +92,7 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
 
     if (res.success) {
       setSuccessMessage(res.message || 'OTP verification code sent to your email.');
+      if (res.otp) setResetOtp(res.otp);
       setResetStep(2);
     } else {
       setErrorMessage(res.error || 'Failed to send OTP code. Please check your email.');

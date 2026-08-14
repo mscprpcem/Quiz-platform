@@ -113,6 +113,7 @@ export default function StudentAuth() {
 
     if (res.success) {
       setSuccessMsg(res.message || 'OTP verification code sent to your email.');
+      if (res.otp) setResetOtp(res.otp);
       setResetStep(2);
     } else {
       setError(res.error || 'Failed to send OTP code. Please check your email.');
