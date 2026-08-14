@@ -54,11 +54,17 @@ export default function AdminScheduledQuizzes() {
   const filteredQuizzes = quizzes.filter(q => {
     const matchesSearch = q.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
       (q.description && q.description.toLowerCase().includes(searchQuery.toLowerCase()));
-    if (statusFilter === 'All') return matchesSearch;
-    if (statusFilter === 'Active') return matchesSearch && q.activeOccurrence;
-    if (statusFilter === 'Scheduled') return matchesSearch && q.nextOccurrence;
-    if (statusFilter === 'Completed') return matchesSearch && q.status === 'completed';
-    return matchesSearch;
+    if (!matchesSearch) return false;
+
+    const isEnded = !q.activeOccurrence && !q.nextOccurrence;
+    const hasParticipants = (q.participantCount || 0) > 0;
+
+    if (statusFilter === 'All') return true;
+    if (statusFilter === 'Active') return Boolean(q.activeOccurrence);
+    if (statusFilter === 'Scheduled' || statusFilter === 'Upcoming') return Boolean(q.nextOccurrence);
+    if (statusFilter === 'Completed') return q.status === 'completed' || (isEnded && hasParticipants);
+    if (statusFilter === 'Expired') return q.status === 'expired' || (isEnded && !hasParticipants);
+    return true;
   });
 
   return (
@@ -135,11 +141,11 @@ export default function AdminScheduledQuizzes() {
         </div>
 
         <div className="flex items-center space-x-2 overflow-x-auto w-full sm:w-auto">
-          {['All', 'Active', 'Scheduled', 'Completed'].map((status) => (
+          {['All', 'Active', 'Scheduled', 'Completed', 'Expired'].map((status) => (
             <button
               key={status}
               onClick={() => setStatusFilter(status)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
                 statusFilter === status 
                   ? 'bg-blue-600 text-white shadow-xs' 
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -181,9 +187,17 @@ export default function AdminScheduledQuizzes() {
                     <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-500 text-white animate-pulse">
                       ACTIVE NOW
                     </span>
+                  ) : quiz.nextOccurrence ? (
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-blue-50 text-blue-700 border border-blue-200">
+                      UPCOMING
+                    </span>
+                  ) : (quiz.participantCount || 0) > 0 ? (
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-purple-50 text-purple-700 border border-purple-200">
+                      COMPLETED
+                    </span>
                   ) : (
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-slate-100 text-slate-600">
-                      SCHEDULED
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-slate-100 text-slate-500 border border-slate-200" title="Concluded with 0 attempts">
+                      EXPIRED
                     </span>
                   )}
                 </div>

@@ -305,8 +305,17 @@ router.get('/', authMiddleware, async (req, res) => {
         const activeOccurrence = occurrences.find(o => new Date(o.start_time) <= now && new Date(o.end_time) >= now && o.status !== 'CANCELLED');
         const nextOccurrence = occurrences.find(o => new Date(o.start_time) > now && o.status !== 'CANCELLED');
 
+        let computedStatus = quiz.status;
+        if (!activeOccurrence && !nextOccurrence && occurrences.length > 0) {
+          computedStatus = attemptCount > 0 ? 'completed' : 'expired';
+          if (quiz.status !== computedStatus) {
+            await quiz.update({ status: computedStatus }).catch(() => {});
+          }
+        }
+
         return {
           ...quiz.toJSON(),
+          status: computedStatus,
           questionCount,
           participantCount: attemptCount,
           activeOccurrence,
@@ -446,10 +455,6 @@ router.get('/public/all', async (req, res) => {
         const sTime = new Date(occ.start_time);
         const eTime = new Date(occ.end_time);
 
-        let availability = 'UPCOMING';
-        if (now >= sTime && now <= eTime) availability = 'ACTIVE';
-        else if (now > eTime) availability = 'COMPLETED';
-
         const [occAttempts, totalQuizAttempts] = await Promise.all([
           QuizAttempt.count({
             where: {
@@ -462,6 +467,16 @@ router.get('/public/all', async (req, res) => {
           })
         ]);
         const participantCount = occAttempts > 0 ? occAttempts : totalQuizAttempts;
+
+        let availability = 'UPCOMING';
+        if (now >= sTime && now <= eTime) {
+          availability = 'ACTIVE';
+        } else if (now > eTime) {
+          availability = participantCount > 0 ? 'COMPLETED' : 'EXPIRED';
+          if (occ.status !== availability) {
+            await occ.update({ status: availability }).catch(() => {});
+          }
+        }
 
         const titleSlug = q.custom_slug || (q.title ? q.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'quiz');
         publicList.push({

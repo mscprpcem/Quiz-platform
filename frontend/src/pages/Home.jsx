@@ -55,13 +55,30 @@ export default function Home() {
           api.get('/api/analytics/public/leaderboard').catch(() => ({ data: { leaderboard: [], recentEvents: [] } }))
         ]);
 
+        const now = new Date();
         const allPublicQuizzes = [];
+
+        // 1. Filter Live/Standard Quizzes (Only upcoming or actively running)
         if (Array.isArray(quizzesRes?.data)) {
-          allPublicQuizzes.push(...quizzesRes.data.filter((q) => q && q.status !== 'completed'));
+          quizzesRes.data.forEach((q) => {
+            if (!q) return;
+            const eTime = q.scheduled_end ? new Date(q.scheduled_end) : null;
+            const isEnded = (eTime && now > eTime) || q.status === 'completed' || q.status === 'expired';
+            if (!isEnded) {
+              allPublicQuizzes.push(q);
+            }
+          });
         }
+
+        // 2. Filter Scheduled Quizzes (Only upcoming or actively in progress occurrences)
         if (Array.isArray(scheduledRes?.data)) {
           scheduledRes.data.forEach(sQuiz => {
-            if (!allPublicQuizzes.some(q => q.id === sQuiz.quizId || q.id === sQuiz.occurrenceId)) {
+            if (!sQuiz) return;
+            const eTime = sQuiz.endTime || sQuiz.scheduled_end ? new Date(sQuiz.endTime || sQuiz.scheduled_end) : null;
+            const isEnded = (eTime && now > eTime) || sQuiz.availability === 'COMPLETED' || sQuiz.availability === 'EXPIRED' || sQuiz.status === 'completed' || sQuiz.status === 'expired';
+
+            // Only display in Upcoming section if not ended
+            if (!isEnded && !allPublicQuizzes.some(q => q.id === sQuiz.quizId || q.id === sQuiz.occurrenceId)) {
               allPublicQuizzes.push({
                 ...sQuiz,
                 id: sQuiz.occurrenceId || sQuiz.quizId,
@@ -72,6 +89,14 @@ export default function Home() {
             }
           });
         }
+
+        // Sort by closest start time first
+        allPublicQuizzes.sort((a, b) => {
+          const aStart = new Date(a.scheduled_start || a.startTime || a.createdAt || 0);
+          const bStart = new Date(b.scheduled_start || b.startTime || b.createdAt || 0);
+          return aStart - bStart;
+        });
+
         setUpcomingQuizzes(allPublicQuizzes);
 
         if (leaderboardRes?.data) {

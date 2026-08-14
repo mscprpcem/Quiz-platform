@@ -53,6 +53,7 @@ router.get('/public', async (req, res) => {
       order: [['createdAt', 'DESC']]
     });
 
+    const now = new Date();
     const quizzesWithCounts = await Promise.all(
       quizzes.map(async (quiz) => {
         const questionCount = await Question.count({ where: { quiz_id: quiz.id } });
@@ -61,6 +62,15 @@ router.get('/public', async (req, res) => {
           QuizAttempt.count({ where: { quiz_id: quiz.id } })
         ]);
         const participantCount = liveParticipantCount + attemptCount;
+
+        let computedStatus = quiz.status;
+        const eTime = quiz.scheduled_end ? new Date(quiz.scheduled_end) : null;
+        if (eTime && now > eTime) {
+          computedStatus = participantCount > 0 ? 'completed' : 'expired';
+          if (quiz.status !== computedStatus) {
+            await quiz.update({ status: computedStatus }).catch(() => {});
+          }
+        }
 
         return {
           id: quiz.id,
@@ -71,7 +81,7 @@ router.get('/public', async (req, res) => {
           subject: quiz.subject || 'DBMS',
           description: quiz.description,
           join_code: quiz.join_code,
-          status: quiz.status,
+          status: computedStatus,
           mode: quiz.mode,
           scheduled_start: quiz.scheduled_start,
           scheduled_end: quiz.scheduled_end,
@@ -190,13 +200,29 @@ router.get('/', authMiddleware, async (req, res) => {
       order: [['createdAt', 'DESC']]
     });
 
+    const now = new Date();
     // Fetch question and participant counts for each quiz
     const quizzesWithCounts = await Promise.all(
       quizzes.map(async (quiz) => {
         const questionCount = await Question.count({ where: { quiz_id: quiz.id } });
-        const participantCount = await Participant.count({ where: { quiz_id: quiz.id } });
+        const [liveParticipantCount, attemptCount] = await Promise.all([
+          Participant.count({ where: { quiz_id: quiz.id } }),
+          QuizAttempt.count({ where: { quiz_id: quiz.id } })
+        ]);
+        const participantCount = liveParticipantCount + attemptCount;
+
+        let computedStatus = quiz.status;
+        const eTime = quiz.scheduled_end ? new Date(quiz.scheduled_end) : null;
+        if (eTime && now > eTime) {
+          computedStatus = participantCount > 0 ? 'completed' : 'expired';
+          if (quiz.status !== computedStatus) {
+            await quiz.update({ status: computedStatus }).catch(() => {});
+          }
+        }
+
         return {
           ...quiz.toJSON(),
+          status: computedStatus,
           questionCount,
           participantCount
         };
