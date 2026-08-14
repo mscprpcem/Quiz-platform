@@ -31,6 +31,6 @@ A real-time web-based quiz platform for the Microsoft Student Club events.
    npm run dev
    ```
 
-## Default Admin Login
-- **Email**: `admin@microsoftclub.edu`
-- **Password**: `Admin@123`
+## Admin Access
+Admin credentials should be configured securely via environment variables (`ADMIN_EMAIL` and `ADMIN_PASSWORD`) in `backend/.env`.
+
