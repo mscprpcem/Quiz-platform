@@ -20,8 +20,7 @@ const POSTER_PRESETS = [
   { match: 'javascript', url: 'https://mscprpcem.blob.core.windows.net/events/js_ai.png' },
   { match: 'js', url: 'https://mscprpcem.blob.core.windows.net/events/js_ai.png' },
   { match: 'ai', url: 'https://mscprpcem.blob.core.windows.net/events/aiskillfest.png' },
-  { match: 'skill', url: 'https://mscprpcem.blob.core.windows.net/events/aiskillfest.png' },
-  { match: 'inauguration', url: 'https://mscprpcem.blob.core.windows.net/events/clean_529287766.png' }
+  { match: 'skill', url: 'https://mscprpcem.blob.core.windows.net/events/aiskillfest.png' }
 ];
 
 function resolveEventPoster(posterUrl, eventName) {
@@ -39,88 +38,46 @@ function resolveEventPoster(posterUrl, eventName) {
 
 // ----------------------------------------------------
 // GET /api/events (Admin / Authenticated Route)
-// Returns all managed events with associated quiz tracks
+// Returns ONLY real events created by Admin
 // ----------------------------------------------------
 router.get('/', async (req, res) => {
   try {
     const baseUrl = getQuizPlatformBaseUrl();
     
-    // 1. Fetch from Event table
-    let dbEvents = [];
-    try {
-      dbEvents = await Event.findAll({
-        order: [['createdAt', 'DESC']],
-        include: [
-          {
-            model: Quiz,
-            as: 'quizzes',
-            attributes: ['id', 'title', 'mode', 'join_code', 'status', 'custom_slug'],
-            required: false
-          }
-        ]
-      });
-    } catch (e) {
-      console.warn('Fallback finding Events:', e.message);
-    }
-
-    // 2. Also fetch distinct event_name from Quizzes not yet mapped to an Event
-    const quizzes = await Quiz.findAll({
-      attributes: ['id', 'title', 'event_name', 'mode', 'join_code', 'status', 'custom_slug', 'event_id'],
+    // Fetch ONLY real events from Event table
+    const dbEvents = await Event.findAll({
       order: [['createdAt', 'DESC']]
     });
 
-    const eventNamesInDb = new Set(dbEvents.map(e => (e.name || '').toLowerCase().trim()));
-    const unmappedQuizzesMap = new Map();
+    const formattedEvents = [];
 
-    for (const q of quizzes) {
-      if (q.event_name && !eventNamesInDb.has(q.event_name.toLowerCase().trim())) {
-        const key = q.event_name.trim();
-        if (!unmappedQuizzesMap.has(key)) {
-          unmappedQuizzesMap.set(key, []);
-        }
-        unmappedQuizzesMap.get(key).push(q);
-      }
-    }
+    for (const ev of dbEvents) {
+      // Find all quizzes explicitly attached to this event (by event_id or exact event_name)
+      const linkedQuizzes = await Quiz.findAll({
+        where: {
+          [Op.or]: [
+            { event_id: ev.id },
+            { event_name: ev.name }
+          ],
+          status: { [Op.ne]: 'cancelled' }
+        },
+        attributes: ['id', 'title', 'mode', 'join_code', 'status', 'custom_slug']
+      });
 
-    // Combine both
-    const formattedEvents = dbEvents.map(ev => ({
-      id: ev.id,
-      name: ev.name,
-      slug: ev.slug || ev.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      description: ev.description || `Official challenges and sessions for ${ev.name}.`,
-      poster_url: resolveEventPoster(ev.poster_url, ev.name),
-      category: ev.category || 'Technical Workshop',
-      mode: ev.mode || 'Offline',
-      venue: ev.venue || 'PRPCEM Amravati',
-      start_date: ev.start_date,
-      end_date: ev.end_date,
-      rewards: ev.rewards || 'Certificates & Swags',
-      status: ev.status || 'upcoming',
-      quizzes: (ev.quizzes || []).map(q => ({
-        id: q.id,
-        title: q.title,
-        mode: q.mode,
-        join_code: q.join_code,
-        status: q.status,
-        direct_url: q.mode === 'SCHEDULED' ? `${baseUrl}/q/${q.custom_slug || q.id}` : `${baseUrl}/join/${q.join_code}`
-      })),
-      total_quizzes: (ev.quizzes || []).length
-    }));
-
-    // Add unmapped quiz event groups
-    for (const [name, qList] of unmappedQuizzesMap.entries()) {
       formattedEvents.push({
-        id: `auto-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-        name,
-        slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-        description: `Official technical event tracks for ${name}.`,
-        poster_url: resolveEventPoster(null, name),
-        category: 'Technical Challenge',
-        mode: 'Online Assessment',
-        venue: 'PRPCEM Campus',
-        rewards: 'Certificates & Badges',
-        status: 'upcoming',
-        quizzes: qList.map(q => ({
+        id: ev.id,
+        name: ev.name,
+        slug: ev.slug || ev.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        description: ev.description || `Official challenges and sessions for ${ev.name}.`,
+        poster_url: resolveEventPoster(ev.poster_url, ev.name),
+        category: ev.category || 'Technical Workshop',
+        mode: ev.mode || 'Offline',
+        venue: ev.venue || 'PRPCEM Amravati',
+        start_date: ev.start_date,
+        end_date: ev.end_date,
+        rewards: ev.rewards || 'Certificates & Swags',
+        status: ev.status || 'upcoming',
+        quizzes: linkedQuizzes.map(q => ({
           id: q.id,
           title: q.title,
           mode: q.mode,
@@ -128,7 +85,7 @@ router.get('/', async (req, res) => {
           status: q.status,
           direct_url: q.mode === 'SCHEDULED' ? `${baseUrl}/q/${q.custom_slug || q.id}` : `${baseUrl}/join/${q.join_code}`
         })),
-        total_quizzes: qList.length
+        total_quizzes: linkedQuizzes.length
       });
     }
 
@@ -174,9 +131,9 @@ router.post('/', authMiddleware, async (req, res) => {
       slug,
       description: description ? description.trim() : `Official technical event and challenges for ${cleanName}.`,
       poster_url: finalPoster,
-      category: category || 'Technical Workshop',
-      mode: mode || 'Offline',
-      venue: venue || 'PRPCEM Amravati',
+      category: category || 'Innovation Challenge',
+      mode: mode || 'Hybrid',
+      venue: venue || 'PRPCEM Campus & Virtual',
       start_date: start_date ? new Date(start_date) : new Date(),
       end_date: end_date ? new Date(end_date) : null,
       rewards: rewards || 'Certificates & Swags',
@@ -269,164 +226,119 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 // ----------------------------------------------------
 // GET /api/events/public
 // Public events feed for mscprpcem-website
+// Returns ONLY real events created by Admin
 // ----------------------------------------------------
 router.get('/public', async (req, res) => {
   try {
     const now = new Date();
     const baseUrl = getQuizPlatformBaseUrl();
 
-    // 1. Fetch managed events from Event table
-    let dbEvents = [];
-    try {
-      dbEvents = await Event.findAll({
-        where: { status: { [Op.ne]: 'archived' } },
-        order: [['createdAt', 'DESC']],
+    // Fetch ONLY real events from Event table
+    const dbEvents = await Event.findAll({
+      where: { status: { [Op.ne]: 'archived' } },
+      order: [['createdAt', 'DESC']]
+    });
+
+    const eventsList = [];
+
+    for (const dev of dbEvents) {
+      const resolvedPoster = resolveEventPoster(dev.poster_url, dev.name);
+
+      // Find all quizzes explicitly attached to this event
+      const linkedQuizzes = await Quiz.findAll({
+        where: {
+          [Op.or]: [
+            { event_id: dev.id },
+            { event_name: dev.name }
+          ],
+          status: { [Op.ne]: 'cancelled' }
+        },
         include: [
           {
-            model: Quiz,
-            as: 'quizzes',
+            model: ScheduledOccurrence,
+            as: 'occurrences',
             required: false,
-            include: [
-              {
-                model: ScheduledOccurrence,
-                as: 'occurrences',
-                required: false,
-                attributes: ['id', 'start_time', 'end_time', 'status']
-              }
-            ]
+            attributes: ['id', 'start_time', 'end_time', 'status']
           }
         ]
       });
-    } catch (e) {
-      console.warn('Fallback finding DB events:', e.message);
-    }
 
-    // 2. Fetch all quizzes
-    const quizzes = await Quiz.findAll({
-      order: [['createdAt', 'DESC']],
-      include: [
-        {
-          model: ScheduledOccurrence,
-          as: 'occurrences',
-          required: false,
-          attributes: ['id', 'start_time', 'end_time', 'status']
+      const quizTracks = [];
+      let totalRegCount = 0;
+      let isLiveNow = false;
+
+      for (const q of linkedQuizzes) {
+        const slug = q.custom_slug || (q.title ? q.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : q.join_code);
+        const isScheduled = q.mode === 'SCHEDULED' || (q.occurrences && q.occurrences.length > 0);
+        const directUrl = isScheduled ? `${baseUrl}/q/${slug}` : `${baseUrl}/join/${q.join_code}`;
+
+        let startTime = q.scheduled_start || q.createdAt;
+        let endTime = q.scheduled_end;
+
+        if (q.occurrences && q.occurrences.length > 0) {
+          const validOcc = q.occurrences.filter(occ => !occ.end_time || new Date(occ.end_time) >= now);
+          if (validOcc.length > 0) {
+            startTime = validOcc[0].start_time;
+            endTime = validOcc[0].end_time;
+          }
         }
-      ]
-    });
 
-    const eventsMap = new Map();
+        const [questionCount, liveCount, attemptCount] = await Promise.all([
+          Question.count({ where: { quiz_id: q.id } }).catch(() => 0),
+          Participant.count({ where: { quiz_id: q.id } }).catch(() => 0),
+          QuizAttempt.count({ where: { quiz_id: q.id } }).catch(() => 0)
+        ]);
 
-    // Add DB events first (even with 0 quizzes, they display cleanly)
-    for (const dev of dbEvents) {
-      const devKey = dev.name.toLowerCase().trim();
-      const resolvedPoster = resolveEventPoster(dev.poster_url, dev.name);
+        const regCount = liveCount + attemptCount;
+        totalRegCount += regCount;
 
-      eventsMap.set(devKey, {
+        const sDate = startTime ? new Date(startTime) : null;
+        if (sDate && sDate <= now && (!endTime || new Date(endTime) >= now)) {
+          isLiveNow = true;
+        }
+
+        quizTracks.push({
+          quiz_id: q.id,
+          title: q.title,
+          slug,
+          mode: q.mode,
+          join_code: q.join_code,
+          question_count: questionCount,
+          registration_count: regCount,
+          direct_quiz_url: directUrl,
+          start_time: startTime,
+          end_time: endTime,
+          status: (sDate && sDate <= now && (!endTime || new Date(endTime) >= now)) ? 'LIVE' : 'UPCOMING'
+        });
+      }
+
+      eventsList.push({
         id: dev.id,
         event_name: dev.name,
         title: dev.name,
-        description: dev.description || `Official technical challenges and sessions for ${dev.name}.`,
+        description: dev.description || `Official challenges and technical sessions for ${dev.name}.`,
         poster: resolvedPoster,
-        category: dev.category || 'Technical Workshop',
-        mode: dev.mode || 'Offline',
-        rewards: dev.rewards || 'Verified Certificate & Badges',
+        category: dev.category || 'Innovation Challenge',
+        mode: dev.mode || 'Hybrid',
+        venue: dev.venue || 'PRPCEM Campus & Virtual',
+        rewards: dev.rewards || 'Certificates & Swags',
         start_time: dev.start_date || dev.createdAt,
         end_time: dev.end_date,
-        is_live: false,
+        is_live: isLiveNow,
         is_upcoming: true,
         status: dev.status || 'upcoming',
-        quizzes: [],
-        total_quizzes_count: 0,
-        total_registration_count: 0,
-        direct_quiz_url: null,
+        quizzes: quizTracks,
+        total_quizzes_count: quizTracks.length,
+        total_registration_count: totalRegCount,
+        direct_quiz_url: quizTracks.length > 0 ? quizTracks[0].direct_quiz_url : null,
         register: `/register/${dev.slug || dev.id}`
       });
     }
 
-    // Process all quizzes and attach to event groups
-    for (const q of quizzes) {
-      if (!q) continue;
-      if (['cancelled', 'archived'].includes((q.status || '').toLowerCase())) continue;
-
-      const eventKey = (q.event_name || q.title || 'MSC Tech Event').toLowerCase().trim();
-      const slug = q.custom_slug || (q.title ? q.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : q.join_code);
-      const isScheduled = q.mode === 'SCHEDULED' || (q.occurrences && q.occurrences.length > 0);
-      const directUrl = isScheduled ? `${baseUrl}/q/${slug}` : `${baseUrl}/join/${q.join_code}`;
-
-      let startTime = q.scheduled_start || q.createdAt;
-      let endTime = q.scheduled_end;
-
-      if (q.occurrences && q.occurrences.length > 0) {
-        const validOcc = q.occurrences.filter(occ => !occ.end_time || new Date(occ.end_time) >= now);
-        if (validOcc.length > 0) {
-          startTime = validOcc[0].start_time;
-          endTime = validOcc[0].end_time;
-        }
-      }
-
-      const [questionCount, liveCount, attemptCount] = await Promise.all([
-        Question.count({ where: { quiz_id: q.id } }).catch(() => 0),
-        Participant.count({ where: { quiz_id: q.id } }).catch(() => 0),
-        QuizAttempt.count({ where: { quiz_id: q.id } }).catch(() => 0)
-      ]);
-
-      const regCount = liveCount + attemptCount;
-      const sDate = startTime ? new Date(startTime) : null;
-      const isLiveNow = sDate && sDate <= now && (!endTime || new Date(endTime) >= now);
-      const isUpcoming = sDate && sDate > now;
-
-      const quizTrack = {
-        quiz_id: q.id,
-        title: q.title,
-        slug,
-        mode: q.mode,
-        join_code: q.join_code,
-        question_count: questionCount,
-        registration_count: regCount,
-        direct_quiz_url: directUrl,
-        start_time: startTime,
-        end_time: endTime,
-        status: isLiveNow ? 'LIVE' : isUpcoming ? 'UPCOMING' : 'OPEN'
-      };
-
-      if (!eventsMap.has(eventKey)) {
-        const originalName = q.event_name || q.title || 'MSC Tech Event';
-        eventsMap.set(eventKey, {
-          id: `event-${eventKey.replace(/[^a-z0-9]+/g, '-')}`,
-          event_name: originalName,
-          title: originalName,
-          description: q.description || `Official technical challenges for ${originalName}.`,
-          poster: resolveEventPoster(null, originalName),
-          category: q.category || q.subject || 'Technical Event',
-          mode: isScheduled ? 'Online Assessment' : 'Live Interactive Quiz',
-          rewards: 'Verified Certificate & Badges',
-          start_time: startTime,
-          end_time: endTime,
-          is_live: isLiveNow,
-          is_upcoming: isUpcoming,
-          status: isLiveNow ? 'upcoming' : 'upcoming',
-          quizzes: [quizTrack],
-          total_quizzes_count: 1,
-          total_registration_count: regCount,
-          direct_quiz_url: directUrl,
-          register: `/register/event-${eventKey.replace(/[^a-z0-9]+/g, '-')}`
-        });
-      } else {
-        const group = eventsMap.get(eventKey);
-        group.quizzes.push(quizTrack);
-        group.total_quizzes_count += 1;
-        group.total_registration_count += regCount;
-        if (isLiveNow) group.is_live = true;
-        if (!group.direct_quiz_url) group.direct_quiz_url = directUrl;
-      }
-    }
-
-    const events = Array.from(eventsMap.values());
-
     res.json({
       success: true,
-      count: events.length,
-      events
+      count: eventsList.length,
+      events: eventsList
     });
   } catch (err) {
     console.error('Error fetching public events:', err);
@@ -463,7 +375,7 @@ router.post('/register', async (req, res) => {
     const cleanName = name.trim();
     const cleanCollege = (college || 'PRPCEM Amravati').trim();
 
-    // 1. Locate all Quizzes matching this Event or specific Quiz
+    // 1. Locate matching event or quizzes
     let matchingQuizzes = [];
 
     if (quizId) {
@@ -489,7 +401,7 @@ router.post('/register', async (req, res) => {
         where: {
           [Op.or]: [
             { event_name: { [Op.iLike || Op.like]: `%${targetName}%` } },
-            { title: { [Op.iLike || Op.like]: `%${targetName}%` } }
+            { event_id: eventId || null }
           ]
         }
       });
