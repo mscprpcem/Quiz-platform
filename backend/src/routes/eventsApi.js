@@ -1,9 +1,22 @@
 const express = require('express');
 const router = express.Router();
+const path = require('path');
+const fs = require('fs');
 const { Event, Quiz, Question, Participant, QuizAttempt, ScheduledOccurrence, User } = require('../models');
 const authMiddleware = require('../middleware/auth');
 const { sendCustomBroadcastEmail } = require('../services/emailService');
 const { Op } = require('sequelize');
+
+// Load static/old events from events.json
+let staticEvents = [];
+try {
+  const jsonPath = path.join(__dirname, '../data/events.json');
+  if (fs.existsSync(jsonPath)) {
+    staticEvents = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+  }
+} catch (e) {
+  console.warn('Could not read static events.json:', e.message);
+}
 
 // Public base URL for Quiz platform links
 const getQuizPlatformBaseUrl = () => {
@@ -38,21 +51,24 @@ function resolveEventPoster(posterUrl, eventName) {
 
 // ----------------------------------------------------
 // GET /api/events (Admin / Authenticated Route)
-// Returns ONLY real events created by Admin
+// Returns ALL events (New DB Events + Old Static Events)
 // ----------------------------------------------------
 router.get('/', async (req, res) => {
   try {
     const baseUrl = getQuizPlatformBaseUrl();
     
-    // Fetch ONLY real events from Event table
+    // 1. Fetch DB Events
     const dbEvents = await Event.findAll({
       order: [['createdAt', 'DESC']]
     });
 
+    const dbEventNames = new Set(dbEvents.map(e => (e.name || '').toLowerCase().trim()));
+    const dbEventIds = new Set(dbEvents.map(e => e.id));
+
     const formattedEvents = [];
 
+    // Format DB events
     for (const ev of dbEvents) {
-      // Find all quizzes explicitly attached to this event (by event_id or exact event_name)
       const linkedQuizzes = await Quiz.findAll({
         where: {
           [Op.or]: [
@@ -70,13 +86,14 @@ router.get('/', async (req, res) => {
         slug: ev.slug || ev.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
         description: ev.description || `Official challenges and sessions for ${ev.name}.`,
         poster_url: resolveEventPoster(ev.poster_url, ev.name),
-        category: ev.category || 'Technical Workshop',
-        mode: ev.mode || 'Offline',
+        category: ev.category || 'Innovation Challenge',
+        mode: ev.mode || 'Hybrid',
         venue: ev.venue || 'PRPCEM Amravati',
         start_date: ev.start_date,
         end_date: ev.end_date,
         rewards: ev.rewards || 'Certificates & Swags',
         status: ev.status || 'upcoming',
+        source: 'database',
         quizzes: linkedQuizzes.map(q => ({
           id: q.id,
           title: q.title,
@@ -87,6 +104,51 @@ router.get('/', async (req, res) => {
         })),
         total_quizzes: linkedQuizzes.length
       });
+    }
+
+    // 2. Format Old Events from JSON (if not already in DB)
+    for (const se of staticEvents) {
+      const seTitle = se.title || se.name;
+      const seKey = seTitle.toLowerCase().trim();
+
+      if (!dbEventNames.has(seKey) && !dbEventIds.has(se.id)) {
+        // Check if any quiz is linked to this static event name or id
+        const linkedQuizzes = await Quiz.findAll({
+          where: {
+            [Op.or]: [
+              { event_name: { [Op.iLike || Op.like]: `%${seTitle}%` } },
+              { event_id: se.id }
+            ],
+            status: { [Op.ne]: 'cancelled' }
+          },
+          attributes: ['id', 'title', 'mode', 'join_code', 'status', 'custom_slug']
+        });
+
+        formattedEvents.push({
+          id: se.id,
+          name: seTitle,
+          slug: se.id,
+          description: se.description || `Official technical sessions for ${seTitle}.`,
+          poster_url: resolveEventPoster(se.poster, seTitle),
+          category: se.category || (se.mode === 'Online' ? 'Virtual Challenge' : 'Flagship Event'),
+          mode: se.mode || 'Offline',
+          venue: se.venue || 'PRPCEM Campus',
+          start_date: se.startDate ? new Date(se.startDate) : null,
+          end_date: null,
+          rewards: se.rewards || 'Certificates & Swags',
+          status: se.status || 'past',
+          source: 'json',
+          quizzes: linkedQuizzes.map(q => ({
+            id: q.id,
+            title: q.title,
+            mode: q.mode,
+            join_code: q.join_code,
+            status: q.status,
+            direct_url: q.mode === 'SCHEDULED' ? `${baseUrl}/q/${q.custom_slug || q.id}` : `${baseUrl}/join/${q.join_code}`
+          })),
+          total_quizzes: linkedQuizzes.length
+        });
+      }
     }
 
     res.json({
@@ -157,9 +219,28 @@ router.post('/', authMiddleware, async (req, res) => {
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const event = await Event.findByPk(id);
+    let event = await Event.findByPk(id);
+    
+    // If updating a static event that was in JSON, create or migrate it into DB
     if (!event) {
-      return res.status(404).json({ error: 'Event not found.' });
+      const staticMatch = staticEvents.find(s => s.id === id);
+      if (staticMatch) {
+        event = await Event.create({
+          id,
+          name: staticMatch.title,
+          slug: staticMatch.id,
+          description: staticMatch.description,
+          poster_url: resolveEventPoster(staticMatch.poster, staticMatch.title),
+          category: staticMatch.category || 'Technical Workshop',
+          mode: staticMatch.mode || 'Offline',
+          venue: staticMatch.venue || 'PRPCEM Campus',
+          start_date: staticMatch.startDate ? new Date(staticMatch.startDate) : new Date(),
+          rewards: staticMatch.rewards || 'Certificates & Swags',
+          status: staticMatch.status || 'past'
+        });
+      } else {
+        return res.status(404).json({ error: 'Event not found.' });
+      }
     }
 
     const {
@@ -211,11 +292,9 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
     const event = await Event.findByPk(id);
-    if (!event) {
-      return res.status(404).json({ error: 'Event not found.' });
+    if (event) {
+      await event.destroy();
     }
-
-    await event.destroy();
     res.json({ success: true, message: 'Event deleted successfully.' });
   } catch (err) {
     console.error('Error deleting event:', err);
@@ -226,25 +305,28 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 // ----------------------------------------------------
 // GET /api/events/public
 // Public events feed for mscprpcem-website
-// Returns ONLY real events created by Admin
+// Combines New DB Events + Old Static Events
 // ----------------------------------------------------
 router.get('/public', async (req, res) => {
   try {
     const now = new Date();
     const baseUrl = getQuizPlatformBaseUrl();
 
-    // Fetch ONLY real events from Event table
+    // 1. Fetch DB Events
     const dbEvents = await Event.findAll({
       where: { status: { [Op.ne]: 'archived' } },
       order: [['createdAt', 'DESC']]
     });
 
+    const dbEventNames = new Set(dbEvents.map(e => (e.name || '').toLowerCase().trim()));
+    const dbEventIds = new Set(dbEvents.map(e => e.id));
+
     const eventsList = [];
 
+    // Format DB events
     for (const dev of dbEvents) {
       const resolvedPoster = resolveEventPoster(dev.poster_url, dev.name);
 
-      // Find all quizzes explicitly attached to this event
       const linkedQuizzes = await Quiz.findAll({
         where: {
           [Op.or]: [
@@ -322,10 +404,11 @@ router.get('/public', async (req, res) => {
         mode: dev.mode || 'Hybrid',
         venue: dev.venue || 'PRPCEM Campus & Virtual',
         rewards: dev.rewards || 'Certificates & Swags',
+        start_date: dev.start_date ? new Date(dev.start_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Coming Soon",
         start_time: dev.start_date || dev.createdAt,
         end_time: dev.end_date,
         is_live: isLiveNow,
-        is_upcoming: true,
+        is_upcoming: dev.status === 'upcoming',
         status: dev.status || 'upcoming',
         quizzes: quizTracks,
         total_quizzes_count: quizTracks.length,
@@ -333,6 +416,37 @@ router.get('/public', async (req, res) => {
         direct_quiz_url: quizTracks.length > 0 ? quizTracks[0].direct_quiz_url : null,
         register: `/register/${dev.slug || dev.id}`
       });
+    }
+
+    // 2. Format Old Events from JSON (if not in DB)
+    for (const se of staticEvents) {
+      const seTitle = se.title || se.name;
+      const seKey = seTitle.toLowerCase().trim();
+
+      if (!dbEventNames.has(seKey) && !dbEventIds.has(se.id)) {
+        eventsList.push({
+          id: se.id,
+          event_name: seTitle,
+          title: seTitle,
+          description: se.description,
+          poster: resolveEventPoster(se.poster, seTitle),
+          category: se.category || 'Flagship Event',
+          mode: se.mode || 'Offline',
+          venue: se.venue || 'PRPCEM Campus',
+          rewards: se.rewards || 'Certificates & Swags',
+          start_date: se.date || (se.startDate ? new Date(se.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Past Event"),
+          start_time: se.startDate ? new Date(se.startDate) : new Date(2025, 0, 1),
+          end_time: null,
+          is_live: false,
+          is_upcoming: se.status === 'upcoming',
+          status: se.status || 'past',
+          quizzes: [],
+          total_quizzes_count: 0,
+          total_registration_count: 0,
+          direct_quiz_url: null,
+          register: se.register || `/register/${se.id}`
+        });
+      }
     }
 
     res.json({
