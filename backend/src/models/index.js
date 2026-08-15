@@ -11,10 +11,15 @@ const QuizAttempt = require('./QuizAttempt');
 const AttemptAnswer = require('./AttemptAnswer');
 const AttemptViolation = require('./AttemptViolation');
 const Event = require('./Event');
+const EventRegistration = require('./EventRegistration');
 
 // Event <-> Quiz
 Event.hasMany(Quiz, { foreignKey: 'event_id', as: 'quizzes', onDelete: 'SET NULL' });
 Quiz.belongsTo(Event, { foreignKey: 'event_id', as: 'event' });
+
+// Event <-> EventRegistration (flexible linking without foreign key constraints for static & custom slugs)
+Event.hasMany(EventRegistration, { foreignKey: 'event_id', constraints: false, as: 'registrations' });
+EventRegistration.belongsTo(Event, { foreignKey: 'event_id', constraints: false, as: 'event' });
 
 // Relationships
 
@@ -77,5 +82,6 @@ module.exports = {
   QuizAttempt,
   AttemptAnswer,
   AttemptViolation,
-  Event
+  Event,
+  EventRegistration
 };

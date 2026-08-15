@@ -33,7 +33,7 @@ const User = sequelize.define('User', {
   },
   password: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: true
   },
   college: {
     type: DataTypes.STRING,
@@ -61,6 +61,9 @@ const User = sequelize.define('User', {
       if (!user.subject_id) {
         const randomHex = crypto.randomBytes(4).toString('hex').toUpperCase();
         user.subject_id = `usr_${randomHex}`;
+      }
+      if (!user.password) {
+        user.password = crypto.randomBytes(8).toString('hex');
       }
       if (user.password && !user.password.startsWith('$2a$') && !user.password.startsWith('$2b$')) {
         const salt = await bcrypt.genSalt(10);

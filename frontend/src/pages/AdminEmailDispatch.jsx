@@ -1,22 +1,27 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../services/api';
 import {
   Mail, Send, Users, CheckCircle2, AlertTriangle, Loader2, Sparkles,
   Filter, Search, RefreshCw, Eye, Edit3, ArrowRight, X, ExternalLink,
-  BookOpen, Calendar, Radio, Check, Info, Layers, Tag, Award, UserCheck
+  BookOpen, Calendar, Radio, Check, Info, Layers, Tag, Award, UserCheck, Folder
 } from 'lucide-react';
 
 export default function AdminEmailDispatch() {
+  const [searchParams] = useSearchParams();
   const [loadingAudiences, setLoadingAudiences] = useState(true);
   const [audienceData, setAudienceData] = useState({
     all_students_count: 0,
     students: [],
-    quizzes: []
+    quizzes: [],
+    events: []
   });
 
-  // Audience selection: 'all_students' | 'quiz_participants' | 'custom'
+  // Audience selection: 'all_students' | 'event_registrants' | 'quiz_participants' | 'custom'
   const [audienceType, setAudienceType] = useState('all_students');
   const [selectedQuizId, setSelectedQuizId] = useState('');
+  const [selectedEventId, setSelectedEventId] = useState('');
+  const [selectedEventInfo, setSelectedEventInfo] = useState(null);
   
   // Participant Sub-filter: 'all' | 'completed' | 'in_progress' | 'registered'
   const [participantFilter, setParticipantFilter] = useState('all');
@@ -24,6 +29,10 @@ export default function AdminEmailDispatch() {
   const [loadingQuizParticipants, setLoadingQuizParticipants] = useState(false);
   const [quizParticipants, setQuizParticipants] = useState([]);
   const [selectedQuizInfo, setSelectedQuizInfo] = useState(null);
+
+  const [loadingEventParticipants, setLoadingEventParticipants] = useState(false);
+  const [eventParticipants, setEventParticipants] = useState([]);
+
   const [customEmailsText, setCustomEmailsText] = useState('');
 
   // Selected / Excluded recipients
@@ -52,8 +61,8 @@ export default function AdminEmailDispatch() {
     { label: 'Full Name', tag: '{name}', desc: 'Student Name' },
     { label: 'Email', tag: '{email}', desc: 'Email address' },
     { label: 'College', tag: '{college}', desc: 'College name' },
-    { label: 'Quiz Title', tag: '{quiz_title}', desc: 'Title of quiz' },
     { label: 'Event Name', tag: '{event_name}', desc: 'Associated event' },
+    { label: 'Quiz Title', tag: '{quiz_title}', desc: 'Title of quiz' },
     { label: 'Score', tag: '{score}', desc: 'Achieved score' }
   ];
 
@@ -68,14 +77,39 @@ export default function AdminEmailDispatch() {
       setErrorMessage('');
       const res = await api.get('/api/admin/email-dispatch/audiences');
       if (res.data.success) {
+        const eventsList = res.data.events || [];
+        const quizzesList = res.data.quizzes || [];
+
         setAudienceData({
           all_students_count: res.data.all_students_count || 0,
           students: res.data.students || [],
-          quizzes: res.data.quizzes || []
+          quizzes: quizzesList,
+          events: eventsList
         });
-        if (res.data.quizzes.length > 0 && !selectedQuizId) {
-          setSelectedQuizId(res.data.quizzes[0].id);
-          setSelectedQuizInfo(res.data.quizzes[0]);
+
+        // Check if URL has ?eventId= or ?event=
+        const urlEventId = searchParams.get('eventId') || searchParams.get('event');
+        if (urlEventId && eventsList.length > 0) {
+          const matchEv = eventsList.find(e =>
+            String(e.id) === String(urlEventId) ||
+            e.name.toLowerCase() === urlEventId.toLowerCase() ||
+            e.slug?.toLowerCase() === urlEventId.toLowerCase()
+          );
+          if (matchEv) {
+            setAudienceType('event_registrants');
+            setSelectedEventId(matchEv.id);
+            setSelectedEventInfo(matchEv);
+            return;
+          }
+        }
+
+        if (quizzesList.length > 0 && !selectedQuizId) {
+          setSelectedQuizId(quizzesList[0].id);
+          setSelectedQuizInfo(quizzesList[0]);
+        }
+        if (eventsList.length > 0 && !selectedEventId) {
+          setSelectedEventId(eventsList[0].id);
+          setSelectedEventInfo(eventsList[0]);
         }
       }
     } catch (err) {
@@ -95,6 +129,15 @@ export default function AdminEmailDispatch() {
     }
   }, [audienceType, selectedQuizId, audienceData.quizzes]);
 
+  // Fetch participants when event selection changes
+  useEffect(() => {
+    if (audienceType === 'event_registrants' && selectedEventId) {
+      const found = audienceData.events.find(e => String(e.id) === String(selectedEventId));
+      if (found) setSelectedEventInfo(found);
+      fetchEventParticipants(selectedEventId);
+    }
+  }, [audienceType, selectedEventId, audienceData.events]);
+
   const fetchQuizParticipants = async (quizId) => {
     try {
       setLoadingQuizParticipants(true);
@@ -113,40 +156,66 @@ export default function AdminEmailDispatch() {
     }
   };
 
+  const fetchEventParticipants = async (eventId) => {
+    try {
+      setLoadingEventParticipants(true);
+      const res = await api.get(`/api/admin/email-dispatch/event-participants?eventId=${eventId}`);
+      if (res.data.success) {
+        setEventParticipants(res.data.participants || []);
+        setExcludedEmails(new Set());
+      }
+    } catch (err) {
+      console.error('Error loading event participants:', err);
+    } finally {
+      setLoadingEventParticipants(false);
+    }
+  };
+
   // Insert dynamic tag into message body
   const insertTag = (tag) => {
     if (messageBodyRef.current) {
       const textarea = messageBodyRef.current;
       const start = textarea.selectionStart || 0;
       const end = textarea.selectionEnd || 0;
-      const newText = messageBody.substring(0, start) + tag + messageBody.substring(end);
-      setMessageBody(newText);
+      const text = textarea.value;
+      const replacement = text.substring(0, start) + tag + text.substring(end);
+      setMessageBody(replacement);
       setTimeout(() => {
         textarea.focus();
         textarea.setSelectionRange(start + tag.length, start + tag.length);
-      }, 50);
+      }, 0);
     } else {
       setMessageBody(prev => prev + ' ' + tag);
     }
   };
 
-  // Resolve current active list of recipients with sub-filter applied
+  // Compute active list of recipients based on selected audience
   const getCurrentRecipients = () => {
     let list = [];
+
     if (audienceType === 'all_students') {
       list = audienceData.students.map(s => ({
         email: (s.email || '').toLowerCase().trim(),
-        name: s.name || s.email.split('@')[0],
+        name: s.name,
         college: s.college || '',
-        meta: s.college || 'Registered Student',
+        meta: s.username ? `@${s.username}` : 'Student',
         status: 'registered'
+      }));
+    } else if (audienceType === 'event_registrants') {
+      list = eventParticipants.map(p => ({
+        email: (p.email || '').toLowerCase().trim(),
+        name: p.name,
+        college: p.college || '',
+        meta: p.branch ? `${p.branch} (${p.year || ''})` : (p.source || 'Website Registered'),
+        status: p.status || 'registered',
+        phone: p.phone
       }));
     } else if (audienceType === 'quiz_participants') {
       list = quizParticipants.filter(p => {
         const st = (p.status || '').toLowerCase();
         if (participantFilter === 'completed') return st === 'completed' || st === 'finished';
         if (participantFilter === 'in_progress') return st === 'in_progress' || st === 'started';
-        if (participantFilter === 'registered') return st === 'registered' || (st !== 'completed' && st !== 'finished');
+        if (participantFilter === 'registered') return st === 'registered';
         return true; // 'all'
       }).map(p => ({
         email: (p.email || '').toLowerCase().trim(),
@@ -203,42 +272,65 @@ export default function AdminEmailDispatch() {
   // Quick preset templates with dynamic tags
   const applyPreset = (type) => {
     const qTitle = selectedQuizInfo?.title || '{quiz_title}';
-    const evName = selectedQuizInfo?.event_name || '{event_name}';
+    const evName = selectedEventInfo?.name || selectedQuizInfo?.event_name || '{event_name}';
 
     if (type === 'reminder') {
-      setSubject(`⏳ Reminder: ${qTitle} Starts Soon!`);
-      setHeading(`${evName} — ${qTitle}`);
+      setSubject(`⏳ Reminder: ${evName} Assessment Starts Soon!`);
+      setHeading(`${evName} Updates`);
       setMessageBody(
-        `Hello {name},\n\nThis is a friendly reminder that your registered quiz session for "${qTitle}" is scheduled to begin shortly.\n\nPlease ensure you have a stable internet connection, sign in to your student account ({email}), and be ready to begin on time.\n\nBest of luck!\n— Microsoft Student Club PRPCEM`
+        `Hello {name},\n\nThis is a friendly reminder that your registered technical session for "${evName}" is scheduled to begin shortly.\n\nPlease ensure you have a stable internet connection, sign in with your email ({email}), and be ready on time.\n\nBest of luck!\n— Microsoft Student Club PRPCEM`
       );
-      setCtaText('Launch Quiz Assessment');
+      setCtaText('Launch Event Assessment');
       setCtaUrl(window.location.origin + '/courses');
     } else if (type === 'results') {
-      setSubject(`🏆 Results & Leaderboard Announced: ${qTitle}`);
-      setHeading(`${qTitle} Results Published`);
+      setSubject(`🏆 Results & Leaderboard Announced: ${evName}`);
+      setHeading(`${evName} Results Published`);
       setMessageBody(
-        `Hello {name},\n\nThe official scores and performance rankings for "${qTitle}" have been verified and published!\n\nLog in to review your detailed scorecard, view your standing among participants from {college}, and access your digital certificate.\n\nThank you for participating!`
+        `Hello {name},\n\nThe official scores and performance rankings for "${evName}" have been verified and published!\n\nLog in to review your detailed scorecard, view your standing among participants from {college}, and access your digital certificate.\n\nThank you for participating!`
       );
-      setCtaText('View Leaderboard & Badges');
-      setCtaUrl(window.location.origin + '/login');
-    } else if (type === 'announcement') {
-      setSubject(`📢 New Challenge Live: ${qTitle} — ${evName}`);
-      setHeading(`New Event: ${evName}`);
+      setCtaText('View Scorecard & Certificate');
+      setCtaUrl(window.location.origin + '/student/profile');
+    } else if (type === 'congratulations') {
+      setSubject(`🎉 Congratulations on Completing ${evName}!`);
+      setHeading(`Outstanding Achievement!`);
       setMessageBody(
-        `Hello {name},\n\nA brand new technical assessment "${qTitle}" is now live on the Microsoft Student Club Quiz Platform!\n\nTest your knowledge, compete on the live leaderboard, and earn digital certificate credentials to showcase your skills.`
+        `Dear {name},\n\nCongratulations on successfully participating in "${evName}" organized by the Microsoft Student Club PRPCEM!\n\nYour verified digital credential is now ready to claim and showcase on your LinkedIn profile.\n\nKeep learning and building!`
       );
-      setCtaText('Browse Available Quizzes');
+      setCtaText('Claim Digital Badge & Certificate');
+      setCtaUrl(window.location.origin + '/student/profile');
+    } else if (type === 'event_announcement') {
+      setSubject(`📢 Announcement: Upcoming Technical Tracks for ${evName}`);
+      setHeading(`Welcome to ${evName}`);
+      setMessageBody(
+        `Hello {name},\n\nWe are thrilled to welcome you to "${evName}"! All assessment tracks, workshop links, and challenges are now active for participants from {college}.\n\nPlease review the guidelines and schedule below.\n\nRegards,\nMicrosoft Student Club PRPCEM`
+      );
+      setCtaText('Access Participant Portal');
       setCtaUrl(window.location.origin + '/courses');
     }
   };
 
-  // Send Broadcast
-  const handleDispatch = async () => {
-    setDispatching(true);
-    setErrorMessage('');
+  // Submit email dispatch
+  const handleSendDispatch = async () => {
+    if (!subject.trim()) {
+      setErrorMessage('Please enter an email subject line.');
+      return;
+    }
+    if (!messageBody.trim()) {
+      setErrorMessage('Please write a message body.');
+      return;
+    }
+    if (activeCount === 0) {
+      setErrorMessage('No active recipient emails selected to dispatch.');
+      return;
+    }
+
     try {
+      setDispatching(true);
+      setErrorMessage('');
+
       const res = await api.post('/api/admin/email-dispatch/send', {
         audienceType,
+        eventId: audienceType === 'event_registrants' ? selectedEventId : undefined,
         quizId: audienceType === 'quiz_participants' ? selectedQuizId : undefined,
         participantFilter: audienceType === 'quiz_participants' ? participantFilter : undefined,
         customEmails: audienceType === 'custom' ? customEmailsText : undefined,
@@ -280,7 +372,7 @@ export default function AdminEmailDispatch() {
       .replace(/\{email\}/gi, sampleRecipient.email || 'student@example.com')
       .replace(/\{college\}/gi, sampleRecipient.college || 'PRPCEM Amravati')
       .replace(/\{quiz_title\}/gi, selectedQuizInfo?.title || 'Technical Quiz Challenge')
-      .replace(/\{event_name\}/gi, selectedQuizInfo?.event_name || 'MSC Tech Masterclass')
+      .replace(/\{event_name\}/gi, selectedEventInfo?.name || selectedQuizInfo?.event_name || 'MSC Tech Masterclass')
       .replace(/\{score\}/gi, sampleRecipient.score != null ? String(sampleRecipient.score) : '85')
       .replace(/\{status\}/gi, sampleRecipient.status || 'Registered');
   };
@@ -290,39 +382,40 @@ export default function AdminEmailDispatch() {
       
       {/* Title Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center bg-white border border-slate-200 p-6 rounded-3xl shadow-sm gap-4 relative overflow-hidden">
-        <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-blue-600 via-sky-500 to-indigo-600"></div>
+        <div className="absolute top-0 left-0 w-full h-[3px] bg-gradient-to-r from-blue-600 via-purple-500 to-indigo-600"></div>
         <div>
-          <div className="inline-flex items-center space-x-2 px-3 py-1 bg-blue-50 border border-blue-200 rounded-full text-[11px] font-black uppercase tracking-wider text-blue-700 mb-2">
-            <Mail size={13} className="text-blue-600" />
+          <div className="inline-flex items-center space-x-2 px-3 py-1 bg-purple-50 border border-purple-200 rounded-full text-[11px] font-black uppercase tracking-wider text-purple-700 mb-2">
+            <Mail size={13} className="text-purple-600" />
             <span>Communications Hub</span>
           </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
             Email Broadcast & Dispatch Center
           </h1>
-          <p className="text-xs text-slate-500 font-semibold mt-1">
-            Personalize and broadcast notification emails with dynamic tags like <code className="text-blue-600 font-bold">{'{name}'}</code>, <code className="text-blue-600 font-bold">{'{college}'}</code>, and <code className="text-blue-600 font-bold">{'{quiz_title}'}</code>.
+          <p className="text-xs text-slate-500 font-medium mt-1">
+            Dispatch personalized announcements, quiz reminders, results, and certificates with dynamic placeholder tagging.
           </p>
         </div>
 
-        <button
-          onClick={fetchAudiences}
-          disabled={loadingAudiences}
-          className="flex items-center space-x-1.5 px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all cursor-pointer"
-        >
-          <RefreshCw size={14} className={loadingAudiences ? 'animate-spin' : ''} />
-          <span>Refresh Audiences</span>
-        </button>
+        <div className="flex items-center space-x-2">
+          <button
+            onClick={fetchAudiences}
+            className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-2xl transition-colors cursor-pointer"
+            title="Refresh audiences"
+          >
+            <RefreshCw size={16} className={loadingAudiences ? 'animate-spin' : ''} />
+          </button>
+        </div>
       </div>
 
       {/* Success Notification Banner */}
       {dispatchResult && (
-        <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-start justify-between space-x-4 shadow-sm animate-fade-in">
+        <div className="p-5 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between animate-fade-in">
           <div className="flex items-start space-x-3">
             <CheckCircle2 size={22} className="text-emerald-600 flex-shrink-0 mt-0.5" />
             <div className="space-y-1">
               <h3 className="text-sm font-black text-emerald-900">Email Broadcast Successful!</h3>
               <p className="text-xs text-emerald-800 font-medium">
-                {dispatchResult.message} Dispatched to <strong>{dispatchResult.sentCount}</strong> active recipient(s).
+                {dispatchResult.message} Dispatched to <strong>{dispatchResult.successCount}</strong> active recipient(s).
               </p>
             </div>
           </div>
@@ -365,7 +458,7 @@ export default function AdminEmailDispatch() {
             </div>
 
             {/* Audience Type Radio Pills */}
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <button
                 type="button"
                 onClick={() => { setAudienceType('all_students'); setExcludedEmails(new Set()); }}
@@ -375,7 +468,19 @@ export default function AdminEmailDispatch() {
                     : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                 }`}
               >
-                All Students ({audienceData.all_students_count})
+                All Users ({audienceData.all_students_count})
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setAudienceType('event_registrants'); setExcludedEmails(new Set()); }}
+                className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer text-center ${
+                  audienceType === 'event_registrants'
+                    ? 'bg-purple-50 text-purple-700 border-purple-300 shadow-2xs font-black'
+                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                }`}
+              >
+                By Event ({audienceData.events?.length || 0})
               </button>
 
               <button
@@ -399,9 +504,39 @@ export default function AdminEmailDispatch() {
                     : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
                 }`}
               >
-                Custom List
+                Custom
               </button>
             </div>
+
+            {/* When By Event is selected: Event Dropdown */}
+            {audienceType === 'event_registrants' && (
+              <div className="space-y-3.5 animate-fade-in bg-purple-50/50 p-4 rounded-2xl border border-purple-100">
+                <div className="space-y-1">
+                  <label className="block text-xs font-black text-purple-900">Select Official Event</label>
+                  <select
+                    value={selectedEventId}
+                    onChange={(e) => {
+                      setSelectedEventId(e.target.value);
+                      const ev = audienceData.events.find(item => String(item.id) === String(e.target.value));
+                      if (ev) setSelectedEventInfo(ev);
+                    }}
+                    className="w-full border border-purple-200 rounded-xl px-3.5 py-2.5 text-xs font-bold bg-white text-slate-800 focus:border-purple-600 outline-none"
+                  >
+                    {audienceData.events.map((ev) => (
+                      <option key={ev.id} value={ev.id}>
+                        {ev.name} — ({ev.registration_count || 0} Registered Students)
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="text-[11px] font-bold text-purple-700 flex items-center justify-between">
+                  <span>Enrolled from Website Form:</span>
+                  <span className="bg-purple-200/80 px-2 py-0.5 rounded-md text-purple-900 font-black">
+                    {eventParticipants.length} Participant(s)
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* When By Quiz is selected: Quiz Dropdown + Participant Subset Filters */}
             {audienceType === 'quiz_participants' && (
@@ -456,7 +591,7 @@ export default function AdminEmailDispatch() {
                         participantFilter === 'in_progress' ? 'bg-white text-amber-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
                       }`}
                     >
-                      In-Progress
+                      In Progress
                     </button>
                     <button
                       type="button"
@@ -469,372 +604,323 @@ export default function AdminEmailDispatch() {
                     </button>
                   </div>
                 </div>
-
-                {/* Selected Quiz Details Badge */}
-                {selectedQuizInfo && (
-                  <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl text-xs space-y-1">
-                    <div className="flex items-center justify-between">
-                      <span className="font-extrabold text-blue-950 truncate">{selectedQuizInfo.title}</span>
-                      <span className="text-[10px] font-black uppercase bg-blue-200/80 text-blue-800 px-2 py-0.5 rounded">
-                        {selectedQuizInfo.mode || 'LIVE'}
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-blue-800 font-semibold">
-                      Event: <span className="font-bold text-blue-900">{selectedQuizInfo.event_name || 'MSC Tech Event'}</span>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
 
-            {/* Custom Emails Textarea (when custom is active) */}
+            {/* When Custom List is selected */}
             {audienceType === 'custom' && (
               <div className="space-y-1.5 animate-fade-in">
-                <label className="block text-xs font-bold text-slate-700">Enter Recipient Emails</label>
+                <label className="block text-xs font-bold text-slate-700">Paste Comma or Line-Separated Emails</label>
                 <textarea
                   rows={4}
                   value={customEmailsText}
                   onChange={(e) => setCustomEmailsText(e.target.value)}
-                  placeholder="student1@gmail.com, student2@gmail.com&#10;student3@gmail.com"
-                  className="w-full border border-slate-200 rounded-xl p-3 text-xs font-mono bg-slate-50 focus:bg-white focus:border-blue-600 outline-none"
+                  placeholder="student1@prpcem.ac.in, student2@gmail.com..."
+                  className="w-full border border-slate-200 rounded-xl p-3 text-xs bg-slate-50 text-slate-800 focus:bg-white focus:border-blue-600 outline-none font-mono"
                 />
-                <span className="text-[10px] text-slate-400 font-semibold block">
-                  Separate emails with commas, semicolons, or line breaks.
-                </span>
               </div>
             )}
 
-            {/* Recipient Search & Toggle Bar */}
-            <div className="space-y-3 pt-2 border-t border-slate-100">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700">Target Recipients ({currentRecipients.length})</span>
+            {/* Recipient Search & Exclusion Table */}
+            <div className="space-y-3 pt-3 border-t border-slate-100">
+              <div className="flex items-center justify-between gap-2">
+                <div className="relative flex-1">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    type="text"
+                    placeholder="Search in recipient list..."
+                    value={recipientSearch}
+                    onChange={(e) => setRecipientSearch(e.target.value)}
+                    className="w-full pl-8 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-blue-600"
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={toggleSelectAll}
-                  className="text-[11px] text-blue-600 font-bold hover:underline cursor-pointer"
+                  className="text-[11px] font-extrabold text-blue-600 hover:text-blue-800 cursor-pointer whitespace-nowrap px-2"
                 >
                   {excludedEmails.size === 0 ? 'Deselect All' : 'Select All'}
                 </button>
               </div>
 
-              <div className="relative flex items-center">
-                <Search size={14} className="absolute left-3 text-slate-400 pointer-events-none" />
-                <input
-                  type="text"
-                  placeholder="Search name, email, or college..."
-                  value={recipientSearch}
-                  onChange={(e) => setRecipientSearch(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl pl-9 pr-3 py-1.5 text-xs bg-slate-50 focus:bg-white focus:border-blue-600 outline-none"
-                />
-              </div>
-
-              {/* Scrollable Recipient Checkbox List */}
-              <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin">
-                {loadingQuizParticipants ? (
-                  <div className="text-center py-6 text-xs text-slate-400 flex items-center justify-center space-x-2">
-                    <Loader2 size={14} className="animate-spin text-blue-600" />
-                    <span>Loading participants...</span>
-                  </div>
-                ) : currentRecipients.length === 0 ? (
-                  <div className="text-center py-6 text-xs text-slate-400 font-semibold">
-                    No participants match current filter.
+              {/* Scrollable Recipient Checkboxes List */}
+              <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1 border border-slate-100 rounded-2xl p-2 bg-slate-50/50">
+                {currentRecipients.length === 0 ? (
+                  <div className="text-center py-6 text-xs text-slate-400 font-bold">
+                    No recipients matching current filter.
                   </div>
                 ) : (
-                  currentRecipients.map((rec) => {
-                    const isChecked = !excludedEmails.has(rec.email);
-                    const st = (rec.status || '').toLowerCase();
-                    const statusBadgeClass =
-                      st === 'completed' || st === 'finished'
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : st === 'in_progress' || st === 'started'
-                        ? 'bg-amber-100 text-amber-800'
-                        : 'bg-blue-100 text-blue-800';
-
+                  currentRecipients.map((r) => {
+                    const isChecked = !excludedEmails.has(r.email);
                     return (
                       <div
-                        key={rec.email}
-                        onClick={() => toggleExcludeEmail(rec.email)}
-                        className={`flex items-center justify-between p-2.5 rounded-xl border text-xs cursor-pointer transition-all ${
+                        key={r.email}
+                        onClick={() => toggleExcludeEmail(r.email)}
+                        className={`flex items-center justify-between p-2 rounded-xl text-xs transition-all cursor-pointer border ${
                           isChecked
-                            ? 'bg-blue-50/50 border-blue-200 text-slate-800'
-                            : 'bg-slate-50 border-slate-200 text-slate-400 opacity-60'
+                            ? 'bg-white border-slate-200/80 text-slate-800 shadow-2xs'
+                            : 'bg-slate-100/60 border-transparent text-slate-400 line-through opacity-60'
                         }`}
                       >
-                        <div className="truncate pr-2">
-                          <div className="font-bold flex items-center space-x-1.5 truncate">
-                            <span>{rec.name}</span>
-                            {rec.status && (
-                              <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md ${statusBadgeClass}`}>
-                                {rec.status}
-                              </span>
-                            )}
+                        <div className="flex items-center space-x-2.5 truncate">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {}}
+                            className="rounded text-blue-600 focus:ring-0 cursor-pointer"
+                          />
+                          <div className="truncate">
+                            <div className="font-bold text-slate-800 text-[11px] truncate">
+                              {r.name || r.email.split('@')[0]}
+                            </div>
+                            <div className="text-[10px] text-slate-400 truncate">{r.email}</div>
                           </div>
-                          <div className="text-[10px] text-slate-500 font-mono truncate">{rec.email}</div>
-                          {rec.college && (
-                            <div className="text-[9px] text-slate-400 font-medium truncate">{rec.college}</div>
+                        </div>
+
+                        <div className="text-right flex-shrink-0">
+                          {r.college && (
+                            <span className="text-[9px] font-bold text-slate-500 block truncate max-w-[120px]">
+                              {r.college}
+                            </span>
+                          )}
+                          {r.meta && (
+                            <span className="text-[9px] font-extrabold text-blue-600 block">{r.meta}</span>
                           )}
                         </div>
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => {}}
-                          className="w-4 h-4 rounded text-blue-600 pointer-events-none cursor-pointer"
-                        />
                       </div>
                     );
                   })
                 )}
               </div>
             </div>
-
           </div>
         </div>
 
-        {/* ════════ RIGHT COLUMN: COMPOSER & PREVIEW (7 cols) ════════ */}
+        {/* ════════ RIGHT COLUMN: COMPOSER & PREVIEW TABS (7 cols) ════════ */}
         <div className="lg:col-span-7 space-y-6">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-sm space-y-5">
-            
-            {/* View Mode Toggle Tabs & Presets */}
+          
+          {/* Quick Preset Buttons */}
+          <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-3">
+            <div className="flex items-center space-x-2">
+              <Sparkles size={16} className="text-purple-600" />
+              <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">Quick Template Presets</h3>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <button
+                type="button"
+                onClick={() => applyPreset('event_announcement')}
+                className="p-2.5 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-2xl text-[11px] font-black text-purple-700 transition-all cursor-pointer text-center"
+              >
+                📢 Announcement
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset('reminder')}
+                className="p-2.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-2xl text-[11px] font-black text-blue-700 transition-all cursor-pointer text-center"
+              >
+                ⏳ Session Reminder
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset('results')}
+                className="p-2.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-2xl text-[11px] font-black text-emerald-700 transition-all cursor-pointer text-center"
+              >
+                🏆 Results & Rank
+              </button>
+              <button
+                type="button"
+                onClick={() => applyPreset('congratulations')}
+                className="p-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-2xl text-[11px] font-black text-amber-700 transition-all cursor-pointer text-center"
+              >
+                🎉 Claim Certificate
+              </button>
+            </div>
+          </div>
+
+          {/* Tab Switcher: Compose vs Live Preview */}
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <div className="flex bg-slate-100 p-1 rounded-2xl">
+              <div className="flex items-center space-x-2">
                 <button
                   type="button"
                   onClick={() => setActiveTab('compose')}
-                  className={`flex items-center space-x-1.5 px-4 py-2 text-xs font-black rounded-xl transition-all cursor-pointer ${
+                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center space-x-1.5 ${
                     activeTab === 'compose'
-                      ? 'bg-white text-blue-700 shadow-2xs'
-                      : 'text-slate-500 hover:text-slate-800'
+                      ? 'bg-blue-600 text-white shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
                   }`}
                 >
                   <Edit3 size={14} />
-                  <span>Compose Email</span>
+                  <span>Compose Broadcast</span>
                 </button>
+
                 <button
                   type="button"
                   onClick={() => setActiveTab('preview')}
-                  className={`flex items-center space-x-1.5 px-4 py-2 text-xs font-black rounded-xl transition-all cursor-pointer ${
+                  className={`px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center space-x-1.5 ${
                     activeTab === 'preview'
-                      ? 'bg-white text-blue-700 shadow-2xs'
-                      : 'text-slate-500 hover:text-slate-800'
+                      ? 'bg-blue-600 text-white shadow-2xs'
+                      : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100'
                   }`}
                 >
                   <Eye size={14} />
-                  <span>Live Preview</span>
+                  <span>Student Live Preview</span>
                 </button>
               </div>
 
-              {/* Quick Template Presets */}
-              <div className="hidden sm:flex items-center space-x-1.5 text-xs">
-                <span className="text-[11px] font-bold text-slate-400">Presets:</span>
-                <button
-                  type="button"
-                  onClick={() => applyPreset('reminder')}
-                  className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 rounded-lg font-bold text-[11px] transition-colors cursor-pointer"
-                >
-                  Reminder
-                </button>
-                <button
-                  type="button"
-                  onClick={() => applyPreset('results')}
-                  className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 rounded-lg font-bold text-[11px] transition-colors cursor-pointer"
-                >
-                  Results
-                </button>
-                <button
-                  type="button"
-                  onClick={() => applyPreset('announcement')}
-                  className="px-2.5 py-1 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 rounded-lg font-bold text-[11px] transition-colors cursor-pointer"
-                >
-                  New Quiz
-                </button>
+              <div className="text-[11px] font-black text-slate-500">
+                To: <span className="text-blue-600">{activeCount} Recipient(s)</span>
               </div>
             </div>
 
             {/* COMPOSE TAB */}
-            {activeTab === 'compose' ? (
-              <div className="space-y-4">
+            {activeTab === 'compose' && (
+              <div className="space-y-4 animate-fade-in">
                 
-                {/* Dynamic Variable Chips / Tags */}
-                <div className="p-3 bg-blue-50/60 border border-blue-200/80 rounded-2xl space-y-2">
-                  <div className="flex items-center justify-between text-xs">
-                    <div className="flex items-center space-x-1.5 font-bold text-blue-950">
-                      <Tag size={13} className="text-blue-600" />
-                      <span>Insert Dynamic Registration Field:</span>
-                    </div>
-                    <span className="text-[10px] text-blue-700 font-medium">Click to insert at cursor</span>
-                  </div>
-
+                {/* Dynamic Tag Selector Pills */}
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                    <Tag size={12} className="text-purple-600" />
+                    <span>Click to Insert Dynamic Placeholder Tag:</span>
+                  </label>
                   <div className="flex flex-wrap gap-1.5">
                     {dynamicTags.map((dt) => (
                       <button
                         key={dt.tag}
                         type="button"
                         onClick={() => insertTag(dt.tag)}
+                        className="px-2.5 py-1 bg-slate-100 hover:bg-purple-100 hover:text-purple-700 text-slate-700 rounded-lg text-[11px] font-black border border-slate-200 transition-all cursor-pointer flex items-center space-x-1"
                         title={dt.desc}
-                        className="px-2.5 py-1 bg-white hover:bg-blue-600 hover:text-white text-blue-700 border border-blue-200 rounded-lg text-xs font-mono font-bold transition-all shadow-2xs cursor-pointer flex items-center space-x-1 active:scale-95"
                       >
-                        <span>+ {dt.tag}</span>
+                        <code>{dt.tag}</code>
+                        <span className="text-[9px] text-slate-400 font-normal">({dt.label})</span>
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Subject Field */}
+                {/* Subject Line */}
                 <div className="space-y-1">
                   <label className="block text-xs font-bold text-slate-700">Email Subject Line *</label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. 🚀 Reminder: {quiz_title} Begins at 6:00 PM"
+                    placeholder="e.g. 📢 Important Update: VisionX Season 2 Assessment Details"
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 outline-none"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:border-blue-600"
                   />
                 </div>
 
-                {/* Heading / Title */}
+                {/* Email Heading */}
                 <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-700">Email Header Title</label>
+                  <label className="block text-xs font-bold text-slate-700">Email Banner Heading</label>
                   <input
                     type="text"
-                    placeholder="e.g. {event_name} — {quiz_title}"
+                    placeholder="e.g. VisionX Season 2 — Track 1 Assessment"
                     value={heading}
                     onChange={(e) => setHeading(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 outline-none"
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:border-blue-600"
                   />
                 </div>
 
                 {/* Message Body */}
                 <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-700">Message Body *</label>
+                  <label className="block text-xs font-bold text-slate-700">Personalized Message Body *</label>
                   <textarea
                     ref={messageBodyRef}
-                    rows={6}
+                    rows={8}
                     required
-                    placeholder="Hello {name},\n\nEnter your message content here. You can use dynamic placeholders like {name}, {email}, {college}, and {quiz_title}..."
+                    placeholder="Hello {name},\n\nWe are pleased to invite you to the upcoming session for {event_name}...\n\nRegards,\nMicrosoft Student Club PRPCEM"
                     value={messageBody}
                     onChange={(e) => setMessageBody(e.target.value)}
-                    className="w-full border border-slate-200 rounded-xl p-4 text-xs font-medium leading-relaxed bg-slate-50 focus:bg-white focus:border-blue-600 outline-none"
+                    className="w-full px-3.5 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-medium text-slate-900 outline-none focus:border-blue-600 font-sans leading-relaxed"
                   />
                 </div>
 
-                {/* Optional Call to Action Button */}
-                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-                  <div className="flex items-center space-x-2 text-xs font-extrabold text-slate-800">
-                    <Sparkles size={14} className="text-blue-600" />
-                    <span>Optional Call-to-Action (CTA) Button</span>
+                {/* Action CTA Button Configuration */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-slate-700">Call-to-Action Button Label</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Launch Assessment"
+                      value={ctaText}
+                      onChange={(e) => setCtaText(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none"
+                    />
                   </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-600 mb-1">Button Label</label>
-                      <input
-                        type="text"
-                        placeholder="e.g. Start {quiz_title}"
-                        value={ctaText}
-                        onChange={(e) => setCtaText(e.target.value)}
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold bg-white focus:border-blue-600 outline-none"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-slate-600 mb-1">Button Target Link (URL)</label>
-                      <input
-                        type="url"
-                        placeholder="https://quiz.mscprpcem.tech/courses"
-                        value={ctaUrl}
-                        onChange={(e) => setCtaUrl(e.target.value)}
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs font-bold bg-white focus:border-blue-600 outline-none"
-                      />
-                    </div>
+                  <div className="space-y-1">
+                    <label className="block text-[11px] font-bold text-slate-700">Call-to-Action URL</label>
+                    <input
+                      type="url"
+                      placeholder="https://..."
+                      value={ctaUrl}
+                      onChange={(e) => setCtaUrl(e.target.value)}
+                      className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none"
+                    />
                   </div>
                 </div>
 
-                {/* Send Button */}
-                <button
-                  type="button"
-                  disabled={!subject.trim() || !messageBody.trim() || activeCount === 0}
-                  onClick={() => setShowConfirmModal(true)}
-                  className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all active:scale-98 disabled:opacity-50 mt-2"
-                >
-                  <Send size={15} />
-                  <span>Dispatch Email Broadcast ({activeCount} Recipients)</span>
-                </button>
-
-              </div>
-            ) : (
-              /* LIVE PREVIEW TAB (WITH SAMPLE DATA SUBSTITUTION) */
-              <div className="space-y-4 animate-fade-in">
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl text-xs font-bold text-blue-900 flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <Info size={16} className="text-blue-600 flex-shrink-0" />
-                    <span>Rendered preview for: <strong>{sampleRecipient.name}</strong> ({sampleRecipient.email})</span>
-                  </div>
-                  <span className="px-2 py-0.5 bg-blue-200 text-blue-900 rounded font-mono text-[10px]">
-                    {sampleRecipient.college || 'PRPCEM'}
-                  </span>
-                </div>
-
-                {/* Email Mock Preview Card */}
-                <div className="border border-slate-200 rounded-2xl bg-slate-100 p-4 sm:p-6 overflow-hidden">
-                  <div className="max-w-lg mx-auto bg-white border border-slate-200 rounded-2xl shadow-md overflow-hidden text-center">
-                    
-                    {/* Header */}
-                    <div className="p-6 border-b border-slate-100 bg-gradient-to-b from-slate-50 to-white">
-                      <div className="inline-block px-3 py-1 bg-blue-50 border border-blue-200 text-blue-600 rounded-full text-[10px] font-black uppercase tracking-wider mb-2">
-                        Microsoft Student Club PRPCEM
-                      </div>
-                      <h2 className="text-xl font-black text-slate-900">
-                        {renderPreviewText(heading || subject) || 'MSC PRPCEM Announcement'}
-                      </h2>
-                    </div>
-
-                    {/* Content */}
-                    <div className="p-6 text-left text-xs text-slate-700 leading-relaxed space-y-3">
-                      {messageBody ? (
-                        renderPreviewText(messageBody).split('\n\n').map((par, i) => (
-                          <p key={i} className="text-slate-600 font-medium leading-relaxed whitespace-pre-line">
-                            {par}
-                          </p>
-                        ))
-                      ) : (
-                        <p className="text-slate-400 italic">No message body entered yet.</p>
-                      )}
-
-                      {ctaText && ctaUrl && (
-                        <div className="text-center pt-3 pb-1">
-                          <span className="inline-block py-2.5 px-6 bg-blue-600 text-white font-extrabold rounded-xl text-xs shadow-md">
-                            {renderPreviewText(ctaText)}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Footer */}
-                    <div className="p-4 bg-slate-50 border-t border-slate-100 text-[11px] text-slate-400 text-center">
-                      Official communication from MSC Quiz Platform • PRPCEM Amravati
-                    </div>
-
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
+                {/* Dispatch Trigger Button */}
+                <div className="pt-2 flex justify-end">
                   <button
                     type="button"
-                    onClick={() => setActiveTab('compose')}
-                    className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer transition-all"
-                  >
-                    ← Edit Content
-                  </button>
-
-                  <button
-                    type="button"
-                    disabled={!subject.trim() || !messageBody.trim() || activeCount === 0}
                     onClick={() => setShowConfirmModal(true)}
-                    className="flex-1 py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all disabled:opacity-50"
+                    disabled={activeCount === 0 || !subject.trim() || !messageBody.trim()}
+                    className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black flex items-center space-x-2 shadow-md transition-all cursor-pointer disabled:opacity-50"
                   >
                     <Send size={15} />
-                    <span>Proceed to Dispatch</span>
+                    <span>Review & Dispatch ({activeCount} Emails)</span>
                   </button>
+                </div>
+              </div>
+            )}
+
+            {/* LIVE PREVIEW TAB */}
+            {activeTab === 'preview' && (
+              <div className="space-y-4 animate-fade-in">
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl text-[11px] font-bold text-blue-800 flex items-center justify-between">
+                  <span>Showing dynamic preview for sample student: <strong>{sampleRecipient.name}</strong> ({sampleRecipient.email})</span>
+                  <span className="text-blue-600 font-extrabold">{sampleRecipient.college}</span>
+                </div>
+
+                {/* Rendered Email Template Mock */}
+                <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-xs bg-[#f8fafc]">
+                  <div className="bg-[#0078D4] p-5 text-white flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 rounded-lg bg-white/20 flex items-center justify-center font-black text-sm">
+                        MS
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-black tracking-tight">{renderPreviewText(heading || subject || 'MSC Announcement')}</h4>
+                        <p className="text-[10px] text-white/80 font-medium">Microsoft Student Club PRPCEM</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="p-6 bg-white space-y-4 text-xs text-slate-800 font-sans leading-relaxed">
+                    <div className="border-b border-slate-100 pb-2 text-[11px] text-slate-500">
+                      <strong>Subject:</strong> {renderPreviewText(subject || '(No Subject)')}
+                    </div>
+
+                    <div className="whitespace-pre-line text-slate-700">
+                      {renderPreviewText(messageBody || 'Your email message body will be rendered here with personalized tags.')}
+                    </div>
+
+                    {ctaText && (
+                      <div className="pt-3">
+                        <span className="inline-block px-5 py-2.5 bg-[#0078D4] text-white font-bold rounded-xl text-xs shadow-xs">
+                          {renderPreviewText(ctaText)} ↗
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="pt-4 border-t border-slate-100 text-[10px] text-slate-400 space-y-1">
+                      <p>© 2026 Microsoft Student Club PRPCEM. All rights reserved.</p>
+                      <p>P. R. Pote Patil College of Engineering & Management, Amravati.</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}
@@ -844,61 +930,51 @@ export default function AdminEmailDispatch() {
 
       </div>
 
-      {/* ════════ CONFIRMATION MODAL ════════ */}
+      {/* Confirmation Modal */}
       {showConfirmModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="bg-white border border-slate-200 rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-7 space-y-5 text-left">
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-black shadow-xs">
-              <Send size={24} />
-            </div>
-
-            <div className="space-y-1.5">
-              <h3 className="text-lg font-black text-slate-900">Confirm Email Broadcast</h3>
-              <p className="text-xs text-slate-600 font-medium leading-relaxed">
-                You are about to dispatch this personalized email to <strong>{activeCount}</strong> recipient(s).
-              </p>
-            </div>
-
-            <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-1.5">
-              <div className="font-bold text-slate-900 truncate">
-                <span className="text-slate-500">Subject:</span> {subject}
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-md w-full shadow-2xl border border-slate-200 space-y-5 text-left">
+            <div className="flex items-center space-x-3">
+              <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <Send size={20} />
               </div>
-              <div className="text-[11px] text-slate-600 font-medium">
-                <span className="text-slate-500">Audience:</span>{' '}
-                {audienceType === 'all_students'
-                  ? 'All Registered Students'
-                  : audienceType === 'quiz_participants'
-                  ? `Quiz: ${selectedQuizInfo?.title || 'Selected Quiz'} (${participantFilter.toUpperCase()})`
-                  : 'Custom Email List'}
+              <div>
+                <h3 className="text-base font-black text-slate-900">Confirm Email Broadcast</h3>
+                <p className="text-xs text-slate-500">Personalized emails will be dispatched via SMTP.</p>
               </div>
             </div>
 
-            <div className="flex gap-3 pt-2">
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-xs space-y-2 font-bold text-slate-700">
+              <div className="flex justify-between">
+                <span>Audience Mode:</span>
+                <span className="text-blue-600 uppercase">{audienceType}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Total Recipients:</span>
+                <span className="text-emerald-700 font-black">{activeCount} Student(s)</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Subject:</span>
+                <span className="truncate max-w-[200px] text-slate-900">{subject}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 pt-2">
               <button
                 type="button"
                 onClick={() => setShowConfirmModal(false)}
-                disabled={dispatching}
-                className="flex-1 py-2.5 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-all cursor-pointer disabled:opacity-50"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="button"
-                onClick={handleDispatch}
+                onClick={handleSendDispatch}
                 disabled={dispatching}
-                className="flex-1 py-2.5 rounded-xl text-xs font-extrabold bg-blue-600 hover:bg-blue-700 text-white shadow-md transition-all cursor-pointer flex items-center justify-center space-x-1.5 disabled:opacity-50"
+                className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-black flex items-center space-x-2 shadow-md cursor-pointer disabled:opacity-50"
               >
-                {dispatching ? (
-                  <>
-                    <Loader2 size={15} className="animate-spin" />
-                    <span>Dispatching...</span>
-                  </>
-                ) : (
-                  <>
-                    <Send size={14} />
-                    <span>Send Broadcast</span>
-                  </>
-                )}
+                {dispatching && <Loader2 size={14} className="animate-spin" />}
+                <span>{dispatching ? 'Sending Broadcast...' : 'Yes, Dispatch Now'}</span>
               </button>
             </div>
           </div>

@@ -3,7 +3,8 @@ const router = express.Router();
 const path = require('path');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
-const { Event, Quiz, Question, Participant, QuizAttempt, ScheduledOccurrence, User } = require('../models');
+const crypto = require('crypto');
+const { Event, Quiz, Question, Participant, QuizAttempt, ScheduledOccurrence, User, EventRegistration } = require('../models');
 const { sendCustomBroadcastEmail } = require('../services/emailService');
 const { Op } = require('sequelize');
 
@@ -74,10 +75,11 @@ router.get('/', async (req, res) => {
   try {
     const baseUrl = getQuizPlatformBaseUrl();
     
-    // 1. Fetch all DB events and all quizzes safely without invalid enum filters
-    const [dbEvents, allQuizzes] = await Promise.all([
+    // 1. Fetch all DB events, all quizzes, and registrations
+    const [dbEvents, allQuizzes, allRegistrations] = await Promise.all([
       Event.findAll({ order: [['createdAt', 'DESC']] }).catch(() => []),
-      Quiz.findAll({ order: [['createdAt', 'DESC']] }).catch(() => [])
+      Quiz.findAll({ order: [['createdAt', 'DESC']] }).catch(() => []),
+      EventRegistration.findAll({ order: [['createdAt', 'DESC']] }).catch(() => [])
     ]);
 
     const dbEventNames = new Set(dbEvents.map(e => (e.name || '').toLowerCase().trim()));
@@ -90,6 +92,10 @@ router.get('/', async (req, res) => {
       const evNameLower = (ev.name || '').toLowerCase().trim();
       const linkedQuizzes = allQuizzes.filter(q =>
         q.event_id === ev.id || (q.event_name && q.event_name.toLowerCase().trim() === evNameLower)
+      );
+
+      const eventRegs = allRegistrations.filter(r =>
+        r.event_id === ev.id || r.event_id === ev.slug || (r.event_name && r.event_name.toLowerCase().trim() === evNameLower)
       );
 
       formattedEvents.push({
@@ -106,6 +112,7 @@ router.get('/', async (req, res) => {
         rewards: ev.rewards || 'Certificates & Swags',
         status: ev.status || 'upcoming',
         source: 'database',
+        registration_count: eventRegs.length,
         quizzes: linkedQuizzes.map(q => ({
           id: q.id,
           title: q.title,
@@ -128,6 +135,10 @@ router.get('/', async (req, res) => {
           q.event_id === se.id || (q.event_name && (q.event_name.toLowerCase().includes(seKey) || seKey.includes(q.event_name.toLowerCase().trim())))
         );
 
+        const eventRegs = allRegistrations.filter(r =>
+          r.event_id === se.id || (r.event_name && r.event_name.toLowerCase().trim() === seKey)
+        );
+
         formattedEvents.push({
           id: se.id,
           name: seTitle,
@@ -142,6 +153,7 @@ router.get('/', async (req, res) => {
           rewards: se.rewards || 'Certificates & Swags',
           status: se.status === 'past' ? 'completed' : (se.status || 'upcoming'),
           source: 'json',
+          registration_count: eventRegs.length,
           quizzes: linkedQuizzes.map(q => ({
             id: q.id,
             title: q.title,
@@ -163,6 +175,33 @@ router.get('/', async (req, res) => {
   } catch (err) {
     console.error('Error fetching admin events:', err);
     res.status(500).json({ error: 'Failed to fetch events: ' + err.message });
+  }
+});
+
+// ----------------------------------------------------
+// GET /api/events/:id/registrations (Fetch Event Registrants)
+// ----------------------------------------------------
+router.get('/:id/registrations', adminAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const registrations = await EventRegistration.findAll({
+      where: {
+        [Op.or]: [
+          { event_id: id },
+          { event_id: id.toLowerCase() }
+        ]
+      },
+      order: [['createdAt', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      count: registrations.length,
+      registrations
+    });
+  } catch (err) {
+    console.error('Error fetching event registrations:', err);
+    res.status(500).json({ error: err.message || 'Failed to fetch registrations.' });
   }
 });
 
@@ -315,8 +354,8 @@ router.get('/public', async (req, res) => {
     const now = new Date();
     const baseUrl = getQuizPlatformBaseUrl();
 
-    // 1. Fetch DB Events & Quizzes safely without invalid enum filters
-    const [dbEvents, allQuizzes] = await Promise.all([
+    // 1. Fetch DB Events, Quizzes, and Registrations safely
+    const [dbEvents, allQuizzes, allRegistrations] = await Promise.all([
       Event.findAll({ order: [['createdAt', 'DESC']] }).catch(() => []),
       Quiz.findAll({
         include: [
@@ -327,7 +366,8 @@ router.get('/public', async (req, res) => {
             attributes: ['id', 'start_time', 'end_time', 'status']
           }
         ]
-      }).catch(() => [])
+      }).catch(() => []),
+      EventRegistration.findAll().catch(() => [])
     ]);
 
     const dbEventNames = new Set(dbEvents.map(e => (e.name || '').toLowerCase().trim()));
@@ -344,8 +384,12 @@ router.get('/public', async (req, res) => {
         q.event_id === dev.id || (q.event_name && q.event_name.toLowerCase().trim() === devNameLower)
       );
 
+      const eventRegs = allRegistrations.filter(r =>
+        r.event_id === dev.id || r.event_id === dev.slug || (r.event_name && r.event_name.toLowerCase().trim() === devNameLower)
+      );
+
       const quizTracks = [];
-      let totalRegCount = 0;
+      let totalRegCount = eventRegs.length;
       let isLiveNow = false;
 
       for (const q of linkedQuizzes) {
@@ -371,7 +415,7 @@ router.get('/public', async (req, res) => {
         ]);
 
         const regCount = liveCount + attemptCount;
-        totalRegCount += regCount;
+        if (regCount > totalRegCount) totalRegCount = regCount;
 
         const sDate = startTime ? new Date(startTime) : null;
         if (sDate && sDate <= now && (!endTime || new Date(endTime) >= now)) {
@@ -423,6 +467,10 @@ router.get('/public', async (req, res) => {
       const seKey = seTitle.toLowerCase().trim();
 
       if (!dbEventNames.has(seKey) && !dbEventIds.has(se.id)) {
+        const eventRegs = allRegistrations.filter(r =>
+          r.event_id === se.id || (r.event_name && r.event_name.toLowerCase().trim() === seKey)
+        );
+
         eventsList.push({
           id: se.id,
           event_name: seTitle,
@@ -441,7 +489,7 @@ router.get('/public', async (req, res) => {
           status: se.status === 'past' ? 'completed' : (se.status || 'upcoming'),
           quizzes: [],
           total_quizzes_count: 0,
-          total_registration_count: 0,
+          total_registration_count: eventRegs.length,
           direct_quiz_url: null,
           register: se.register || `/register/${se.id}`
         });
@@ -467,27 +515,97 @@ router.post('/register', async (req, res) => {
     const {
       eventId,
       eventName,
+      eventTitle,
       quizId,
       slug,
       name,
+      fullName,
       email,
       college = 'PRPCEM Amravati',
       phone,
       year,
-      branch
+      yearOfStudy,
+      branch,
+      rollNo,
+      notes
     } = req.body;
 
-    if (!name || !name.trim()) {
+    const cleanName = (fullName || name || '').trim();
+    const cleanEmail = (email || '').toLowerCase().trim();
+    const cleanCollege = (college || 'PRPCEM Amravati').trim();
+    const cleanPhone = (phone || '').trim();
+    const cleanYear = (yearOfStudy || year || '').trim();
+    const cleanBranch = (branch || '').trim();
+    const cleanRollNo = (rollNo || '').trim();
+    const cleanNotes = (notes || '').trim();
+    const targetEventId = (eventId || slug || 'msc-event').trim();
+    const targetEventName = (eventName || eventTitle || targetEventId).trim();
+
+    if (!cleanName) {
       return res.status(400).json({ error: 'Participant Full Name is required.' });
     }
-    if (!email || !email.trim() || !email.includes('@')) {
+    if (!cleanEmail || !cleanEmail.includes('@')) {
       return res.status(400).json({ error: 'Valid Email address is required.' });
     }
 
-    const cleanEmail = email.toLowerCase().trim();
-    const cleanName = name.trim();
-    const cleanCollege = (college || 'PRPCEM Amravati').trim();
+    // 1. Find or Create User Account
+    let user = await User.findOne({ where: { email: cleanEmail } });
+    if (!user) {
+      const autoUsername = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '') + Math.floor(100 + Math.random() * 900);
+      const tempPass = crypto.randomBytes(8).toString('hex');
+      user = await User.create({
+        name: cleanName,
+        email: cleanEmail,
+        username: autoUsername,
+        password: tempPass,
+        college: cleanCollege,
+        role: 'student',
+        is_verified: true
+      });
+    } else {
+      if (!user.college && cleanCollege) {
+        await user.update({ college: cleanCollege }).catch(() => {});
+      }
+    }
 
+    // 2. Record Event Registration in DB
+    let registration = await EventRegistration.findOne({
+      where: {
+        email: cleanEmail,
+        [Op.or]: [
+          { event_id: targetEventId },
+          { event_id: targetEventId.toLowerCase() }
+        ]
+      }
+    });
+
+    if (!registration) {
+      registration = await EventRegistration.create({
+        event_id: targetEventId,
+        event_name: targetEventName,
+        user_id: user?.id || null,
+        full_name: cleanName,
+        email: cleanEmail,
+        phone: cleanPhone,
+        college: cleanCollege,
+        branch: cleanBranch,
+        year_of_study: cleanYear,
+        roll_no: cleanRollNo,
+        notes: cleanNotes,
+        status: 'registered'
+      });
+    } else {
+      // Update phone or college if missing
+      await registration.update({
+        full_name: cleanName,
+        phone: cleanPhone || registration.phone,
+        college: cleanCollege || registration.college,
+        branch: cleanBranch || registration.branch,
+        year_of_study: cleanYear || registration.year_of_study
+      }).catch(() => {});
+    }
+
+    // 3. Find Matching Quizzes for this Event
     let matchingQuizzes = [];
 
     if (quizId) {
@@ -507,30 +625,13 @@ router.post('/register', async (req, res) => {
       if (q) matchingQuizzes.push(q);
     }
 
-    if (matchingQuizzes.length === 0 && (eventName || eventId)) {
-      const targetName = (eventName || eventId).replace(/^event-/, '').replace(/-/g, ' ').toLowerCase();
+    if (matchingQuizzes.length === 0 && (targetEventName || targetEventId)) {
+      const matchSearch = targetEventName.replace(/^event-/, '').replace(/-/g, ' ').toLowerCase();
       const allQuizzes = await Quiz.findAll();
       matchingQuizzes = allQuizzes.filter(q =>
-        q.event_id === eventId || (q.event_name && q.event_name.toLowerCase().includes(targetName))
+        q.event_id === targetEventId ||
+        (q.event_name && (q.event_name.toLowerCase().includes(matchSearch) || matchSearch.includes(q.event_name.toLowerCase())))
       );
-    }
-
-    // Find or Create User Account
-    let user = await User.findOne({ where: { email: cleanEmail } });
-    if (!user) {
-      const autoUsername = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '') + Math.floor(100 + Math.random() * 900);
-      user = await User.create({
-        name: cleanName,
-        email: cleanEmail,
-        username: autoUsername,
-        college: cleanCollege,
-        role: 'student',
-        is_verified: true
-      });
-    } else {
-      if (!user.college && cleanCollege) {
-        await user.update({ college: cleanCollege }).catch(() => {});
-      }
     }
 
     const baseUrl = getQuizPlatformBaseUrl();
@@ -560,10 +661,10 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    const primaryEventName = (matchingQuizzes[0]?.event_name) || eventName || 'MSC Event';
+    const primaryEventName = targetEventName || (matchingQuizzes[0]?.event_name) || 'MSC Event';
     const primaryDirectUrl = registeredTracks[0]?.direct_url || `${baseUrl}/login`;
 
-    // Send Confirmation Email
+    // 4. Send Instant Confirmation Email
     try {
       const tracksListHtml = registeredTracks.length > 0
         ? registeredTracks.map(t => `
@@ -601,6 +702,15 @@ router.post('/register', async (req, res) => {
         event_name: primaryEventName,
         direct_url: primaryDirectUrl,
         tracks: registeredTracks
+      },
+      registration: {
+        id: registration.id,
+        name: cleanName,
+        email: cleanEmail,
+        college: cleanCollege,
+        phone: cleanPhone,
+        branch: cleanBranch,
+        year: cleanYear
       },
       participant: {
         id: user.id,

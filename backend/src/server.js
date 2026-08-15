@@ -279,6 +279,25 @@ async function startServer() {
         ${quote}updatedAt${quote} ${dateType}
       );`,
 
+      // EventRegistrations table
+      `CREATE TABLE IF NOT EXISTS ${quote}EventRegistrations${quote} (
+        ${quote}id${quote} UUID PRIMARY KEY,
+        ${quote}event_id${quote} VARCHAR(255) NOT NULL,
+        ${quote}event_name${quote} VARCHAR(255) NOT NULL,
+        ${quote}user_id${quote} UUID,
+        ${quote}full_name${quote} VARCHAR(255) NOT NULL,
+        ${quote}email${quote} VARCHAR(255) NOT NULL,
+        ${quote}phone${quote} VARCHAR(255),
+        ${quote}college${quote} VARCHAR(255),
+        ${quote}branch${quote} VARCHAR(255),
+        ${quote}year_of_study${quote} VARCHAR(255),
+        ${quote}roll_no${quote} VARCHAR(255),
+        ${quote}notes${quote} TEXT,
+        ${quote}status${quote} VARCHAR(255) DEFAULT 'registered',
+        ${quote}createdAt${quote} ${dateType},
+        ${quote}updatedAt${quote} ${dateType}
+      );`,
+
       // Lowercase fallback for Postgres
       ...(isPostgres ? [
         `CREATE TABLE IF NOT EXISTS events (
@@ -294,6 +313,23 @@ async function startServer() {
           end_date ${dateType},
           rewards VARCHAR(255),
           status VARCHAR(255) DEFAULT 'upcoming',
+          "createdAt" ${dateType},
+          "updatedAt" ${dateType}
+        );`,
+        `CREATE TABLE IF NOT EXISTS eventregistrations (
+          id UUID PRIMARY KEY,
+          event_id VARCHAR(255) NOT NULL,
+          event_name VARCHAR(255) NOT NULL,
+          user_id UUID,
+          full_name VARCHAR(255) NOT NULL,
+          email VARCHAR(255) NOT NULL,
+          phone VARCHAR(255),
+          college VARCHAR(255),
+          branch VARCHAR(255),
+          year_of_study VARCHAR(255),
+          roll_no VARCHAR(255),
+          notes TEXT,
+          status VARCHAR(255) DEFAULT 'registered',
           "createdAt" ${dateType},
           "updatedAt" ${dateType}
         );`,
