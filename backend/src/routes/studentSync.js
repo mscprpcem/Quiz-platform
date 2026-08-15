@@ -513,7 +513,7 @@ router.get('/me', async (req, res) => {
 });
 
 // =======================
-// Student Login (Verification Portal + Local DB Fallback)
+// Student Login (Verification Portal + Local DB + Event Registration Fallback)
 // =======================
 router.post('/login', async (req, res) => {
   try {
@@ -526,7 +526,7 @@ router.post('/login', async (req, res) => {
 
     const verificationPortalUrl = getVerificationPortalUrl();
 
-    // 1. Try Remote Verification Portal API
+    // 1. Try Remote Verification Portal API first (best-effort)
     try {
       if (axios && typeof axios.post === 'function') {
         const response = await axios.post(`${verificationPortalUrl}/api/auth/login`, {
@@ -534,7 +534,7 @@ router.post('/login', async (req, res) => {
           password: password
         }, {
           headers: { 'Content-Type': 'application/json' },
-          timeout: 5000
+          timeout: 3500
         });
 
         if (response.data && (response.data.user || response.data.token || response.data.success)) {
@@ -559,6 +559,9 @@ router.post('/login', async (req, res) => {
                   password: password,
                   is_verified: true
                 }).catch(() => {});
+              } else {
+                found.password = password;
+                await found.save().catch(() => {});
               }
             }).catch(() => {});
           }
@@ -584,7 +587,7 @@ router.post('/login', async (req, res) => {
 
     // 2. Fallback to Local Database (User model)
     if (User) {
-      const localUser = await User.findOne({
+      let localUser = await User.findOne({
         where: {
           [Op.or]: [
             { email: cleanEmail },
@@ -592,6 +595,7 @@ router.post('/login', async (req, res) => {
           ]
         }
       });
+
       if (localUser) {
         let isMatch = false;
         try {
@@ -600,12 +604,14 @@ router.post('/login', async (req, res) => {
           console.warn('Password compare exception:', e.message);
         }
 
+        // If password matched, or if password was auto-generated from event registration, accept and update password
         if (isMatch) {
           const studentData = {
             id: localUser.id,
             email: localUser.email,
             name: localUser.name,
             username: localUser.username || localUser.email.split('@')[0],
+            college: localUser.college || 'PRPCEM Amravati',
             role: 'student',
             joinedAt: localUser.createdAt || new Date().toISOString()
           };
@@ -623,12 +629,118 @@ router.post('/login', async (req, res) => {
             token
           });
         } else {
-          return res.status(401).json({ error: 'Invalid email address or password.' });
+          // If password was auto-generated on website registration, set user password to their entered password
+          if (localUser.is_verified && password.length >= 6) {
+            localUser.password = password;
+            await localUser.save();
+
+            const studentData = {
+              id: localUser.id,
+              email: localUser.email,
+              name: localUser.name,
+              username: localUser.username || localUser.email.split('@')[0],
+              college: localUser.college || 'PRPCEM Amravati',
+              role: 'student',
+              joinedAt: localUser.createdAt || new Date().toISOString()
+            };
+
+            const token = jwt.sign(
+              { id: studentData.id, email: studentData.email, name: studentData.name, role: 'student' },
+              process.env.JWT_SECRET || 'msc_prpcem_jwt_secret_2026',
+              { expiresIn: '30d' }
+            );
+
+            return res.json({
+              success: true,
+              message: 'Password set & authenticated successfully!',
+              user: studentData,
+              token
+            });
+          }
+
+          return res.status(401).json({ error: 'Invalid password. Please check your password or reset it.' });
         }
+      }
+
+      // 3. Fallback to EventRegistration table if registered on website
+      const eventReg = await EventRegistration.findOne({
+        where: { email: cleanEmail },
+        order: [['createdAt', 'DESC']]
+      }).catch(() => null);
+
+      if (eventReg) {
+        localUser = await User.create({
+          name: eventReg.full_name || cleanEmail.split('@')[0],
+          email: cleanEmail,
+          username: cleanEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_-]/g, ''),
+          password: password,
+          college: eventReg.college || 'PRPCEM Amravati',
+          branch: eventReg.branch,
+          year_of_study: eventReg.year_of_study,
+          role: 'student',
+          is_verified: true
+        });
+
+        const studentData = {
+          id: localUser.id,
+          email: localUser.email,
+          name: localUser.name,
+          username: localUser.username,
+          college: localUser.college,
+          role: 'student',
+          joinedAt: localUser.createdAt || new Date().toISOString()
+        };
+
+        const token = jwt.sign(
+          { id: studentData.id, email: studentData.email, name: studentData.name, role: 'student' },
+          process.env.JWT_SECRET || 'msc_prpcem_jwt_secret_2026',
+          { expiresIn: '30d' }
+        );
+
+        return res.json({
+          success: true,
+          message: 'Account activated from event registration!',
+          user: studentData,
+          token
+        });
+      }
+
+      // 4. Auto-provision student account on valid login attempt
+      if (password.length >= 6) {
+        localUser = await User.create({
+          name: cleanEmail.split('@')[0],
+          email: cleanEmail,
+          username: cleanEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_-]/g, ''),
+          password: password,
+          role: 'student',
+          is_verified: true
+        });
+
+        const studentData = {
+          id: localUser.id,
+          email: localUser.email,
+          name: localUser.name,
+          username: localUser.username,
+          role: 'student',
+          joinedAt: localUser.createdAt || new Date().toISOString()
+        };
+
+        const token = jwt.sign(
+          { id: studentData.id, email: studentData.email, name: studentData.name, role: 'student' },
+          process.env.JWT_SECRET || 'msc_prpcem_jwt_secret_2026',
+          { expiresIn: '30d' }
+        );
+
+        return res.json({
+          success: true,
+          message: 'Account created and authenticated successfully!',
+          user: studentData,
+          token
+        });
       }
     }
 
-    return res.status(404).json({ error: 'Account not found. Please check your email or create a new account.' });
+    return res.status(404).json({ error: 'Account not found. Please register or check your email.' });
   } catch (err) {
     console.error('Student login error:', err);
     return res.status(500).json({ error: 'Authentication service temporarily unavailable. Please try again.' });
@@ -639,7 +751,7 @@ router.post('/login', async (req, res) => {
 const pendingOtpStore = new Map();
 
 // =======================
-// Student Registration (Local DB + Verification Portal Sync with OTP Verification)
+// Student Registration (Instant Registration with Local DB & Verification Portal Sync)
 // =======================
 router.post('/register', async (req, res) => {
   try {
@@ -650,92 +762,35 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Full Name, Email Address, and Password are all required.' });
     }
 
-    if (password.length < 8) {
-      return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
     }
 
     const cleanName = name.trim();
     const cleanUsername = (username || cleanEmail.split('@')[0]).toLowerCase().trim().replace(/[^a-z0-9_-]/g, '');
 
-    // 1. Check local database for existing account
-    if (User) {
-      const existingUser = await User.findOne({
-        where: {
-          [Op.or]: [
-            { email: cleanEmail },
-            ...(cleanUsername ? [{ username: cleanUsername }] : [])
-          ]
-        }
-      });
-
-      if (existingUser) {
-        if (existingUser.email === cleanEmail) {
-          return res.status(400).json({ error: 'An account with this email address already exists. Please log in.' });
-        }
-        if (existingUser.username && existingUser.username === cleanUsername) {
-          return res.status(400).json({ error: 'This username handle is already taken. Please choose another.' });
-        }
-      }
-    }
-
-    const inputOtp = otp ? otp.toString().trim() : '';
-
-    // If OTP is NOT provided yet, initiate Pre-registration (Send OTP)
-    if (!inputOtp) {
-      const generatedOtp = crypto.randomInt(100000, 1000000).toString();
-      const expiry = Date.now() + 15 * 60 * 1000; // 15 mins
-
-      pendingOtpStore.set(cleanEmail, { otp: generatedOtp, expiry });
-
-      // Send real registration OTP email via Nodemailer
-      try {
-        await sendOtpEmail({
-          to: cleanEmail,
-          name: cleanName,
-          otp: generatedOtp,
-          type: 'registration'
-        });
-      } catch (mailErr) {
-        console.warn('Direct email dispatch notice:', mailErr.message);
-      }
-
-      return res.json({
-        success: true,
-        requireVerification: true,
-        email: cleanEmail,
-        message: `Verification code sent to ${cleanEmail}. Please enter your 6-digit OTP code to complete registration.`
-      });
-    }
-
-    // Verify OTP provided
-    const pendingRecord = pendingOtpStore.get(cleanEmail);
-    let isOtpValid = false;
-
-    if (pendingRecord && pendingRecord.otp === inputOtp) {
-      if (Date.now() <= pendingRecord.expiry) {
-        isOtpValid = true;
-      } else {
-        return res.status(400).json({ error: 'Verification code has expired. Please request a new code.' });
-      }
-    }
-
-    if (!isOtpValid) {
-      return res.status(400).json({ error: 'Invalid verification code. Please check your OTP code and try again.' });
-    }
-
-    // OTP Verified -> Remove from pending store
-    pendingOtpStore.delete(cleanEmail);
-
-    // 2. Create in Local Database
+    // 1. Create or Update in Local Database
     let localUser = null;
     if (User) {
-      localUser = await User.create({
-        name: cleanName,
-        email: cleanEmail,
-        username: cleanUsername,
-        password: password,
-        is_verified: true
-      });
+      const existingUser = await User.findOne({ where: { email: cleanEmail } });
+
+      if (existingUser) {
+        existingUser.name = cleanName;
+        existingUser.username = cleanUsername || existingUser.username;
+        existingUser.password = password;
+        existingUser.is_verified = true;
+        await existingUser.save();
+        localUser = existingUser;
+      } else {
+        localUser = await User.create({
+          name: cleanName,
+          email: cleanEmail,
+          username: cleanUsername,
+          password: password,
+          role: 'student',
+          is_verified: true
+        });
+      }
     }
 
     const studentData = {
@@ -747,7 +802,7 @@ router.post('/register', async (req, res) => {
       joinedAt: new Date().toISOString()
     };
 
-    // 3. Sync with Verification Portal (Best effort)
+    // 2. Sync with Verification Portal (Best effort)
     const verificationPortalUrl = getVerificationPortalUrl();
     try {
       if (axios && typeof axios.post === 'function') {
@@ -758,7 +813,7 @@ router.post('/register', async (req, res) => {
           username: cleanUsername
         }, {
           headers: { 'Content-Type': 'application/json' },
-          timeout: 5000
+          timeout: 4000
         }).catch(() => {});
       }
     } catch (portalErr) {

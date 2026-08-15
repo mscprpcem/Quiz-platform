@@ -132,10 +132,17 @@ export default function ScheduledQuizTake() {
     try {
       setLoggingIn(true);
       setStartError('');
-      const res = await studentLogin(email, name, password || 'student123');
+      const finalPass = password || 'student123';
+      let res = await studentLogin(email, finalPass);
+      if (!res.success) {
+        res = await studentRegister({ name, email, password: finalPass });
+      }
+
       if (res.success) {
         localStorage.setItem('msc_student_name', name);
         localStorage.setItem('msc_student_email', email);
+      } else {
+        setStartError(res.error || 'Failed to authenticate student account.');
       }
     } catch (err) {
       setStartError(err.message || 'Failed to authenticate student account.');

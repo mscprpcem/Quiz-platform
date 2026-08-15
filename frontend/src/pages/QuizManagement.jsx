@@ -180,6 +180,7 @@ export default function QuizManagement() {
   const handleOpenCreate = (quiz = null) => {
     if (quiz) {
       setSelectedQuiz(quiz);
+      setIsSlugCustomized(Boolean(quiz.custom_slug));
       setQuizForm({
         title: quiz.title,
         custom_slug: quiz.custom_slug || '',
@@ -192,6 +193,7 @@ export default function QuizManagement() {
       });
     } else {
       setSelectedQuiz(null);
+      setIsSlugCustomized(false);
       setQuizForm({
         title: '',
         custom_slug: '',
@@ -772,13 +774,19 @@ export default function QuizManagement() {
                     type="text"
                     required
                     value={quizForm.title}
-                    onChange={(e) => setQuizForm((p) => ({ ...p, title: e.target.value }))}
-                    placeholder="e.g. Cloud Fundamentals Challenge"
-                    className="w-full px-4 py-2.5 border border-brand-border rounded-xl bg-brand-bgLight/50 text-brand-textMain placeholder-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all text-sm"
+                    onChange={(e) => {
+                      const newTitle = e.target.value;
+                      const autoSlug = newTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+                      setQuizForm((p) => ({
+                        ...p,
+                        title: newTitle,
+                        custom_slug: isSlugCustomized ? p.custom_slug : autoSlug
+                      }));
+                    }}
+                    placeholder="e.g. Both On Challenge, Cloud Fundamentals"
+                    className="w-full px-4 py-2.5 border border-brand-border rounded-xl bg-brand-bgLight/50 text-brand-textMain placeholder-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all text-sm font-bold"
                   />
                 </div>
-
-
 
                 {/* Event Selector */}
                 <div className="space-y-1.5">
@@ -803,22 +811,28 @@ export default function QuizManagement() {
                 {/* Custom Short Link / Vanity Slug */}
                 <div className="space-y-1.5 p-3.5 bg-blue-50/70 border border-blue-200/70 rounded-xl">
                   <label className="block text-xs font-bold text-blue-900 uppercase tracking-wider">
-                    Custom Short Link / Vanity Slug (Optional)
+                    Direct Join URL Slug
                   </label>
                   <div className="flex items-center space-x-1.5">
-                    <span className="text-xs font-extrabold text-slate-500 bg-white border border-slate-200 px-3 py-2 rounded-lg whitespace-nowrap">
+                    <span className="text-xs font-extrabold text-slate-500 bg-white border border-slate-200 px-3 py-2 rounded-lg whitespace-nowrap font-mono select-none">
                       quiz.mscprpcem.tech/q/
                     </span>
                     <input
                       type="text"
-                      placeholder="e.g. visionXS2"
+                      placeholder="e.g. both-on"
                       value={quizForm.custom_slug || ''}
-                      onChange={(e) => setQuizForm((p) => ({ ...p, custom_slug: e.target.value.replace(/[^a-zA-Z0-9_-]/g, '') }))}
-                      className="w-full px-3 py-2 border border-blue-300 rounded-lg bg-white text-blue-700 font-bold text-xs focus:ring-2 focus:ring-blue-500"
+                      onChange={(e) => {
+                        setIsSlugCustomized(true);
+                        setQuizForm((p) => ({
+                          ...p,
+                          custom_slug: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '')
+                        }));
+                      }}
+                      className="w-full px-3 py-2 border border-blue-300 rounded-lg bg-white text-blue-700 font-mono font-bold text-xs focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <p className="text-[10px] text-blue-700 font-semibold leading-tight">
-                    Participants visiting <strong className="text-blue-900">quiz.mscprpcem.tech/q/{quizForm.custom_slug || 'visionXS2'}</strong> will join this live quiz directly.
+                    Participants visiting <strong className="text-blue-900 font-mono">quiz.mscprpcem.tech/q/{quizForm.custom_slug || 'preview'}</strong> will join this live quiz directly.
                   </p>
                 </div>
 

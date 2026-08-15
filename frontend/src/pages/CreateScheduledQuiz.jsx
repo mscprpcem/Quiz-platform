@@ -136,6 +136,8 @@ export default function CreateScheduledQuiz() {
     questions: []
   });
 
+  const [isSlugCustomized, setIsSlugCustomized] = useState(!!id);
+
   // Helper to format Date object into local YYYY-MM-DD string
   const formatLocalDate = (d) => {
     if (!d) return '';
@@ -947,7 +949,15 @@ export default function CreateScheduledQuiz() {
                 required
                 placeholder="e.g. Azure Fundamentals Weekly Assessment"
                 value={formData.title}
-                onChange={e => setFormData({ ...formData, title: e.target.value })}
+                onChange={e => {
+                  const newTitle = e.target.value;
+                  const autoSlug = newTitle.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+                  setFormData(prev => ({
+                    ...prev,
+                    title: newTitle,
+                    custom_slug: isSlugCustomized ? prev.custom_slug : autoSlug
+                  }));
+                }}
                 className="w-full border rounded-xl px-4 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600"
               />
             </div>
@@ -976,27 +986,33 @@ export default function CreateScheduledQuiz() {
               <div className="flex items-center space-x-2">
                 <QrCode size={18} className="text-blue-600" />
                 <span className="text-xs font-black text-blue-900 uppercase tracking-wider">
-                  Custom URL
+                  Custom URL Slug
                 </span>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
                 <div className="md:col-span-2 space-y-2">
-                  <label className="block text-xs font-bold text-slate-700">Custom URL</label>
+                  <label className="block text-xs font-bold text-slate-700">Direct Join URL</label>
                   <div className="flex items-center space-x-2">
-                    <span className="text-xs font-extrabold text-slate-500 bg-white border border-slate-200 px-3 py-2 rounded-xl whitespace-nowrap">
+                    <span className="text-xs font-extrabold text-slate-500 bg-white border border-slate-200 px-3 py-2 rounded-xl whitespace-nowrap select-none font-mono">
                       {typeof window !== 'undefined' ? `${window.location.host}/q/` : 'quiz.mscprpcem.tech/q/'}
                     </span>
                     <input
                       type="text"
-                      placeholder="e.g. test"
+                      placeholder="e.g. both-on"
                       value={formData.custom_slug}
-                      onChange={e => setFormData({ ...formData, custom_slug: e.target.value.replace(/[^a-zA-Z0-9_-]/g, '') })}
-                      className="w-full border border-blue-300 rounded-xl px-3.5 py-2 text-xs font-black text-blue-700 bg-white focus:ring-2 focus:ring-blue-500"
+                      onChange={e => {
+                        setIsSlugCustomized(true);
+                        setFormData(prev => ({
+                          ...prev,
+                          custom_slug: e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '')
+                        }));
+                      }}
+                      className="w-full border border-blue-300 rounded-xl px-3.5 py-2 text-xs font-mono font-black text-blue-700 bg-white focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
                   <p className="text-[10px] text-slate-500 font-semibold leading-normal">
-                    Students visiting <strong className="text-blue-600">{typeof window !== 'undefined' ? window.location.host : 'quiz.mscprpcem.tech'}/q/{formData.custom_slug || 'test'}</strong> or scanning the QR code will open this quiz session directly.
+                    Students visiting <strong className="text-blue-600 font-mono">{typeof window !== 'undefined' ? window.location.host : 'quiz.mscprpcem.tech'}/q/{formData.custom_slug || 'preview'}</strong> or scanning the QR code will open this quiz session directly.
                   </p>
                 </div>
 
