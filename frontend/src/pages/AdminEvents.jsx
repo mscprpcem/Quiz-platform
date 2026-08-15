@@ -4,7 +4,8 @@ import api from '../services/api';
 import {
   Sparkles, Plus, Search, Calendar, MapPin, Globe, Users,
   Trash2, Edit3, ExternalLink, Mail, ArrowRight, ShieldCheck,
-  AlertCircle, RefreshCw, X, Radio, BookOpen, Image, Check, Download, FileText
+  AlertCircle, RefreshCw, X, Radio, BookOpen, Image, Check, Download, FileText,
+  Copy, Link as LinkIcon
 } from 'lucide-react';
 
 const POSTER_GALLERY = [
@@ -58,6 +59,7 @@ export default function AdminEvents() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
+    slug: '',
     category: 'Innovation Challenge',
     mode: 'Hybrid',
     venue: 'PRPCEM Campus & Virtual',
@@ -75,6 +77,7 @@ export default function AdminEvents() {
   const [registrations, setRegistrations] = useState([]);
   const [loadingRegs, setLoadingRegs] = useState(false);
   const [regsSearch, setRegsSearch] = useState('');
+  const [copyFeedback, setCopyFeedback] = useState(null);
 
   const fetchEvents = async () => {
     try {
@@ -95,7 +98,13 @@ export default function AdminEvents() {
   }, []);
 
   const handleNameChange = (nameVal) => {
-    const updated = { ...formData, name: nameVal };
+    const autoSlug = nameVal.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const updated = {
+      ...formData,
+      name: nameVal,
+      slug: (!editingEvent || !formData.slug) ? autoSlug : formData.slug
+    };
+
     const cleanLower = nameVal.toLowerCase();
     for (const item of POSTER_GALLERY) {
       if (item.matchKeywords.some(kw => cleanLower.includes(kw))) {
@@ -110,6 +119,7 @@ export default function AdminEvents() {
     setEditingEvent(null);
     setFormData({
       name: '',
+      slug: '',
       category: 'Innovation Challenge',
       mode: 'Hybrid',
       venue: 'PRPCEM Campus & Virtual',
@@ -126,6 +136,7 @@ export default function AdminEvents() {
     setEditingEvent(ev);
     setFormData({
       name: ev.name || '',
+      slug: ev.slug || (ev.name ? ev.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : ''),
       category: ev.category || 'Technical Workshop',
       mode: ev.mode || 'Offline',
       venue: ev.venue || 'PRPCEM Amravati',
@@ -197,6 +208,13 @@ export default function AdminEvents() {
     }
   };
 
+  const handleCopyLink = (slugOrId) => {
+    const url = `https://mscprpcem.tech/register/${slugOrId}`;
+    navigator.clipboard.writeText(url);
+    setCopyFeedback(slugOrId);
+    setTimeout(() => setCopyFeedback(null), 2500);
+  };
+
   const handleSaveEvent = async (e) => {
     e.preventDefault();
     if (!formData.name.trim()) {
@@ -230,6 +248,7 @@ export default function AdminEvents() {
 
   const filteredEvents = events.filter(e => {
     const matchesSearch = (e.name || '').toLowerCase().includes(search.toLowerCase()) ||
+      (e.slug || '').toLowerCase().includes(search.toLowerCase()) ||
       (e.category || '').toLowerCase().includes(search.toLowerCase()) ||
       (e.venue || '').toLowerCase().includes(search.toLowerCase());
     
@@ -270,7 +289,7 @@ export default function AdminEvents() {
             <div>
               <h1 className="text-2xl font-black text-slate-900 tracking-tight">Event Management</h1>
               <p className="text-xs text-slate-500 font-medium">
-                Create official club events, track website participant registrations, and attach multiple challenge quizzes.
+                Create official club events, configure custom <code>/register/:slug</code> URLs, and track student participants.
               </p>
             </div>
           </div>
@@ -300,7 +319,7 @@ export default function AdminEvents() {
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by event name, category, venue..."
+            placeholder="Search by event name, slug, venue..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 placeholder-slate-400 outline-hidden focus:border-purple-600"
@@ -342,7 +361,7 @@ export default function AdminEvents() {
           </div>
           <h3 className="text-base font-black text-slate-900">No Events Found</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            Create an event (e.g. <strong>VisionX Season 2</strong>) to display on the main website and link challenge quizzes.
+            Create an event (e.g. <strong>VisionX Season 2</strong>) with a custom slug to display on the main website and link challenge quizzes.
           </p>
           <button
             onClick={openCreateModal}
@@ -354,162 +373,200 @@ export default function AdminEvents() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredEvents.map((ev) => (
-            <div
-              key={ev.id}
-              className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-2xs hover:shadow-md transition-all flex flex-col justify-between group"
-            >
-              <div>
-                {/* Poster Preview Header */}
-                <div className="relative h-48 bg-slate-950 overflow-hidden">
-                  <img
-                    src={ev.poster_url || POSTER_GALLERY[0].url}
-                    alt={ev.name}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    onError={(e) => {
-                      e.target.onerror = null;
-                      e.target.src = POSTER_GALLERY[0].url;
-                    }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
-                  
-                  {/* Status Badge */}
-                  <div className="absolute top-3 left-3">
-                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm ${
-                      (ev.status || '').toLowerCase() === 'live' || ev.is_live
-                        ? 'bg-emerald-500 text-white animate-pulse'
-                        : (ev.status || '').toLowerCase() === 'completed' || (ev.status || '').toLowerCase() === 'past'
-                        ? 'bg-slate-600/90 text-white backdrop-blur-xs'
-                        : 'bg-purple-600 text-white'
-                    }`}>
-                      {ev.status || 'Upcoming'}
-                    </span>
-                  </div>
+          {filteredEvents.map((ev) => {
+            const currentSlug = ev.slug || ev.id;
+            const isCopied = copyFeedback === currentSlug;
 
-                  {/* Top Action Icons */}
-                  <div className="absolute top-3 right-3 flex items-center gap-1.5">
-                    <button
-                      onClick={() => openEditModal(ev)}
-                      className="p-1.5 bg-white/80 hover:bg-white text-slate-700 rounded-xl backdrop-blur-xs transition-colors cursor-pointer"
-                      title="Edit event"
-                    >
-                      <Edit3 size={13} />
-                    </button>
-                    {ev.source === 'database' && (
-                      <button
-                        onClick={() => handleDeleteEvent(ev.id, ev.name)}
-                        className="p-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-xl backdrop-blur-xs transition-colors cursor-pointer"
-                        title="Delete event"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Category Pill on bottom of image */}
-                  <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white">
-                    <span className="text-[11px] font-bold opacity-90 truncate">
-                      {ev.category || 'MSC Flagship Event'}
-                    </span>
-                    <span className="text-[10px] font-black bg-white/20 px-2 py-0.5 rounded-md backdrop-blur-xs">
-                      {ev.mode || 'Hybrid'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Event Content Body */}
-                <div className="p-5 space-y-3">
-                  <div>
-                    <h3 className="text-base font-black text-slate-900 group-hover:text-purple-600 transition-colors line-clamp-1">
-                      {ev.name}
-                    </h3>
-                    <p className="text-xs text-slate-500 line-clamp-2 mt-1">
-                      {ev.description || 'Official challenges and tracks for this event.'}
-                    </p>
-                  </div>
-
-                  <div className="text-[11px] text-slate-500 space-y-1.5 pt-1 border-t border-slate-100">
-                    <div className="flex items-center gap-2">
-                      <MapPin size={13} className="text-slate-400 shrink-0" />
-                      <span className="truncate">{ev.venue || 'PRPCEM Amravati'}</span>
-                    </div>
+            return (
+              <div
+                key={ev.id}
+                className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-2xs hover:shadow-md transition-all flex flex-col justify-between group"
+              >
+                <div>
+                  {/* Poster Preview Header */}
+                  <div className="relative h-48 bg-slate-950 overflow-hidden">
+                    <img
+                      src={ev.poster_url || POSTER_GALLERY[0].url}
+                      alt={ev.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      onError={(e) => {
+                        e.target.onerror = null;
+                        e.target.src = POSTER_GALLERY[0].url;
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
                     
-                    {/* Website Registrations Count */}
-                    <div className="flex items-center justify-between pt-1">
-                      <div className="flex items-center gap-1.5">
-                        <Users size={13} className="text-purple-600 shrink-0" />
-                        <span className="font-extrabold text-purple-700">
-                          {ev.registration_count || 0} Registered Student(s)
+                    {/* Status Badge */}
+                    <div className="absolute top-3 left-3">
+                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm ${
+                        (ev.status || '').toLowerCase() === 'live' || ev.is_live
+                          ? 'bg-emerald-500 text-white animate-pulse'
+                          : (ev.status || '').toLowerCase() === 'completed' || (ev.status || '').toLowerCase() === 'past'
+                          ? 'bg-slate-600/90 text-white backdrop-blur-xs'
+                          : 'bg-purple-600 text-white'
+                      }`}>
+                        {ev.status || 'Upcoming'}
+                      </span>
+                    </div>
+
+                    {/* Top Action Icons */}
+                    <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                      <button
+                        onClick={() => openEditModal(ev)}
+                        className="p-1.5 bg-white/80 hover:bg-white text-slate-700 rounded-xl backdrop-blur-xs transition-colors cursor-pointer"
+                        title="Edit event"
+                      >
+                        <Edit3 size={13} />
+                      </button>
+                      {ev.source === 'database' && (
+                        <button
+                          onClick={() => handleDeleteEvent(ev.id, ev.name)}
+                          className="p-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-xl backdrop-blur-xs transition-colors cursor-pointer"
+                          title="Delete event"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Category Pill on bottom of image */}
+                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white">
+                      <span className="text-[11px] font-bold opacity-90 truncate">
+                        {ev.category || 'MSC Flagship Event'}
+                      </span>
+                      <span className="text-[10px] font-black bg-white/20 px-2 py-0.5 rounded-md backdrop-blur-xs">
+                        {ev.mode || 'Hybrid'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Event Content Body */}
+                  <div className="p-5 space-y-3">
+                    <div>
+                      <h3 className="text-base font-black text-slate-900 group-hover:text-purple-600 transition-colors line-clamp-1">
+                        {ev.name}
+                      </h3>
+                      <p className="text-xs text-slate-500 line-clamp-2 mt-1">
+                        {ev.description || 'Official challenges and tracks for this event.'}
+                      </p>
+                    </div>
+
+                    {/* Live Website Slug Registration Badge */}
+                    <div className="bg-purple-50/70 border border-purple-100 rounded-xl p-2 flex items-center justify-between gap-2 text-[11px]">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <LinkIcon size={12} className="text-purple-600 shrink-0" />
+                        <span className="font-mono font-bold text-purple-800 truncate">
+                          /register/{currentSlug}
                         </span>
                       </div>
-                      <button
-                        onClick={() => handleViewRegistrations(ev)}
-                        className="text-[11px] font-extrabold text-blue-600 hover:text-blue-800 underline cursor-pointer"
-                      >
-                        View List
-                      </button>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <BookOpen size={13} className="text-slate-400 shrink-0" />
-                      <span>
-                        {ev.total_quizzes > 0 ? (
-                          <span className="text-slate-700 font-bold">{ev.total_quizzes} Quiz Track(s) Attached</span>
-                        ) : (
-                          <span className="text-slate-400 font-medium">Standalone Event (0 Quizzes Attached)</span>
-                        )}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Attached Quiz Tracks List */}
-                  {ev.quizzes && ev.quizzes.length > 0 && (
-                    <div className="space-y-1.5 pt-2">
-                      <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                        Included Quiz Tracks ({ev.quizzes.length}):
-                      </span>
-                      <div className="space-y-1 max-h-28 overflow-y-auto pr-1 text-xs">
-                        {ev.quizzes.map((q) => (
-                          <div
-                            key={q.id}
-                            className="p-2 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-[11px]"
-                          >
-                            <div className="truncate font-bold text-slate-700">
-                              {q.title}
-                            </div>
-                            <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-md uppercase ${
-                              q.mode === 'SCHEDULED' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
-                            }`}>
-                              {q.mode}
-                            </span>
-                          </div>
-                        ))}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => handleCopyLink(currentSlug)}
+                          className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1 ${
+                            isCopied
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-white text-purple-700 border border-purple-200 hover:bg-purple-100'
+                          }`}
+                          title="Copy Full Registration URL"
+                        >
+                          {isCopied ? <Check size={11} /> : <Copy size={11} />}
+                          <span>{isCopied ? 'Copied' : 'Copy'}</span>
+                        </button>
+                        <a
+                          href={`https://mscprpcem.tech/register/${currentSlug}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="p-1 text-purple-600 hover:text-purple-800 hover:bg-white rounded-md cursor-pointer"
+                          title="Open Registration Page"
+                        >
+                          <ExternalLink size={12} />
+                        </a>
                       </div>
                     </div>
-                  )}
+
+                    <div className="text-[11px] text-slate-500 space-y-1.5 pt-1 border-t border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <MapPin size={13} className="text-slate-400 shrink-0" />
+                        <span className="truncate">{ev.venue || 'PRPCEM Amravati'}</span>
+                      </div>
+                      
+                      {/* Website Registrations Count */}
+                      <div className="flex items-center justify-between pt-1">
+                        <div className="flex items-center gap-1.5">
+                          <Users size={13} className="text-purple-600 shrink-0" />
+                          <span className="font-extrabold text-purple-700">
+                            {ev.registration_count || 0} Registered Student(s)
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => handleViewRegistrations(ev)}
+                          className="text-[11px] font-extrabold text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                        >
+                          View List
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <BookOpen size={13} className="text-slate-400 shrink-0" />
+                        <span>
+                          {ev.total_quizzes > 0 ? (
+                            <span className="text-slate-700 font-bold">{ev.total_quizzes} Quiz Track(s) Attached</span>
+                          ) : (
+                            <span className="text-slate-400 font-medium">Standalone Event (0 Quizzes Attached)</span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Attached Quiz Tracks List */}
+                    {ev.quizzes && ev.quizzes.length > 0 && (
+                      <div className="space-y-1.5 pt-2">
+                        <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                          Included Quiz Tracks ({ev.quizzes.length}):
+                        </span>
+                        <div className="space-y-1 max-h-28 overflow-y-auto pr-1 text-xs">
+                          {ev.quizzes.map((q) => (
+                            <div
+                              key={q.id}
+                              className="p-2 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-[11px]"
+                            >
+                              <div className="truncate font-bold text-slate-700">
+                                {q.title}
+                              </div>
+                              <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-md uppercase ${
+                                q.mode === 'SCHEDULED' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
+                              }`}>
+                                {q.mode}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Footer Action Buttons */}
+                <div className="p-5 pt-0 grid grid-cols-2 gap-2 text-xs font-bold">
+                  <button
+                    onClick={() => navigate(`/admin/scheduled-quizzes/create?event=${encodeURIComponent(ev.name)}`)}
+                    className="py-2 px-3 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <Plus size={13} />
+                    <span>Attach Quiz</span>
+                  </button>
+
+                  <button
+                    onClick={() => navigate(`/admin/email-dispatch?eventId=${encodeURIComponent(ev.id)}&event=${encodeURIComponent(ev.name)}`)}
+                    className="py-2 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
+                  >
+                    <Mail size={13} />
+                    <span>Dispatch Email</span>
+                  </button>
                 </div>
               </div>
-
-              {/* Footer Action Buttons */}
-              <div className="p-5 pt-0 grid grid-cols-2 gap-2 text-xs font-bold">
-                <button
-                  onClick={() => navigate(`/admin/scheduled-quizzes/create?event=${encodeURIComponent(ev.name)}`)}
-                  className="py-2 px-3 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                >
-                  <Plus size={13} />
-                  <span>Attach Quiz</span>
-                </button>
-
-                <button
-                  onClick={() => navigate(`/admin/email-dispatch?eventId=${encodeURIComponent(ev.id)}&event=${encodeURIComponent(ev.name)}`)}
-                  className="py-2 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                >
-                  <Mail size={13} />
-                  <span>Dispatch Email</span>
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -623,7 +680,7 @@ export default function AdminEvents() {
                   <h3 className="text-lg font-black text-slate-900">
                     {editingEvent ? 'Edit Club Event' : 'Create New Club Event'}
                   </h3>
-                  <p className="text-xs text-slate-500">Events appear on mscprpcem.tech with custom posters.</p>
+                  <p className="text-xs text-slate-500">Configure event details and custom website registration URL.</p>
                 </div>
               </div>
               <button
@@ -653,6 +710,30 @@ export default function AdminEvents() {
                   onChange={(e) => handleNameChange(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 font-bold"
                 />
+              </div>
+
+              {/* Event URL Slug Configuration */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+                  <span>Custom Registration Page URL Slug *</span>
+                  <span className="text-[10px] text-purple-600 font-medium">Direct Link on Main Website</span>
+                </label>
+                <div className="flex items-center">
+                  <span className="px-3 py-2.5 bg-slate-100 border border-r-0 border-slate-200 rounded-l-xl text-slate-500 font-mono text-[11px] select-none">
+                    mscprpcem.tech/register/
+                  </span>
+                  <input
+                    type="text"
+                    required
+                    placeholder="visionx-s2, spark26, dotnet2025"
+                    value={formData.slug}
+                    onChange={(e) => setFormData({ ...formData, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-r-xl text-xs font-mono font-bold text-purple-700 outline-none focus:bg-white focus:border-purple-600"
+                  />
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Students can open <code className="text-purple-600 font-bold">https://mscprpcem.tech/register/{formData.slug || 'event-slug'}</code> directly to register.
+                </p>
               </div>
 
               {/* Visual Poster Template Gallery */}

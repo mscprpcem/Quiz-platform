@@ -212,6 +212,7 @@ router.post('/', adminAuth, async (req, res) => {
   try {
     const {
       name,
+      slug,
       description,
       poster_url,
       category,
@@ -228,12 +229,14 @@ router.post('/', adminAuth, async (req, res) => {
     }
 
     const cleanName = name.trim();
-    const slug = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const cleanSlug = slug && slug.trim()
+      ? slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')
+      : cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const finalPoster = resolveEventPoster(poster_url, cleanName);
 
     const newEvent = await Event.create({
       name: cleanName,
-      slug,
+      slug: cleanSlug,
       description: description ? description.trim() : `Official technical event and challenges for ${cleanName}.`,
       poster_url: finalPoster,
       category: category || 'Innovation Challenge',
@@ -288,6 +291,7 @@ router.put('/:id', adminAuth, async (req, res) => {
 
     const {
       name,
+      slug,
       description,
       poster_url,
       category,
@@ -301,6 +305,10 @@ router.put('/:id', adminAuth, async (req, res) => {
 
     if (name) {
       event.name = name.trim();
+    }
+    if (slug !== undefined && slug.trim()) {
+      event.slug = slug.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    } else if (name && !event.slug) {
       event.slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     }
     if (description !== undefined) event.description = description;
