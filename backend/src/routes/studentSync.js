@@ -244,8 +244,9 @@ router.post('/forgot-password', async (req, res) => {
     const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
     try {
       if (axios && typeof axios.post === 'function') {
-        const response = await axios.post(`${verificationPortalUrl}/api/auth/forgot-password`, {
-          email: cleanEmail
+        const response = await axios.post(`${verificationPortalUrl}/api/auth/send-otp`, {
+          email: cleanEmail,
+          purpose: 'reset_password'
         }, { timeout: 6000 });
 
         if (response.data && response.data.success) {
