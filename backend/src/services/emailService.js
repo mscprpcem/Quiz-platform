@@ -81,7 +81,7 @@ const renderHtmlWrapper = ({ title, preheader, content }) => `
     </div>
     <div class="footer">
       <p>This message was sent from the official <strong>MSC Quiz Platform</strong> (PRPCEM Amravati).</p>
-      <p>If you did not request this email, please disregard it or report to <a href="mailto:support@mscprpcem.tech">support@mscprpcem.tech</a>.</p>
+      <p>If you did not request this email, please disregard it or report to <a href="mailto:mlsc@prpotepatilengg.ac.in">mlsc@prpotepatilengg.ac.in</a>.</p>
     </div>
   </div>
 </body>

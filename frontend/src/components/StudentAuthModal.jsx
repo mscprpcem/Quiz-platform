@@ -260,38 +260,41 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
           </button>
         )}
 
-        {/* Left Banner */}
-        <div className="w-full md:w-5/12 bg-gradient-to-br from-slate-900 via-blue-950 to-indigo-950 p-8 text-white flex flex-col justify-between relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
-          
-          <div className="space-y-6 relative z-10">
-            <div className="inline-flex items-center space-x-2 px-3 py-1 bg-blue-500/20 border border-blue-400/30 rounded-full text-[10px] font-black uppercase tracking-wider text-blue-300">
-              <Sparkles size={12} />
+        {/* Left Brand Panel (Clean Light Theme) */}
+        <div className="w-full md:w-5/12 bg-gradient-to-br from-blue-50 via-indigo-50/60 to-purple-50 p-8 flex flex-col justify-between border-b md:border-b-0 md:border-r border-slate-200/80 relative">
+          <div className="space-y-6">
+            <div className="inline-flex items-center space-x-2 px-3 py-1.5 bg-white border border-blue-200/80 rounded-full text-[11px] font-black uppercase tracking-wider text-blue-700 shadow-2xs">
+              <Sparkles size={12} className="text-blue-600" />
               <span>MSC PRPCEM Unified ID</span>
             </div>
 
             <div className="space-y-2">
-              <h2 className="text-2xl sm:text-3xl font-black text-white leading-tight">
+              <h2 className="text-2xl font-black text-slate-900 leading-tight">
                 {activeTab === 'forgot-password' ? 'Instant Account Recovery.' : 'Your Achievements, Verified.'}
               </h2>
-              <p className="text-xs text-slate-300 leading-relaxed font-medium">
+              <p className="text-xs text-slate-600 leading-relaxed font-medium">
                 {activeTab === 'forgot-password'
-                  ? 'Reset your password'
-                  : ''}
+                  ? 'Reset your password securely with a 6-digit OTP sent straight to your email.'
+                  : 'Access scheduled assessments, digital badges, and verified certificate credentials.'}
               </p>
+            </div>
+
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center space-x-3 p-3 bg-white/80 border border-slate-200/60 rounded-2xl shadow-2xs">
+                <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-black flex-shrink-0">
+                  <ShieldCheck size={18} />
+                </div>
+                <div className="text-xs">
+                  <span className="font-extrabold text-slate-800 block">Single Sign-On (SSO)</span>
+                  <span className="text-[10px] text-slate-500">Connected with verify.mscprpcem.tech</span>
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="pt-8 border-t border-white/10 space-y-3 relative z-10">
-            <div className="flex items-center space-x-3 bg-white/5 border border-white/10 p-3 rounded-2xl">
-              <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-black">
-                <ShieldCheck size={20} />
-              </div>
-              <div className="text-xs">
-                <span className="font-extrabold text-white block">Single Sign-On (SSO)</span>
-                <span className="text-[10px] text-slate-300">Connected with verify.mscprpcem.tech</span>
-              </div>
-            </div>
+          <div className="pt-6 border-t border-slate-200/60 mt-6 text-[11px] text-slate-500 font-semibold flex items-center justify-between">
+            <span>Microsoft Student Club PRPCEM</span>
+            <span className="px-2 py-0.5 bg-blue-100/80 text-blue-800 rounded-md font-bold text-[10px]">Secure</span>
           </div>
         </div>
 
