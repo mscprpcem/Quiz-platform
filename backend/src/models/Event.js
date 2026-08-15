@@ -49,7 +49,7 @@ const Event = sequelize.define('Event', {
     defaultValue: 'Certificates & Swags'
   },
   status: {
-    type: DataTypes.ENUM('upcoming', 'live', 'completed', 'archived'),
+    type: DataTypes.STRING,
     defaultValue: 'upcoming'
   }
 });
