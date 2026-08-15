@@ -569,23 +569,11 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Valid Email address is required.' });
     }
 
-    // 1. Find or Create User Account
-    let user = await User.findOne({ where: { email: cleanEmail } });
-    if (!user) {
-      const autoUsername = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '') + Math.floor(100 + Math.random() * 900);
-      const tempPass = crypto.randomBytes(8).toString('hex');
-      user = await User.create({
-        name: cleanName,
-        email: cleanEmail,
-        username: autoUsername,
-        password: tempPass,
-        college: cleanCollege,
-        role: 'student',
-        is_verified: true
-      });
-    } else {
-      if (!user.college && cleanCollege) {
-        await user.update({ college: cleanCollege }).catch(() => {});
+    // 1. If User account already exists, sync college/branch if needed
+    if (User) {
+      const existingUser = await User.findOne({ where: { email: cleanEmail } });
+      if (existingUser && !existingUser.college && cleanCollege) {
+        await existingUser.update({ college: cleanCollege }).catch(() => {});
       }
     }
 

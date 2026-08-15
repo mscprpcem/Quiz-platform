@@ -587,7 +587,7 @@ router.post('/login', async (req, res) => {
 
     // 2. Fallback to Local Database (User model)
     if (User) {
-      let localUser = await User.findOne({
+      const localUser = await User.findOne({
         where: {
           [Op.or]: [
             { email: cleanEmail },
@@ -604,7 +604,6 @@ router.post('/login', async (req, res) => {
           console.warn('Password compare exception:', e.message);
         }
 
-        // If password matched, or if password was auto-generated from event registration, accept and update password
         if (isMatch) {
           const studentData = {
             id: localUser.id,
@@ -629,118 +628,12 @@ router.post('/login', async (req, res) => {
             token
           });
         } else {
-          // If password was auto-generated on website registration, set user password to their entered password
-          if (localUser.is_verified && password.length >= 6) {
-            localUser.password = password;
-            await localUser.save();
-
-            const studentData = {
-              id: localUser.id,
-              email: localUser.email,
-              name: localUser.name,
-              username: localUser.username || localUser.email.split('@')[0],
-              college: localUser.college || 'PRPCEM Amravati',
-              role: 'student',
-              joinedAt: localUser.createdAt || new Date().toISOString()
-            };
-
-            const token = jwt.sign(
-              { id: studentData.id, email: studentData.email, name: studentData.name, role: 'student' },
-              process.env.JWT_SECRET || 'msc_prpcem_jwt_secret_2026',
-              { expiresIn: '30d' }
-            );
-
-            return res.json({
-              success: true,
-              message: 'Password set & authenticated successfully!',
-              user: studentData,
-              token
-            });
-          }
-
           return res.status(401).json({ error: 'Invalid password. Please check your password or reset it.' });
         }
       }
-
-      // 3. Fallback to EventRegistration table if registered on website
-      const eventReg = await EventRegistration.findOne({
-        where: { email: cleanEmail },
-        order: [['createdAt', 'DESC']]
-      }).catch(() => null);
-
-      if (eventReg) {
-        localUser = await User.create({
-          name: eventReg.full_name || cleanEmail.split('@')[0],
-          email: cleanEmail,
-          username: cleanEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_-]/g, ''),
-          password: password,
-          college: eventReg.college || 'PRPCEM Amravati',
-          branch: eventReg.branch,
-          year_of_study: eventReg.year_of_study,
-          role: 'student',
-          is_verified: true
-        });
-
-        const studentData = {
-          id: localUser.id,
-          email: localUser.email,
-          name: localUser.name,
-          username: localUser.username,
-          college: localUser.college,
-          role: 'student',
-          joinedAt: localUser.createdAt || new Date().toISOString()
-        };
-
-        const token = jwt.sign(
-          { id: studentData.id, email: studentData.email, name: studentData.name, role: 'student' },
-          process.env.JWT_SECRET || 'msc_prpcem_jwt_secret_2026',
-          { expiresIn: '30d' }
-        );
-
-        return res.json({
-          success: true,
-          message: 'Account activated from event registration!',
-          user: studentData,
-          token
-        });
-      }
-
-      // 4. Auto-provision student account on valid login attempt
-      if (password.length >= 6) {
-        localUser = await User.create({
-          name: cleanEmail.split('@')[0],
-          email: cleanEmail,
-          username: cleanEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_-]/g, ''),
-          password: password,
-          role: 'student',
-          is_verified: true
-        });
-
-        const studentData = {
-          id: localUser.id,
-          email: localUser.email,
-          name: localUser.name,
-          username: localUser.username,
-          role: 'student',
-          joinedAt: localUser.createdAt || new Date().toISOString()
-        };
-
-        const token = jwt.sign(
-          { id: studentData.id, email: studentData.email, name: studentData.name, role: 'student' },
-          process.env.JWT_SECRET || 'msc_prpcem_jwt_secret_2026',
-          { expiresIn: '30d' }
-        );
-
-        return res.json({
-          success: true,
-          message: 'Account created and authenticated successfully!',
-          user: studentData,
-          token
-        });
-      }
     }
 
-    return res.status(404).json({ error: 'Account not found. Please register or check your email.' });
+    return res.status(404).json({ error: 'No verified account found with this email. Please register and verify your email.' });
   } catch (err) {
     console.error('Student login error:', err);
     return res.status(500).json({ error: 'Authentication service temporarily unavailable. Please try again.' });
