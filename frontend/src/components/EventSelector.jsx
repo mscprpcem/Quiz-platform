@@ -1,6 +1,45 @@
 import React, { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
-import { Sparkles, Plus, Search, Check, ChevronDown, Calendar, Globe, MapPin, X } from 'lucide-react';
+import { Sparkles, Plus, Search, Check, ChevronDown, Calendar, Globe, MapPin, X, Image } from 'lucide-react';
+
+const POSTER_GALLERY = [
+  {
+    id: 'visionx',
+    name: 'VisionX Innovation Challenge',
+    matchKeywords: ['vision', 'visionx', 'innovation', 'project'],
+    url: 'https://mscprpcem.blob.core.windows.net/events/VisionX.png'
+  },
+  {
+    id: 'spark',
+    name: 'Spark Flagship Event',
+    matchKeywords: ['spark', 'inauguration', 'team', 'gai'],
+    url: 'https://mscprpcem.blob.core.windows.net/events/clean_529287766.png'
+  },
+  {
+    id: 'dotnet',
+    name: '.NET Conf Amravati',
+    matchKeywords: ['dotnet', '.net', 'c#', 'microsoft'],
+    url: 'https://mscprpcem.blob.core.windows.net/events/12.png'
+  },
+  {
+    id: 'gitlit',
+    name: 'GitLit Code Fest',
+    matchKeywords: ['gitlit', 'git', 'github', 'diwali', 'fest'],
+    url: 'https://mscprpcem.blob.core.windows.net/events/gitlit.jpg'
+  },
+  {
+    id: 'js_ai',
+    name: 'JS AI Build-a-thon',
+    matchKeywords: ['js', 'javascript', 'buildathon', 'hackathon'],
+    url: 'https://mscprpcem.blob.core.windows.net/events/js_ai.png'
+  },
+  {
+    id: 'ai_skill',
+    name: 'Microsoft AI Skill Fest',
+    matchKeywords: ['ai', 'copilot', 'azure', 'skill', 'cloud'],
+    url: 'https://mscprpcem.blob.core.windows.net/events/aiskillfest.png'
+  }
+];
 
 export default function EventSelector({
   value,
@@ -19,9 +58,10 @@ export default function EventSelector({
   // New Event Form State
   const [newEvent, setNewEvent] = useState({
     name: '',
-    category: 'Technical Workshop',
-    mode: 'Offline',
-    venue: 'PRPCEM Amravati',
+    category: 'Innovation Challenge',
+    mode: 'Hybrid',
+    venue: 'PRPCEM Campus & Virtual',
+    poster_url: POSTER_GALLERY[0].url,
     description: '',
     rewards: 'Certificates & Swags'
   });
@@ -55,6 +95,18 @@ export default function EventSelector({
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleNameChange = (nameVal) => {
+    const updated = { ...newEvent, name: nameVal };
+    const cleanLower = nameVal.toLowerCase();
+    for (const item of POSTER_GALLERY) {
+      if (item.matchKeywords.some(kw => cleanLower.includes(kw))) {
+        updated.poster_url = item.url;
+        break;
+      }
+    }
+    setNewEvent(updated);
+  };
 
   const filteredEvents = events.filter(e =>
     (e.name || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -96,9 +148,10 @@ export default function EventSelector({
         setShowCreateModal(false);
         setNewEvent({
           name: '',
-          category: 'Technical Workshop',
-          mode: 'Offline',
-          venue: 'PRPCEM Amravati',
+          category: 'Innovation Challenge',
+          mode: 'Hybrid',
+          venue: 'PRPCEM Campus & Virtual',
+          poster_url: POSTER_GALLERY[0].url,
           description: '',
           rewards: 'Certificates & Swags'
         });
@@ -132,7 +185,7 @@ export default function EventSelector({
             ) : value ? (
               <span className="font-bold text-slate-800">{value}</span>
             ) : (
-              <span className="text-slate-400 font-medium">Select or create an Event...</span>
+              <span className="text-slate-400 font-medium">Select or create an Event (e.g. VisionX Season 2)...</span>
             )}
           </div>
         </div>
@@ -178,7 +231,7 @@ export default function EventSelector({
                 <button
                   type="button"
                   onClick={() => {
-                    setNewEvent(p => ({ ...p, name: search }));
+                    handleNameChange(search);
                     setShowCreateModal(true);
                     setIsOpen(false);
                   }}
@@ -208,7 +261,7 @@ export default function EventSelector({
                         {ev.total_quizzes > 0 && (
                           <>
                             <span>•</span>
-                            <span className="text-purple-600 font-medium">{ev.total_quizzes} Quiz Tracks</span>
+                            <span className="text-purple-600 font-medium">{ev.total_quizzes} Quiz Track(s)</span>
                           </>
                         )}
                       </div>
@@ -225,7 +278,7 @@ export default function EventSelector({
       {/* Quick Create Event Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-200">
+          <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
                 <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
@@ -259,11 +312,45 @@ export default function EventSelector({
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Spark '26, Azure Cloud Summit, GitLit Season 1"
+                  placeholder="e.g. VisionX Season 2, Spark '26, .NET Conf"
                   value={newEvent.name}
-                  onChange={(e) => setNewEvent({ ...newEvent, name: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
+                  onChange={(e) => handleNameChange(e.target.value)}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 font-bold"
                 />
+              </div>
+
+              {/* Visual Poster Template Gallery */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1.5">
+                  Select Event Poster
+                </label>
+                <div className="grid grid-cols-3 gap-2 mb-2">
+                  {POSTER_GALLERY.map((p) => {
+                    const isSelected = newEvent.poster_url === p.url;
+                    return (
+                      <button
+                        type="button"
+                        key={p.id}
+                        onClick={() => setNewEvent({ ...newEvent, poster_url: p.url })}
+                        className={`relative rounded-xl overflow-hidden border-2 text-left transition-all p-1 group cursor-pointer ${
+                          isSelected ? 'border-purple-600 bg-purple-50 ring-2 ring-purple-600/20' : 'border-slate-200 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="h-12 rounded-lg overflow-hidden bg-slate-100 relative">
+                          <img src={p.url} alt={p.name} className="w-full h-full object-cover" />
+                          {isSelected && (
+                            <div className="absolute top-1 right-1 w-4 h-4 bg-purple-600 text-white rounded-full flex items-center justify-center">
+                              <Check size={10} />
+                            </div>
+                          )}
+                        </div>
+                        <span className="block text-[9px] font-bold text-slate-800 truncate mt-1">
+                          {p.name}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -276,12 +363,12 @@ export default function EventSelector({
                     onChange={(e) => setNewEvent({ ...newEvent, category: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
                   >
+                    <option value="Innovation Challenge">Innovation Challenge</option>
                     <option value="Technical Workshop">Technical Workshop</option>
                     <option value="Hackathon">Hackathon</option>
                     <option value="Buildathon">Buildathon</option>
                     <option value="Conference">Conference</option>
                     <option value="Code Fest">Code Fest</option>
-                    <option value="Quiz & Assessment">Quiz & Assessment</option>
                   </select>
                 </div>
 
@@ -294,9 +381,9 @@ export default function EventSelector({
                     onChange={(e) => setNewEvent({ ...newEvent, mode: e.target.value })}
                     className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
                   >
+                    <option value="Hybrid">Hybrid (Campus + Online)</option>
                     <option value="Offline">Offline (Campus)</option>
                     <option value="Online">Online (Virtual)</option>
-                    <option value="Hybrid">Hybrid</option>
                   </select>
                 </div>
               </div>
@@ -307,7 +394,7 @@ export default function EventSelector({
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. PRPCEM Main Auditorium"
+                  placeholder="e.g. PRPCEM Main Auditorium & Virtual"
                   value={newEvent.venue}
                   onChange={(e) => setNewEvent({ ...newEvent, venue: e.target.value })}
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"

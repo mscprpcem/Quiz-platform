@@ -10,8 +10,35 @@ const getQuizPlatformBaseUrl = () => {
   return (process.env.PUBLIC_QUIZ_URL || process.env.FRONTEND_URL || 'https://quiz.mscprpcem.tech').replace(/\/+$/, '');
 };
 
+const POSTER_PRESETS = [
+  { match: 'vision', url: 'https://mscprpcem.blob.core.windows.net/events/VisionX.png' },
+  { match: 'spark', url: 'https://mscprpcem.blob.core.windows.net/events/clean_529287766.png' },
+  { match: 'dotnet', url: 'https://mscprpcem.blob.core.windows.net/events/12.png' },
+  { match: '.net', url: 'https://mscprpcem.blob.core.windows.net/events/12.png' },
+  { match: 'gitlit', url: 'https://mscprpcem.blob.core.windows.net/events/gitlit.jpg' },
+  { match: 'buildathon', url: 'https://mscprpcem.blob.core.windows.net/events/js_ai.png' },
+  { match: 'javascript', url: 'https://mscprpcem.blob.core.windows.net/events/js_ai.png' },
+  { match: 'js', url: 'https://mscprpcem.blob.core.windows.net/events/js_ai.png' },
+  { match: 'ai', url: 'https://mscprpcem.blob.core.windows.net/events/aiskillfest.png' },
+  { match: 'skill', url: 'https://mscprpcem.blob.core.windows.net/events/aiskillfest.png' },
+  { match: 'inauguration', url: 'https://mscprpcem.blob.core.windows.net/events/clean_529287766.png' }
+];
+
+function resolveEventPoster(posterUrl, eventName) {
+  if (posterUrl && posterUrl.startsWith('http') && !posterUrl.includes('spark-2026.png')) {
+    return posterUrl;
+  }
+  const cleanName = (eventName || '').toLowerCase();
+  for (const preset of POSTER_PRESETS) {
+    if (cleanName.includes(preset.match)) {
+      return preset.url;
+    }
+  }
+  return 'https://mscprpcem.blob.core.windows.net/events/clean_529287766.png';
+}
+
 // ----------------------------------------------------
-// GET /api/events (Admin / Authenticated Route or fallback)
+// GET /api/events (Admin / Authenticated Route)
 // Returns all managed events with associated quiz tracks
 // ----------------------------------------------------
 router.get('/', async (req, res) => {
@@ -42,7 +69,7 @@ router.get('/', async (req, res) => {
       order: [['createdAt', 'DESC']]
     });
 
-    const eventNamesInDb = new Set(dbEvents.map(e => e.name.toLowerCase().trim()));
+    const eventNamesInDb = new Set(dbEvents.map(e => (e.name || '').toLowerCase().trim()));
     const unmappedQuizzesMap = new Map();
 
     for (const q of quizzes) {
@@ -60,8 +87,8 @@ router.get('/', async (req, res) => {
       id: ev.id,
       name: ev.name,
       slug: ev.slug || ev.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-      description: ev.description,
-      poster_url: ev.poster_url || 'https://mscprpcem.blob.core.windows.net/events/clean_529287766.png',
+      description: ev.description || `Official challenges and sessions for ${ev.name}.`,
+      poster_url: resolveEventPoster(ev.poster_url, ev.name),
       category: ev.category || 'Technical Workshop',
       mode: ev.mode || 'Offline',
       venue: ev.venue || 'PRPCEM Amravati',
@@ -87,7 +114,7 @@ router.get('/', async (req, res) => {
         name,
         slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
         description: `Official technical event tracks for ${name}.`,
-        poster_url: 'https://mscprpcem.blob.core.windows.net/events/clean_529287766.png',
+        poster_url: resolveEventPoster(null, name),
         category: 'Technical Challenge',
         mode: 'Online Assessment',
         venue: 'PRPCEM Campus',
@@ -140,16 +167,17 @@ router.post('/', authMiddleware, async (req, res) => {
 
     const cleanName = name.trim();
     const slug = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    const finalPoster = resolveEventPoster(poster_url, cleanName);
 
     const newEvent = await Event.create({
       name: cleanName,
       slug,
-      description: description ? description.trim() : null,
-      poster_url: poster_url || 'https://mscprpcem.blob.core.windows.net/events/clean_529287766.png',
+      description: description ? description.trim() : `Official technical event and challenges for ${cleanName}.`,
+      poster_url: finalPoster,
       category: category || 'Technical Workshop',
       mode: mode || 'Offline',
       venue: venue || 'PRPCEM Amravati',
-      start_date: start_date ? new Date(start_date) : null,
+      start_date: start_date ? new Date(start_date) : new Date(),
       end_date: end_date ? new Date(end_date) : null,
       rewards: rewards || 'Certificates & Swags',
       status: status || 'upcoming'
@@ -195,7 +223,9 @@ router.put('/:id', authMiddleware, async (req, res) => {
       event.slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     }
     if (description !== undefined) event.description = description;
-    if (poster_url !== undefined) event.poster_url = poster_url;
+    if (poster_url !== undefined) {
+      event.poster_url = resolveEventPoster(poster_url, event.name);
+    }
     if (category !== undefined) event.category = category;
     if (mode !== undefined) event.mode = mode;
     if (venue !== undefined) event.venue = venue;
@@ -286,15 +316,17 @@ router.get('/public', async (req, res) => {
 
     const eventsMap = new Map();
 
-    // Add DB events first
+    // Add DB events first (even with 0 quizzes, they display cleanly)
     for (const dev of dbEvents) {
       const devKey = dev.name.toLowerCase().trim();
+      const resolvedPoster = resolveEventPoster(dev.poster_url, dev.name);
+
       eventsMap.set(devKey, {
         id: dev.id,
         event_name: dev.name,
         title: dev.name,
-        description: dev.description || `Official challenges and technical sessions for ${dev.name}.`,
-        poster: dev.poster_url || "https://mscprpcem.blob.core.windows.net/events/clean_529287766.png",
+        description: dev.description || `Official technical challenges and sessions for ${dev.name}.`,
+        poster: resolvedPoster,
         category: dev.category || 'Technical Workshop',
         mode: dev.mode || 'Offline',
         rewards: dev.rewards || 'Verified Certificate & Badges',
@@ -364,7 +396,7 @@ router.get('/public', async (req, res) => {
           event_name: originalName,
           title: originalName,
           description: q.description || `Official technical challenges for ${originalName}.`,
-          poster: "https://mscprpcem.blob.core.windows.net/events/clean_529287766.png",
+          poster: resolveEventPoster(null, originalName),
           category: q.category || q.subject || 'Technical Event',
           mode: isScheduled ? 'Online Assessment' : 'Live Interactive Quiz',
           rewards: 'Verified Certificate & Badges',
@@ -463,17 +495,6 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    if (matchingQuizzes.length === 0) {
-      matchingQuizzes = await Quiz.findAll({
-        where: { status: { [Op.ne]: 'cancelled' } },
-        limit: 3
-      });
-    }
-
-    if (matchingQuizzes.length === 0) {
-      return res.status(404).json({ error: 'No active event or quiz found for registration.' });
-    }
-
     // 2. Find or Create User Account
     let user = await User.findOne({ where: { email: cleanEmail } });
     if (!user) {
@@ -492,7 +513,7 @@ router.post('/register', async (req, res) => {
       }
     }
 
-    // 3. Register as Participant in ALL matching quiz tracks
+    // 3. Register as Participant in matching quiz tracks if any exist
     const baseUrl = getQuizPlatformBaseUrl();
     const registeredTracks = [];
 
@@ -520,17 +541,19 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    const primaryEventName = matchingQuizzes[0].event_name || matchingQuizzes[0].title;
-    const primaryDirectUrl = registeredTracks[0].direct_url;
+    const primaryEventName = (matchingQuizzes[0]?.event_name) || eventName || 'MSC Event';
+    const primaryDirectUrl = registeredTracks[0]?.direct_url || `${baseUrl}/login`;
 
     // 4. Send Confirmation Email
     try {
-      const tracksListHtml = registeredTracks.map(t => `
-        <li style="margin-bottom: 8px;">
-          <strong>${t.title}</strong> — Join Code: <code style="color:#2563eb;font-weight:bold;">${t.join_code}</code><br/>
-          <a href="${t.direct_url}" style="color:#2563eb;font-size:12px;">Launch Assessment ↗</a>
-        </li>
-      `).join('');
+      const tracksListHtml = registeredTracks.length > 0
+        ? registeredTracks.map(t => `
+          <li style="margin-bottom: 8px;">
+            <strong>${t.title}</strong> — Join Code: <code style="color:#2563eb;font-weight:bold;">${t.join_code}</code><br/>
+            <a href="${t.direct_url}" style="color:#2563eb;font-size:12px;">Launch Assessment ↗</a>
+          </li>
+        `).join('')
+        : `<p style="font-size: 13px; color: #475569;">You are registered for <strong>${primaryEventName}</strong>. Any live assessments or challenges will be sent directly to this email.</p>`;
 
       sendCustomBroadcastEmail({
         to: cleanEmail,
@@ -541,14 +564,11 @@ router.post('/register', async (req, res) => {
           <p>Hello <strong>${cleanName}</strong>,</p>
           <p>You have successfully registered for <strong>${primaryEventName}</strong> organized by the Microsoft Student Club PRPCEM.</p>
           <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin: 20px 0;">
-            <p style="margin: 0 0 10px 0; color: #0f172a; font-weight: bold;">Included Challenge Tracks (${registeredTracks.length}):</p>
-            <ul style="padding-left: 20px; margin: 0; font-size: 13px; color: #334155;">
-              ${tracksListHtml}
-            </ul>
+            ${tracksListHtml}
           </div>
-          <p>Please keep this email safe. You can access your assessments directly on the scheduled date.</p>
+          <p>Please keep this email safe. We look forward to seeing you at the event!</p>
         `,
-        ctaText: 'Access Event Portal',
+        ctaText: 'Access Student Portal',
         ctaUrl: primaryDirectUrl
       }).catch(mailErr => console.warn('Registration confirmation email warning:', mailErr.message));
     } catch (e) {
@@ -557,7 +577,7 @@ router.post('/register', async (req, res) => {
 
     return res.json({
       success: true,
-      message: `Successfully registered for "${primaryEventName}" with ${registeredTracks.length} quiz track(s)!`,
+      message: `Successfully registered for "${primaryEventName}"!`,
       event: {
         event_name: primaryEventName,
         direct_url: primaryDirectUrl,
