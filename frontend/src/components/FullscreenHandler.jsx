@@ -7,8 +7,29 @@ export default function FullscreenHandler({ quizStarted, participantId, quizId, 
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
 
+  const isMobile = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+      (typeof window !== 'undefined' && window.innerWidth <= 768) ||
+      (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1);
+  };
+
+  const isFullscreenSupported = () => {
+    if (typeof document === 'undefined') return false;
+    const el = document.documentElement;
+    return Boolean(
+      el.requestFullscreen ||
+      el.webkitRequestFullscreen ||
+      el.mozRequestFullScreen ||
+      el.msRequestFullscreen
+    );
+  };
+
   // Check if browser is in fullscreen mode
   const checkFullscreen = () => {
+    if (isMobile() && !isFullscreenSupported()) {
+      setIsFullscreen(true);
+      return true;
+    }
     const isFS = !!(
       document.fullscreenElement ||
       document.webkitFullscreenElement ||
@@ -24,25 +45,36 @@ export default function FullscreenHandler({ quizStarted, participantId, quizId, 
     const element = document.documentElement;
     try {
       if (element.requestFullscreen) {
-        await element.requestFullscreen();
+        await element.requestFullscreen().catch(() => {});
       } else if (element.webkitRequestFullscreen) {
-        await element.webkitRequestFullscreen();
+        await element.webkitRequestFullscreen().catch(() => {});
       } else if (element.mozRequestFullScreen) {
-        await element.mozRequestFullScreen();
+        await element.mozRequestFullScreen().catch(() => {});
       } else if (element.msRequestFullscreen) {
-        await element.msRequestFullscreen();
+        await element.msRequestFullscreen().catch(() => {});
+      }
+      if (typeof window !== 'undefined') {
+        window.scrollTo(0, 1);
       }
       setIsFullscreen(true);
       setShowWarningModal(false);
     } catch (err) {
-      console.error('Error entering fullscreen:', err);
+      console.warn('Fullscreen fallback for phone:', err);
+      setIsFullscreen(true);
+      setShowWarningModal(false);
     }
   };
 
   useEffect(() => {
+    let blurTimer = null;
+
     const handleFullscreenChange = () => {
+      if (isMobile() && !isFullscreenSupported()) {
+        setIsFullscreen(true);
+        return;
+      }
       const isFS = checkFullscreen();
-      if (quizStarted && !isFS && !disqualified) {
+      if (quizStarted && !isFS && !disqualified && !isMobile()) {
         setShowWarningModal(true);
         setModalMessage('You exited fullscreen! Please return to fullscreen immediately.');
         if (socket) {
@@ -59,12 +91,29 @@ export default function FullscreenHandler({ quizStarted, participantId, quizId, 
       }
     };
 
-    const handleWindowBlur = () => {
+    const handlePageHide = () => {
       if (quizStarted && !disqualified) {
         if (socket) {
-          socket.emit('report_violation', { violationType: 'focus_loss' });
+          socket.emit('report_violation', { violationType: 'app_switch' });
         }
       }
+    };
+
+    const handleWindowBlur = () => {
+      if (quizStarted && !disqualified) {
+        if (blurTimer) clearTimeout(blurTimer);
+        blurTimer = setTimeout(() => {
+          if (document.hidden || (typeof document.hasFocus === 'function' && !document.hasFocus())) {
+            if (socket) {
+              socket.emit('report_violation', { violationType: 'focus_loss' });
+            }
+          }
+        }, isMobile() ? 1500 : 400);
+      }
+    };
+
+    const handleWindowFocus = () => {
+      if (blurTimer) clearTimeout(blurTimer);
     };
 
     const handleContextMenu = (e) => {
@@ -77,7 +126,6 @@ export default function FullscreenHandler({ quizStarted, participantId, quizId, 
     const handleCopyCutPaste = (e) => {
       if (quizStarted && !disqualified) {
         e.preventDefault();
-        alert('⚠️ Copying, cutting, or pasting is strictly prohibited during the quiz.');
         if (socket) socket.emit('report_violation', { violationType: 'copy_paste' });
       }
     };

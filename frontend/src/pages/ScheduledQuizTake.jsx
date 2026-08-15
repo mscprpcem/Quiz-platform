@@ -174,9 +174,28 @@ export default function ScheduledQuizTake() {
     };
   }, [attempt, quizSubmitted]);
 
-  // Anti-Cheat Violations Event Listeners
+  const isMobile = () => {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+      (typeof window !== 'undefined' && window.innerWidth <= 768) ||
+      (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1);
+  };
+
+  const isFullscreenSupported = () => {
+    if (typeof document === 'undefined') return false;
+    const el = document.documentElement;
+    return Boolean(
+      el.requestFullscreen ||
+      el.webkitRequestFullscreen ||
+      el.mozRequestFullScreen ||
+      el.msRequestFullscreen
+    );
+  };
+
+  // Anti-Cheat Violations Event Listeners (Desktop & Mobile safe)
   useEffect(() => {
     if (!attempt || quizSubmitted) return;
+
+    let blurTimer = null;
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
@@ -184,8 +203,23 @@ export default function ScheduledQuizTake() {
       }
     };
 
+    const handlePageHide = () => {
+      recordViolation('APP_SWITCH');
+    };
+
     const handleBlur = () => {
-      recordViolation('WINDOW_BLUR');
+      // On phones, soft keyboard open/touch can trigger a momentary blur.
+      // Debounce blur so only genuine unfocus/app-switch triggers a violation.
+      if (blurTimer) clearTimeout(blurTimer);
+      blurTimer = setTimeout(() => {
+        if (document.hidden || (typeof document.hasFocus === 'function' && !document.hasFocus())) {
+          recordViolation('WINDOW_BLUR');
+        }
+      }, isMobile() ? 1500 : 400);
+    };
+
+    const handleFocus = () => {
+      if (blurTimer) clearTimeout(blurTimer);
     };
 
     const handleCopy = (e) => {
@@ -193,21 +227,49 @@ export default function ScheduledQuizTake() {
       recordViolation('COPY');
     };
 
+    const handleCut = (e) => {
+      e.preventDefault();
+      recordViolation('CUT');
+    };
+
     const handlePaste = (e) => {
       e.preventDefault();
       recordViolation('PASTE');
     };
 
+    const handleContextMenu = (e) => {
+      e.preventDefault();
+      recordViolation('CONTEXT_MENU');
+    };
+
+    const handleSelectStart = (e) => {
+      // Prevent text selection on mobile/desktop during quiz
+      if (e.target && e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+      }
+    };
+
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pagehide', handlePageHide);
     window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleFocus);
     document.addEventListener('copy', handleCopy);
+    document.addEventListener('cut', handleCut);
     document.addEventListener('paste', handlePaste);
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('selectstart', handleSelectStart);
 
     return () => {
+      if (blurTimer) clearTimeout(blurTimer);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pagehide', handlePageHide);
       window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleFocus);
       document.removeEventListener('copy', handleCopy);
+      document.removeEventListener('cut', handleCut);
       document.removeEventListener('paste', handlePaste);
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('selectstart', handleSelectStart);
     };
   }, [attempt, quizSubmitted]);
 
@@ -217,18 +279,25 @@ export default function ScheduledQuizTake() {
     try {
       const el = document.documentElement;
       if (el.requestFullscreen) {
-        await el.requestFullscreen();
+        await el.requestFullscreen().catch(() => {});
       } else if (el.webkitRequestFullscreen) {
-        await el.webkitRequestFullscreen();
+        await el.webkitRequestFullscreen().catch(() => {});
       } else if (el.mozRequestFullScreen) {
-        await el.mozRequestFullScreen();
+        await el.mozRequestFullScreen().catch(() => {});
       } else if (el.msRequestFullscreen) {
-        await el.msRequestFullscreen();
+        await el.msRequestFullscreen().catch(() => {});
+      }
+      
+      // On mobile, scroll to hide browser bar
+      if (typeof window !== 'undefined') {
+        window.scrollTo(0, 1);
       }
       setIsFullscreen(true);
       setShowFullscreenModal(false);
     } catch (err) {
-      console.warn('Fullscreen request rejected or not supported:', err);
+      console.warn('Fullscreen request rejected or not supported on this phone:', err);
+      setIsFullscreen(true);
+      setShowFullscreenModal(false);
     }
   };
 
@@ -237,6 +306,12 @@ export default function ScheduledQuizTake() {
     if (!attempt || quizSubmitted) return;
 
     const handleFullscreenChange = () => {
+      // If mobile device without native fullscreen API (e.g. iOS Safari), do not falsely trigger violation
+      if (isMobile() && !isFullscreenSupported()) {
+        setIsFullscreen(true);
+        return;
+      }
+
       const isFull = Boolean(
         document.fullscreenElement ||
         document.webkitFullscreenElement ||
@@ -245,7 +320,7 @@ export default function ScheduledQuizTake() {
       );
       setIsFullscreen(isFull);
 
-      if (requireFullscreen && !isFull) {
+      if (requireFullscreen && !isFull && !isMobile()) {
         recordViolation('FULLSCREEN_EXIT');
         setShowFullscreenModal(true);
       }
