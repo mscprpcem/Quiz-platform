@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { Op } = require('sequelize');
 const { User, QuizAttempt, Participant } = require('../models');
 const { exchangeCodeForTokens, generateSubjectId } = require('../services/ssoProvider');
+const { sendOtpEmail } = require('../services/emailService');
 let axios;
 try {
   axios = require('axios');
@@ -105,14 +107,25 @@ router.post('/send-otp', async (req, res) => {
       localUser = await User.findOne({ where: { email: cleanEmail } });
     }
 
-    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const generatedOtp = crypto.randomInt(100000, 1000000).toString();
     const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
     if (localUser) {
       localUser.otp = generatedOtp;
       localUser.otp_expiry = expiry;
       await localUser.save();
-      console.log(`[PASS RESET OTP] OTP generated for ${cleanEmail}`);
+    }
+
+    // Send real OTP email via Nodemailer
+    try {
+      await sendOtpEmail({
+        to: cleanEmail,
+        name: localUser?.name,
+        otp: generatedOtp,
+        type: 'login'
+      });
+    } catch (mailErr) {
+      console.warn('Direct email dispatch notice:', mailErr.message);
     }
 
     const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
@@ -207,14 +220,25 @@ router.post('/forgot-password', async (req, res) => {
       localUser = await User.findOne({ where: { email: cleanEmail } });
     }
 
-    const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const generatedOtp = crypto.randomInt(100000, 1000000).toString();
     const expiry = new Date(Date.now() + 15 * 60 * 1000);
 
     if (localUser) {
       localUser.otp = generatedOtp;
       localUser.otp_expiry = expiry;
       await localUser.save();
-      console.log(`[PASS RESET OTP] Password reset OTP generated for ${cleanEmail}`);
+    }
+
+    // Send real password reset OTP email via Nodemailer
+    try {
+      await sendOtpEmail({
+        to: cleanEmail,
+        name: localUser?.name,
+        otp: generatedOtp,
+        type: 'password_reset'
+      });
+    } catch (mailErr) {
+      console.warn('Direct email dispatch notice:', mailErr.message);
     }
 
     const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
@@ -355,7 +379,7 @@ router.post('/oauth/exchange', async (req, res) => {
         name: ssoUser.name,
         email: cleanEmail,
         username: ssoUser.username || cleanEmail.split('@')[0],
-        password: 'SSO_CENTRAL_MANAGED_ACCOUNT',
+        password: crypto.randomBytes(32).toString('hex'),
         role: ssoUser.role || 'student',
         is_verified: true
       });
@@ -635,11 +659,22 @@ router.post('/register', async (req, res) => {
 
     // If OTP is NOT provided yet, initiate Pre-registration (Send OTP)
     if (!inputOtp) {
-      const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      const generatedOtp = crypto.randomInt(100000, 1000000).toString();
       const expiry = Date.now() + 15 * 60 * 1000; // 15 mins
 
       pendingOtpStore.set(cleanEmail, { otp: generatedOtp, expiry });
-      console.log(`[REGISTRATION OTP] Verification code generated for ${cleanEmail}`);
+
+      // Send real registration OTP email via Nodemailer
+      try {
+        await sendOtpEmail({
+          to: cleanEmail,
+          name: cleanName,
+          otp: generatedOtp,
+          type: 'registration'
+        });
+      } catch (mailErr) {
+        console.warn('Direct email dispatch notice:', mailErr.message);
+      }
 
       return res.json({
         success: true,

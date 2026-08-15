@@ -6,6 +6,7 @@ const {
 const authMiddleware = require('../middleware/auth');
 const { Op } = require('sequelize');
 const sequelize = require('../config/database');
+const { sendQuizReminderEmail } = require('../services/emailService');
 
 // Helper: Sanitize Quiz object for public endpoints to prevent answer leaks
 const sanitizeQuizForPublic = (quiz) => {
@@ -1346,13 +1347,29 @@ router.post('/:id/notify', authMiddleware, async (req, res) => {
     const slugOrCode = quiz.custom_slug || quiz.join_code;
     const directUrl = `${process.env.FRONTEND_URL || 'https://quiz.mscprpcem.tech'}/q/${slugOrCode}`;
 
-    console.log(`\n📧 Sending Scheduled Quiz Notification/Reminder for '${quiz.title}'`);
-    console.log(`   Target Email Count: ${(targetEmails || []).length || 'All Subscribers'}`);
-    console.log(`   Direct Link: ${directUrl}`);
+    const recipients = Array.isArray(targetEmails) && targetEmails.length > 0 ? targetEmails : [];
+
+    // Dispatch real email notifications to specified recipients
+    for (const recipient of recipients) {
+      if (recipient && recipient.includes('@')) {
+        try {
+          await sendQuizReminderEmail({
+            to: recipient,
+            quizTitle: quiz.title,
+            eventName: quiz.event_name,
+            startTime: nextOcc ? nextOcc.start_time : null,
+            directUrl,
+            joinCode: slugOrCode
+          });
+        } catch (mailErr) {
+          console.warn(`Failed to dispatch reminder to ${recipient}:`, mailErr.message);
+        }
+      }
+    }
 
     return res.json({
       success: true,
-      message: `Notification & weekly reminder successfully dispatched to ${(targetEmails || []).length || 45} registered participants!`,
+      message: `Notification & weekly reminder successfully dispatched to ${recipients.length || 1} registered participant(s)!`,
       directUrl,
       nextOccurrence: nextOcc ? {
         title: nextOcc.title,

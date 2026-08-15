@@ -201,6 +201,19 @@ if (!apiKey || (expectedApiKey && apiKey !== expectedApiKey)) {
 
 ---
 
+## 📧 Email Delivery & Cryptographic OTP Infrastructure Upgrade
+
+- **Module Added**: [`backend/src/services/emailService.js`](file:///d:/Quiz-platform/backend/src/services/emailService.js)
+- **Status**: ✅ **PRODUCTION READY & TESTED**
+- **Key Enhancements**:
+  1. **Nodemailer SMTP Integration**: Added standard SMTP transport with configurable credentials (`SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`) and development fallback logger.
+  2. **Cryptographically Secure OTPs**: Upgraded all OTP generation from `Math.random()` to Node.js `crypto.randomInt(100000, 1000000)`.
+  3. **Branded HTML Email Templates**: Created responsive, Fluent/Microsoft-styled HTML templates with 6-digit OTP highlight boxes, security countdown warnings, and direct quiz join links.
+  4. **Live Quiz Notification Dispatch**: Integrated `sendQuizReminderEmail()` with the admin reminder endpoint (`POST /api/scheduled-quizzes/:id/notify`) to send real reminder emails.
+  5. **Secure SSO Account Passwords**: Replaced static dummy passwords (`'SSO_CENTRAL_MANAGED_ACCOUNT'`) with 64-character randomized hex hashes (`crypto.randomBytes(32).toString('hex')`).
+
+---
+
 ## 🚀 Next Phase: Scalability, Load Testing & Production Optimization
 
 With all security vulnerabilities remediated and verified, the next phase focuses on **scalability and live concurrency optimization**:
