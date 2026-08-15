@@ -164,40 +164,66 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const studentRegister = async (param1, param2, param3, param4) => {
-    let name, email, password, username;
+  const studentRegister = async (param1, param2, param3, param4, param5) => {
+    let name, email, password, username, otp;
     if (typeof param1 === 'object' && param1 !== null) {
       name = param1.name;
       email = param1.email;
       password = param1.password;
       username = param1.username;
+      otp = param1.otp;
     } else if (typeof param1 === 'string' && param1.includes('@')) {
       email = param1;
       name = param2;
       password = param3;
       username = param4;
+      otp = param5;
     } else {
       name = param1;
       email = param2;
       password = param3;
       username = param4;
+      otp = param5;
     }
 
     const cleanEmail = email ? email.toLowerCase().trim() : '';
     const cleanName = name || (cleanEmail ? cleanEmail.split('@')[0] : 'Student');
-    const cleanUsername = (username || cleanEmail.split('@')[0]).toLowerCase().trim().replace(/[^a-z0-9_-]/g, '');
+    let cleanUsername = (username || cleanEmail.split('@')[0]).toLowerCase().trim().replace(/[^a-z0-9_-]/g, '');
+    if (!cleanUsername) cleanUsername = cleanEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_-]/g, '');
 
     if (!cleanEmail || !password || !cleanName) {
       return { success: false, error: 'Full Name, Email Address, and Password are required.' };
     }
 
     try {
-      const res = await api.post('/api/student/register', { name: cleanName, email: cleanEmail, password, username: cleanUsername });
+      const payload = {
+        name: cleanName,
+        email: cleanEmail,
+        password,
+        username: cleanUsername,
+        ...(otp ? { otp: otp.toString().trim() } : {})
+      };
+
+      const res = await api.post('/api/student/register', payload);
+
+      if (res.data?.requireVerification) {
+        return {
+          success: true,
+          requireVerification: true,
+          email: cleanEmail,
+          message: res.data.message || `Verification code sent to ${cleanEmail}.`
+        };
+      }
+
       if (res.data && res.data.user) {
         setStudentAccount(res.data.user);
         localStorage.setItem('msc_student_account', JSON.stringify(res.data.user));
-        return { success: true, user: res.data.user, verificationPortalUrl: res.data.verificationPortalUrl };
+        if (res.data.token) {
+          localStorage.setItem('msc_student_token', res.data.token);
+        }
+        return { success: true, user: res.data.user, token: res.data.token, verificationPortalUrl: res.data.verificationPortalUrl };
       }
+
       return { success: false, error: res.data?.error || 'Registration failed.' };
     } catch (err) {
       const errorMsg = err.response?.data?.error || 'Registration failed. Check network connection.';

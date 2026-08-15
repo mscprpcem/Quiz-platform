@@ -9,6 +9,8 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
   
   // Login & Register Form State
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
+  const [isUsernameCustomized, setIsUsernameCustomized] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -132,8 +134,8 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
         setErrorMessage('Please enter a valid email address.');
         return;
       }
-      if (password.length < 8) {
-        setErrorMessage('Password must be at least 8 characters.');
+      if (password.length < 6) {
+        setErrorMessage('Password must be at least 6 characters.');
         return;
       }
       if (password !== confirmPassword) {
@@ -142,12 +144,12 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
       }
 
       setLoading(true);
-      const usernameAuto = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '') + Math.floor(100 + Math.random() * 900);
+      const finalUsername = (username || name.trim().toLowerCase().replace(/[^a-z0-9]/g, '')).replace(/[^a-z0-9_-]/g, '');
       const res = await studentRegister({
         name: name.trim(),
+        username: finalUsername,
         email: email.trim(),
         password,
-        username: usernameAuto,
         otp: regStep === 2 ? registerOtp.trim() : undefined
       });
       setLoading(false);
@@ -156,7 +158,7 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
         setRegStep(2);
         setSuccessMessage(res.message || `Verification code sent to ${email.trim()}.`);
       } else if (res.success) {
-        setSuccessMessage('Account created! Unlocking quiz...');
+        setSuccessMessage('Account verified & created! Unlocking quiz...');
         setTimeout(() => {
           if (onSuccess) onSuccess(res.user);
           if (onClose) onClose();
@@ -427,20 +429,50 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
               <>
                 {/* Name (Register only) */}
                 {activeTab === 'register' && (
-                  <div className="space-y-1 animate-fade-in">
-                    <label className="block text-xs font-semibold text-slate-700">Full Name</label>
-                    <div className="relative flex items-center">
-                      <User size={15} className="absolute left-3 text-slate-400 pointer-events-none" />
-                      <input
-                        type="text"
-                        required
-                        placeholder="Amit Yadav"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        className="w-full border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs bg-slate-50/50 focus:bg-white focus:border-blue-600 outline-none"
-                      />
+                  <>
+                    <div className="space-y-1 animate-fade-in">
+                      <label className="block text-xs font-semibold text-slate-700">Full Name</label>
+                      <div className="relative flex items-center">
+                        <User size={15} className="absolute left-3 text-slate-400 pointer-events-none" />
+                        <input
+                          type="text"
+                          required
+                          placeholder="Amit Yadav"
+                          value={name}
+                          onChange={(e) => {
+                            const newName = e.target.value;
+                            setName(newName);
+                            if (!isUsernameCustomized) {
+                              setUsername(newName.toLowerCase().replace(/[^a-z0-9]/g, ''));
+                            }
+                          }}
+                          className="w-full border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs bg-slate-50/50 focus:bg-white focus:border-blue-600 outline-none"
+                        />
+                      </div>
                     </div>
-                  </div>
+
+                    {/* Username Handle */}
+                    <div className="space-y-1 animate-fade-in">
+                      <div className="flex items-center justify-between">
+                        <label className="block text-xs font-semibold text-slate-700">Username Handle</label>
+                        <span className="text-[10px] text-slate-400 font-mono">unique handle</span>
+                      </div>
+                      <div className="relative flex items-center">
+                        <span className="absolute left-3 text-xs font-black text-slate-400 select-none">@</span>
+                        <input
+                          type="text"
+                          required
+                          placeholder="amityadav"
+                          value={username}
+                          onChange={(e) => {
+                            setIsUsernameCustomized(true);
+                            setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''));
+                          }}
+                          className="w-full border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs font-mono font-bold text-slate-800 bg-slate-50/50 focus:bg-white focus:border-blue-600 outline-none"
+                        />
+                      </div>
+                    </div>
+                  </>
                 )}
 
                 {/* Email */}

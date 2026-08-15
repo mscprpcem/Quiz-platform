@@ -751,7 +751,7 @@ router.post('/login', async (req, res) => {
 const pendingOtpStore = new Map();
 
 // =======================
-// Student Registration (Instant Registration with Local DB & Verification Portal Sync)
+// Student Registration (OTP Verified Registration with Custom Username)
 // =======================
 router.post('/register', async (req, res) => {
   try {
@@ -767,26 +767,95 @@ router.post('/register', async (req, res) => {
     }
 
     const cleanName = name.trim();
-    const cleanUsername = (username || cleanEmail.split('@')[0]).toLowerCase().trim().replace(/[^a-z0-9_-]/g, '');
+    let cleanUsername = (username || cleanEmail.split('@')[0]).toLowerCase().trim().replace(/[^a-z0-9_-]/g, '');
+    if (!cleanUsername || cleanUsername.length < 3) {
+      cleanUsername = cleanEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    }
 
-    // 1. Create or Update in Local Database
+    // Check if username is taken by another account
+    if (User) {
+      const existingWithUsername = await User.findOne({ where: { username: cleanUsername } });
+      if (existingWithUsername && existingWithUsername.email !== cleanEmail) {
+        return res.status(400).json({ error: `The username handle @${cleanUsername} is already taken. Please choose another.` });
+      }
+    }
+
+    const inputOtp = otp ? otp.toString().trim() : '';
+
+    // STEP 1: If OTP is not provided, generate & send 6-digit OTP email
+    if (!inputOtp) {
+      const generatedOtp = crypto.randomInt(100000, 1000000).toString();
+      const expiry = Date.now() + 15 * 60 * 1000; // 15 minutes
+
+      pendingOtpStore.set(cleanEmail, {
+        otp: generatedOtp,
+        name: cleanName,
+        username: cleanUsername,
+        password,
+        expiry
+      });
+
+      // Send real 6-digit registration OTP email
+      try {
+        await sendOtpEmail({
+          to: cleanEmail,
+          name: cleanName,
+          otp: generatedOtp,
+          type: 'registration'
+        });
+      } catch (mailErr) {
+        console.warn('Registration OTP mail notice:', mailErr.message);
+      }
+
+      return res.json({
+        success: true,
+        requireVerification: true,
+        email: cleanEmail,
+        message: `A 6-digit verification code has been sent to ${cleanEmail}. Please enter it below to complete registration.`
+      });
+    }
+
+    // STEP 2: Verify OTP
+    const pendingRecord = pendingOtpStore.get(cleanEmail);
+    let isOtpValid = false;
+
+    if (pendingRecord && pendingRecord.otp === inputOtp) {
+      if (Date.now() <= pendingRecord.expiry) {
+        isOtpValid = true;
+      } else {
+        return res.status(400).json({ error: 'Verification code has expired. Please click Resend Code to request a new code.' });
+      }
+    }
+
+    if (!isOtpValid) {
+      return res.status(400).json({ error: 'Invalid verification code. Please check the 6-digit code sent to your email.' });
+    }
+
+    // Remove from pending store
+    pendingOtpStore.delete(cleanEmail);
+
+    const finalName = pendingRecord?.name || cleanName;
+    const finalUsername = pendingRecord?.username || cleanUsername;
+    const finalPassword = pendingRecord?.password || password;
+
+    // Create or Update in Local Database
     let localUser = null;
     if (User) {
       const existingUser = await User.findOne({ where: { email: cleanEmail } });
 
       if (existingUser) {
-        existingUser.name = cleanName;
-        existingUser.username = cleanUsername || existingUser.username;
-        existingUser.password = password;
+        existingUser.name = finalName;
+        existingUser.username = finalUsername;
+        existingUser.password = finalPassword;
         existingUser.is_verified = true;
         await existingUser.save();
         localUser = existingUser;
       } else {
         localUser = await User.create({
-          name: cleanName,
+          name: finalName,
           email: cleanEmail,
-          username: cleanUsername,
-          password: password,
+          username: finalUsername,
+          password: finalPassword,
           role: 'student',
           is_verified: true
         });
@@ -796,21 +865,21 @@ router.post('/register', async (req, res) => {
     const studentData = {
       id: localUser ? localUser.id : `STU-${cleanEmail.replace(/[^a-zA-Z0-9]/g, '')}`,
       email: cleanEmail,
-      name: cleanName,
-      username: cleanUsername,
+      name: finalName,
+      username: finalUsername,
       role: 'student',
-      joinedAt: new Date().toISOString()
+      joinedAt: localUser?.createdAt || new Date().toISOString()
     };
 
-    // 2. Sync with Verification Portal (Best effort)
+    // Sync with Verification Portal (Best effort)
     const verificationPortalUrl = getVerificationPortalUrl();
     try {
       if (axios && typeof axios.post === 'function') {
         await axios.post(`${verificationPortalUrl}/api/auth/register`, {
-          name: cleanName,
+          name: finalName,
           email: cleanEmail,
-          password: password,
-          username: cleanUsername
+          password: finalPassword,
+          username: finalUsername
         }, {
           headers: { 'Content-Type': 'application/json' },
           timeout: 4000
@@ -828,7 +897,7 @@ router.post('/register', async (req, res) => {
 
     return res.status(201).json({
       success: true,
-      message: 'Account registered successfully!',
+      message: 'Account verified and registered successfully!',
       user: studentData,
       token,
       verificationPortalUrl

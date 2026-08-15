@@ -17,10 +17,12 @@ export default function StudentAuth() {
 
   const [formData, setFormData] = useState({
     name: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: ''
   });
+  const [isUsernameCustomized, setIsUsernameCustomized] = useState(false);
 
   // Forgot Password / OTP State
   const [resetStep, setResetStep] = useState(1); // 1 = Enter Email, 2 = Enter OTP, 3 = Enter New Password
@@ -51,7 +53,22 @@ export default function StudentAuth() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    if (name === 'name') {
+      const autoUser = value.toLowerCase().replace(/[^a-z0-9]/g, '');
+      setFormData(prev => ({
+        ...prev,
+        name: value,
+        username: isUsernameCustomized ? prev.username : autoUser
+      }));
+    } else if (name === 'username') {
+      setIsUsernameCustomized(true);
+      setFormData(prev => ({
+        ...prev,
+        username: value.toLowerCase().replace(/[^a-z0-9_-]/g, '')
+      }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
     setError('');
   };
 
@@ -165,7 +182,7 @@ export default function StudentAuth() {
     setError('');
     setSuccessMsg('');
 
-    const { name, email, password, confirmPassword } = formData;
+    const { name, username, email, password, confirmPassword } = formData;
     const cleanEmail = email.trim();
 
     if (!cleanEmail || !password) {
@@ -178,8 +195,8 @@ export default function StudentAuth() {
         setError('Please enter your full name.');
         return;
       }
-      if (password.length < 8) {
-        setError('Password must be at least 8 characters.');
+      if (password.length < 6) {
+        setError('Password must be at least 6 characters.');
         return;
       }
       if (password !== confirmPassword) {
@@ -191,12 +208,12 @@ export default function StudentAuth() {
     try {
       setLoading(true);
       if (mode === 'register') {
-        const usernameAuto = name.trim().toLowerCase().replace(/[^a-z0-9]/g, '') + Math.floor(100 + Math.random() * 900);
+        const finalUsername = (username || name.trim().toLowerCase().replace(/[^a-z0-9]/g, '')).replace(/[^a-z0-9_-]/g, '');
         const res = await studentRegister({
           name: name.trim(),
+          username: finalUsername,
           email: cleanEmail,
           password,
-          username: usernameAuto,
           otp: regStep === 2 ? registerOtp.trim() : undefined
         });
 
@@ -204,7 +221,7 @@ export default function StudentAuth() {
           setRegStep(2);
           setSuccessMsg(res.message || `Verification code sent to ${cleanEmail}.`);
         } else if (res.success) {
-          setSuccessMsg('Account created successfully! Redirecting...');
+          setSuccessMsg('Account created and verified successfully! Redirecting...');
           setRegStep(1);
           setRegisterOtp('');
           const destination = getReturnUrl();
@@ -557,21 +574,43 @@ export default function StudentAuth() {
                 <>
                   {/* Name (Register only) */}
                   {mode === 'register' && (
-                    <div className="space-y-1 animate-fade-in">
-                      <label className="block text-xs font-semibold text-slate-700">Full Name</label>
-                      <div className="relative flex items-center">
-                        <User size={15} className="absolute left-3 text-slate-400 pointer-events-none" />
-                        <input
-                          type="text"
-                          name="name"
-                          value={formData.name}
-                          onChange={handleChange}
-                          placeholder="Amit Yadav"
-                          required={mode === 'register'}
-                          className="w-full border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs bg-slate-50/50 focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all outline-none"
-                        />
+                    <>
+                      <div className="space-y-1 animate-fade-in">
+                        <label className="block text-xs font-semibold text-slate-700">Full Name</label>
+                        <div className="relative flex items-center">
+                          <User size={15} className="absolute left-3 text-slate-400 pointer-events-none" />
+                          <input
+                            type="text"
+                            name="name"
+                            value={formData.name}
+                            onChange={handleChange}
+                            placeholder="Amit Yadav"
+                            required={mode === 'register'}
+                            className="w-full border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs bg-slate-50/50 focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all outline-none"
+                          />
+                        </div>
                       </div>
-                    </div>
+
+                      {/* Username Handle */}
+                      <div className="space-y-1 animate-fade-in">
+                        <div className="flex items-center justify-between">
+                          <label className="block text-xs font-semibold text-slate-700">Username Handle</label>
+                          <span className="text-[10px] text-slate-400 font-mono">unique handle</span>
+                        </div>
+                        <div className="relative flex items-center">
+                          <span className="absolute left-3 text-xs font-black text-slate-400 select-none">@</span>
+                          <input
+                            type="text"
+                            name="username"
+                            value={formData.username}
+                            onChange={handleChange}
+                            placeholder="amityadav"
+                            required={mode === 'register'}
+                            className="w-full border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs font-mono font-bold text-slate-800 bg-slate-50/50 focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all outline-none"
+                          />
+                        </div>
+                      </div>
+                    </>
                   )}
 
                   {/* Email */}
