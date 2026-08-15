@@ -9,7 +9,7 @@ import {
 export default function StudentAuth() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { studentAccount, studentLogin, studentRegister, studentLogout, checkUsername, forgotPassword, resetPassword } = useAuth();
+  const { studentAccount, studentLogin, studentRegister, studentLogout, checkUsername, sendOtp, verifyOtp, forgotPassword, resetPassword } = useAuth();
 
   // Mode: 'login' | 'register' | 'forgot-password'
   const isRegisterInitial = location.pathname.includes('register');

@@ -118,13 +118,18 @@ router.post('/send-otp', async (req, res) => {
       localUser = await User.findOne({ where: { email: cleanEmail } });
     }
 
-    const generatedOtp = crypto.randomInt(100000, 1000000).toString();
+    let targetOtp = crypto.randomInt(100000, 1000000).toString();
     const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
     if (localUser) {
-      localUser.otp = generatedOtp;
-      localUser.otp_expiry = expiry;
-      await localUser.save();
+      // If an active OTP was issued within the last 60 seconds, reuse it so rapid clicks don't invalidate codes in transit
+      if (localUser.otp && localUser.otp_expiry && (new Date(localUser.otp_expiry).getTime() - Date.now() > 14 * 60 * 1000)) {
+        targetOtp = localUser.otp;
+      } else {
+        localUser.otp = targetOtp;
+        localUser.otp_expiry = expiry;
+        await localUser.save();
+      }
     }
 
     // Send real OTP email via Nodemailer
@@ -132,7 +137,7 @@ router.post('/send-otp', async (req, res) => {
       await sendOtpEmail({
         to: cleanEmail,
         name: localUser?.name,
-        otp: generatedOtp,
+        otp: targetOtp,
         type: 'login'
       });
     } catch (mailErr) {
@@ -143,7 +148,8 @@ router.post('/send-otp', async (req, res) => {
     try {
       if (axios && typeof axios.post === 'function') {
         const response = await axios.post(`${verificationPortalUrl}/api/auth/send-otp`, {
-          email: cleanEmail
+          email: cleanEmail,
+          purpose: 'login'
         }, { timeout: 5000 });
 
         if (response.data && response.data.success) {
@@ -183,11 +189,11 @@ router.post('/verify-otp', async (req, res) => {
       localUser = await User.findOne({ where: { email: cleanEmail } });
     }
 
-    if (localUser && localUser.otp === inputOtp) {
+    if (localUser && localUser.otp && localUser.otp.trim() === inputOtp) {
       if (localUser.otp_expiry && new Date(localUser.otp_expiry) < new Date()) {
         return res.status(400).json({ error: 'OTP code has expired. Please request a new code.' });
       }
-      return res.json({ success: true, message: 'OTP verified successfully.' });
+      return res.json({ success: true, is_email_verified: true, message: 'OTP verified successfully.' });
     }
 
     const verificationPortalUrl = getVerificationPortalUrl();
@@ -231,13 +237,18 @@ router.post('/forgot-password', async (req, res) => {
       localUser = await User.findOne({ where: { email: cleanEmail } });
     }
 
-    const generatedOtp = crypto.randomInt(100000, 1000000).toString();
+    let targetOtp = crypto.randomInt(100000, 1000000).toString();
     const expiry = new Date(Date.now() + 15 * 60 * 1000);
 
     if (localUser) {
-      localUser.otp = generatedOtp;
-      localUser.otp_expiry = expiry;
-      await localUser.save();
+      // If an active OTP was issued within the last 60 seconds, reuse it so rapid clicks don't invalidate codes in transit
+      if (localUser.otp && localUser.otp_expiry && (new Date(localUser.otp_expiry).getTime() - Date.now() > 14 * 60 * 1000)) {
+        targetOtp = localUser.otp;
+      } else {
+        localUser.otp = targetOtp;
+        localUser.otp_expiry = expiry;
+        await localUser.save();
+      }
     }
 
     // Send real password reset OTP email via Nodemailer
@@ -245,7 +256,7 @@ router.post('/forgot-password', async (req, res) => {
       await sendOtpEmail({
         to: cleanEmail,
         name: localUser?.name,
-        otp: generatedOtp,
+        otp: targetOtp,
         type: 'password_reset'
       });
     } catch (mailErr) {
