@@ -57,10 +57,14 @@ router.get('/', async (req, res) => {
   try {
     const baseUrl = getQuizPlatformBaseUrl();
     
-    // 1. Fetch DB Events
-    const dbEvents = await Event.findAll({
-      order: [['createdAt', 'DESC']]
-    });
+    // 1. Fetch all DB events and all quizzes in single queries
+    const [dbEvents, allQuizzes] = await Promise.all([
+      Event.findAll({ order: [['createdAt', 'DESC']] }),
+      Quiz.findAll({
+        where: { status: { [Op.ne]: 'cancelled' } },
+        order: [['createdAt', 'DESC']]
+      })
+    ]);
 
     const dbEventNames = new Set(dbEvents.map(e => (e.name || '').toLowerCase().trim()));
     const dbEventIds = new Set(dbEvents.map(e => e.id));
@@ -69,16 +73,10 @@ router.get('/', async (req, res) => {
 
     // Format DB events
     for (const ev of dbEvents) {
-      const linkedQuizzes = await Quiz.findAll({
-        where: {
-          [Op.or]: [
-            { event_id: ev.id },
-            { event_name: ev.name }
-          ],
-          status: { [Op.ne]: 'cancelled' }
-        },
-        attributes: ['id', 'title', 'mode', 'join_code', 'status', 'custom_slug']
-      });
+      const evNameLower = (ev.name || '').toLowerCase().trim();
+      const linkedQuizzes = allQuizzes.filter(q =>
+        q.event_id === ev.id || (q.event_name && q.event_name.toLowerCase().trim() === evNameLower)
+      );
 
       formattedEvents.push({
         id: ev.id,
@@ -112,17 +110,9 @@ router.get('/', async (req, res) => {
       const seKey = seTitle.toLowerCase().trim();
 
       if (!dbEventNames.has(seKey) && !dbEventIds.has(se.id)) {
-        // Check if any quiz is linked to this static event name or id
-        const linkedQuizzes = await Quiz.findAll({
-          where: {
-            [Op.or]: [
-              { event_name: { [Op.iLike || Op.like]: `%${seTitle}%` } },
-              { event_id: se.id }
-            ],
-            status: { [Op.ne]: 'cancelled' }
-          },
-          attributes: ['id', 'title', 'mode', 'join_code', 'status', 'custom_slug']
-        });
+        const linkedQuizzes = allQuizzes.filter(q =>
+          q.event_id === se.id || (q.event_name && (q.event_name.toLowerCase().includes(seKey) || seKey.includes(q.event_name.toLowerCase().trim())))
+        );
 
         formattedEvents.push({
           id: se.id,
@@ -136,7 +126,7 @@ router.get('/', async (req, res) => {
           start_date: se.startDate ? new Date(se.startDate) : null,
           end_date: null,
           rewards: se.rewards || 'Certificates & Swags',
-          status: se.status || 'past',
+          status: se.status === 'past' ? 'completed' : (se.status || 'upcoming'),
           source: 'json',
           quizzes: linkedQuizzes.map(q => ({
             id: q.id,
@@ -158,7 +148,7 @@ router.get('/', async (req, res) => {
     });
   } catch (err) {
     console.error('Error fetching admin events:', err);
-    res.status(500).json({ error: 'Failed to fetch events.' });
+    res.status(500).json({ error: 'Failed to fetch events: ' + err.message });
   }
 });
 
@@ -221,7 +211,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
     let event = await Event.findByPk(id);
     
-    // If updating a static event that was in JSON, create or migrate it into DB
+    // If updating a static event that was in JSON, create/migrate it into DB
     if (!event) {
       const staticMatch = staticEvents.find(s => s.id === id);
       if (staticMatch) {
@@ -305,36 +295,20 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 // ----------------------------------------------------
 // GET /api/events/public
 // Public events feed for mscprpcem-website
-// Combines New DB Events + Old Static Events
 // ----------------------------------------------------
 router.get('/public', async (req, res) => {
   try {
     const now = new Date();
     const baseUrl = getQuizPlatformBaseUrl();
 
-    // 1. Fetch DB Events
-    const dbEvents = await Event.findAll({
-      where: { status: { [Op.ne]: 'archived' } },
-      order: [['createdAt', 'DESC']]
-    });
-
-    const dbEventNames = new Set(dbEvents.map(e => (e.name || '').toLowerCase().trim()));
-    const dbEventIds = new Set(dbEvents.map(e => e.id));
-
-    const eventsList = [];
-
-    // Format DB events
-    for (const dev of dbEvents) {
-      const resolvedPoster = resolveEventPoster(dev.poster_url, dev.name);
-
-      const linkedQuizzes = await Quiz.findAll({
-        where: {
-          [Op.or]: [
-            { event_id: dev.id },
-            { event_name: dev.name }
-          ],
-          status: { [Op.ne]: 'cancelled' }
-        },
+    // 1. Fetch DB Events & Quizzes
+    const [dbEvents, allQuizzes] = await Promise.all([
+      Event.findAll({
+        where: { status: { [Op.ne]: 'archived' } },
+        order: [['createdAt', 'DESC']]
+      }),
+      Quiz.findAll({
+        where: { status: { [Op.ne]: 'cancelled' } },
         include: [
           {
             model: ScheduledOccurrence,
@@ -343,7 +317,22 @@ router.get('/public', async (req, res) => {
             attributes: ['id', 'start_time', 'end_time', 'status']
           }
         ]
-      });
+      })
+    ]);
+
+    const dbEventNames = new Set(dbEvents.map(e => (e.name || '').toLowerCase().trim()));
+    const dbEventIds = new Set(dbEvents.map(e => e.id));
+
+    const eventsList = [];
+
+    // Format DB events
+    for (const dev of dbEvents) {
+      const devNameLower = (dev.name || '').toLowerCase().trim();
+      const resolvedPoster = resolveEventPoster(dev.poster_url, dev.name);
+
+      const linkedQuizzes = allQuizzes.filter(q =>
+        q.event_id === dev.id || (q.event_name && q.event_name.toLowerCase().trim() === devNameLower)
+      );
 
       const quizTracks = [];
       let totalRegCount = 0;
@@ -439,7 +428,7 @@ router.get('/public', async (req, res) => {
           end_time: null,
           is_live: false,
           is_upcoming: se.status === 'upcoming',
-          status: se.status || 'past',
+          status: se.status === 'past' ? 'completed' : (se.status || 'upcoming'),
           quizzes: [],
           total_quizzes_count: 0,
           total_registration_count: 0,
@@ -489,7 +478,6 @@ router.post('/register', async (req, res) => {
     const cleanName = name.trim();
     const cleanCollege = (college || 'PRPCEM Amravati').trim();
 
-    // 1. Locate matching event or quizzes
     let matchingQuizzes = [];
 
     if (quizId) {
@@ -510,18 +498,16 @@ router.post('/register', async (req, res) => {
     }
 
     if (matchingQuizzes.length === 0 && (eventName || eventId)) {
-      const targetName = (eventName || eventId).replace(/^event-/, '').replace(/-/g, ' ');
-      matchingQuizzes = await Quiz.findAll({
-        where: {
-          [Op.or]: [
-            { event_name: { [Op.iLike || Op.like]: `%${targetName}%` } },
-            { event_id: eventId || null }
-          ]
-        }
+      const targetName = (eventName || eventId).replace(/^event-/, '').replace(/-/g, ' ').toLowerCase();
+      const allQuizzes = await Quiz.findAll({
+        where: { status: { [Op.ne]: 'cancelled' } }
       });
+      matchingQuizzes = allQuizzes.filter(q =>
+        q.event_id === eventId || (q.event_name && q.event_name.toLowerCase().includes(targetName))
+      );
     }
 
-    // 2. Find or Create User Account
+    // Find or Create User Account
     let user = await User.findOne({ where: { email: cleanEmail } });
     if (!user) {
       const autoUsername = cleanName.toLowerCase().replace(/[^a-z0-9]/g, '') + Math.floor(100 + Math.random() * 900);
@@ -539,7 +525,6 @@ router.post('/register', async (req, res) => {
       }
     }
 
-    // 3. Register as Participant in matching quiz tracks if any exist
     const baseUrl = getQuizPlatformBaseUrl();
     const registeredTracks = [];
 
@@ -570,7 +555,7 @@ router.post('/register', async (req, res) => {
     const primaryEventName = (matchingQuizzes[0]?.event_name) || eventName || 'MSC Event';
     const primaryDirectUrl = registeredTracks[0]?.direct_url || `${baseUrl}/login`;
 
-    // 4. Send Confirmation Email
+    // Send Confirmation Email
     try {
       const tracksListHtml = registeredTracks.length > 0
         ? registeredTracks.map(t => `
