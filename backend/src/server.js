@@ -48,8 +48,7 @@ const corsOriginFn = (origin, callback) => {
   if (isAllowed) {
     callback(null, true);
   } else {
-    // Permissive fallback so mobile browsers and preview domains are not blocked
-    callback(null, true);
+    callback(new Error('CORS origin denied by security policy'), false);
   }
 };
 
@@ -58,6 +57,7 @@ const corsOriginFn = (origin, callback) => {
 // =======================
 
 const io = new Server(server, {
+  transports: ["websocket", "polling"],
   cors: {
     origin: corsOriginFn,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
@@ -97,16 +97,26 @@ app.use(
 );
 
 // =======================
-// Rate Limiter
+// Rate Limiters
 // =======================
 
-const limiter = rateLimit({
+const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 100000, // For load testing only
+  max: 300, // 300 requests per 15 min
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     error: "Too many requests. Please try again later."
+  }
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10, // 10 attempts per 15 min to block brute-force
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: "Too many authentication attempts. Please try again after 15 minutes."
   }
 });
 
@@ -115,7 +125,14 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use("/api", limiter);
+app.use("/api", generalLimiter);
+app.use("/api/auth/login", authLimiter);
+app.use("/api/student/login", authLimiter);
+app.use("/api/student/register", authLimiter);
+app.use("/api/student/send-otp", authLimiter);
+app.use("/api/student/verify-otp", authLimiter);
+app.use("/api/student/forgot-password", authLimiter);
+app.use("/api/student/reset-password", authLimiter);
 
 // =======================
 // Routes
@@ -265,7 +282,28 @@ async function startServer() {
       await sequelize.sync();
     }
 
-    console.log("✅ Database Synced");
+    // High-Concurrency Database Indexes
+    const indexQueries = [
+      `CREATE INDEX IF NOT EXISTS idx_questions_quiz_id ON ${quote}Questions${quote} (${quote}quiz_id${quote});`,
+      `CREATE INDEX IF NOT EXISTS idx_participants_quiz_id ON ${quote}Participants${quote} (${quote}quiz_id${quote});`,
+      `CREATE INDEX IF NOT EXISTS idx_answers_participant_id ON ${quote}Answers${quote} (${quote}participant_id${quote});`,
+      `CREATE INDEX IF NOT EXISTS idx_answers_question_id ON ${quote}Answers${quote} (${quote}question_id${quote});`,
+      `CREATE INDEX IF NOT EXISTS idx_occurrences_quiz_id ON ${quote}ScheduledOccurrences${quote} (${quote}quiz_id${quote});`,
+      `CREATE INDEX IF NOT EXISTS idx_quizattempts_occurrence_id ON ${quote}QuizAttempts${quote} (${quote}occurrence_id${quote});`,
+      `CREATE INDEX IF NOT EXISTS idx_quizattempts_quiz_id ON ${quote}QuizAttempts${quote} (${quote}quiz_id${quote});`,
+      `CREATE INDEX IF NOT EXISTS idx_quizzes_custom_slug ON ${quote}Quizzes${quote} (${quote}custom_slug${quote});`,
+      `CREATE INDEX IF NOT EXISTS idx_quizzes_join_code ON ${quote}Quizzes${quote} (${quote}join_code${quote});`
+    ];
+
+    for (const idxQ of indexQueries) {
+      try {
+        await sequelize.query(idxQ);
+      } catch (e) {
+        // Index already exists or handled by database
+      }
+    }
+
+    console.log("✅ Database Synced & High-Performance Indexes Ready");
 
     // Seed initial admin only on clean database installation
     const adminCount = await Admin.count();

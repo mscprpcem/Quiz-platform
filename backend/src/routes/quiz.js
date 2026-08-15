@@ -7,10 +7,13 @@ const authMiddleware = require('../middleware/auth');
 const { Op } = require('sequelize');
 
 
-// Multer memory storage configuration for Excel uploads
+// Multer memory storage configuration for Excel uploads (5 MB max limit)
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5 MB max file upload to prevent memory exhaustion
+  },
   fileFilter: (req, file, cb) => {
     if (
       file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||

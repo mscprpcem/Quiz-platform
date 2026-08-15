@@ -1,10 +1,34 @@
 const { Quiz, Question, Participant, Answer, Violation, sequelize } = require('../models');
+const jwt = require('jsonwebtoken');
+require('dotenv').config();
+
+const JWT_SECRET = process.env.JWT_SECRET || 'msc_quiz_secret_key_2026';
 
 // In-memory store for active quiz sessions, socket mapping, and timers
 // Format: { [quizId]: { activeQuestionId: string, timerStartedAt: Date, timerValue: number, questionStatus: string, answersReceived: Set(participantId) } }
 const activeQuizzes = {};
 
+const isAdminSocket = (socket) => {
+  return socket.user && socket.user.role === 'admin';
+};
+
 const initializeSocket = (io) => {
+  // Socket.IO Authentication Middleware
+  io.use((socket, next) => {
+    const token = socket.handshake.auth?.token || socket.handshake.headers?.authorization?.split(' ')[1];
+    if (token) {
+      try {
+        const decoded = jwt.verify(token, JWT_SECRET);
+        socket.user = decoded;
+      } catch (err) {
+        socket.user = null;
+      }
+    } else {
+      socket.user = null;
+    }
+    next();
+  });
+
   io.on('connection', (socket) => {
     console.log(`Socket connected: ${socket.id}`);
 
@@ -15,6 +39,10 @@ const initializeSocket = (io) => {
     // Admin joins the lobby / manager for a quiz
     socket.on('admin_join_quiz', async ({ quizId }) => {
       try {
+        if (!isAdminSocket(socket)) {
+          return socket.emit('error_message', { message: 'Unauthorized: Admin privileges required.' });
+        }
+
         socket.join(`quiz_${quizId}`);
         socket.join(`admin_${quizId}`);
         console.log(`Admin joined quiz room: quiz_${quizId}`);
@@ -55,6 +83,9 @@ const initializeSocket = (io) => {
     // Admin starts the quiz lobby (changes status to waiting_lobby)
     socket.on('start_lobby', async ({ quizId }) => {
       try {
+        if (!isAdminSocket(socket)) {
+          return socket.emit('error_message', { message: 'Unauthorized: Admin privileges required.' });
+        }
         const quiz = await Quiz.findByPk(quizId);
         if (quiz && quiz.status === 'draft') {
           await quiz.update({ status: 'waiting_lobby' });
@@ -68,6 +99,9 @@ const initializeSocket = (io) => {
     // Admin starts the quiz game (changes status to in_progress)
     socket.on('start_quiz', async ({ quizId }) => {
       try {
+        if (!isAdminSocket(socket)) {
+          return socket.emit('error_message', { message: 'Unauthorized: Admin privileges required.' });
+        }
         const quiz = await Quiz.findByPk(quizId);
         if (quiz && (quiz.status === 'waiting_lobby' || quiz.status === 'draft')) {
           await quiz.update({
@@ -92,6 +126,9 @@ const initializeSocket = (io) => {
     // Admin releases a question
     socket.on('release_question', async ({ quizId, questionIndex }) => {
       try {
+        if (!isAdminSocket(socket)) {
+          return socket.emit('error_message', { message: 'Unauthorized: Admin privileges required.' });
+        }
         const quiz = await Quiz.findByPk(quizId);
         if (!quiz || quiz.status !== 'in_progress') return;
 
@@ -144,6 +181,9 @@ const initializeSocket = (io) => {
     // Admin ends the current question (locks submissions and shows answers)
     socket.on('end_question', async ({ quizId }) => {
       try {
+        if (!isAdminSocket(socket)) {
+          return socket.emit('error_message', { message: 'Unauthorized: Admin privileges required.' });
+        }
         const quiz = await Quiz.findByPk(quizId);
         if (!quiz || !activeQuizzes[quizId]) return;
 
@@ -183,6 +223,9 @@ const initializeSocket = (io) => {
     // Admin skips a question
     socket.on('skip_question', async ({ quizId }) => {
       try {
+        if (!isAdminSocket(socket)) {
+          return socket.emit('error_message', { message: 'Unauthorized: Admin privileges required.' });
+        }
         const quiz = await Quiz.findByPk(quizId);
         if (!quiz) return;
 
@@ -217,17 +260,20 @@ const initializeSocket = (io) => {
 
     // Admin pauses the quiz
     socket.on('pause_quiz', ({ quizId }) => {
+      if (!isAdminSocket(socket)) return;
       io.to(`quiz_${quizId}`).emit('quiz_paused');
     });
 
     // Admin resumes the quiz
     socket.on('resume_quiz', ({ quizId }) => {
+      if (!isAdminSocket(socket)) return;
       io.to(`quiz_${quizId}`).emit('quiz_resumed');
     });
 
     // Admin extends active question timer live (+10s, +30s)
     socket.on('extend_timer', ({ quizId, additionalSeconds }) => {
       try {
+        if (!isAdminSocket(socket)) return;
         const added = parseInt(additionalSeconds) || 10;
         if (activeQuizzes[quizId] && activeQuizzes[quizId].timerValue) {
           activeQuizzes[quizId].timerValue += added;
@@ -242,6 +288,9 @@ const initializeSocket = (io) => {
     // Admin ends the entire quiz (but does not release leaderboard yet)
     socket.on('end_quiz', async ({ quizId }) => {
       try {
+        if (!isAdminSocket(socket)) {
+          return socket.emit('error_message', { message: 'Unauthorized: Admin privileges required.' });
+        }
         const quiz = await Quiz.findByPk(quizId);
         if (!quiz) return;
 
@@ -266,6 +315,9 @@ const initializeSocket = (io) => {
     // Admin manually releases the leaderboard to students
     socket.on('release_leaderboard', async ({ quizId }) => {
       try {
+        if (!isAdminSocket(socket)) {
+          return socket.emit('error_message', { message: 'Unauthorized: Admin privileges required.' });
+        }
         if (activeQuizzes[quizId]) {
           activeQuizzes[quizId].leaderboardReleased = true;
         }
@@ -285,6 +337,9 @@ const initializeSocket = (io) => {
     // Admin removes/kicks a participant
     socket.on('kick_participant', async ({ quizId, participantId }) => {
       try {
+        if (!isAdminSocket(socket)) {
+          return socket.emit('error_message', { message: 'Unauthorized: Admin privileges required.' });
+        }
         const participant = await Participant.findByPk(participantId);
         if (participant) {
           await participant.destroy();

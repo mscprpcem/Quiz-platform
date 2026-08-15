@@ -63,12 +63,10 @@ export const AuthProvider = ({ children }) => {
     verifyToken();
 
     const params = new URLSearchParams(window.location.search);
-    const ssoEmail = params.get('sso_email') || params.get('email');
-    const ssoName = params.get('sso_name') || params.get('name');
     const ssoToken = params.get('sso_token') || params.get('token');
 
-    if (ssoEmail || ssoToken) {
-      api.post('/api/student/sso-verify', { email: ssoEmail, name: ssoName, token: ssoToken })
+    if (ssoToken) {
+      api.post('/api/student/sso-verify', { token: ssoToken })
         .then(res => {
           if (res.data.success && res.data.user) {
             setStudentAccount(res.data.user);

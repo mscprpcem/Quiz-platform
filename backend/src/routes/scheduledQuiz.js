@@ -7,6 +7,21 @@ const authMiddleware = require('../middleware/auth');
 const { Op } = require('sequelize');
 const sequelize = require('../config/database');
 
+// Helper: Sanitize Quiz object for public endpoints to prevent answer leaks
+const sanitizeQuizForPublic = (quiz) => {
+  if (!quiz) return null;
+  const json = quiz.toJSON ? quiz.toJSON() : { ...quiz };
+  if (json.occurrences) delete json.occurrences;
+  if (Array.isArray(json.questions)) {
+    json.questions = json.questions.map(q => {
+      const qJson = q.toJSON ? q.toJSON() : { ...q };
+      delete qJson.correct_answer;
+      return qJson;
+    });
+  }
+  return json;
+};
+
 // Helper: Resolve occurrence by UUID, Quiz Join Code, Quiz UUID, or Title Slug
 const resolveOccurrence = async (identifier) => {
   if (!identifier) return null;
@@ -809,11 +824,10 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
 
     const finalQuiz = quiz || occ.quiz || (await Quiz.findByPk(occ.quiz_id, { include: [{ model: Question, as: 'questions' }] }));
 
-    // Format clean JSON response preventing circular model serialization
+    // Format clean JSON response preventing circular model serialization and answer leaks
     const occJson = occ.toJSON ? occ.toJSON() : { ...occ };
     delete occJson.quiz;
-    const quizJson = finalQuiz ? (finalQuiz.toJSON ? finalQuiz.toJSON() : { ...finalQuiz }) : null;
-    if (quizJson) delete quizJson.occurrences;
+    const quizJson = sanitizeQuizForPublic(finalQuiz);
 
     return res.json({
       occurrence: occJson,
@@ -1273,7 +1287,7 @@ router.get('/slug/:slug', async (req, res) => {
       return res.json({
         success: true,
         isLive: true,
-        quiz,
+        quiz: sanitizeQuizForPublic(quiz),
         joinCode: quiz.join_code
       });
     }
@@ -1306,7 +1320,7 @@ router.get('/slug/:slug', async (req, res) => {
 
     return res.json({
       success: true,
-      quiz,
+      quiz: sanitizeQuizForPublic(quiz),
       occurrence: targetOccurrence,
       activeOccurrenceId: targetOccurrence ? targetOccurrence.id : null
     });

@@ -112,7 +112,7 @@ router.post('/send-otp', async (req, res) => {
       localUser.otp = generatedOtp;
       localUser.otp_expiry = expiry;
       await localUser.save();
-      console.log(`[PASS RESET OTP] OTP generated for ${cleanEmail}: ${generatedOtp}`);
+      console.log(`[PASS RESET OTP] OTP generated for ${cleanEmail}`);
     }
 
     const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
@@ -214,7 +214,7 @@ router.post('/forgot-password', async (req, res) => {
       localUser.otp = generatedOtp;
       localUser.otp_expiry = expiry;
       await localUser.save();
-      console.log(`[PASS RESET OTP] Password reset OTP generated for ${cleanEmail}: ${generatedOtp}`);
+      console.log(`[PASS RESET OTP] Password reset OTP generated for ${cleanEmail}`);
     }
 
     const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
@@ -639,7 +639,7 @@ router.post('/register', async (req, res) => {
       const expiry = Date.now() + 15 * 60 * 1000; // 15 mins
 
       pendingOtpStore.set(cleanEmail, { otp: generatedOtp, expiry });
-      console.log(`[REGISTRATION OTP] Verification code for ${cleanEmail}: ${generatedOtp}`);
+      console.log(`[REGISTRATION OTP] Verification code generated for ${cleanEmail}`);
 
       return res.json({
         success: true,
@@ -730,34 +730,33 @@ router.post('/register', async (req, res) => {
 // SSO Token Verification (From Verification Portal)
 // =======================
 router.post('/sso-verify', (req, res) => {
-  const { token, email, name } = req.body;
+  const { token } = req.body;
   const sharedSecret = process.env.SSO_SHARED_SECRET || 'msc_prpcem_shared_sso_secret_2026';
 
+  if (!token) {
+    return res.status(400).json({ error: 'Signed SSO Token is required for verification.' });
+  }
+
   try {
-    let studentData = {};
-    if (token) {
-      studentData = jwt.verify(token, sharedSecret);
-    } else if (email) {
-      studentData = { email: normalizeEmail(email), name: name || email.split('@')[0] };
-    } else {
-      return res.status(400).json({ error: 'Token or Email is required for SSO verification.' });
+    const studentData = jwt.verify(token, sharedSecret);
+    const cleanEmail = normalizeEmail(studentData.email);
+
+    if (!cleanEmail) {
+      return res.status(400).json({ error: 'Invalid token payload: Email is required.' });
     }
 
-    const cleanEmail = normalizeEmail(studentData.email);
     const localToken = jwt.sign(
-      { email: cleanEmail, name: studentData.name, role: 'student' },
-      process.env.JWT_SECRET || 'msc_prpcem_jwt_secret_2026',
+      { sub: studentData.sub, email: cleanEmail, name: studentData.name, role: studentData.role || 'student' },
+      process.env.JWT_SECRET || 'msc_quiz_secret_key_2026',
       { expiresIn: '30d' }
     );
-
-    registeredStudents.set(cleanEmail, { email: cleanEmail, name: studentData.name, role: 'student' });
 
     return res.json({
       success: true,
       user: {
         email: cleanEmail,
-        name: studentData.name,
-        role: 'student'
+        name: studentData.name || cleanEmail.split('@')[0],
+        role: studentData.role || 'student'
       },
       token: localToken,
       verificationPortalUrl: process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech'
@@ -770,12 +769,12 @@ router.post('/sso-verify', (req, res) => {
 // =======================
 // Inbound Account Sync from Verification Portal (Vice Versa)
 // =======================
-router.post('/external-sync', (req, res) => {
+router.post('/external-sync', async (req, res) => {
   const { email, name, password, apiKey } = req.body;
-  const expectedApiKey = process.env.QUIZ_PLATFORM_API_KEY || 'msc_quiz_api_key_2026';
+  const expectedApiKey = process.env.QUIZ_PLATFORM_API_KEY;
 
-  if (apiKey && apiKey !== expectedApiKey) {
-    return res.status(403).json({ error: 'Invalid API Key' });
+  if (!apiKey || (expectedApiKey && apiKey !== expectedApiKey)) {
+    return res.status(401).json({ error: 'Unauthorized: Valid API Key is required.' });
   }
 
   const cleanEmail = normalizeEmail(email);
@@ -784,6 +783,19 @@ router.post('/external-sync', (req, res) => {
   }
 
   const studentName = name || cleanEmail.split('@')[0];
+  if (User && password) {
+    const existing = await User.findOne({ where: { email: cleanEmail } });
+    if (!existing) {
+      await User.create({
+        name: studentName,
+        email: cleanEmail,
+        username: cleanEmail.split('@')[0],
+        password: password,
+        is_verified: true
+      }).catch(() => {});
+    }
+  }
+
   const studentData = {
     email: cleanEmail,
     name: studentName,
@@ -791,11 +803,9 @@ router.post('/external-sync', (req, res) => {
     joinedAt: new Date().toISOString()
   };
 
-  registeredStudents.set(cleanEmail, studentData);
-
   const token = jwt.sign(
     { email: cleanEmail, name: studentName, role: 'student' },
-    process.env.JWT_SECRET || 'msc_prpcem_jwt_secret_2026',
+    process.env.JWT_SECRET || 'msc_quiz_secret_key_2026',
     { expiresIn: '30d' }
   );
 
@@ -808,16 +818,33 @@ router.post('/external-sync', (req, res) => {
 });
 
 // =======================
-// Issue Certificate & Digital Badge (Syncs directly to D:\certificate-verification DB)
+// Issue Certificate & Digital Badge (Syncs directly to Verification DB)
 // =======================
 router.post('/issue-certificate', async (req, res) => {
   const { email, name, courseTitle, score, passingScore, badgeTitle } = req.body;
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Unauthorized: Authentication token is required.' });
+  }
+
+  const sessionToken = authHeader.split(' ')[1];
+  let decodedUser;
+  try {
+    decodedUser = jwt.verify(sessionToken, process.env.JWT_SECRET || 'msc_quiz_secret_key_2026');
+  } catch (e) {
+    return res.status(401).json({ error: 'Invalid or expired session token.' });
+  }
 
   if (!email || !courseTitle) {
     return res.status(400).json({ error: 'Email and Course Title are required.' });
   }
 
   const cleanEmail = normalizeEmail(email);
+  if (decodedUser.role !== 'admin' && normalizeEmail(decodedUser.email) !== cleanEmail) {
+    return res.status(403).json({ error: 'Forbidden: Cannot issue certificates for another user account.' });
+  }
+
   const certificateId = `CERT-MSC-${Date.now().toString().slice(-6)}`;
   const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
 
@@ -835,24 +862,26 @@ router.post('/issue-certificate', async (req, res) => {
 
   studentCertificates.push(certificate);
 
-  // Dispatch certificate & badge generation directly to Verification Portal API
-  axios.post(`${verificationPortalUrl}/api/integration/publish-results`, {
-    quizTitle: courseTitle,
-    eventName: courseTitle,
-    publishDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
-    attendees: [
-      {
-        name: name || cleanEmail.split('@')[0],
-        email: cleanEmail,
-        score: score || 100,
-        status: 'passed'
-      }
-    ]
-  }, {
-    headers: { 'x-api-key': process.env.VERIFICATION_API_KEY || 'msc_quiz_verification_secret_key_2026' }
-  }).catch(err => {
-    console.warn('Background certificate publishing warning:', err.message);
-  });
+  // Dispatch certificate & badge generation directly to Verification Portal API if API key is configured
+  if (process.env.VERIFICATION_API_KEY) {
+    axios.post(`${verificationPortalUrl}/api/integration/publish-results`, {
+      quizTitle: courseTitle,
+      eventName: courseTitle,
+      publishDate: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+      attendees: [
+        {
+          name: name || cleanEmail.split('@')[0],
+          email: cleanEmail,
+          score: score || 100,
+          status: 'passed'
+        }
+      ]
+    }, {
+      headers: { 'x-api-key': process.env.VERIFICATION_API_KEY }
+    }).catch(err => {
+      console.warn('Background certificate publishing warning:', err.message);
+    });
+  }
 
   return res.json({
     success: true,
@@ -866,10 +895,10 @@ router.post('/issue-certificate', async (req, res) => {
 // =======================
 router.get('/account-data', (req, res) => {
   const { email, apiKey } = req.query;
-  const expectedApiKey = process.env.QUIZ_PLATFORM_API_KEY || 'msc_quiz_api_key_2026';
+  const expectedApiKey = process.env.QUIZ_PLATFORM_API_KEY;
 
-  if (apiKey && apiKey !== expectedApiKey) {
-    return res.status(403).json({ error: 'Invalid API Key' });
+  if (!apiKey || (expectedApiKey && apiKey !== expectedApiKey)) {
+    return res.status(401).json({ error: 'Unauthorized: Valid API Key is required.' });
   }
 
   if (!email) {

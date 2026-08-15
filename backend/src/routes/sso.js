@@ -45,16 +45,6 @@ router.get('/authorize', async (req, res) => {
     let user = null;
     if (targetEmail) {
       user = await User.findOne({ where: { email: targetEmail } });
-      if (!user) {
-        user = await User.create({
-          subject_id: generateSubjectId(),
-          name: targetName,
-          email: targetEmail,
-          username: targetEmail.split('@')[0],
-          password: 'SSO_MANAGED_USER',
-          is_verified: true
-        });
-      }
     }
 
     if (!user) {
