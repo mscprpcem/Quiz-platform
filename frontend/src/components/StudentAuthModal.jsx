@@ -240,14 +240,16 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
             </button>
           </div>
         ) : (
-          <button
-            type="button"
-            onClick={() => { setActiveTab('login'); setErrorMessage(''); setSuccessMessage(''); }}
-            className="inline-flex items-center space-x-1 text-xs font-bold text-blue-600 hover:text-blue-800 cursor-pointer"
-          >
-            <ArrowLeft size={13} />
-            <span>Back to Sign In</span>
-          </button>
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={() => { setActiveTab('login'); setErrorMessage(''); setSuccessMessage(''); }}
+              className="inline-flex items-center space-x-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+            >
+              <ArrowLeft size={13} />
+              <span>Back to Sign In</span>
+            </button>
+          </div>
         )}
 
         {/* Feedback Alerts */}
@@ -432,7 +434,7 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
                       <input
                         type="text"
                         required
-                        placeholder="John Doe"
+                        placeholder="Amit Yadav"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         className="w-full border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs bg-slate-50/50 focus:bg-white focus:border-blue-600 outline-none"

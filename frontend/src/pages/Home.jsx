@@ -58,27 +58,41 @@ export default function Home() {
         const now = new Date();
         const allPublicQuizzes = [];
 
-        // 1. Process Live/Standard Quizzes
+        // 1. Process Live/Standard Quizzes (Exclude ended/past quizzes)
         if (Array.isArray(quizzesRes?.data)) {
           quizzesRes.data.forEach((q) => {
             if (!q) return;
-            if (q.status !== 'archived' && q.status !== 'cancelled') {
-              allPublicQuizzes.push(q);
+            // Exclude completed, ended, archived, cancelled
+            if (['completed', 'ended', 'archived', 'cancelled', 'disqualified'].includes(q.status)) {
+              return;
             }
+            // If scheduled end time is in the past, do not show in upcoming
+            if (q.scheduled_end && new Date(q.scheduled_end).getTime() < now.getTime()) {
+              return;
+            }
+            allPublicQuizzes.push(q);
           });
         }
 
-        // 2. Process Scheduled Quizzes
+        // 2. Process Scheduled Quizzes (Exclude past/expired occurrences)
         if (Array.isArray(scheduledRes?.data)) {
           scheduledRes.data.forEach(sQuiz => {
             if (!sQuiz) return;
-            if (sQuiz.availability !== 'CANCELLED' && !allPublicQuizzes.some(q => q.id === sQuiz.occurrenceId || q.id === sQuiz.quizId)) {
+            const avail = (sQuiz.availability || '').toUpperCase();
+            if (['CANCELLED', 'EXPIRED', 'COMPLETED', 'ENDED'].includes(avail)) {
+              return;
+            }
+            const endTime = sQuiz.endTime || sQuiz.end_time || sQuiz.scheduled_end;
+            if (endTime && new Date(endTime).getTime() < now.getTime()) {
+              return;
+            }
+            if (!allPublicQuizzes.some(q => q.id === sQuiz.occurrenceId || q.id === sQuiz.quizId)) {
               allPublicQuizzes.push({
                 ...sQuiz,
                 id: sQuiz.occurrenceId || sQuiz.quizId,
                 mode: 'SCHEDULED',
                 status: sQuiz.availability === 'ACTIVE' ? 'in_progress' : (sQuiz.availability || 'draft'),
-                subject: sQuiz.category || 'DBMS'
+                subject: sQuiz.category || 'Technology'
               });
             }
           });

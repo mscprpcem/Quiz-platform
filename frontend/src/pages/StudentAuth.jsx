@@ -341,14 +341,16 @@ export default function StudentAuth() {
               </button>
             </div>
           ) : (
-            <button
-              type="button"
-              onClick={() => { setMode('login'); setError(''); setSuccessMsg(''); }}
-              className="inline-flex items-center space-x-1 text-xs font-bold text-blue-600 hover:text-blue-800 cursor-pointer"
-            >
-              <ArrowLeft size={13} />
-              <span>Back to Sign In</span>
-            </button>
+            <div className="flex justify-center">
+              <button
+                type="button"
+                onClick={() => { setMode('login'); setError(''); setSuccessMsg(''); }}
+                className="inline-flex items-center space-x-1 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+              >
+                <ArrowLeft size={13} />
+                <span>Back to Sign In</span>
+              </button>
+            </div>
           )}
 
           {/* Feedback Messages */}
@@ -564,7 +566,7 @@ export default function StudentAuth() {
                           name="name"
                           value={formData.name}
                           onChange={handleChange}
-                          placeholder="John Doe"
+                          placeholder="Amit Yadav"
                           required={mode === 'register'}
                           className="w-full border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-xs bg-slate-50/50 focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all outline-none"
                         />
