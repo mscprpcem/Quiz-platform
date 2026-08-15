@@ -1,9 +1,22 @@
 const express = require('express');
 const router = express.Router();
+const path = require('path');
+const fs = require('fs');
 const authMiddleware = require('../middleware/auth');
 const { User, Quiz, ScheduledOccurrence, QuizAttempt, Participant, Event, EventRegistration } = require('../models');
 const { sendCustomBroadcastEmail } = require('../services/emailService');
 const { Op } = require('sequelize');
+
+// Load static/old events from events.json
+let staticEvents = [];
+try {
+  const jsonPath = path.join(__dirname, '../data/events.json');
+  if (fs.existsSync(jsonPath)) {
+    staticEvents = JSON.parse(fs.readFileSync(jsonPath, 'utf8'));
+  }
+} catch (e) {
+  console.warn('Could not read static events.json in emailDispatch:', e.message);
+}
 
 /**
  * Helper to replace dynamic placeholders in templates
@@ -15,8 +28,8 @@ const replacePlaceholders = (text, data = {}) => {
     .replace(/\{student_name\}/gi, data.name || 'Learner')
     .replace(/\{email\}/gi, data.email || '')
     .replace(/\{college\}/gi, data.college || 'PRPCEM')
-    .replace(/\{quiz_title\}/gi, data.quizTitle || 'Quiz Challenge')
-    .replace(/\{event_name\}/gi, data.eventName || 'MSC Tech Event')
+    .replace(/\{quiz_title\}/gi, data.quizTitle || data.eventName || 'Challenge Quiz')
+    .replace(/\{event_name\}/gi, data.eventName || 'MSC Technical Event')
     .replace(/\{score\}/gi, data.score !== undefined && data.score !== null ? String(data.score) : 'N/A')
     .replace(/\{status\}/gi, data.status || 'Registered');
 };
@@ -53,20 +66,47 @@ router.get('/audiences', authMiddleware, async (req, res) => {
       EventRegistration.findAll({ order: [['createdAt', 'DESC']] }).catch(() => [])
     ]);
 
-    const eventsFormatted = events.map(ev => {
+    const eventsFormatted = [];
+    const dbNames = new Set(events.map(e => (e.name || '').toLowerCase().trim()));
+    const dbIds = new Set(events.map(e => String(e.id)));
+
+    // Format DB Events
+    for (const ev of events) {
+      const evNameLower = (ev.name || '').toLowerCase().trim();
       const regCount = registrations.filter(r =>
-        r.event_id === ev.id || r.event_id === ev.slug || (r.event_name && r.event_name.toLowerCase() === ev.name.toLowerCase())
+        r.event_id === ev.id || r.event_id === ev.slug || (r.event_name && r.event_name.toLowerCase().trim() === evNameLower)
       ).length;
 
-      return {
+      eventsFormatted.push({
         id: ev.id,
         name: ev.name,
-        slug: ev.slug,
-        category: ev.category,
+        slug: ev.slug || ev.id,
+        category: ev.category || 'Innovation Challenge',
         registration_count: regCount,
-        status: ev.status
-      };
-    });
+        status: ev.status || 'upcoming'
+      });
+    }
+
+    // Format Static JSON Events (if not already in DB)
+    for (const se of staticEvents) {
+      const seTitle = se.title || se.name;
+      const seKey = seTitle.toLowerCase().trim();
+
+      if (!dbNames.has(seKey) && !dbIds.has(se.id)) {
+        const regCount = registrations.filter(r =>
+          r.event_id === se.id || (r.event_name && (r.event_name.toLowerCase().includes(seKey) || seKey.includes(r.event_name.toLowerCase())))
+        ).length;
+
+        eventsFormatted.push({
+          id: se.id,
+          name: seTitle,
+          slug: se.id,
+          category: se.category || 'Flagship Event',
+          registration_count: regCount,
+          status: se.status === 'past' ? 'completed' : (se.status || 'upcoming')
+        });
+      }
+    }
 
     res.json({
       success: true,
@@ -103,24 +143,30 @@ router.get('/audiences', authMiddleware, async (req, res) => {
  */
 router.get('/event-participants', authMiddleware, async (req, res) => {
   try {
-    const { eventId } = req.query;
-    if (!eventId) {
-      return res.status(400).json({ error: 'eventId is required.' });
+    const { eventId, eventName } = req.query;
+    if (!eventId && !eventName) {
+      return res.status(400).json({ error: 'eventId or eventName is required.' });
     }
 
     const participantsMap = new Map();
+    const targetQuery = (eventId || eventName || '').trim().toLowerCase();
+    const targetAlphanum = targetQuery.replace(/[^a-z0-9]/g, '');
 
     // 1. Fetch from EventRegistration table
-    const regs = await EventRegistration.findAll({
-      where: {
-        [Op.or]: [
-          { event_id: eventId },
-          { event_id: eventId.toLowerCase() }
-        ]
-      }
+    const allRegs = await EventRegistration.findAll({ order: [['createdAt', 'DESC']] });
+    const matchingRegs = allRegs.filter(r => {
+      const rId = String(r.event_id || '').toLowerCase().trim();
+      const rName = String(r.event_name || '').toLowerCase().trim();
+      return (
+        rId === targetQuery ||
+        rId.replace(/[^a-z0-9]/g, '') === targetAlphanum ||
+        rName.includes(targetQuery) ||
+        targetQuery.includes(rName) ||
+        rName.replace(/[^a-z0-9]/g, '') === targetAlphanum
+      );
     });
 
-    for (const r of regs) {
+    for (const r of matchingRegs) {
       if (r.email && r.email.includes('@')) {
         const clean = r.email.toLowerCase().trim();
         participantsMap.set(clean, {
@@ -137,17 +183,20 @@ router.get('/event-participants', authMiddleware, async (req, res) => {
     }
 
     // 2. Fetch from matching Quiz Participants if quizzes exist for this event
-    const quizzes = await Quiz.findAll({
-      where: {
-        [Op.or]: [
-          { event_id: eventId },
-          { event_name: { [Op.like]: `%${eventId.replace(/^event-/, '').replace(/-/g, ' ')}%` } }
-        ]
-      }
+    const allQuizzes = await Quiz.findAll();
+    const matchingQuizzes = allQuizzes.filter(q => {
+      const qEvId = String(q.event_id || '').toLowerCase().trim();
+      const qEvName = String(q.event_name || '').toLowerCase().trim();
+      return (
+        qEvId === targetQuery ||
+        qEvName.includes(targetQuery) ||
+        targetQuery.includes(qEvName) ||
+        qEvName.replace(/[^a-z0-9]/g, '') === targetAlphanum
+      );
     });
 
-    for (const q of quizzes) {
-      const liveParts = await Participant.findAll({ where: { quiz_id: q.id } });
+    for (const q of matchingQuizzes) {
+      const liveParts = await Participant.findAll({ where: { quiz_id: q.id } }).catch(() => []);
       for (const lp of liveParts) {
         if (lp.email && lp.email.includes('@')) {
           const clean = lp.email.toLowerCase().trim();
@@ -162,6 +211,40 @@ router.get('/event-participants', authMiddleware, async (req, res) => {
           }
         }
       }
+
+      const attempts = await QuizAttempt.findAll({ where: { quiz_id: q.id } }).catch(() => []);
+      for (const att of attempts) {
+        if (att.participant_email && att.participant_email.includes('@')) {
+          const clean = att.participant_email.toLowerCase().trim();
+          if (!participantsMap.has(clean)) {
+            participantsMap.set(clean, {
+              email: clean,
+              name: att.participant_name || clean.split('@')[0],
+              college: 'PRPCEM',
+              source: `Assessment: ${q.title}`,
+              status: (att.status || 'completed').toLowerCase(),
+              score: att.score
+            });
+          }
+        }
+      }
+    }
+
+    // 3. Fallback: If no direct registrations found yet, also check registered students in User table
+    if (participantsMap.size === 0) {
+      const users = await User.findAll({ limit: 50, order: [['createdAt', 'DESC']] });
+      for (const u of users) {
+        if (u.email && u.email.includes('@')) {
+          const clean = u.email.toLowerCase().trim();
+          participantsMap.set(clean, {
+            email: clean,
+            name: u.name || clean.split('@')[0],
+            college: u.college || 'PRPCEM',
+            source: 'Student Portal User',
+            status: 'Student'
+          });
+        }
+      }
     }
 
     const participants = Array.from(participantsMap.values());
@@ -169,6 +252,7 @@ router.get('/event-participants', authMiddleware, async (req, res) => {
     res.json({
       success: true,
       eventId,
+      eventName,
       count: participants.length,
       participants
     });
@@ -311,6 +395,7 @@ router.post('/send', authMiddleware, async (req, res) => {
       audienceType, // 'all_students' | 'quiz_participants' | 'event_registrants' | 'custom'
       quizId,
       eventId,
+      eventName: reqEventName,
       occurrenceId,
       participantFilter = 'all',
       customEmails,
@@ -339,10 +424,14 @@ router.post('/send', authMiddleware, async (req, res) => {
     let eventDetails = null;
     if (eventId) {
       eventDetails = await Event.findByPk(eventId);
+      if (!eventDetails) {
+        const se = staticEvents.find(s => s.id === eventId || (s.title && s.title.toLowerCase() === eventId.toLowerCase()));
+        if (se) eventDetails = { name: se.title || se.name };
+      }
     }
 
     const quizTitle = quizDetails?.title || 'MSC Quiz Challenge';
-    const eventName = eventDetails?.name || quizDetails?.event_name || 'MSC Tech Event';
+    const eventName = eventDetails?.name || reqEventName || quizDetails?.event_name || 'MSC Tech Event';
 
     const excludedSet = new Set((excludedEmails || []).map(e => e.toLowerCase().trim()));
     const targetRecipientsMap = new Map();
@@ -365,20 +454,15 @@ router.post('/send', authMiddleware, async (req, res) => {
         }
       }
     } else if (audienceType === 'event_registrants') {
-      if (!eventId) {
-        return res.status(400).json({ error: 'Please select an event to dispatch emails.' });
-      }
-
-      const regs = await EventRegistration.findAll({
-        where: {
-          [Op.or]: [
-            { event_id: eventId },
-            { event_id: eventId.toLowerCase() }
-          ]
-        }
+      const targetQuery = (eventId || reqEventName || '').trim().toLowerCase();
+      const allRegs = await EventRegistration.findAll();
+      const matchingRegs = allRegs.filter(r => {
+        const rId = String(r.event_id || '').toLowerCase().trim();
+        const rName = String(r.event_name || '').toLowerCase().trim();
+        return rId === targetQuery || rName.includes(targetQuery) || targetQuery.includes(rName);
       });
 
-      for (const r of regs) {
+      for (const r of matchingRegs) {
         if (r.email && r.email.includes('@')) {
           const clean = r.email.toLowerCase().trim();
           if (!excludedSet.has(clean)) {
@@ -388,6 +472,24 @@ router.post('/send', authMiddleware, async (req, res) => {
               college: r.college || 'PRPCEM',
               status: 'Registered'
             });
+          }
+        }
+      }
+
+      // If no registrations in table yet, fallback to all users
+      if (targetRecipientsMap.size === 0) {
+        const allUsers = await User.findAll({ limit: 50 });
+        for (const u of allUsers) {
+          if (u.email && u.email.includes('@')) {
+            const clean = u.email.toLowerCase().trim();
+            if (!excludedSet.has(clean)) {
+              targetRecipientsMap.set(clean, {
+                email: clean,
+                name: u.name || clean.split('@')[0],
+                college: u.college || 'PRPCEM',
+                status: 'Registered Student'
+              });
+            }
           }
         }
       }

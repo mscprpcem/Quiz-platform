@@ -89,18 +89,34 @@ export default function AdminEmailDispatch() {
 
         // Check if URL has ?eventId= or ?event=
         const urlEventId = searchParams.get('eventId') || searchParams.get('event');
+        const urlEventName = searchParams.get('event') || searchParams.get('eventName');
+
         if (urlEventId && eventsList.length > 0) {
+          const urlLower = String(urlEventId).toLowerCase().trim();
           const matchEv = eventsList.find(e =>
-            String(e.id) === String(urlEventId) ||
-            e.name.toLowerCase() === urlEventId.toLowerCase() ||
-            e.slug?.toLowerCase() === urlEventId.toLowerCase()
+            String(e.id).toLowerCase() === urlLower ||
+            String(e.slug || '').toLowerCase() === urlLower ||
+            e.name.toLowerCase() === urlLower ||
+            e.name.toLowerCase().includes(urlLower) ||
+            urlLower.includes(e.name.toLowerCase()) ||
+            e.id.replace(/[^a-z0-9]/g, '') === urlLower.replace(/[^a-z0-9]/g, '')
           );
-          if (matchEv) {
-            setAudienceType('event_registrants');
-            setSelectedEventId(matchEv.id);
-            setSelectedEventInfo(matchEv);
-            return;
-          }
+
+          const targetEvent = matchEv || { id: urlEventId, name: urlEventName || urlEventId };
+          setAudienceType('event_registrants');
+          setSelectedEventId(targetEvent.id);
+          setSelectedEventInfo(targetEvent);
+          fetchEventParticipants(targetEvent.id, targetEvent.name);
+
+          // Auto-populate default template for this event
+          setSubject(`📢 Announcement: Upcoming Technical Tracks for ${targetEvent.name}`);
+          setHeading(`Welcome to ${targetEvent.name}`);
+          setMessageBody(
+            `Hello {name},\n\nWe are thrilled to welcome you to "${targetEvent.name}"! All assessment tracks, workshop links, and challenges are now active for participants from {college}.\n\nPlease review the guidelines and schedule below.\n\nRegards,\nMicrosoft Student Club PRPCEM`
+          );
+          setCtaText('Access Participant Portal');
+          setCtaUrl(window.location.origin + '/courses');
+          return;
         }
 
         if (quizzesList.length > 0 && !selectedQuizId) {
@@ -134,14 +150,14 @@ export default function AdminEmailDispatch() {
     if (audienceType === 'event_registrants' && selectedEventId) {
       const found = audienceData.events.find(e => String(e.id) === String(selectedEventId));
       if (found) setSelectedEventInfo(found);
-      fetchEventParticipants(selectedEventId);
+      fetchEventParticipants(selectedEventId, found?.name);
     }
   }, [audienceType, selectedEventId, audienceData.events]);
 
   const fetchQuizParticipants = async (quizId) => {
     try {
       setLoadingQuizParticipants(true);
-      const res = await api.get(`/api/admin/email-dispatch/quiz-participants?quizId=${quizId}`);
+      const res = await api.get(`/api/admin/email-dispatch/quiz-participants?quizId=${encodeURIComponent(quizId)}`);
       if (res.data.success) {
         setQuizParticipants(res.data.participants || []);
         if (res.data.quiz) {
@@ -156,10 +172,11 @@ export default function AdminEmailDispatch() {
     }
   };
 
-  const fetchEventParticipants = async (eventId) => {
+  const fetchEventParticipants = async (eventId, eventName) => {
     try {
       setLoadingEventParticipants(true);
-      const res = await api.get(`/api/admin/email-dispatch/event-participants?eventId=${eventId}`);
+      const evNameQuery = eventName ? `&eventName=${encodeURIComponent(eventName)}` : '';
+      const res = await api.get(`/api/admin/email-dispatch/event-participants?eventId=${encodeURIComponent(eventId)}${evNameQuery}`);
       if (res.data.success) {
         setEventParticipants(res.data.participants || []);
         setExcludedEmails(new Set());
@@ -364,6 +381,8 @@ export default function AdminEmailDispatch() {
     score: 85
   };
 
+  const currentEventTitle = selectedEventInfo?.name || searchParams.get('event') || selectedQuizInfo?.event_name || 'MSC Tech Masterclass';
+
   const renderPreviewText = (text) => {
     if (!text) return '';
     return text
@@ -371,8 +390,8 @@ export default function AdminEmailDispatch() {
       .replace(/\{student_name\}/gi, sampleRecipient.name || 'Amit Yadav')
       .replace(/\{email\}/gi, sampleRecipient.email || 'student@example.com')
       .replace(/\{college\}/gi, sampleRecipient.college || 'PRPCEM Amravati')
-      .replace(/\{quiz_title\}/gi, selectedQuizInfo?.title || 'Technical Quiz Challenge')
-      .replace(/\{event_name\}/gi, selectedEventInfo?.name || selectedQuizInfo?.event_name || 'MSC Tech Masterclass')
+      .replace(/\{quiz_title\}/gi, selectedQuizInfo?.title || currentEventTitle)
+      .replace(/\{event_name\}/gi, currentEventTitle)
       .replace(/\{score\}/gi, sampleRecipient.score != null ? String(sampleRecipient.score) : '85')
       .replace(/\{status\}/gi, sampleRecipient.status || 'Registered');
   };
