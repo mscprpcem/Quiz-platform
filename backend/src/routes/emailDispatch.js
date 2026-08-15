@@ -6,12 +6,28 @@ const { sendCustomBroadcastEmail } = require('../services/emailService');
 const { Op } = require('sequelize');
 
 /**
+ * Helper to replace dynamic placeholders in templates
+ */
+const replacePlaceholders = (text, data = {}) => {
+  if (!text) return '';
+  return text
+    .replace(/\{name\}/gi, data.name || 'Learner')
+    .replace(/\{student_name\}/gi, data.name || 'Learner')
+    .replace(/\{email\}/gi, data.email || '')
+    .replace(/\{college\}/gi, data.college || 'PRPCEM')
+    .replace(/\{quiz_title\}/gi, data.quizTitle || 'Quiz Challenge')
+    .replace(/\{event_name\}/gi, data.eventName || 'MSC Tech Event')
+    .replace(/\{score\}/gi, data.score !== undefined && data.score !== null ? String(data.score) : 'N/A')
+    .replace(/\{status\}/gi, data.status || 'Registered');
+};
+
+/**
  * GET /api/admin/email-dispatch/audiences
  * Returns audience list and summary counts
  */
 router.get('/audiences', authMiddleware, async (req, res) => {
   try {
-    // 1. Get all registered students safely
+    // 1. Get all registered students
     let students = [];
     try {
       students = await User.findAll({
@@ -75,7 +91,7 @@ router.get('/audiences', authMiddleware, async (req, res) => {
 
 /**
  * GET /api/admin/email-dispatch/quiz-participants
- * Fetch participant list for a specific quiz / occurrence
+ * Fetch participant list for a specific quiz with status and score attributes
  */
 router.get('/quiz-participants', authMiddleware, async (req, res) => {
   try {
@@ -85,11 +101,10 @@ router.get('/quiz-participants', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'quizId or occurrenceId is required.' });
     }
 
-    // Also fetch the Quiz details to return event name and title
     let quizDetails = null;
     if (quizId) {
       quizDetails = await Quiz.findByPk(quizId, {
-        attributes: ['id', 'title', 'event_name', 'mode', 'join_code']
+        attributes: ['id', 'title', 'event_name', 'mode', 'join_code', 'subject', 'category']
       });
     }
 
@@ -103,20 +118,21 @@ router.get('/quiz-participants', authMiddleware, async (req, res) => {
 
       const attempts = await QuizAttempt.findAll({
         where: attemptWhere,
-        attributes: ['id', 'participant_name', 'participant_email', 'status', 'score', 'started_at']
+        attributes: ['id', 'participant_name', 'participant_email', 'status', 'score', 'started_at', 'submitted_at']
       });
 
       for (const att of attempts) {
         if (att.participant_email && att.participant_email.includes('@')) {
           const clean = att.participant_email.toLowerCase().trim();
-          if (!participantsMap.has(clean)) {
-            participantsMap.set(clean, {
-              email: clean,
-              name: att.participant_name || clean.split('@')[0],
-              source: 'Scheduled Attempt',
-              status: att.status || 'completed'
-            });
-          }
+          participantsMap.set(clean, {
+            email: clean,
+            name: att.participant_name || clean.split('@')[0],
+            source: 'Scheduled Attempt',
+            status: (att.status || 'completed').toLowerCase(),
+            score: att.score,
+            startedAt: att.started_at,
+            submittedAt: att.submitted_at
+          });
         }
       }
     } catch (attErr) {
@@ -128,7 +144,7 @@ router.get('/quiz-participants', authMiddleware, async (req, res) => {
       try {
         const liveParticipants = await Participant.findAll({
           where: { quiz_id: quizId },
-          attributes: ['id', 'name', 'email', 'college']
+          attributes: ['id', 'name', 'email', 'college', 'score']
         });
 
         for (const p of liveParticipants) {
@@ -138,14 +154,41 @@ router.get('/quiz-participants', authMiddleware, async (req, res) => {
               participantsMap.set(clean, {
                 email: clean,
                 name: p.name || clean.split('@')[0],
+                college: p.college || '',
                 source: 'Live Participant',
-                status: 'registered'
+                status: 'registered',
+                score: p.score
               });
+            } else {
+              // Update college if existing
+              const existing = participantsMap.get(clean);
+              if (p.college) existing.college = p.college;
             }
           }
         }
       } catch (pErr) {
         console.warn('Error fetching Live Participants for dispatch:', pErr.message);
+      }
+    }
+
+    // 3. Enrich with student college if in User table
+    const emailsList = Array.from(participantsMap.keys());
+    if (emailsList.length > 0) {
+      try {
+        const registeredUsers = await User.findAll({
+          where: { email: { [Op.in]: emailsList } },
+          attributes: ['email', 'college', 'name']
+        });
+        for (const u of registeredUsers) {
+          const clean = u.email.toLowerCase().trim();
+          if (participantsMap.has(clean)) {
+            const p = participantsMap.get(clean);
+            if (!p.college && u.college) p.college = u.college;
+            if ((!p.name || p.name === clean.split('@')[0]) && u.name) p.name = u.name;
+          }
+        }
+      } catch (uErr) {
+        console.warn('Error enriching participant college:', uErr.message);
       }
     }
 
@@ -158,7 +201,8 @@ router.get('/quiz-participants', authMiddleware, async (req, res) => {
         title: quizDetails.title,
         event_name: quizDetails.event_name,
         mode: quizDetails.mode,
-        join_code: quizDetails.join_code
+        join_code: quizDetails.join_code,
+        subject: quizDetails.subject || quizDetails.category
       } : null,
       count: participants.length,
       participants
@@ -171,7 +215,7 @@ router.get('/quiz-participants', authMiddleware, async (req, res) => {
 
 /**
  * POST /api/admin/email-dispatch/send
- * Dispatches custom email to selected participants
+ * Dispatches personalized custom email to selected participants with {name}, {college}, {quiz_title}, {event_name} placeholder replacement
  */
 router.post('/send', authMiddleware, async (req, res) => {
   try {
@@ -179,6 +223,7 @@ router.post('/send', authMiddleware, async (req, res) => {
       audienceType, // 'all_students' | 'quiz_participants' | 'custom'
       quizId,
       occurrenceId,
+      participantFilter = 'all', // 'all' | 'completed' | 'in_progress' | 'registered'
       customEmails,
       excludedEmails = [],
       subject,
@@ -195,18 +240,33 @@ router.post('/send', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'Email Message Body is required.' });
     }
 
+    let quizDetails = null;
+    if (quizId) {
+      quizDetails = await Quiz.findByPk(quizId, {
+        attributes: ['id', 'title', 'event_name', 'mode', 'join_code']
+      });
+    }
+
+    const quizTitle = quizDetails?.title || 'MSC Quiz Challenge';
+    const eventName = quizDetails?.event_name || 'MSC Tech Event';
+
     const excludedSet = new Set((excludedEmails || []).map(e => e.toLowerCase().trim()));
-    const targetRecipientsMap = new Map(); // email -> { name, email }
+    const targetRecipientsMap = new Map(); // email -> { name, email, college, score, status }
 
     if (audienceType === 'all_students') {
       const students = await User.findAll({
-        attributes: ['name', 'email']
+        attributes: ['name', 'email', 'college']
       });
       for (const s of students) {
         if (s.email && s.email.includes('@')) {
           const clean = s.email.toLowerCase().trim();
           if (!excludedSet.has(clean)) {
-            targetRecipientsMap.set(clean, { email: clean, name: s.name || clean.split('@')[0] });
+            targetRecipientsMap.set(clean, {
+              email: clean,
+              name: s.name || clean.split('@')[0],
+              college: s.college || 'PRPCEM',
+              status: 'Registered Student'
+            });
           }
         }
       }
@@ -215,7 +275,7 @@ router.post('/send', authMiddleware, async (req, res) => {
         return res.status(400).json({ error: 'Please select a quiz to dispatch emails.' });
       }
 
-      // Scheduled attempts
+      // 1. Scheduled attempts
       try {
         const attemptWhere = {};
         if (occurrenceId) attemptWhere.occurrence_id = occurrenceId;
@@ -223,14 +283,26 @@ router.post('/send', authMiddleware, async (req, res) => {
 
         const attempts = await QuizAttempt.findAll({
           where: attemptWhere,
-          attributes: ['participant_name', 'participant_email']
+          attributes: ['participant_name', 'participant_email', 'status', 'score']
         });
 
         for (const att of attempts) {
           if (att.participant_email && att.participant_email.includes('@')) {
             const clean = att.participant_email.toLowerCase().trim();
+            const st = (att.status || '').toLowerCase();
+
+            // Filter by participantFilter if set
+            if (participantFilter === 'completed' && st !== 'completed' && st !== 'finished') continue;
+            if (participantFilter === 'in_progress' && st !== 'in_progress' && st !== 'started') continue;
+            if (participantFilter === 'registered' && (st === 'completed' || st === 'finished')) continue;
+
             if (!excludedSet.has(clean)) {
-              targetRecipientsMap.set(clean, { email: clean, name: att.participant_name || clean.split('@')[0] });
+              targetRecipientsMap.set(clean, {
+                email: clean,
+                name: att.participant_name || clean.split('@')[0],
+                score: att.score,
+                status: att.status
+              });
             }
           }
         }
@@ -238,18 +310,24 @@ router.post('/send', authMiddleware, async (req, res) => {
         console.warn('Error querying attempts:', attErr.message);
       }
 
-      // Live participants
-      if (quizId) {
+      // 2. Live participants
+      if (quizId && participantFilter !== 'completed') {
         try {
           const liveP = await Participant.findAll({
             where: { quiz_id: quizId },
-            attributes: ['name', 'email']
+            attributes: ['name', 'email', 'college', 'score']
           });
           for (const p of liveP) {
             if (p.email && p.email.includes('@')) {
               const clean = p.email.toLowerCase().trim();
               if (!excludedSet.has(clean)) {
-                targetRecipientsMap.set(clean, { email: clean, name: p.name || clean.split('@')[0] });
+                targetRecipientsMap.set(clean, {
+                  email: clean,
+                  name: p.name || clean.split('@')[0],
+                  college: p.college || 'PRPCEM',
+                  score: p.score,
+                  status: 'Registered'
+                });
               }
             }
           }
@@ -266,50 +344,69 @@ router.post('/send', authMiddleware, async (req, res) => {
         if (raw.includes('@')) {
           const clean = raw.toLowerCase().trim();
           if (!excludedSet.has(clean)) {
-            targetRecipientsMap.set(clean, { email: clean, name: clean.split('@')[0] });
+            targetRecipientsMap.set(clean, {
+              email: clean,
+              name: clean.split('@')[0],
+              college: 'PRPCEM',
+              status: 'Custom'
+            });
           }
         }
       }
-    } else {
-      return res.status(400).json({ error: 'Invalid audience type.' });
     }
 
     const recipients = Array.from(targetRecipientsMap.values());
 
     if (recipients.length === 0) {
-      return res.status(400).json({ error: 'No valid recipient email addresses found for dispatch.' });
+      return res.status(400).json({ error: 'No recipients matched the selected criteria.' });
     }
 
-    // Convert raw messageBody to HTML paragraphs if not already HTML
-    let messageHtml = messageBody;
-    if (!messageBody.includes('<p>') && !messageBody.includes('<div>')) {
-      messageHtml = messageBody
-        .split('\n\n')
-        .map(p => `<p style="margin: 0 0 12px 0;">${p.replace(/\n/g, '<br/>')}</p>`)
-        .join('');
-    }
-
-    console.log(`[EMAIL DISPATCH] Starting broadcast to ${recipients.length} recipients. Subject: "${subject}"`);
+    console.log(`[EMAIL DISPATCH] Broadcasting to ${recipients.length} recipients. Subject: "${subject}"`);
 
     let sentCount = 0;
     let failedCount = 0;
     const errors = [];
 
-    // Dispatch in concurrency chunks of 5
+    // Dispatch in chunks of 5 with dynamic placeholder replacements
     const CHUNK_SIZE = 5;
     for (let i = 0; i < recipients.length; i += CHUNK_SIZE) {
       const chunk = recipients.slice(i, i + CHUNK_SIZE);
       await Promise.all(
         chunk.map(async (rec) => {
           try {
+            const contextData = {
+              name: rec.name,
+              email: rec.email,
+              college: rec.college,
+              score: rec.score,
+              status: rec.status,
+              quizTitle,
+              eventName
+            };
+
+            const pSubject = replacePlaceholders(subject, contextData).trim();
+            const pHeading = replacePlaceholders(heading || subject, contextData).trim();
+            const rawBody = replacePlaceholders(messageBody, contextData);
+            
+            let messageHtml = rawBody;
+            if (!rawBody.includes('<p>') && !rawBody.includes('<div>')) {
+              messageHtml = rawBody
+                .split('\n\n')
+                .map(p => `<p style="margin: 0 0 12px 0;">${p.replace(/\n/g, '<br/>')}</p>`)
+                .join('');
+            }
+
+            const pCtaText = ctaText ? replacePlaceholders(ctaText, contextData).trim() : null;
+            const pCtaUrl = ctaUrl ? replacePlaceholders(ctaUrl, contextData).trim() : null;
+
             await sendCustomBroadcastEmail({
               to: rec.email,
               recipientName: rec.name,
-              subject: subject.trim(),
-              heading: heading ? heading.trim() : subject.trim(),
+              subject: pSubject,
+              heading: pHeading,
               messageHtml,
-              ctaText: ctaText ? ctaText.trim() : null,
-              ctaUrl: ctaUrl ? ctaUrl.trim() : null
+              ctaText: pCtaText,
+              ctaUrl: pCtaUrl
             });
             sentCount++;
           } catch (err) {
@@ -323,7 +420,7 @@ router.post('/send', authMiddleware, async (req, res) => {
 
     res.json({
       success: true,
-      message: `Email broadcast dispatched to ${sentCount} recipient(s).` + (failedCount > 0 ? ` (${failedCount} failed)` : ''),
+      message: `Email broadcast delivered to ${sentCount} recipient(s).` + (failedCount > 0 ? ` (${failedCount} failed)` : ''),
       totalRecipients: recipients.length,
       sentCount,
       failedCount,
