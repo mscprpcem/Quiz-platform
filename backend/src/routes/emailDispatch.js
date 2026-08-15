@@ -385,6 +385,10 @@ router.get('/quiz-participants', authMiddleware, async (req, res) => {
   }
 });
 
+const isValidUUID = (val) => {
+  return typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
+};
+
 /**
  * POST /api/admin/email-dispatch/send
  * Dispatches personalized custom email to selected participants
@@ -416,16 +420,31 @@ router.post('/send', authMiddleware, async (req, res) => {
 
     let quizDetails = null;
     if (quizId) {
-      quizDetails = await Quiz.findByPk(quizId, {
-        attributes: ['id', 'title', 'event_name', 'mode', 'join_code']
-      });
+      if (isValidUUID(quizId)) {
+        quizDetails = await Quiz.findByPk(quizId, {
+          attributes: ['id', 'title', 'event_name', 'mode', 'join_code']
+        }).catch(() => null);
+      } else {
+        quizDetails = await Quiz.findOne({
+          where: { custom_slug: quizId },
+          attributes: ['id', 'title', 'event_name', 'mode', 'join_code']
+        }).catch(() => null);
+      }
     }
 
     let eventDetails = null;
     if (eventId) {
-      eventDetails = await Event.findByPk(eventId);
+      if (isValidUUID(eventId)) {
+        eventDetails = await Event.findByPk(eventId).catch(() => null);
+      } else {
+        eventDetails = await Event.findOne({ where: { slug: eventId } }).catch(() => null);
+      }
       if (!eventDetails) {
-        const se = staticEvents.find(s => s.id === eventId || (s.title && s.title.toLowerCase() === eventId.toLowerCase()));
+        const se = staticEvents.find(s =>
+          String(s.id).toLowerCase() === String(eventId).toLowerCase() ||
+          (s.title && s.title.toLowerCase() === String(eventId).toLowerCase()) ||
+          (s.title && s.title.toLowerCase() === String(reqEventName || '').toLowerCase())
+        );
         if (se) eventDetails = { name: se.title || se.name };
       }
     }

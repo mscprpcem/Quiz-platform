@@ -259,20 +259,28 @@ router.post('/', adminAuth, async (req, res) => {
   }
 });
 
+const isValidUUID = (val) => {
+  return typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
+};
+
 // ----------------------------------------------------
 // PUT /api/events/:id (Update Event)
 // ----------------------------------------------------
 router.put('/:id', adminAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    let event = await Event.findByPk(id);
+    let event = null;
+    if (isValidUUID(id)) {
+      event = await Event.findByPk(id).catch(() => null);
+    } else {
+      event = await Event.findOne({ where: { slug: id } }).catch(() => null);
+    }
     
     // If updating a static event that was in JSON, migrate it into DB
     if (!event) {
-      const staticMatch = staticEvents.find(s => s.id === id);
+      const staticMatch = staticEvents.find(s => s.id === id || (s.title && s.title.toLowerCase() === id.toLowerCase()));
       if (staticMatch) {
         event = await Event.create({
-          id,
           name: staticMatch.title,
           slug: staticMatch.id,
           description: staticMatch.description,
@@ -342,7 +350,12 @@ router.put('/:id', adminAuth, async (req, res) => {
 router.delete('/:id', adminAuth, async (req, res) => {
   try {
     const { id } = req.params;
-    const event = await Event.findByPk(id);
+    let event = null;
+    if (isValidUUID(id)) {
+      event = await Event.findByPk(id).catch(() => null);
+    } else {
+      event = await Event.findOne({ where: { slug: id } }).catch(() => null);
+    }
     if (event) {
       await event.destroy();
     }

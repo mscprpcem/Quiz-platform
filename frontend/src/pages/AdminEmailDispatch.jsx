@@ -348,6 +348,7 @@ export default function AdminEmailDispatch() {
       const res = await api.post('/api/admin/email-dispatch/send', {
         audienceType,
         eventId: audienceType === 'event_registrants' ? selectedEventId : undefined,
+        eventName: audienceType === 'event_registrants' ? (selectedEventInfo?.name || searchParams.get('event')) : undefined,
         quizId: audienceType === 'quiz_participants' ? selectedQuizId : undefined,
         participantFilter: audienceType === 'quiz_participants' ? participantFilter : undefined,
         customEmails: audienceType === 'custom' ? customEmailsText : undefined,
@@ -364,10 +365,12 @@ export default function AdminEmailDispatch() {
         setShowConfirmModal(false);
       } else {
         setErrorMessage(res.data.error || 'Failed to dispatch emails.');
+        setShowConfirmModal(false);
       }
     } catch (err) {
       console.error('Dispatch error:', err);
       setErrorMessage(err.response?.data?.error || 'Failed to dispatch email broadcast.');
+      setShowConfirmModal(false);
     } finally {
       setDispatching(false);
     }
