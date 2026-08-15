@@ -206,6 +206,32 @@ router.get('/:id/registrations', adminAuth, async (req, res) => {
 });
 
 // ----------------------------------------------------
+// DELETE /api/events/registrations/:regId (Admin: Delete an Event Registration)
+// ----------------------------------------------------
+router.delete('/registrations/:regId', adminAuth, async (req, res) => {
+  try {
+    const { regId } = req.params;
+    if (!regId) {
+      return res.status(400).json({ error: 'Registration ID is required.' });
+    }
+
+    const registration = await EventRegistration.findByPk(regId);
+    if (!registration) {
+      return res.status(404).json({ error: 'Event registration not found.' });
+    }
+
+    await registration.destroy();
+    return res.json({
+      success: true,
+      message: 'Registration deleted successfully.'
+    });
+  } catch (err) {
+    console.error('Error deleting registration:', err);
+    return res.status(500).json({ error: err.message || 'Failed to delete registration.' });
+  }
+});
+
+// ----------------------------------------------------
 // POST /api/events (Create a New Event in Admin Panel)
 // ----------------------------------------------------
 router.post('/', adminAuth, async (req, res) => {

@@ -42,6 +42,7 @@ import StudentAuth from './pages/StudentAuth';
 import AuthCallback from './pages/AuthCallback';
 import AdminEmailDispatch from './pages/AdminEmailDispatch';
 import AdminEvents from './pages/AdminEvents';
+import AdminUsers from './pages/AdminUsers';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -174,6 +175,14 @@ export default function App() {
                   element={
                     <AdminRoute>
                       <AdminEvents />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/users"
+                  element={
+                    <AdminRoute>
+                      <AdminUsers />
                     </AdminRoute>
                   }
                 />

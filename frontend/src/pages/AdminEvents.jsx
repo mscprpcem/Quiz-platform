@@ -77,7 +77,21 @@ export default function AdminEvents() {
   const [registrations, setRegistrations] = useState([]);
   const [loadingRegs, setLoadingRegs] = useState(false);
   const [regsSearch, setRegsSearch] = useState('');
+  const [regsPage, setRegsPage] = useState(1);
+  const [regsLimit, setRegsLimit] = useState(10);
   const [copyFeedback, setCopyFeedback] = useState(null);
+
+  const handleDeleteReg = async (regId, studentName) => {
+    if (!window.confirm(`Are you sure you want to delete the registration for "${studentName}"?`)) {
+      return;
+    }
+    try {
+      await api.delete(`/api/events/registrations/${regId}`);
+      setRegistrations(prev => prev.filter(r => r.id !== regId));
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to delete registration');
+    }
+  };
 
   const fetchEvents = async () => {
     try {
@@ -606,15 +620,33 @@ export default function AdminEvents() {
               </div>
             </div>
 
-            {/* Filter Search */}
-            <div className="my-4">
+            {/* Filter Search & Items Per Page Selector */}
+            <div className="my-4 flex flex-col sm:flex-row gap-3 items-center justify-between">
               <input
                 type="text"
                 placeholder="Search registered students by name, email, college, branch..."
                 value={regsSearch}
-                onChange={(e) => setRegsSearch(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-blue-600"
+                onChange={(e) => {
+                  setRegsSearch(e.target.value);
+                  setRegsPage(1);
+                }}
+                className="w-full sm:flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:border-blue-600"
               />
+              <div className="flex items-center gap-2 self-end sm:self-auto">
+                <span className="text-[11px] font-bold text-slate-500 whitespace-nowrap">Show:</span>
+                <select
+                  value={regsLimit}
+                  onChange={(e) => {
+                    setRegsLimit(parseInt(e.target.value, 10));
+                    setRegsPage(1);
+                  }}
+                  className="px-2.5 py-2 bg-blue-50 text-blue-700 font-bold border border-blue-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
+                >
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
             </div>
 
             {/* Table */}
@@ -632,36 +664,79 @@ export default function AdminEvents() {
                       <th className="p-3">College & Branch</th>
                       <th className="p-3">Phone</th>
                       <th className="p-3">Registered At</th>
+                      <th className="p-3 text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                    {filteredRegs.map((r) => (
-                      <tr key={r.id} className="hover:bg-slate-50/50">
-                        <td className="p-3 font-bold text-slate-900">{r.full_name}</td>
-                        <td className="p-3 text-blue-600">{r.email}</td>
-                        <td className="p-3">
-                          <div className="font-bold text-slate-800 truncate max-w-[180px]">{r.college}</div>
-                          <div className="text-[10px] text-slate-400">{r.branch} {r.year_of_study ? `(${r.year_of_study})` : ''}</div>
-                        </td>
-                        <td className="p-3 text-slate-600">{r.phone || '—'}</td>
-                        <td className="p-3 text-[11px] text-slate-400">
-                          {new Date(r.createdAt).toLocaleDateString()}
-                        </td>
-                      </tr>
-                    ))}
+                    {filteredRegs
+                      .slice((regsPage - 1) * regsLimit, regsPage * regsLimit)
+                      .map((r) => (
+                        <tr key={r.id} className="hover:bg-slate-50/50">
+                          <td className="p-3 font-bold text-slate-900">{r.full_name}</td>
+                          <td className="p-3 text-blue-600">{r.email}</td>
+                          <td className="p-3">
+                            <div className="font-bold text-slate-800 truncate max-w-[180px]">{r.college}</div>
+                            <div className="text-[10px] text-slate-400">{r.branch} {r.year_of_study ? `(${r.year_of_study})` : ''}</div>
+                          </td>
+                          <td className="p-3 text-slate-600">{r.phone || '—'}</td>
+                          <td className="p-3 text-[11px] text-slate-400">
+                            {new Date(r.createdAt).toLocaleDateString()}
+                          </td>
+                          <td className="p-3 text-right">
+                            <button
+                              onClick={() => handleDeleteReg(r.id, r.full_name)}
+                              className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-all cursor-pointer"
+                              title="Delete registration"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               )}
             </div>
 
-            <div className="pt-4 border-t border-slate-100 flex justify-between items-center text-xs">
-              <span className="text-slate-500 font-bold">Total: {filteredRegs.length} record(s)</span>
-              <button
-                onClick={() => setRegsModalOpen(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold cursor-pointer"
-              >
-                Close
-              </button>
+            {/* Paginator Bar */}
+            <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+              <div className="text-slate-500 font-bold">
+                Showing{' '}
+                <span className="text-slate-900 font-extrabold">
+                  {filteredRegs.length === 0 ? 0 : (regsPage - 1) * regsLimit + 1}
+                </span>{' '}
+                to{' '}
+                <span className="text-slate-900 font-extrabold">
+                  {Math.min(regsPage * regsLimit, filteredRegs.length)}
+                </span>{' '}
+                of <span className="text-slate-900 font-extrabold">{filteredRegs.length}</span> record(s)
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setRegsPage(prev => Math.max(1, prev - 1))}
+                  disabled={regsPage === 1 || filteredRegs.length === 0}
+                  className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                >
+                  Prev
+                </button>
+                <span className="font-bold text-slate-700 font-mono">
+                  {regsPage} / {Math.ceil(filteredRegs.length / regsLimit) || 1}
+                </span>
+                <button
+                  onClick={() => setRegsPage(prev => Math.min(Math.ceil(filteredRegs.length / regsLimit), prev + 1))}
+                  disabled={regsPage >= Math.ceil(filteredRegs.length / regsLimit) || filteredRegs.length === 0}
+                  className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none cursor-pointer"
+                >
+                  Next
+                </button>
+                <button
+                  onClick={() => setRegsModalOpen(false)}
+                  className="ml-2 px-4 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>
