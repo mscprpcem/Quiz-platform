@@ -182,7 +182,18 @@ export default function AdminEvents() {
     
     if (!matchesSearch) return false;
     if (selectedFilter === 'ALL') return true;
-    return (e.status || '').toUpperCase() === selectedFilter;
+    
+    const status = (e.status || '').toUpperCase();
+    if (selectedFilter === 'COMPLETED') {
+      return status === 'COMPLETED' || status === 'PAST' || status === 'CONCLUDED';
+    }
+    if (selectedFilter === 'UPCOMING') {
+      return status === 'UPCOMING' || status === 'OPEN' || status === 'ACTIVE';
+    }
+    if (selectedFilter === 'LIVE') {
+      return status === 'LIVE' || e.is_live;
+    }
+    return status === selectedFilter;
   });
 
   return (
