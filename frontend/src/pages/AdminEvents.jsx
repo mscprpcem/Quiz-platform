@@ -5,7 +5,7 @@ import {
   Sparkles, Plus, Search, Calendar, MapPin, Globe, Users,
   Trash2, Edit3, ExternalLink, Mail, ArrowRight, ShieldCheck,
   AlertCircle, RefreshCw, X, Radio, BookOpen, Image, Check, Download, FileText,
-  Copy, Link as LinkIcon
+  Copy, Link as LinkIcon, Upload, CloudUpload, CheckCircle2
 } from 'lucide-react';
 
 const POSTER_GALLERY = [
@@ -70,6 +70,8 @@ export default function AdminEvents() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [uploadingPoster, setUploadingPoster] = useState(false);
+  const [posterUploadSuccess, setPosterUploadSuccess] = useState(false);
 
   // Registrations Modal State
   const [regsModalOpen, setRegsModalOpen] = useState(false);
@@ -80,6 +82,48 @@ export default function AdminEvents() {
   const [regsPage, setRegsPage] = useState(1);
   const [regsLimit, setRegsLimit] = useState(10);
   const [copyFeedback, setCopyFeedback] = useState(null);
+
+  const handlePosterUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      alert('Please select a valid image file (PNG, JPG, JPEG, WEBP, GIF, SVG).');
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image file size must be under 10MB.');
+      return;
+    }
+
+    try {
+      setUploadingPoster(true);
+      setPosterUploadSuccess(false);
+      const uploadFormData = new FormData();
+      uploadFormData.append('poster', file);
+
+      const res = await api.post('/api/events/upload-poster', uploadFormData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      });
+
+      if (res.data?.success && res.data.url) {
+        setFormData(prev => ({
+          ...prev,
+          poster_url: res.data.url
+        }));
+        setPosterUploadSuccess(true);
+        setTimeout(() => setPosterUploadSuccess(false), 4000);
+      }
+    } catch (err) {
+      console.error('Poster upload failed:', err);
+      alert(err.response?.data?.error || 'Failed to upload poster image to Azure Blob Storage.');
+    } finally {
+      setUploadingPoster(false);
+    }
+  };
 
   const handleDeleteReg = async (regId, studentName) => {
     if (!window.confirm(`Are you sure you want to delete the registration for "${studentName}"?`)) {
@@ -811,54 +855,118 @@ export default function AdminEvents() {
                 </p>
               </div>
 
-              {/* Visual Poster Template Gallery */}
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1.5 flex items-center justify-between">
-                  <span>Select Event Poster Design</span>
-                  <span className="text-[10px] text-purple-600 font-normal">Click to choose design</span>
-                </label>
-                <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-                  {POSTER_GALLERY.map((p) => {
-                    const isSelected = formData.poster_url === p.url;
-                    return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => setFormData({ ...formData, poster_url: p.url })}
-                        className={`relative aspect-4/3 rounded-xl overflow-hidden border-2 transition-all cursor-pointer group ${
-                          isSelected
-                            ? 'border-purple-600 ring-2 ring-purple-600/30 scale-102 shadow-xs'
-                            : 'border-slate-200 hover:border-slate-400 opacity-70 hover:opacity-100'
-                        }`}
-                        title={p.name}
-                      >
-                        <img src={p.url} alt={p.name} className="w-full h-full object-cover" />
-                        {isSelected && (
-                          <div className="absolute inset-0 bg-purple-600/30 flex items-center justify-center text-white">
-                            <Check size={14} className="stroke-[3]" />
-                          </div>
-                        )}
-                        <span className="absolute bottom-0 inset-x-0 bg-black/70 text-[8px] font-bold text-white text-center py-0.5 truncate px-1">
-                          {p.name.split(' ')[0]}
-                        </span>
-                      </button>
-                    );
-                  })}
+              {/* Poster Upload & Gallery Section */}
+              <div className="space-y-3 bg-slate-50/80 p-3.5 rounded-2xl border border-slate-200">
+                <div className="flex items-center justify-between">
+                  <label className="block text-[11px] font-black text-slate-800 flex items-center gap-1.5">
+                    <CloudUpload size={15} className="text-purple-600" />
+                    <span>Event Poster Image</span>
+                  </label>
+                  <span className="text-[10px] text-purple-600 font-bold">Azure Blob Storage Enabled</span>
                 </div>
-              </div>
 
-              {/* Custom Poster URL Fallback */}
-              <div>
-                <label className="block text-[10px] font-bold text-slate-500 mb-1">
-                  Or Custom Poster Image URL
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://..."
-                  value={formData.poster_url}
-                  onChange={(e) => setFormData({ ...formData, poster_url: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-hidden focus:border-purple-600 font-mono text-[11px]"
-                />
+                {/* Azure Blob File Uploader Box */}
+                <div className="flex flex-col sm:flex-row items-center gap-3 bg-white p-3 rounded-xl border border-dashed border-purple-200 hover:border-purple-400 transition-all">
+                  {/* Current Poster Preview Thumbnail */}
+                  {formData.poster_url ? (
+                    <div className="relative w-20 h-14 rounded-lg overflow-hidden border border-slate-200 flex-shrink-0 bg-slate-100 shadow-2xs">
+                      <img
+                        src={formData.poster_url}
+                        alt="Current Poster"
+                        className="w-full h-full object-cover"
+                      />
+                      {formData.poster_url.includes('blob.core.windows.net') && (
+                        <span className="absolute top-0.5 right-0.5 bg-blue-600 text-[7px] text-white font-bold px-1 rounded-xs">
+                          Azure
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="w-20 h-14 rounded-lg border border-slate-200 flex-shrink-0 bg-slate-100 flex items-center justify-center text-slate-400">
+                      <Image size={20} />
+                    </div>
+                  )}
+
+                  <div className="flex-1 min-w-0 text-center sm:text-left space-y-1">
+                    <div className="flex items-center gap-2 justify-center sm:justify-start">
+                      <label className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-[11px] font-black cursor-pointer shadow-2xs flex items-center gap-1.5 transition-all">
+                        {uploadingPoster ? (
+                          <>
+                            <RefreshCw size={12} className="animate-spin" />
+                            <span>Uploading to Azure...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload size={12} />
+                            <span>Upload Image to Azure Blob</span>
+                          </>
+                        )}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePosterUpload}
+                          disabled={uploadingPoster}
+                          className="hidden"
+                        />
+                      </label>
+
+                      {posterUploadSuccess && (
+                        <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
+                          <CheckCircle2 size={12} /> Uploaded!
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[9px] text-slate-400">
+                      Supports PNG, JPG, WEBP, GIF, SVG (Max 10MB). Automatically stored in Azure Blob Storage.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Preset Gallery */}
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-500 mb-1.5">
+                    Or Choose from Pre-Designed Event Posters:
+                  </label>
+                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                    {POSTER_GALLERY.map((p) => {
+                      const isSelected = formData.poster_url === p.url;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setFormData({ ...formData, poster_url: p.url })}
+                          className={`relative aspect-4/3 rounded-lg overflow-hidden border-2 transition-all cursor-pointer group ${
+                            isSelected
+                              ? 'border-purple-600 ring-2 ring-purple-600/30 scale-102 shadow-xs'
+                              : 'border-slate-200 hover:border-slate-400 opacity-70 hover:opacity-100'
+                          }`}
+                          title={p.name}
+                        >
+                          <img src={p.url} alt={p.name} className="w-full h-full object-cover" />
+                          {isSelected && (
+                            <div className="absolute inset-0 bg-purple-600/30 flex items-center justify-center text-white">
+                              <Check size={14} className="stroke-[3]" />
+                            </div>
+                          )}
+                          <span className="absolute bottom-0 inset-x-0 bg-black/70 text-[7px] font-bold text-white text-center py-0.5 truncate px-1">
+                            {p.name.split(' ')[0]}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Direct URL Input */}
+                <div>
+                  <input
+                    type="url"
+                    placeholder="Or enter direct image URL: https://..."
+                    value={formData.poster_url}
+                    onChange={(e) => setFormData({ ...formData, poster_url: e.target.value })}
+                    className="w-full px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-xs outline-hidden focus:border-purple-600 font-mono text-[10px] text-slate-600"
+                  />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

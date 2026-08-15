@@ -4,8 +4,10 @@ const path = require('path');
 const fs = require('fs');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const multer = require('multer');
 const { Event, Quiz, Question, Participant, QuizAttempt, ScheduledOccurrence, User, EventRegistration } = require('../models');
 const { sendCustomBroadcastEmail } = require('../services/emailService');
+const { uploadImageToAzureBlob } = require('../services/azureBlobService');
 const { Op } = require('sequelize');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'msc_quiz_secret_key_2026';
@@ -24,6 +26,49 @@ const adminAuth = (req, res, next) => {
   }
   next();
 };
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 10 * 1024 * 1024 // 10MB max
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype && (file.mimetype.startsWith('image/') || file.mimetype === 'application/octet-stream')) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only image files (PNG, JPG, JPEG, WEBP, GIF, SVG) are allowed.'), false);
+    }
+  }
+});
+
+// ----------------------------------------------------
+// POST /api/events/upload-poster (Upload Event Poster to Azure Blob Storage)
+// ----------------------------------------------------
+router.post('/upload-poster', adminAuth, upload.single('poster'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'Please select an image file to upload.' });
+    }
+
+    const uploadResult = await uploadImageToAzureBlob(
+      req.file.buffer,
+      req.file.originalname,
+      req.file.mimetype,
+      'event-poster'
+    );
+
+    return res.json({
+      success: true,
+      message: 'Poster uploaded successfully!',
+      url: uploadResult.url,
+      blobName: uploadResult.blobName,
+      storageType: uploadResult.storageType
+    });
+  } catch (err) {
+    console.error('Error uploading poster image:', err);
+    return res.status(500).json({ error: 'Failed to upload image: ' + err.message });
+  }
+});
 
 // Load static/old events from events.json
 let staticEvents = [];
