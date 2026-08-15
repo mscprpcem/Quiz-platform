@@ -261,8 +261,42 @@ async function startServer() {
       `ALTER TABLE ${quote}Participants${quote} ADD COLUMN ${ifNotExists}${quote}sso_user_id${quote} VARCHAR(255);`,
       `ALTER TABLE ${quote}QuizAttempts${quote} ADD COLUMN ${ifNotExists}${quote}sso_user_id${quote} VARCHAR(255);`,
 
+      // Events table
+      `CREATE TABLE IF NOT EXISTS ${quote}Events${quote} (
+        ${quote}id${quote} UUID PRIMARY KEY,
+        ${quote}name${quote} VARCHAR(255) NOT NULL,
+        ${quote}slug${quote} VARCHAR(255),
+        ${quote}description${quote} TEXT,
+        ${quote}poster_url${quote} VARCHAR(255),
+        ${quote}category${quote} VARCHAR(255),
+        ${quote}mode${quote} VARCHAR(255),
+        ${quote}venue${quote} VARCHAR(255),
+        ${quote}start_date${quote} ${dateType},
+        ${quote}end_date${quote} ${dateType},
+        ${quote}rewards${quote} VARCHAR(255),
+        ${quote}status${quote} VARCHAR(255) DEFAULT 'upcoming',
+        ${quote}createdAt${quote} ${dateType},
+        ${quote}updatedAt${quote} ${dateType}
+      );`,
+
       // Lowercase fallback for Postgres
       ...(isPostgres ? [
+        `CREATE TABLE IF NOT EXISTS events (
+          id UUID PRIMARY KEY,
+          name VARCHAR(255) NOT NULL,
+          slug VARCHAR(255),
+          description TEXT,
+          poster_url VARCHAR(255),
+          category VARCHAR(255),
+          mode VARCHAR(255),
+          venue VARCHAR(255),
+          start_date ${dateType},
+          end_date ${dateType},
+          rewards VARCHAR(255),
+          status VARCHAR(255) DEFAULT 'upcoming',
+          "createdAt" ${dateType},
+          "updatedAt" ${dateType}
+        );`,
         `ALTER TABLE questions ADD COLUMN IF NOT EXISTS occurrence_number INTEGER DEFAULT 1;`,
         `ALTER TABLE questions ADD COLUMN IF NOT EXISTS section_name VARCHAR(255);`,
         `ALTER TABLE questions ADD COLUMN IF NOT EXISTS section_description TEXT;`,
