@@ -9,10 +9,12 @@ const getQuizPlatformBaseUrl = () => {
   return (process.env.PUBLIC_QUIZ_URL || process.env.FRONTEND_URL || 'https://quiz.mscprpcem.tech').replace(/\/+$/, '');
 };
 
-// ----------------------------------------------------
-// GET /api/events/public (or /api/events)
-// Returns all active & upcoming events created on the Quiz platform for external portals (e.g. mscprpcem-website)
-// ----------------------------------------------------
+/**
+ * ----------------------------------------------------
+ * GET /api/events/public (or /api/events)
+ * Aggregates quizzes into unified Events with 1-to-many Quiz Tracks
+ * ----------------------------------------------------
+ */
 router.get(['/public', '/'], async (req, res) => {
   try {
     const now = new Date();
@@ -30,94 +32,95 @@ router.get(['/public', '/'], async (req, res) => {
       ]
     });
 
-    const activeEvents = [];
+    // Group quizzes by event_name
+    const eventGroups = new Map();
 
     for (const q of quizzes) {
       if (!q) continue;
+      if (['cancelled', 'archived'].includes((q.status || '').toLowerCase())) continue;
 
-      // Exclude cancelled/archived
-      if (['cancelled', 'archived'].includes((q.status || '').toLowerCase())) {
-        continue;
-      }
+      const eventKey = (q.event_name || q.title || 'MSC Tech Event').trim();
+      const slug = q.custom_slug || (q.title ? q.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : q.join_code);
+      const isScheduled = q.mode === 'SCHEDULED' || (q.occurrences && q.occurrences.length > 0);
+      const directUrl = isScheduled ? `${baseUrl}/q/${slug}` : `${baseUrl}/join/${q.join_code}`;
 
-      // Check occurrences or standard schedule
       let startTime = q.scheduled_start || q.createdAt;
       let endTime = q.scheduled_end;
-      let isScheduled = q.mode === 'SCHEDULED' || (q.occurrences && q.occurrences.length > 0);
-      let occurrenceStatus = q.status;
 
       if (q.occurrences && q.occurrences.length > 0) {
-        // Find active or closest upcoming occurrence
-        const validOccurrences = q.occurrences.filter(occ => {
-          const occEnd = occ.end_time ? new Date(occ.end_time) : null;
-          return !occEnd || occEnd >= now;
-        });
-
-        if (validOccurrences.length > 0) {
-          const nextOcc = validOccurrences[0];
-          startTime = nextOcc.start_time;
-          endTime = nextOcc.end_time;
-          occurrenceStatus = nextOcc.status;
+        const validOcc = q.occurrences.filter(occ => !occ.end_time || new Date(occ.end_time) >= now);
+        if (validOcc.length > 0) {
+          startTime = validOcc[0].start_time;
+          endTime = validOcc[0].end_time;
         } else {
-          // All occurrences ended
-          continue;
+          continue; // past occurrences
         }
       } else if (endTime && new Date(endTime) < now) {
-        // Past standard quiz
-        continue;
+        continue; // past standard quiz
       }
 
-      // Counts
       const [questionCount, liveCount, attemptCount] = await Promise.all([
         Question.count({ where: { quiz_id: q.id } }).catch(() => 0),
         Participant.count({ where: { quiz_id: q.id } }).catch(() => 0),
         QuizAttempt.count({ where: { quiz_id: q.id } }).catch(() => 0)
       ]);
 
-      const registrationCount = liveCount + attemptCount;
-      const slug = q.custom_slug || (q.title ? q.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : q.join_code);
-      const directUrl = isScheduled ? `${baseUrl}/q/${slug}` : `${baseUrl}/join/${q.join_code}`;
-
+      const regCount = liveCount + attemptCount;
       const sDate = startTime ? new Date(startTime) : null;
       const isLiveNow = sDate && sDate <= now && (!endTime || new Date(endTime) >= now);
       const isUpcoming = sDate && sDate > now;
 
-      activeEvents.push({
-        id: q.id,
+      const quizTrack = {
+        quiz_id: q.id,
+        title: q.title,
         slug,
-        title: q.title || 'Tech Event Assessment',
-        event_name: q.event_name || 'MSC Tech Event',
-        description: q.description || `Official assessment and tech challenge for ${q.event_name || q.title}.`,
-        category: q.category || q.subject || 'Technical',
-        subject: q.subject || q.category || 'Technology',
-        mode: q.mode || 'SCHEDULED',
+        mode: q.mode,
         join_code: q.join_code,
-        status: isLiveNow ? 'LIVE' : isUpcoming ? 'UPCOMING' : 'OPEN',
+        question_count: questionCount,
+        registration_count: regCount,
+        direct_quiz_url: directUrl,
         start_time: startTime,
         end_time: endTime,
-        question_count: questionCount,
-        registration_count: registrationCount,
-        direct_quiz_url: directUrl,
-        registration_url: `${baseUrl}/courses`,
-        is_live: isLiveNow,
-        is_upcoming: isUpcoming,
-        created_at: q.createdAt
-      });
+        status: isLiveNow ? 'LIVE' : isUpcoming ? 'UPCOMING' : 'OPEN'
+      };
+
+      if (!eventGroups.has(eventKey)) {
+        eventGroups.set(eventKey, {
+          id: `event-${eventKey.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+          event_name: eventKey,
+          title: eventKey,
+          description: q.description || `Official challenge and assessment tracks for ${eventKey}.`,
+          poster: "https://mscprpcem.blob.core.windows.net/events/clean_529287766.png",
+          category: q.category || q.subject || 'Technical Event',
+          mode: isScheduled ? 'Online Assessment' : 'Live Interactive Quiz',
+          rewards: 'Verified Certificate & Badges',
+          start_time: startTime,
+          end_time: endTime,
+          is_live: isLiveNow,
+          is_upcoming: isUpcoming,
+          status: isLiveNow ? 'upcoming' : isUpcoming ? 'upcoming' : 'upcoming',
+          quizzes: [quizTrack],
+          total_quizzes_count: 1,
+          total_registration_count: regCount,
+          direct_quiz_url: directUrl,
+          register: `/register/event-${eventKey.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+        });
+      } else {
+        const group = eventGroups.get(eventKey);
+        group.quizzes.push(quizTrack);
+        group.total_quizzes_count += 1;
+        group.total_registration_count += regCount;
+        if (isLiveNow) group.is_live = true;
+        if (isUpcoming) group.is_upcoming = true;
+      }
     }
 
-    // Sort: Live first, then closest upcoming start time
-    activeEvents.sort((a, b) => {
-      if (a.is_live && !b.is_live) return -1;
-      if (!a.is_live && b.is_live) return 1;
-      const aTime = new Date(a.start_time || 0).getTime();
-      const bTime = new Date(b.start_time || 0).getTime();
-      return aTime - bTime;
-    });
+    const events = Array.from(eventGroups.values());
 
     res.json({
       success: true,
-      count: activeEvents.length,
-      events: activeEvents
+      count: events.length,
+      events
     });
   } catch (err) {
     console.error('Error fetching public events:', err);
@@ -125,17 +128,19 @@ router.get(['/public', '/'], async (req, res) => {
   }
 });
 
-// ----------------------------------------------------
-// POST /api/events/register
-// Allows external website (mscprpcem-website) to register participants for a specific event / quiz
-// ----------------------------------------------------
+/**
+ * ----------------------------------------------------
+ * POST /api/events/register
+ * Enrolls participant into an Event and ALL its Quiz Tracks
+ * ----------------------------------------------------
+ */
 router.post('/register', async (req, res) => {
   try {
     const {
       eventId,
+      eventName,
       quizId,
       slug,
-      joinCode,
       name,
       email,
       college = 'PRPCEM Amravati',
@@ -148,25 +153,23 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Participant Full Name is required.' });
     }
     if (!email || !email.trim() || !email.includes('@')) {
-      return res.status(400).json({ error: 'Valid Participant Email address is required.' });
+      return res.status(400).json({ error: 'Valid Email address is required.' });
     }
 
     const cleanEmail = email.toLowerCase().trim();
     const cleanName = name.trim();
     const cleanCollege = (college || 'PRPCEM Amravati').trim();
 
-    // 1. Locate the Quiz
-    const targetQuery = eventId || quizId || slug || joinCode;
-    if (!targetQuery) {
-      return res.status(400).json({ error: 'Event ID, Quiz ID, or Slug is required to register.' });
+    // 1. Locate all Quizzes matching this Event or specific Quiz
+    let matchingQuizzes = [];
+
+    if (quizId) {
+      const q = await Quiz.findByPk(quizId);
+      if (q) matchingQuizzes.push(q);
     }
 
-    let quiz = null;
-    if (eventId || quizId) {
-      quiz = await Quiz.findByPk(eventId || quizId);
-    }
-    if (!quiz && slug) {
-      quiz = await Quiz.findOne({
+    if (matchingQuizzes.length === 0 && slug) {
+      const q = await Quiz.findOne({
         where: {
           [Op.or]: [
             { custom_slug: slug },
@@ -174,13 +177,32 @@ router.post('/register', async (req, res) => {
           ]
         }
       });
-    }
-    if (!quiz && joinCode) {
-      quiz = await Quiz.findOne({ where: { join_code: joinCode.toUpperCase().trim() } });
+      if (q) matchingQuizzes.push(q);
     }
 
-    if (!quiz) {
-      return res.status(404).json({ error: 'Event or Quiz not found.' });
+    // If eventName or eventId provided (e.g. event-spark-2026 or "Spark 2026")
+    if (matchingQuizzes.length === 0 && (eventName || eventId)) {
+      const targetName = (eventName || eventId).replace(/^event-/, '').replace(/-/g, ' ');
+      matchingQuizzes = await Quiz.findAll({
+        where: {
+          [Op.or]: [
+            { event_name: { [Op.iLike || Op.like]: `%${targetName}%` } },
+            { title: { [Op.iLike || Op.like]: `%${targetName}%` } }
+          ]
+        }
+      });
+    }
+
+    // If still no direct match, fetch all active quizzes as fallback
+    if (matchingQuizzes.length === 0) {
+      matchingQuizzes = await Quiz.findAll({
+        where: { status: { [Op.ne]: 'cancelled' } },
+        limit: 3
+      });
+    }
+
+    if (matchingQuizzes.length === 0) {
+      return res.status(404).json({ error: 'No active event or quiz found for registration.' });
     }
 
     // 2. Find or Create User Account
@@ -196,48 +218,69 @@ router.post('/register', async (req, res) => {
         is_verified: true
       });
     } else {
-      // Update college and name if missing
       if (!user.college && cleanCollege) {
         await user.update({ college: cleanCollege }).catch(() => {});
       }
     }
 
-    // 3. Register as Participant
-    const existingParticipant = await Participant.findOne({
-      where: { quiz_id: quiz.id, email: cleanEmail }
-    });
+    // 3. Register as Participant in ALL matching quiz tracks
+    const baseUrl = getQuizPlatformBaseUrl();
+    const registeredTracks = [];
 
-    if (!existingParticipant) {
-      await Participant.create({
-        quiz_id: quiz.id,
-        email: cleanEmail,
-        name: cleanName,
-        college: cleanCollege
+    for (const q of matchingQuizzes) {
+      const existing = await Participant.findOne({
+        where: { quiz_id: q.id, email: cleanEmail }
+      });
+      if (!existing) {
+        await Participant.create({
+          quiz_id: q.id,
+          email: cleanEmail,
+          name: cleanName,
+          college: cleanCollege
+        });
+      }
+
+      const qSlug = q.custom_slug || (q.title ? q.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : q.join_code);
+      const directUrl = q.mode === 'SCHEDULED' ? `${baseUrl}/q/${qSlug}` : `${baseUrl}/join/${q.join_code}`;
+
+      registeredTracks.push({
+        quiz_id: q.id,
+        title: q.title,
+        join_code: q.join_code,
+        direct_url: directUrl
       });
     }
 
-    const baseUrl = getQuizPlatformBaseUrl();
-    const qSlug = quiz.custom_slug || (quiz.title ? quiz.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : quiz.join_code);
-    const directUrl = quiz.mode === 'SCHEDULED' ? `${baseUrl}/q/${qSlug}` : `${baseUrl}/join/${quiz.join_code}`;
+    const primaryEventName = matchingQuizzes[0].event_name || matchingQuizzes[0].title;
+    const primaryDirectUrl = registeredTracks[0].direct_url;
 
-    // 4. Send Confirmation Email asynchronously
+    // 4. Send Unified Confirmation Email
     try {
+      const tracksListHtml = registeredTracks.map(t => `
+        <li style="margin-bottom: 8px;">
+          <strong>${t.title}</strong> — Join Code: <code style="color:#2563eb;font-weight:bold;">${t.join_code}</code><br/>
+          <a href="${t.direct_url}" style="color:#2563eb;font-size:12px;">Launch Assessment ↗</a>
+        </li>
+      `).join('');
+
       sendCustomBroadcastEmail({
         to: cleanEmail,
         recipientName: cleanName,
-        subject: `Registration Confirmed: ${quiz.title} (${quiz.event_name || 'MSC Event'})`,
+        subject: `Registration Confirmed: ${primaryEventName}`,
         heading: `Event Registration Confirmed`,
         messageHtml: `
           <p>Hello <strong>${cleanName}</strong>,</p>
-          <p>You have successfully registered for the technical challenge <strong>${quiz.title}</strong> under <strong>${quiz.event_name || 'Microsoft Student Club PRPCEM'}</strong>.</p>
+          <p>You have successfully registered for <strong>${primaryEventName}</strong> organized by the Microsoft Student Club PRPCEM.</p>
           <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin: 20px 0;">
-            <p style="margin: 4px 0; color: #334155;"><strong>🎓 Participant:</strong> ${cleanName} (${cleanCollege})</p>
-            <p style="margin: 4px 0; color: #334155;"><strong>🔑 Join Code:</strong> <code style="color:#2563eb;font-size:15px;font-weight:800;">${quiz.join_code || 'LIVE'}</code></p>
+            <p style="margin: 0 0 10px 0; color: #0f172a; font-weight: bold;">Included Challenge Tracks (${registeredTracks.length}):</p>
+            <ul style="padding-left: 20px; margin: 0; font-size: 13px; color: #334155;">
+              ${tracksListHtml}
+            </ul>
           </div>
-          <p>Please keep this link handy to access your assessment when the session goes live:</p>
+          <p>Please keep this email safe. You can access your assessments directly on the scheduled date.</p>
         `,
-        ctaText: 'Access Quiz Assessment',
-        ctaUrl: directUrl
+        ctaText: 'Access Event Portal',
+        ctaUrl: primaryDirectUrl
       }).catch(mailErr => console.warn('Registration confirmation email warning:', mailErr.message));
     } catch (e) {
       console.warn('Email dispatch warning:', e.message);
@@ -245,13 +288,11 @@ router.post('/register', async (req, res) => {
 
     return res.json({
       success: true,
-      message: `Successfully registered for "${quiz.title}"!`,
+      message: `Successfully registered for "${primaryEventName}" with ${registeredTracks.length} quiz track(s)!`,
       event: {
-        id: quiz.id,
-        title: quiz.title,
-        event_name: quiz.event_name || 'MSC Event',
-        join_code: quiz.join_code,
-        direct_url: directUrl
+        event_name: primaryEventName,
+        direct_url: primaryDirectUrl,
+        tracks: registeredTracks
       },
       participant: {
         id: user.id,
