@@ -40,6 +40,7 @@ import CreateScheduledQuiz from './pages/CreateScheduledQuiz';
 import VanityRedirect from './pages/VanityRedirect';
 import StudentAuth from './pages/StudentAuth';
 import AuthCallback from './pages/AuthCallback';
+import AdminEmailDispatch from './pages/AdminEmailDispatch';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -245,6 +246,14 @@ export default function App() {
                   element={
                     <AdminRoute>
                       <AdminCourses />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/email-dispatch"
+                  element={
+                    <AdminRoute>
+                      <AdminEmailDispatch />
                     </AdminRoute>
                   }
                 />

@@ -394,17 +394,7 @@ export default function StudentAuth() {
                   </div>
                   <div className="text-xs">
                     <span className="font-extrabold text-slate-800 block">Single Sign-On (SSO)</span>
-                    <span className="text-[10px] text-slate-500">Synced across Quiz & Verification portals</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center space-x-3 p-3 bg-white/80 border border-slate-200/60 rounded-2xl shadow-2xs">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-black flex-shrink-0">
-                    <CheckCircle2 size={18} />
-                  </div>
-                  <div className="text-xs">
-                    <span className="font-extrabold text-slate-800 block">Instant Quiz Resumption</span>
-                    <span className="text-[10px] text-slate-500">Redirects back to your assessment</span>
+                    <span className="text-[10px] text-slate-500">Synced across all MSC-PRPCEM Platforms</span>
                   </div>
                 </div>
               </div>

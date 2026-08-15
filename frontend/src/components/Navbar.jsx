@@ -109,15 +109,30 @@ export default function Navbar() {
                 label="Join Quiz"
               />
 
-              {/* Student Account Status / Login */}
+              {/* Student Account Status / Sign Out vs Login */}
               {studentAccount ? (
-                <div 
-                  onClick={() => navTo('/login')}
-                  className="flex items-center space-x-2 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-full text-xs cursor-pointer transition-all"
-                  title="View Student Profile & Sync Status"
-                >
-                  <ShieldCheck size={14} className="text-purple-600 flex-shrink-0" />
-                  <span className="font-bold text-purple-900 truncate max-w-[140px]">{studentAccount.email}</span>
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => navTo('/login')}
+                    className="flex items-center space-x-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-xl text-xs cursor-pointer transition-all"
+                    title="View Student Profile"
+                  >
+                    <ShieldCheck size={14} className="text-blue-600 flex-shrink-0" />
+                    <span className="font-bold text-blue-900 truncate max-w-[130px]">
+                      {studentAccount.name || studentAccount.email.split('@')[0]}
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      studentLogout();
+                      navigate('/');
+                    }}
+                    className="flex items-center space-x-1 px-2.5 py-1.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl transition-all cursor-pointer"
+                    title="Sign Out"
+                  >
+                    <LogOut size={13} />
+                    <span className="hidden lg:inline">Sign Out</span>
+                  </button>
                 </div>
               ) : (
                 <NavButton
@@ -173,34 +188,38 @@ export default function Navbar() {
               Join Quiz
             </button>
 
-            <button
-              onClick={() => navTo('/login')}
-              className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all ${
-                isActive('/login') ? 'text-brand-blue bg-brand-lightBlue' : 'text-brand-textMuted hover:bg-brand-lightBlue/60'
-              }`}
-            >
-              <User size={16} />
-              Login
-            </button>
-
-            {studentAccount && (
-              <div className="border-t border-slate-200 pt-2 mt-2">
-                <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl space-y-1.5">
-                  <div className="flex items-center space-x-2 text-xs font-extrabold text-purple-900">
-                    <ShieldCheck size={15} className="text-purple-600" />
-                    <span>Logged in: {studentAccount.email}</span>
+            {studentAccount ? (
+              <div className="border-t border-slate-200 pt-2 mt-2 space-y-2">
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl space-y-1">
+                  <div className="flex items-center space-x-2 text-xs font-extrabold text-blue-900">
+                    <ShieldCheck size={15} className="text-blue-600" />
+                    <span>Signed In: {studentAccount.name || studentAccount.email}</span>
                   </div>
-                  <a
-                    href={verificationPortalUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[11px] font-extrabold text-purple-700 hover:underline flex items-center gap-1"
-                  >
-                    <span>Open Verification Portal</span>
-                    <ExternalLink size={12} />
-                  </a>
+                  <p className="text-[11px] text-blue-700 font-medium">{studentAccount.email}</p>
                 </div>
+
+                <button
+                  onClick={() => {
+                    studentLogout();
+                    setMobileOpen(false);
+                    navigate('/');
+                  }}
+                  className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-all cursor-pointer"
+                >
+                  <LogOut size={16} />
+                  Sign Out
+                </button>
               </div>
+            ) : (
+              <button
+                onClick={() => navTo('/login')}
+                className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all ${
+                  isActive('/login') ? 'text-brand-blue bg-brand-lightBlue' : 'text-brand-textMuted hover:bg-brand-lightBlue/60'
+                }`}
+              >
+                <User size={16} />
+                Login / Register
+              </button>
             )}
           </div>
         )}

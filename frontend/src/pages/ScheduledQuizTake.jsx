@@ -5,7 +5,7 @@ import api from '../services/api';
 import StudentAuthModal from '../components/StudentAuthModal';
 import {
   Clock, CheckSquare, AlertTriangle, Trophy, CheckCircle, 
-  Square, ShieldCheck, ArrowRight, RefreshCw, User, Lock, Award, LogIn, ExternalLink, Sparkles, Maximize, KeyRound, Timer, AlertOctagon, XCircle
+  Square, ShieldCheck, ArrowRight, RefreshCw, User, Lock, Award, LogIn, LogOut, ExternalLink, Sparkles, Maximize, KeyRound, Timer, AlertOctagon, XCircle
 } from 'lucide-react';
 
 export default function ScheduledQuizTake() {
@@ -990,10 +990,10 @@ export default function ScheduledQuizTake() {
               {isLoggedIn ? (
                 /* Authenticated State: Show verified student badge and 1-click start */
                 <div className="space-y-4 pt-2 border-t border-slate-100">
-                  <div className="p-4 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-2xl space-y-3">
+                  <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl space-y-3">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                        <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
                           {((displayName || 'S').charAt(0)).toUpperCase()}
                         </div>
                         <div>
@@ -1013,9 +1013,11 @@ export default function ScheduledQuizTake() {
                         onClick={() => {
                           if (studentLogout) studentLogout();
                         }}
-                        className="text-[10px] text-purple-600 hover:text-purple-800 font-extrabold hover:underline cursor-pointer"
+                        className="flex items-center space-x-1 text-[11px] text-red-600 hover:text-red-800 font-bold bg-white px-2.5 py-1 rounded-lg border border-red-200 hover:bg-red-50 transition-colors cursor-pointer"
+                        title="Sign out of current account"
                       >
-                        Switch
+                        <LogOut size={12} />
+                        <span>Sign Out</span>
                       </button>
                     </div>
                   </div>
