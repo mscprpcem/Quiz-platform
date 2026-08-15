@@ -155,6 +155,7 @@ const scheduledQuizRoutes = require('./routes/scheduledQuiz');
 const studentSyncRoutes = require('./routes/studentSync');
 const ssoRoutes = require('./routes/sso');
 const emailDispatchRoutes = require('./routes/emailDispatch');
+const eventsApiRoutes = require('./routes/eventsApi');
 
 app.use("/api/auth", authRoutes);
 app.use("/api/quizzes", quizRoutes);
@@ -164,6 +165,8 @@ app.use("/api/export", exportRoutes);
 app.use("/api/branding", brandingRoutes);
 app.use("/api/student", studentSyncRoutes);
 app.use("/api/admin/email-dispatch", emailDispatchRoutes);
+app.use("/api/events", eventsApiRoutes);
+app.use("/api/v1/events", eventsApiRoutes);
 app.use("/oauth", ssoRoutes);
 
 // =======================
