@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import StudentAuthModal from '../components/StudentAuthModal';
@@ -12,6 +12,7 @@ export default function ScheduledQuizTake() {
   const { occurrenceId, slug, identifier } = useParams();
   const targetIdentifier = slug || occurrenceId || identifier;
   const navigate = useNavigate();
+  const location = useLocation();
   const { studentAccount, user, studentLogin, studentLogout } = useAuth();
 
   const [loading, setLoading] = useState(true);
@@ -59,6 +60,13 @@ export default function ScheduledQuizTake() {
       if (storedEmail) setEmail(storedEmail);
     }
   }, [studentAccount, user]);
+
+  // Persist current quiz URL so authentication / password reset flows return here directly
+  useEffect(() => {
+    if (location.pathname) {
+      sessionStorage.setItem('msc_quiz_return_url', location.pathname + location.search);
+    }
+  }, [location.pathname, location.search]);
 
   useEffect(() => {
     if (targetIdentifier) {

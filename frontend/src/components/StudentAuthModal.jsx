@@ -125,7 +125,7 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
     }
   };
 
-  // Handle Complete Password Reset (Step 3)
+  // Handle Complete Password Reset (Step 3: Auto-login & Return to Quiz)
   const handleCompletePasswordReset = async (e) => {
     e.preventDefault();
     if (newPassword.length < 8) {
@@ -142,19 +142,23 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
     setSuccessMessage('');
 
     const res = await resetPassword(email.trim(), resetOtp.trim(), newPassword);
-    setLoading(false);
 
     if (res.success) {
-      setSuccessMessage('Password updated successfully! Redirecting to Sign In...');
-      setTimeout(() => {
+      setSuccessMessage('Password updated! Signing you in and unlocking quiz...');
+      const loginRes = await studentLogin(email.trim(), newPassword);
+      setLoading(false);
+
+      if (loginRes.success) {
+        setTimeout(() => {
+          if (onSuccess) onSuccess(loginRes.user);
+          if (onClose) onClose();
+        }, 1000);
+      } else {
         setActiveTab('login');
         setPassword('');
-        setResetStep(1);
-        setResetOtp('');
-        setNewPassword('');
-        setConfirmNewPassword('');
-      }, 1500);
+      }
     } else {
+      setLoading(false);
       setErrorMessage(res.error || 'Failed to update password. Please try again.');
     }
   };

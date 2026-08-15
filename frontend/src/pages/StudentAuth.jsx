@@ -100,6 +100,31 @@ export default function StudentAuth() {
     }
   };
 
+  // Determine target return URL after authentication
+  const getReturnUrl = () => {
+    const params = new URLSearchParams(location.search);
+    const target = params.get('redirect') || params.get('returnUrl') || params.get('from') || location.state?.from || sessionStorage.getItem('msc_quiz_return_url');
+    
+    if (target && typeof target === 'string' && target.startsWith('/') && !target.startsWith('//') && !target.startsWith('/login') && !target.startsWith('/register') && !target.startsWith('/student/login') && !target.startsWith('/student/register')) {
+      sessionStorage.removeItem('msc_quiz_return_url');
+      return target;
+    }
+    return '/courses';
+  };
+
+  // Auto-redirect if student is already authenticated and has a pending return URL
+  useEffect(() => {
+    if (studentAccount) {
+      const returnUrl = getReturnUrl();
+      if (returnUrl && returnUrl !== '/courses') {
+        const timer = setTimeout(() => {
+          navigate(returnUrl, { replace: true });
+        }, 1200);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [studentAccount]);
+
   // Handle Send Reset OTP (Step 1)
   const handleSendResetOtp = async (e) => {
     e.preventDefault();
@@ -146,7 +171,7 @@ export default function StudentAuth() {
     }
   };
 
-  // Handle Complete Password Reset (Step 3)
+  // Handle Complete Password Reset (Step 3: Update & Instant Auto-Login -> Redirect to Quiz)
   const handleCompletePasswordReset = async (e) => {
     e.preventDefault();
     if (newPassword.length < 8) {
@@ -163,19 +188,20 @@ export default function StudentAuth() {
     setSuccessMsg('');
 
     const res = await resetPassword(formData.email.trim(), resetOtp.trim(), newPassword);
-    setLoading(false);
 
     if (res.success) {
-      setSuccessMsg('Password updated successfully! Redirecting to Sign In...');
+      setSuccessMsg('Password updated! Signing you in and redirecting to your quiz...');
+      
+      // Automatic Login with new password
+      const loginRes = await studentLogin(formData.email.trim(), newPassword);
+      setLoading(false);
+
+      const destination = getReturnUrl();
       setTimeout(() => {
-        setMode('login');
-        setFormData(prev => ({ ...prev, password: '' }));
-        setResetStep(1);
-        setResetOtp('');
-        setNewPassword('');
-        setConfirmNewPassword('');
-      }, 1500);
+        navigate(destination, { replace: true });
+      }, 1000);
     } else {
+      setLoading(false);
       setError(res.error || 'Failed to update password. Please try again.');
     }
   };
@@ -233,16 +259,24 @@ export default function StudentAuth() {
           setRegStep(2);
           setSuccessMsg(res.message || `Verification code sent to ${cleanEmail}. Please enter your 6-digit code below.`);
         } else if (res.success) {
-          setSuccessMsg('Email verified and account created successfully!');
+          setSuccessMsg('Email verified and account created successfully! Redirecting...');
           setRegStep(1);
           setRegisterOtp('');
+          const destination = getReturnUrl();
+          setTimeout(() => {
+            navigate(destination, { replace: true });
+          }, 1000);
         } else {
           setError(res.error || 'Failed to create account.');
         }
       } else {
         const res = await studentLogin(cleanEmail, password);
         if (res.success) {
-          setSuccessMsg('Logged in successfully!');
+          setSuccessMsg('Logged in successfully! Returning to your quiz...');
+          const destination = getReturnUrl();
+          setTimeout(() => {
+            navigate(destination, { replace: true });
+          }, 800);
         } else {
           setError(res.error || 'Failed to log in.');
         }
@@ -256,6 +290,8 @@ export default function StudentAuth() {
 
   // If already logged in, show authenticated dashboard card
   if (studentAccount) {
+    const returnUrl = getReturnUrl();
+
     return (
       <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-10 px-4 relative overflow-hidden font-segoe">
         <div className="max-w-md w-full relative z-10 animate-fade-in">
@@ -285,6 +321,16 @@ export default function StudentAuth() {
 
             {/* Direct Action Buttons */}
             <div className="space-y-2.5 pt-2">
+              {returnUrl && returnUrl !== '/courses' && (
+                <button
+                  onClick={() => navigate(returnUrl, { replace: true })}
+                  className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all active:scale-98"
+                >
+                  <ArrowRight size={16} />
+                  <span>Continue Back to Quiz Assessment</span>
+                </button>
+              )}
+
               <button
                 onClick={() => navigate('/courses')}
                 className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all active:scale-98"
