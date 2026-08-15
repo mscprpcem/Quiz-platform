@@ -47,6 +47,17 @@ let studentCertificates = [];
 // Helper to normalize email
 const normalizeEmail = (email) => (email ? email.toLowerCase().trim() : '');
 
+// Helper to normalize and sanitize Verification Portal URL defensively
+const getVerificationPortalUrl = () => {
+  let url = (process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech').trim();
+  if (url.startsWith('ttps://')) {
+    url = 'h' + url;
+  } else if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = 'https://' + url.replace(/^\/+/, '');
+  }
+  return url.replace(/\/+$/, '');
+};
+
 // =======================
 // Username Availability Check (Local DB + Verification Portal Fallback)
 // =======================
@@ -69,7 +80,7 @@ router.get('/check-username', async (req, res) => {
       }
     }
 
-    const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
+    const verificationPortalUrl = getVerificationPortalUrl();
     try {
       if (axios && typeof axios.get === 'function') {
         const checkRes = await axios.get(`${verificationPortalUrl}/api/auth/check-username?username=${encodeURIComponent(clean)}`, { timeout: 4000 });
@@ -128,7 +139,7 @@ router.post('/send-otp', async (req, res) => {
       console.warn('Direct email dispatch notice:', mailErr.message);
     }
 
-    const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
+    const verificationPortalUrl = getVerificationPortalUrl();
     try {
       if (axios && typeof axios.post === 'function') {
         const response = await axios.post(`${verificationPortalUrl}/api/auth/send-otp`, {
@@ -179,7 +190,7 @@ router.post('/verify-otp', async (req, res) => {
       return res.json({ success: true, message: 'OTP verified successfully.' });
     }
 
-    const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
+    const verificationPortalUrl = getVerificationPortalUrl();
     try {
       if (axios && typeof axios.post === 'function') {
         const response = await axios.post(`${verificationPortalUrl}/api/auth/verify-otp`, {
@@ -241,7 +252,7 @@ router.post('/forgot-password', async (req, res) => {
       console.warn('Direct email dispatch notice:', mailErr.message);
     }
 
-    const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
+    const verificationPortalUrl = getVerificationPortalUrl();
     try {
       if (axios && typeof axios.post === 'function') {
         const response = await axios.post(`${verificationPortalUrl}/api/auth/send-otp`, {
@@ -305,7 +316,7 @@ router.post('/reset-password', async (req, res) => {
       }
     }
 
-    const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
+    const verificationPortalUrl = getVerificationPortalUrl();
     try {
       if (axios && typeof axios.post === 'function') {
         const response = await axios.post(`${verificationPortalUrl}/api/auth/reset-password`, {
@@ -502,7 +513,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Both Email Address and Password are required.' });
     }
 
-    const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
+    const verificationPortalUrl = getVerificationPortalUrl();
 
     // 1. Try Remote Verification Portal API
     try {
@@ -726,7 +737,7 @@ router.post('/register', async (req, res) => {
     };
 
     // 3. Sync with Verification Portal (Best effort)
-    const verificationPortalUrl = process.env.VERIFICATION_PORTAL_URL || 'https://verify.mscprpcem.tech';
+    const verificationPortalUrl = getVerificationPortalUrl();
     try {
       if (axios && typeof axios.post === 'function') {
         await axios.post(`${verificationPortalUrl}/api/auth/register`, {

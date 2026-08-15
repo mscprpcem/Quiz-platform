@@ -69,6 +69,9 @@ const io = new Server(server, {
 // Security
 // =======================
 
+// 1. Trust Reverse Proxy (Azure App Service / Cloudflare / Nginx)
+app.set("trust proxy", 1);
+
 app.use(
   helmet({
     crossOriginResourcePolicy: false
@@ -97,14 +100,22 @@ app.use(
 );
 
 // =======================
-// Rate Limiters
+// Rate Limiters (with Clean IP Generator for Proxies)
 // =======================
+
+const cleanIpGenerator = (req) => {
+  const rawIp = req.ip || (req.headers && req.headers['x-forwarded-for']) || (req.socket && req.socket.remoteAddress) || '127.0.0.1';
+  const firstIp = String(rawIp).split(',')[0].trim();
+  return firstIp.replace(/:\d+$/, '') || '127.0.0.1';
+};
 
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300, // 300 requests per 15 min
+  max: 600, // 600 requests per 15 min
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: cleanIpGenerator,
+  validate: false,
   message: {
     error: "Too many requests. Please try again later."
   }
@@ -112,9 +123,11 @@ const generalLimiter = rateLimit({
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10, // 10 attempts per 15 min to block brute-force
+  max: 50, // 50 attempts per 15 min
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: cleanIpGenerator,
+  validate: false,
   message: {
     error: "Too many authentication attempts. Please try again after 15 minutes."
   }
