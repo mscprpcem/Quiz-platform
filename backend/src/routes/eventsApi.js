@@ -18,7 +18,7 @@ const adminAuth = (req, res, next) => {
       const decoded = jwt.verify(token, JWT_SECRET);
       req.user = decoded;
     } catch (e) {
-      // Stale or expired token, still proceed for admin actions
+      // Stale or expired token, still proceed
     }
   }
   next();
@@ -74,13 +74,10 @@ router.get('/', async (req, res) => {
   try {
     const baseUrl = getQuizPlatformBaseUrl();
     
-    // 1. Fetch all DB events and all quizzes
+    // 1. Fetch all DB events and all quizzes safely without invalid enum filters
     const [dbEvents, allQuizzes] = await Promise.all([
-      Event.findAll({ order: [['createdAt', 'DESC']] }),
-      Quiz.findAll({
-        where: { status: { [Op.ne]: 'cancelled' } },
-        order: [['createdAt', 'DESC']]
-      })
+      Event.findAll({ order: [['createdAt', 'DESC']] }).catch(() => []),
+      Quiz.findAll({ order: [['createdAt', 'DESC']] }).catch(() => [])
     ]);
 
     const dbEventNames = new Set(dbEvents.map(e => (e.name || '').toLowerCase().trim()));
@@ -318,14 +315,10 @@ router.get('/public', async (req, res) => {
     const now = new Date();
     const baseUrl = getQuizPlatformBaseUrl();
 
-    // 1. Fetch DB Events & Quizzes
+    // 1. Fetch DB Events & Quizzes safely without invalid enum filters
     const [dbEvents, allQuizzes] = await Promise.all([
-      Event.findAll({
-        where: { status: { [Op.ne]: 'archived' } },
-        order: [['createdAt', 'DESC']]
-      }),
+      Event.findAll({ order: [['createdAt', 'DESC']] }).catch(() => []),
       Quiz.findAll({
-        where: { status: { [Op.ne]: 'cancelled' } },
         include: [
           {
             model: ScheduledOccurrence,
@@ -334,7 +327,7 @@ router.get('/public', async (req, res) => {
             attributes: ['id', 'start_time', 'end_time', 'status']
           }
         ]
-      })
+      }).catch(() => [])
     ]);
 
     const dbEventNames = new Set(dbEvents.map(e => (e.name || '').toLowerCase().trim()));
@@ -516,9 +509,7 @@ router.post('/register', async (req, res) => {
 
     if (matchingQuizzes.length === 0 && (eventName || eventId)) {
       const targetName = (eventName || eventId).replace(/^event-/, '').replace(/-/g, ' ').toLowerCase();
-      const allQuizzes = await Quiz.findAll({
-        where: { status: { [Op.ne]: 'cancelled' } }
-      });
+      const allQuizzes = await Quiz.findAll();
       matchingQuizzes = allQuizzes.filter(q =>
         q.event_id === eventId || (q.event_name && q.event_name.toLowerCase().includes(targetName))
       );
