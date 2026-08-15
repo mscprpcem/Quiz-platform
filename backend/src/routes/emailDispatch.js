@@ -11,37 +11,65 @@ const { Op } = require('sequelize');
  */
 router.get('/audiences', authMiddleware, async (req, res) => {
   try {
-    // 1. Get total registered students
-    const students = await User.findAll({
-      where: {
-        role: 'student'
-      },
-      attributes: ['id', 'name', 'email', 'username', 'college', 'createdAt'],
-      order: [['createdAt', 'DESC']]
-    });
+    // 1. Get all registered students safely
+    let students = [];
+    try {
+      students = await User.findAll({
+        attributes: ['id', 'name', 'email', 'username', 'college', 'createdAt'],
+        order: [['createdAt', 'DESC']]
+      });
+    } catch (uErr) {
+      console.warn('Fallback finding users for email dispatch:', uErr.message);
+      students = await User.findAll();
+    }
 
-    // 2. Get all quizzes (Live + Scheduled)
-    const quizzes = await Quiz.findAll({
-      attributes: ['id', 'title', 'event_name', 'mode', 'status', 'join_code'],
-      include: [
-        {
-          model: ScheduledOccurrence,
-          as: 'occurrences',
-          attributes: ['id', 'occurrence_id', 'start_time', 'end_time']
-        }
-      ],
-      order: [['createdAt', 'DESC']]
-    });
+    // 2. Get all quizzes (Live + Scheduled) with occurrences and event names
+    let quizzes = [];
+    try {
+      quizzes = await Quiz.findAll({
+        attributes: ['id', 'title', 'event_name', 'mode', 'status', 'join_code', 'subject', 'category', 'createdAt'],
+        include: [
+          {
+            model: ScheduledOccurrence,
+            as: 'occurrences',
+            attributes: ['id', 'start_time', 'end_time', 'status'],
+            required: false
+          }
+        ],
+        order: [['createdAt', 'DESC']]
+      });
+    } catch (qErr) {
+      console.warn('Fallback finding quizzes without occurrences:', qErr.message);
+      quizzes = await Quiz.findAll({
+        order: [['createdAt', 'DESC']]
+      });
+    }
 
     res.json({
       success: true,
       all_students_count: students.length,
-      students,
-      quizzes
+      students: students.map(s => ({
+        id: s.id,
+        name: s.name || s.email.split('@')[0],
+        email: (s.email || '').toLowerCase().trim(),
+        username: s.username || '',
+        college: s.college || '',
+        createdAt: s.createdAt
+      })),
+      quizzes: quizzes.map(q => ({
+        id: q.id,
+        title: q.title || 'Untitled Quiz',
+        event_name: q.event_name || 'MSC Tech Event',
+        mode: q.mode || 'LIVE',
+        status: q.status || 'draft',
+        join_code: q.join_code || '',
+        subject: q.subject || q.category || 'Technical',
+        occurrences: q.occurrences || []
+      }))
     });
   } catch (err) {
     console.error('Error fetching email audiences:', err);
-    res.status(500).json({ error: 'Failed to fetch email audiences.' });
+    res.status(500).json({ error: err.message || 'Failed to fetch email audiences.' });
   }
 });
 
@@ -57,51 +85,67 @@ router.get('/quiz-participants', authMiddleware, async (req, res) => {
       return res.status(400).json({ error: 'quizId or occurrenceId is required.' });
     }
 
+    // Also fetch the Quiz details to return event name and title
+    let quizDetails = null;
+    if (quizId) {
+      quizDetails = await Quiz.findByPk(quizId, {
+        attributes: ['id', 'title', 'event_name', 'mode', 'join_code']
+      });
+    }
+
     const participantsMap = new Map();
 
     // 1. Check Scheduled Quiz Attempts
-    const attemptWhere = {};
-    if (occurrenceId) attemptWhere.occurrence_id = occurrenceId;
-    if (quizId) attemptWhere.quiz_id = quizId;
+    try {
+      const attemptWhere = {};
+      if (occurrenceId) attemptWhere.occurrence_id = occurrenceId;
+      if (quizId) attemptWhere.quiz_id = quizId;
 
-    const attempts = await QuizAttempt.findAll({
-      where: attemptWhere,
-      attributes: ['id', 'participant_name', 'participant_email', 'status', 'score', 'started_at']
-    });
+      const attempts = await QuizAttempt.findAll({
+        where: attemptWhere,
+        attributes: ['id', 'participant_name', 'participant_email', 'status', 'score', 'started_at']
+      });
 
-    for (const att of attempts) {
-      if (att.participant_email && att.participant_email.includes('@')) {
-        const clean = att.participant_email.toLowerCase().trim();
-        if (!participantsMap.has(clean)) {
-          participantsMap.set(clean, {
-            email: clean,
-            name: att.participant_name || clean.split('@')[0],
-            source: 'Scheduled Attempt',
-            status: att.status
-          });
+      for (const att of attempts) {
+        if (att.participant_email && att.participant_email.includes('@')) {
+          const clean = att.participant_email.toLowerCase().trim();
+          if (!participantsMap.has(clean)) {
+            participantsMap.set(clean, {
+              email: clean,
+              name: att.participant_name || clean.split('@')[0],
+              source: 'Scheduled Attempt',
+              status: att.status || 'completed'
+            });
+          }
         }
       }
+    } catch (attErr) {
+      console.warn('Error fetching QuizAttempts for dispatch:', attErr.message);
     }
 
     // 2. Check Live Quiz Participants
     if (quizId) {
-      const liveParticipants = await Participant.findAll({
-        where: { quiz_id: quizId },
-        attributes: ['id', 'name', 'email', 'college']
-      });
+      try {
+        const liveParticipants = await Participant.findAll({
+          where: { quiz_id: quizId },
+          attributes: ['id', 'name', 'email', 'college']
+        });
 
-      for (const p of liveParticipants) {
-        if (p.email && p.email.includes('@')) {
-          const clean = p.email.toLowerCase().trim();
-          if (!participantsMap.has(clean)) {
-            participantsMap.set(clean, {
-              email: clean,
-              name: p.name || clean.split('@')[0],
-              source: 'Live Participant',
-              status: 'registered'
-            });
+        for (const p of liveParticipants) {
+          if (p.email && p.email.includes('@')) {
+            const clean = p.email.toLowerCase().trim();
+            if (!participantsMap.has(clean)) {
+              participantsMap.set(clean, {
+                email: clean,
+                name: p.name || clean.split('@')[0],
+                source: 'Live Participant',
+                status: 'registered'
+              });
+            }
           }
         }
+      } catch (pErr) {
+        console.warn('Error fetching Live Participants for dispatch:', pErr.message);
       }
     }
 
@@ -109,12 +153,19 @@ router.get('/quiz-participants', authMiddleware, async (req, res) => {
 
     res.json({
       success: true,
+      quiz: quizDetails ? {
+        id: quizDetails.id,
+        title: quizDetails.title,
+        event_name: quizDetails.event_name,
+        mode: quizDetails.mode,
+        join_code: quizDetails.join_code
+      } : null,
       count: participants.length,
       participants
     });
   } catch (err) {
     console.error('Error fetching quiz participants for email dispatch:', err);
-    res.status(500).json({ error: 'Failed to fetch quiz participants.' });
+    res.status(500).json({ error: err.message || 'Failed to fetch quiz participants.' });
   }
 });
 
@@ -149,54 +200,61 @@ router.post('/send', authMiddleware, async (req, res) => {
 
     if (audienceType === 'all_students') {
       const students = await User.findAll({
-        where: { role: 'student' },
         attributes: ['name', 'email']
       });
       for (const s of students) {
         if (s.email && s.email.includes('@')) {
           const clean = s.email.toLowerCase().trim();
           if (!excludedSet.has(clean)) {
-            targetRecipientsMap.set(clean, { email: clean, name: s.name });
+            targetRecipientsMap.set(clean, { email: clean, name: s.name || clean.split('@')[0] });
           }
         }
       }
     } else if (audienceType === 'quiz_participants') {
       if (!quizId && !occurrenceId) {
-        return res.status(400).json({ error: 'Please select a quiz or occurrence to dispatch emails.' });
+        return res.status(400).json({ error: 'Please select a quiz to dispatch emails.' });
       }
 
       // Scheduled attempts
-      const attemptWhere = {};
-      if (occurrenceId) attemptWhere.occurrence_id = occurrenceId;
-      if (quizId) attemptWhere.quiz_id = quizId;
+      try {
+        const attemptWhere = {};
+        if (occurrenceId) attemptWhere.occurrence_id = occurrenceId;
+        if (quizId) attemptWhere.quiz_id = quizId;
 
-      const attempts = await QuizAttempt.findAll({
-        where: attemptWhere,
-        attributes: ['participant_name', 'participant_email']
-      });
+        const attempts = await QuizAttempt.findAll({
+          where: attemptWhere,
+          attributes: ['participant_name', 'participant_email']
+        });
 
-      for (const att of attempts) {
-        if (att.participant_email && att.participant_email.includes('@')) {
-          const clean = att.participant_email.toLowerCase().trim();
-          if (!excludedSet.has(clean)) {
-            targetRecipientsMap.set(clean, { email: clean, name: att.participant_name || clean.split('@')[0] });
+        for (const att of attempts) {
+          if (att.participant_email && att.participant_email.includes('@')) {
+            const clean = att.participant_email.toLowerCase().trim();
+            if (!excludedSet.has(clean)) {
+              targetRecipientsMap.set(clean, { email: clean, name: att.participant_name || clean.split('@')[0] });
+            }
           }
         }
+      } catch (attErr) {
+        console.warn('Error querying attempts:', attErr.message);
       }
 
       // Live participants
       if (quizId) {
-        const liveP = await Participant.findAll({
-          where: { quiz_id: quizId },
-          attributes: ['name', 'email']
-        });
-        for (const p of liveP) {
-          if (p.email && p.email.includes('@')) {
-            const clean = p.email.toLowerCase().trim();
-            if (!excludedSet.has(clean)) {
-              targetRecipientsMap.set(clean, { email: clean, name: p.name || clean.split('@')[0] });
+        try {
+          const liveP = await Participant.findAll({
+            where: { quiz_id: quizId },
+            attributes: ['name', 'email']
+          });
+          for (const p of liveP) {
+            if (p.email && p.email.includes('@')) {
+              const clean = p.email.toLowerCase().trim();
+              if (!excludedSet.has(clean)) {
+                targetRecipientsMap.set(clean, { email: clean, name: p.name || clean.split('@')[0] });
+              }
             }
           }
+        } catch (pErr) {
+          console.warn('Error querying live participants:', pErr.message);
         }
       }
     } else if (audienceType === 'custom') {

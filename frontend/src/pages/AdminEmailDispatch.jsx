@@ -3,7 +3,7 @@ import api from '../services/api';
 import {
   Mail, Send, Users, CheckCircle2, AlertTriangle, Loader2, Sparkles,
   Filter, Search, RefreshCw, Eye, Edit3, ArrowRight, X, ExternalLink,
-  BookOpen, Calendar, Radio, Check, Info
+  BookOpen, Calendar, Radio, Check, Info, Layers
 } from 'lucide-react';
 
 export default function AdminEmailDispatch() {
@@ -19,6 +19,7 @@ export default function AdminEmailDispatch() {
   const [selectedQuizId, setSelectedQuizId] = useState('');
   const [loadingQuizParticipants, setLoadingQuizParticipants] = useState(false);
   const [quizParticipants, setQuizParticipants] = useState([]);
+  const [selectedQuizInfo, setSelectedQuizInfo] = useState(null);
   const [customEmailsText, setCustomEmailsText] = useState('');
 
   // Selected / Excluded recipients
@@ -47,20 +48,22 @@ export default function AdminEmailDispatch() {
   const fetchAudiences = async () => {
     try {
       setLoadingAudiences(true);
+      setErrorMessage('');
       const res = await api.get('/api/admin/email-dispatch/audiences');
       if (res.data.success) {
         setAudienceData({
-          all_students_count: res.data.all_students_count,
+          all_students_count: res.data.all_students_count || 0,
           students: res.data.students || [],
           quizzes: res.data.quizzes || []
         });
         if (res.data.quizzes.length > 0 && !selectedQuizId) {
           setSelectedQuizId(res.data.quizzes[0].id);
+          setSelectedQuizInfo(res.data.quizzes[0]);
         }
       }
     } catch (err) {
       console.error('Error loading audiences:', err);
-      setErrorMessage('Failed to load recipient audiences.');
+      setErrorMessage(err.response?.data?.error || 'Failed to load recipient audiences.');
     } finally {
       setLoadingAudiences(false);
     }
@@ -69,9 +72,11 @@ export default function AdminEmailDispatch() {
   // Fetch participants when quiz selection changes
   useEffect(() => {
     if (audienceType === 'quiz_participants' && selectedQuizId) {
+      const found = audienceData.quizzes.find(q => String(q.id) === String(selectedQuizId));
+      if (found) setSelectedQuizInfo(found);
       fetchQuizParticipants(selectedQuizId);
     }
-  }, [audienceType, selectedQuizId]);
+  }, [audienceType, selectedQuizId, audienceData.quizzes]);
 
   const fetchQuizParticipants = async (quizId) => {
     try {
@@ -79,6 +84,9 @@ export default function AdminEmailDispatch() {
       const res = await api.get(`/api/admin/email-dispatch/quiz-participants?quizId=${quizId}`);
       if (res.data.success) {
         setQuizParticipants(res.data.participants || []);
+        if (res.data.quiz) {
+          setSelectedQuizInfo(res.data.quiz);
+        }
         setExcludedEmails(new Set());
       }
     } catch (err) {
@@ -147,29 +155,32 @@ export default function AdminEmailDispatch() {
     }
   };
 
-  // Quick preset templates
+  // Quick preset templates with dynamic Event / Quiz name insertion
   const applyPreset = (type) => {
+    const qTitle = selectedQuizInfo?.title || 'Tech Challenge';
+    const evName = selectedQuizInfo?.event_name || 'MSC Tech Event';
+
     if (type === 'reminder') {
-      setSubject('⏳ Reminder: Your Scheduled Quiz Assessment Starts Soon!');
-      setHeading('Upcoming Quiz Challenge');
+      setSubject(`⏳ Reminder: ${qTitle} (${evName}) Starts Soon!`);
+      setHeading(`${evName} — ${qTitle}`);
       setMessageBody(
-        "This is a quick reminder that your registered quiz session on the MSC Quiz Platform is scheduled to begin shortly.\n\nPlease ensure you have a stable internet connection, sign in to your student account, and be ready to begin on time.\n\nGood luck with your assessment!"
+        `This is a quick reminder that your registered quiz session for "${qTitle}" under "${evName}" is scheduled to begin shortly.\n\nPlease ensure you have a stable internet connection, sign in to your student account, and be ready to begin on time.\n\nGood luck with your assessment!`
       );
-      setCtaText('Launch Quiz Portal');
+      setCtaText('Launch Quiz Assessment');
       setCtaUrl(window.location.origin + '/courses');
     } else if (type === 'results') {
-      setSubject('🏆 Results & Leaderboards Announced — MSC Quiz Platform');
-      setHeading('Assessment Results Published');
+      setSubject(`🏆 Results & Leaderboard Announced: ${qTitle}`);
+      setHeading(`${qTitle} Results Published`);
       setMessageBody(
-        "The official scores and leaderboards for the recent challenge have been calculated and verified!\n\nYou can log in now to review your performance metrics, compare standings, and view earned digital certificates.\n\nThank you for participating!"
+        `The official scores and leaderboards for "${qTitle}" (${evName}) have been calculated and verified!\n\nYou can log in now to review your performance metrics, compare standings, and view earned digital certificates.\n\nThank you for participating!`
       );
       setCtaText('View Leaderboard & Badges');
       setCtaUrl(window.location.origin + '/login');
     } else if (type === 'announcement') {
-      setSubject('📢 New Tech Challenge & Certificate Quiz Live on MSC Portal');
-      setHeading('Exciting Announcement');
+      setSubject(`📢 New Challenge Live: ${qTitle} — ${evName}`);
+      setHeading(`New Event: ${evName}`);
       setMessageBody(
-        "A brand new interactive assessment has just been published on the Microsoft Student Club PRPCEM Quiz Platform!\n\nSharpen your skills, test your knowledge, and earn digital certificate credentials to showcase on your LinkedIn profile."
+        `A brand new interactive assessment "${qTitle}" is now live on the Microsoft Student Club PRPCEM Quiz Platform!\n\nSharpen your skills, test your knowledge, and earn digital certificate credentials to showcase on your LinkedIn profile.`
       );
       setCtaText('Browse Available Quizzes');
       setCtaUrl(window.location.origin + '/courses');
@@ -222,7 +233,7 @@ export default function AdminEmailDispatch() {
             Email Broadcast & Dispatch Center
           </h1>
           <p className="text-xs text-slate-500 font-semibold mt-1">
-            Compose and send custom notification emails with light-theme formatting to all students or specific quiz participants.
+            Compose and broadcast light-theme notification emails with customizable event details to all students or specific quiz participants.
           </p>
         </div>
 
@@ -327,19 +338,40 @@ export default function AdminEmailDispatch() {
 
             {/* Quiz Selector Dropdown (when quiz_participants is active) */}
             {audienceType === 'quiz_participants' && (
-              <div className="space-y-1.5 animate-fade-in">
-                <label className="block text-xs font-bold text-slate-700">Select Quiz Assessment</label>
-                <select
-                  value={selectedQuizId}
-                  onChange={(e) => setSelectedQuizId(e.target.value)}
-                  className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold bg-slate-50 text-slate-800 focus:bg-white focus:border-blue-600 outline-none"
-                >
-                  {audienceData.quizzes.map((q) => (
-                    <option key={q.id} value={q.id}>
-                      {q.title} ({q.mode || 'LIVE'})
-                    </option>
-                  ))}
-                </select>
+              <div className="space-y-3 animate-fade-in">
+                <div className="space-y-1">
+                  <label className="block text-xs font-bold text-slate-700">Select Quiz & Event</label>
+                  <select
+                    value={selectedQuizId}
+                    onChange={(e) => {
+                      setSelectedQuizId(e.target.value);
+                      const q = audienceData.quizzes.find(item => String(item.id) === String(e.target.value));
+                      if (q) setSelectedQuizInfo(q);
+                    }}
+                    className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold bg-slate-50 text-slate-800 focus:bg-white focus:border-blue-600 outline-none"
+                  >
+                    {audienceData.quizzes.map((q) => (
+                      <option key={q.id} value={q.id}>
+                        {q.title} — [{q.event_name || 'MSC Event'}] ({q.mode || 'LIVE'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Selected Quiz Details Badge */}
+                {selectedQuizInfo && (
+                  <div className="p-3 bg-blue-50/70 border border-blue-200 rounded-xl text-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="font-extrabold text-blue-950 truncate">{selectedQuizInfo.title}</span>
+                      <span className="text-[10px] font-black uppercase bg-blue-200/80 text-blue-800 px-2 py-0.5 rounded">
+                        {selectedQuizInfo.mode || 'LIVE'}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-blue-800 font-semibold">
+                      Event: <span className="font-bold text-blue-900">{selectedQuizInfo.event_name || 'MSC Tech Event'}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -387,10 +419,13 @@ export default function AdminEmailDispatch() {
               {/* Scrollable Recipient Checkbox List */}
               <div className="max-h-64 overflow-y-auto space-y-1.5 pr-1 scrollbar-thin">
                 {loadingQuizParticipants ? (
-                  <div className="text-center py-6 text-xs text-slate-400">Loading quiz participants...</div>
+                  <div className="text-center py-6 text-xs text-slate-400 flex items-center justify-center space-x-2">
+                    <Loader2 size={14} className="animate-spin text-blue-600" />
+                    <span>Loading participants...</span>
+                  </div>
                 ) : currentRecipients.length === 0 ? (
                   <div className="text-center py-6 text-xs text-slate-400 font-semibold">
-                    No recipients found matching current filter.
+                    No recipients found for this selection.
                   </div>
                 ) : (
                   currentRecipients.map((rec) => {
@@ -495,7 +530,7 @@ export default function AdminEmailDispatch() {
                   <input
                     type="text"
                     required
-                    placeholder="e.g. 🚀 Reminder: Your Scheduled Quiz Begins at 6:00 PM"
+                    placeholder="e.g. 🚀 Reminder: DBMS Masterclass Quiz Begins at 6:00 PM"
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
                     className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 outline-none"
@@ -507,7 +542,7 @@ export default function AdminEmailDispatch() {
                   <label className="block text-xs font-bold text-slate-700">Email Header Title</label>
                   <input
                     type="text"
-                    placeholder="e.g. Upcoming Tech Challenge Assessment"
+                    placeholder="e.g. MSC Tech Challenge Assessment"
                     value={heading}
                     onChange={(e) => setHeading(e.target.value)}
                     className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600 outline-none"
@@ -674,7 +709,7 @@ export default function AdminEmailDispatch() {
                 {audienceType === 'all_students'
                   ? 'All Registered Students'
                   : audienceType === 'quiz_participants'
-                  ? 'Quiz Participants'
+                  ? `Quiz: ${selectedQuizInfo?.title || 'Selected Quiz'} (${selectedQuizInfo?.event_name || 'MSC Event'})`
                   : 'Custom Email List'}
               </div>
             </div>
