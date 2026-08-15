@@ -10,6 +10,11 @@ const ScheduledOccurrence = require('./ScheduledOccurrence');
 const QuizAttempt = require('./QuizAttempt');
 const AttemptAnswer = require('./AttemptAnswer');
 const AttemptViolation = require('./AttemptViolation');
+const Event = require('./Event');
+
+// Event <-> Quiz
+Event.hasMany(Quiz, { foreignKey: 'event_id', as: 'quizzes', onDelete: 'SET NULL' });
+Quiz.belongsTo(Event, { foreignKey: 'event_id', as: 'event' });
 
 // Relationships
 
@@ -71,5 +76,6 @@ module.exports = {
   ScheduledOccurrence,
   QuizAttempt,
   AttemptAnswer,
-  AttemptViolation
+  AttemptViolation,
+  Event
 };

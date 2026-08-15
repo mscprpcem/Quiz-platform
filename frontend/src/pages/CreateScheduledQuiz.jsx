@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { QRCodeSVG } from 'qrcode.react';
 import api from '../services/api';
+import EventSelector from '../components/EventSelector';
 import {
   Calendar, ArrowLeft, ArrowRight, Plus, Trash2, Upload, FileSpreadsheet, FileText,
   CheckCircle, AlertTriangle, Clock, ShieldCheck, HelpCircle, Layers, CheckSquare, Sparkles, RefreshCw, QrCode, Mail, Award, ExternalLink, Download, Search, ChevronDown, Check
@@ -11,6 +12,8 @@ import {
 export default function CreateScheduledQuiz() {
   const navigate = useNavigate();
   const { id } = useParams(); // If present, mode is EDIT
+  const [searchParams] = useSearchParams();
+  const preselectedEvent = searchParams.get('event') || '';
 
   const isEditMode = Boolean(id);
 
@@ -82,6 +85,8 @@ export default function CreateScheduledQuiz() {
 
   const [formData, setFormData] = useState({
     title: '',
+    event_id: '',
+    event_name: preselectedEvent || '',
     custom_slug: '',
     description: '',
     category: 'Cloud & Azure',
@@ -204,6 +209,8 @@ export default function CreateScheduledQuiz() {
 
           setFormData({
             title: q.title || '',
+            event_id: q.event_id || '',
+            event_name: q.event_name || (q.event?.name || ''),
             custom_slug: q.custom_slug || '',
             description: q.description || '',
             category: q.subject || 'Cloud',
@@ -789,6 +796,8 @@ export default function CreateScheduledQuiz() {
 
     const payload = {
       title: formData.title,
+      event_id: formData.event_id || null,
+      event_name: formData.event_name || formData.title,
       custom_slug: formData.custom_slug,
       description: formData.description,
       category: formData.category,
@@ -941,6 +950,26 @@ export default function CreateScheduledQuiz() {
                 onChange={e => setFormData({ ...formData, title: e.target.value })}
                 className="w-full border rounded-xl px-4 py-2.5 text-xs font-bold bg-slate-50 focus:bg-white focus:border-blue-600"
               />
+            </div>
+
+            {/* Event Assignment Combobox */}
+            <div className="space-y-1">
+              <label className="block text-xs font-bold text-slate-600">
+                Associated Event / Chapter <span className="text-slate-400 font-normal">(Optional — links quiz to official event tracks)</span>
+              </label>
+              <EventSelector
+                value={formData.event_name}
+                onChange={({ eventId, eventName }) => {
+                  setFormData(prev => ({
+                    ...prev,
+                    event_id: eventId,
+                    event_name: eventName
+                  }));
+                }}
+              />
+              <p className="text-[10px] text-slate-400 font-medium">
+                Select an existing event or create a new one. Quizzes under the same event automatically show on the main website event page!
+              </p>
             </div>
 
             <div className="p-5 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200/80 rounded-2xl space-y-4">

@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
-const { Quiz, Question, Participant, QuizAttempt, ScheduledOccurrence, User } = require('../models');
+const { Event, Quiz, Question, Participant, QuizAttempt, ScheduledOccurrence, User } = require('../models');
+const authMiddleware = require('../middleware/auth');
 const { sendCustomBroadcastEmail } = require('../services/emailService');
 const { Op } = require('sequelize');
 
@@ -9,17 +10,268 @@ const getQuizPlatformBaseUrl = () => {
   return (process.env.PUBLIC_QUIZ_URL || process.env.FRONTEND_URL || 'https://quiz.mscprpcem.tech').replace(/\/+$/, '');
 };
 
-/**
- * ----------------------------------------------------
- * GET /api/events/public (or /api/events)
- * Aggregates quizzes into unified Events with 1-to-many Quiz Tracks
- * ----------------------------------------------------
- */
-router.get(['/public', '/'], async (req, res) => {
+// ----------------------------------------------------
+// GET /api/events (Admin / Authenticated Route or fallback)
+// Returns all managed events with associated quiz tracks
+// ----------------------------------------------------
+router.get('/', async (req, res) => {
+  try {
+    const baseUrl = getQuizPlatformBaseUrl();
+    
+    // 1. Fetch from Event table
+    let dbEvents = [];
+    try {
+      dbEvents = await Event.findAll({
+        order: [['createdAt', 'DESC']],
+        include: [
+          {
+            model: Quiz,
+            as: 'quizzes',
+            attributes: ['id', 'title', 'mode', 'join_code', 'status', 'custom_slug'],
+            required: false
+          }
+        ]
+      });
+    } catch (e) {
+      console.warn('Fallback finding Events:', e.message);
+    }
+
+    // 2. Also fetch distinct event_name from Quizzes not yet mapped to an Event
+    const quizzes = await Quiz.findAll({
+      attributes: ['id', 'title', 'event_name', 'mode', 'join_code', 'status', 'custom_slug', 'event_id'],
+      order: [['createdAt', 'DESC']]
+    });
+
+    const eventNamesInDb = new Set(dbEvents.map(e => e.name.toLowerCase().trim()));
+    const unmappedQuizzesMap = new Map();
+
+    for (const q of quizzes) {
+      if (q.event_name && !eventNamesInDb.has(q.event_name.toLowerCase().trim())) {
+        const key = q.event_name.trim();
+        if (!unmappedQuizzesMap.has(key)) {
+          unmappedQuizzesMap.set(key, []);
+        }
+        unmappedQuizzesMap.get(key).push(q);
+      }
+    }
+
+    // Combine both
+    const formattedEvents = dbEvents.map(ev => ({
+      id: ev.id,
+      name: ev.name,
+      slug: ev.slug || ev.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+      description: ev.description,
+      poster_url: ev.poster_url || 'https://mscprpcem.blob.core.windows.net/events/clean_529287766.png',
+      category: ev.category || 'Technical Workshop',
+      mode: ev.mode || 'Offline',
+      venue: ev.venue || 'PRPCEM Amravati',
+      start_date: ev.start_date,
+      end_date: ev.end_date,
+      rewards: ev.rewards || 'Certificates & Swags',
+      status: ev.status || 'upcoming',
+      quizzes: (ev.quizzes || []).map(q => ({
+        id: q.id,
+        title: q.title,
+        mode: q.mode,
+        join_code: q.join_code,
+        status: q.status,
+        direct_url: q.mode === 'SCHEDULED' ? `${baseUrl}/q/${q.custom_slug || q.id}` : `${baseUrl}/join/${q.join_code}`
+      })),
+      total_quizzes: (ev.quizzes || []).length
+    }));
+
+    // Add unmapped quiz event groups
+    for (const [name, qList] of unmappedQuizzesMap.entries()) {
+      formattedEvents.push({
+        id: `auto-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+        name,
+        slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        description: `Official technical event tracks for ${name}.`,
+        poster_url: 'https://mscprpcem.blob.core.windows.net/events/clean_529287766.png',
+        category: 'Technical Challenge',
+        mode: 'Online Assessment',
+        venue: 'PRPCEM Campus',
+        rewards: 'Certificates & Badges',
+        status: 'upcoming',
+        quizzes: qList.map(q => ({
+          id: q.id,
+          title: q.title,
+          mode: q.mode,
+          join_code: q.join_code,
+          status: q.status,
+          direct_url: q.mode === 'SCHEDULED' ? `${baseUrl}/q/${q.custom_slug || q.id}` : `${baseUrl}/join/${q.join_code}`
+        })),
+        total_quizzes: qList.length
+      });
+    }
+
+    res.json({
+      success: true,
+      count: formattedEvents.length,
+      events: formattedEvents
+    });
+  } catch (err) {
+    console.error('Error fetching admin events:', err);
+    res.status(500).json({ error: 'Failed to fetch events.' });
+  }
+});
+
+// ----------------------------------------------------
+// POST /api/events (Create a New Event in Admin Panel)
+// ----------------------------------------------------
+router.post('/', authMiddleware, async (req, res) => {
+  try {
+    const {
+      name,
+      description,
+      poster_url,
+      category,
+      mode,
+      venue,
+      start_date,
+      end_date,
+      rewards,
+      status
+    } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Event Name is required.' });
+    }
+
+    const cleanName = name.trim();
+    const slug = cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+
+    const newEvent = await Event.create({
+      name: cleanName,
+      slug,
+      description: description ? description.trim() : null,
+      poster_url: poster_url || 'https://mscprpcem.blob.core.windows.net/events/clean_529287766.png',
+      category: category || 'Technical Workshop',
+      mode: mode || 'Offline',
+      venue: venue || 'PRPCEM Amravati',
+      start_date: start_date ? new Date(start_date) : null,
+      end_date: end_date ? new Date(end_date) : null,
+      rewards: rewards || 'Certificates & Swags',
+      status: status || 'upcoming'
+    });
+
+    res.json({
+      success: true,
+      message: `Event "${cleanName}" created successfully!`,
+      event: newEvent
+    });
+  } catch (err) {
+    console.error('Error creating event:', err);
+    res.status(500).json({ error: err.message || 'Failed to create event.' });
+  }
+});
+
+// ----------------------------------------------------
+// PUT /api/events/:id (Update Event)
+// ----------------------------------------------------
+router.put('/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const event = await Event.findByPk(id);
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found.' });
+    }
+
+    const {
+      name,
+      description,
+      poster_url,
+      category,
+      mode,
+      venue,
+      start_date,
+      end_date,
+      rewards,
+      status
+    } = req.body;
+
+    if (name) {
+      event.name = name.trim();
+      event.slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+    }
+    if (description !== undefined) event.description = description;
+    if (poster_url !== undefined) event.poster_url = poster_url;
+    if (category !== undefined) event.category = category;
+    if (mode !== undefined) event.mode = mode;
+    if (venue !== undefined) event.venue = venue;
+    if (start_date !== undefined) event.start_date = start_date ? new Date(start_date) : null;
+    if (end_date !== undefined) event.end_date = end_date ? new Date(end_date) : null;
+    if (rewards !== undefined) event.rewards = rewards;
+    if (status !== undefined) event.status = status;
+
+    await event.save();
+
+    res.json({
+      success: true,
+      message: 'Event updated successfully!',
+      event
+    });
+  } catch (err) {
+    console.error('Error updating event:', err);
+    res.status(500).json({ error: err.message || 'Failed to update event.' });
+  }
+});
+
+// ----------------------------------------------------
+// DELETE /api/events/:id (Delete Event)
+// ----------------------------------------------------
+router.delete('/:id', authMiddleware, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const event = await Event.findByPk(id);
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found.' });
+    }
+
+    await event.destroy();
+    res.json({ success: true, message: 'Event deleted successfully.' });
+  } catch (err) {
+    console.error('Error deleting event:', err);
+    res.status(500).json({ error: err.message || 'Failed to delete event.' });
+  }
+});
+
+// ----------------------------------------------------
+// GET /api/events/public
+// Public events feed for mscprpcem-website
+// ----------------------------------------------------
+router.get('/public', async (req, res) => {
   try {
     const now = new Date();
     const baseUrl = getQuizPlatformBaseUrl();
 
+    // 1. Fetch managed events from Event table
+    let dbEvents = [];
+    try {
+      dbEvents = await Event.findAll({
+        where: { status: { [Op.ne]: 'archived' } },
+        order: [['createdAt', 'DESC']],
+        include: [
+          {
+            model: Quiz,
+            as: 'quizzes',
+            required: false,
+            include: [
+              {
+                model: ScheduledOccurrence,
+                as: 'occurrences',
+                required: false,
+                attributes: ['id', 'start_time', 'end_time', 'status']
+              }
+            ]
+          }
+        ]
+      });
+    } catch (e) {
+      console.warn('Fallback finding DB events:', e.message);
+    }
+
+    // 2. Fetch all quizzes
     const quizzes = await Quiz.findAll({
       order: [['createdAt', 'DESC']],
       include: [
@@ -32,14 +284,39 @@ router.get(['/public', '/'], async (req, res) => {
       ]
     });
 
-    // Group quizzes by event_name
-    const eventGroups = new Map();
+    const eventsMap = new Map();
 
+    // Add DB events first
+    for (const dev of dbEvents) {
+      const devKey = dev.name.toLowerCase().trim();
+      eventsMap.set(devKey, {
+        id: dev.id,
+        event_name: dev.name,
+        title: dev.name,
+        description: dev.description || `Official challenges and technical sessions for ${dev.name}.`,
+        poster: dev.poster_url || "https://mscprpcem.blob.core.windows.net/events/clean_529287766.png",
+        category: dev.category || 'Technical Workshop',
+        mode: dev.mode || 'Offline',
+        rewards: dev.rewards || 'Verified Certificate & Badges',
+        start_time: dev.start_date || dev.createdAt,
+        end_time: dev.end_date,
+        is_live: false,
+        is_upcoming: true,
+        status: dev.status || 'upcoming',
+        quizzes: [],
+        total_quizzes_count: 0,
+        total_registration_count: 0,
+        direct_quiz_url: null,
+        register: `/register/${dev.slug || dev.id}`
+      });
+    }
+
+    // Process all quizzes and attach to event groups
     for (const q of quizzes) {
       if (!q) continue;
       if (['cancelled', 'archived'].includes((q.status || '').toLowerCase())) continue;
 
-      const eventKey = (q.event_name || q.title || 'MSC Tech Event').trim();
+      const eventKey = (q.event_name || q.title || 'MSC Tech Event').toLowerCase().trim();
       const slug = q.custom_slug || (q.title ? q.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : q.join_code);
       const isScheduled = q.mode === 'SCHEDULED' || (q.occurrences && q.occurrences.length > 0);
       const directUrl = isScheduled ? `${baseUrl}/q/${slug}` : `${baseUrl}/join/${q.join_code}`;
@@ -52,11 +329,7 @@ router.get(['/public', '/'], async (req, res) => {
         if (validOcc.length > 0) {
           startTime = validOcc[0].start_time;
           endTime = validOcc[0].end_time;
-        } else {
-          continue; // past occurrences
         }
-      } else if (endTime && new Date(endTime) < now) {
-        continue; // past standard quiz
       }
 
       const [questionCount, liveCount, attemptCount] = await Promise.all([
@@ -84,12 +357,13 @@ router.get(['/public', '/'], async (req, res) => {
         status: isLiveNow ? 'LIVE' : isUpcoming ? 'UPCOMING' : 'OPEN'
       };
 
-      if (!eventGroups.has(eventKey)) {
-        eventGroups.set(eventKey, {
-          id: `event-${eventKey.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
-          event_name: eventKey,
-          title: eventKey,
-          description: q.description || `Official challenge and assessment tracks for ${eventKey}.`,
+      if (!eventsMap.has(eventKey)) {
+        const originalName = q.event_name || q.title || 'MSC Tech Event';
+        eventsMap.set(eventKey, {
+          id: `event-${eventKey.replace(/[^a-z0-9]+/g, '-')}`,
+          event_name: originalName,
+          title: originalName,
+          description: q.description || `Official technical challenges for ${originalName}.`,
           poster: "https://mscprpcem.blob.core.windows.net/events/clean_529287766.png",
           category: q.category || q.subject || 'Technical Event',
           mode: isScheduled ? 'Online Assessment' : 'Live Interactive Quiz',
@@ -98,24 +372,24 @@ router.get(['/public', '/'], async (req, res) => {
           end_time: endTime,
           is_live: isLiveNow,
           is_upcoming: isUpcoming,
-          status: isLiveNow ? 'upcoming' : isUpcoming ? 'upcoming' : 'upcoming',
+          status: isLiveNow ? 'upcoming' : 'upcoming',
           quizzes: [quizTrack],
           total_quizzes_count: 1,
           total_registration_count: regCount,
           direct_quiz_url: directUrl,
-          register: `/register/event-${eventKey.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+          register: `/register/event-${eventKey.replace(/[^a-z0-9]+/g, '-')}`
         });
       } else {
-        const group = eventGroups.get(eventKey);
+        const group = eventsMap.get(eventKey);
         group.quizzes.push(quizTrack);
         group.total_quizzes_count += 1;
         group.total_registration_count += regCount;
         if (isLiveNow) group.is_live = true;
-        if (isUpcoming) group.is_upcoming = true;
+        if (!group.direct_quiz_url) group.direct_quiz_url = directUrl;
       }
     }
 
-    const events = Array.from(eventGroups.values());
+    const events = Array.from(eventsMap.values());
 
     res.json({
       success: true,
@@ -128,12 +402,9 @@ router.get(['/public', '/'], async (req, res) => {
   }
 });
 
-/**
- * ----------------------------------------------------
- * POST /api/events/register
- * Enrolls participant into an Event and ALL its Quiz Tracks
- * ----------------------------------------------------
- */
+// ----------------------------------------------------
+// POST /api/events/register
+// ----------------------------------------------------
 router.post('/register', async (req, res) => {
   try {
     const {
@@ -180,7 +451,6 @@ router.post('/register', async (req, res) => {
       if (q) matchingQuizzes.push(q);
     }
 
-    // If eventName or eventId provided (e.g. event-spark-2026 or "Spark 2026")
     if (matchingQuizzes.length === 0 && (eventName || eventId)) {
       const targetName = (eventName || eventId).replace(/^event-/, '').replace(/-/g, ' ');
       matchingQuizzes = await Quiz.findAll({
@@ -193,7 +463,6 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    // If still no direct match, fetch all active quizzes as fallback
     if (matchingQuizzes.length === 0) {
       matchingQuizzes = await Quiz.findAll({
         where: { status: { [Op.ne]: 'cancelled' } },
@@ -254,7 +523,7 @@ router.post('/register', async (req, res) => {
     const primaryEventName = matchingQuizzes[0].event_name || matchingQuizzes[0].title;
     const primaryDirectUrl = registeredTracks[0].direct_url;
 
-    // 4. Send Unified Confirmation Email
+    // 4. Send Confirmation Email
     try {
       const tracksListHtml = registeredTracks.map(t => `
         <li style="margin-bottom: 8px;">

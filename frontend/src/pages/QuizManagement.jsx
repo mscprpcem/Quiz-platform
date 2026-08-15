@@ -27,6 +27,7 @@ import {
   Award,
   ExternalLink
 } from 'lucide-react';
+import EventSelector from '../components/EventSelector';
 
 /* ── Status badge helper ── */
 function StatusBadge({ status }) {
@@ -779,19 +780,24 @@ export default function QuizManagement() {
 
 
 
-                {/* Event Name */}
+                {/* Event Selector */}
                 <div className="space-y-1.5">
                   <label className="block text-xs font-bold text-zinc-550 uppercase tracking-widest">
-                    Event Name <span className="text-red-500">*</span>
+                    Associated Event / Chapter <span className="text-red-500">*</span>
                   </label>
-                  <input
-                    type="text"
-                    required
+                  <EventSelector
                     value={quizForm.event_name}
-                    onChange={(e) => setQuizForm((p) => ({ ...p, event_name: e.target.value }))}
-                    placeholder="e.g. MSC Tech Quiz 2026"
-                    className="w-full px-4 py-2.5 border border-brand-border rounded-xl bg-brand-bgLight/50 text-brand-textMain placeholder-zinc-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all text-sm"
+                    onChange={({ eventId, eventName }) => {
+                      setQuizForm((p) => ({
+                        ...p,
+                        event_id: eventId,
+                        event_name: eventName
+                      }));
+                    }}
                   />
+                  <p className="text-[10px] text-zinc-400 font-medium">
+                    Pick an existing event or create a new one to group this live quiz under that event on the website.
+                  </p>
                 </div>
 
                 {/* Custom Short Link / Vanity Slug */}

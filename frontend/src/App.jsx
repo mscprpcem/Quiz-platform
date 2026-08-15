@@ -41,6 +41,7 @@ import VanityRedirect from './pages/VanityRedirect';
 import StudentAuth from './pages/StudentAuth';
 import AuthCallback from './pages/AuthCallback';
 import AdminEmailDispatch from './pages/AdminEmailDispatch';
+import AdminEvents from './pages/AdminEvents';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -165,6 +166,14 @@ export default function App() {
                   element={
                     <AdminRoute>
                       <AdminDashboard />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/events"
+                  element={
+                    <AdminRoute>
+                      <AdminEvents />
                     </AdminRoute>
                   }
                 />

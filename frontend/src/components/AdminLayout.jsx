@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  LayoutDashboard, Radio, Calendar, BookOpen, Mail,
+  LayoutDashboard, Radio, Calendar, BookOpen, Mail, Sparkles,
   LogOut, Menu, X, GraduationCap, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
@@ -30,8 +30,9 @@ export default function AdminLayout({ children }) {
       ]
     },
     {
-      title: 'QUIZ MANAGEMENT',
+      title: 'EVENT & QUIZ MANAGEMENT',
       items: [
+        { label: 'Events & Chapters', icon: Sparkles, path: '/admin/events' },
         { label: 'Live Quiz', icon: Radio, path: '/admin/quizzes' },
         { label: 'Scheduled Quiz', icon: Calendar, path: '/admin/scheduled-quizzes' }
       ]

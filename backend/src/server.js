@@ -257,6 +257,7 @@ async function startServer() {
       `ALTER TABLE ${quote}Users${quote} ADD COLUMN ${ifNotExists}${quote}is_verified${quote} ${boolType} DEFAULT 1;`,
 
       // Participants & QuizAttempts table
+      `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}event_id${quote} UUID;`,
       `ALTER TABLE ${quote}Participants${quote} ADD COLUMN ${ifNotExists}${quote}sso_user_id${quote} VARCHAR(255);`,
       `ALTER TABLE ${quote}QuizAttempts${quote} ADD COLUMN ${ifNotExists}${quote}sso_user_id${quote} VARCHAR(255);`,
 
@@ -266,6 +267,7 @@ async function startServer() {
         `ALTER TABLE questions ADD COLUMN IF NOT EXISTS section_name VARCHAR(255);`,
         `ALTER TABLE questions ADD COLUMN IF NOT EXISTS section_description TEXT;`,
         `ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS custom_slug VARCHAR(255);`,
+        `ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS event_id UUID;`,
         `ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS mode VARCHAR(255) DEFAULT 'LIVE';`,
         `ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS schedule_type VARCHAR(255);`,
         `ALTER TABLE quizzes ADD COLUMN IF NOT EXISTS schedule_config TEXT;`,

@@ -1,0 +1,352 @@
+import React, { useState, useEffect, useRef } from 'react';
+import api from '../services/api';
+import { Sparkles, Plus, Search, Check, ChevronDown, Calendar, Globe, MapPin, X } from 'lucide-react';
+
+export default function EventSelector({
+  value,
+  onChange,
+  onEventCreated,
+  className = '',
+  required = false
+}) {
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // New Event Form State
+  const [newEvent, setNewEvent] = useState({
+    name: '',
+    category: 'Technical Workshop',
+    mode: 'Offline',
+    venue: 'PRPCEM Amravati',
+    description: '',
+    rewards: 'Certificates & Swags'
+  });
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
+
+  const fetchEvents = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get('/api/events');
+      if (res.data?.success && Array.isArray(res.data.events)) {
+        setEvents(res.data.events);
+      }
+    } catch (err) {
+      console.warn('Failed to load events list:', err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchEvents();
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredEvents = events.filter(e =>
+    (e.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (e.category || '').toLowerCase().includes(search.toLowerCase())
+  );
+
+  const selectedEvent = events.find(e =>
+    e.id === value || (e.name && value && e.name.toLowerCase() === value.toLowerCase())
+  );
+
+  const handleSelect = (ev) => {
+    onChange({
+      eventId: ev.id,
+      eventName: ev.name
+    });
+    setIsOpen(false);
+    setSearch('');
+  };
+
+  const handleCreateNewEvent = async (e) => {
+    e.preventDefault();
+    if (!newEvent.name.trim()) {
+      setCreateError('Event name is required');
+      return;
+    }
+
+    try {
+      setCreating(true);
+      setCreateError('');
+      const res = await api.post('/api/events', newEvent);
+      if (res.data?.success && res.data.event) {
+        const created = res.data.event;
+        setEvents(prev => [created, ...prev]);
+        onChange({
+          eventId: created.id,
+          eventName: created.name
+        });
+        if (onEventCreated) onEventCreated(created);
+        setShowCreateModal(false);
+        setNewEvent({
+          name: '',
+          category: 'Technical Workshop',
+          mode: 'Offline',
+          venue: 'PRPCEM Amravati',
+          description: '',
+          rewards: 'Certificates & Swags'
+        });
+        setIsOpen(false);
+      }
+    } catch (err) {
+      setCreateError(err.response?.data?.error || err.message || 'Failed to create event');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <div className={`relative ${className}`} ref={dropdownRef}>
+      {/* Dropdown Trigger */}
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-left shadow-2xs hover:border-slate-300 focus:outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 transition-all text-xs cursor-pointer"
+      >
+        <div className="flex items-center gap-2.5 truncate">
+          <div className="w-6 h-6 rounded-lg bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
+            <Sparkles size={13} />
+          </div>
+          <div className="truncate">
+            {selectedEvent ? (
+              <div>
+                <span className="font-bold text-slate-800 block truncate">{selectedEvent.name}</span>
+                <span className="text-[10px] text-slate-400 block">{selectedEvent.category || 'Event'} • {selectedEvent.mode || 'Offline'}</span>
+              </div>
+            ) : value ? (
+              <span className="font-bold text-slate-800">{value}</span>
+            ) : (
+              <span className="text-slate-400 font-medium">Select or create an Event...</span>
+            )}
+          </div>
+        </div>
+        <ChevronDown size={15} className={`text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+      </button>
+
+      {/* Dropdown Menu */}
+      {isOpen && (
+        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 text-xs animate-fade-in max-h-72 flex flex-col">
+          {/* Search Box */}
+          <div className="relative mb-2 shrink-0">
+            <Search size={13} className="absolute left-2.5 top-2.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search existing events..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
+              autoFocus
+            />
+          </div>
+
+          {/* Quick Create Action */}
+          <button
+            type="button"
+            onClick={() => {
+              setShowCreateModal(true);
+              setIsOpen(false);
+            }}
+            className="flex items-center gap-2 px-3 py-2 text-purple-700 bg-purple-50/80 hover:bg-purple-100/80 rounded-xl font-bold mb-1.5 transition-colors shrink-0 text-xs cursor-pointer"
+          >
+            <Plus size={14} className="text-purple-600" />
+            <span>+ Create New Event</span>
+          </button>
+
+          {/* Events List */}
+          <div className="overflow-y-auto space-y-1 flex-1 pr-1">
+            {loading ? (
+              <p className="text-center py-4 text-slate-400">Loading events...</p>
+            ) : filteredEvents.length === 0 ? (
+              <div className="text-center py-4 text-slate-400">
+                <p className="font-medium">No matching events found</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setNewEvent(p => ({ ...p, name: search }));
+                    setShowCreateModal(true);
+                    setIsOpen(false);
+                  }}
+                  className="text-purple-600 font-bold text-[11px] underline mt-1 block mx-auto cursor-pointer"
+                >
+                  Create "{search}" as a new event
+                </button>
+              </div>
+            ) : (
+              filteredEvents.map((ev) => {
+                const isSelected = selectedEvent?.id === ev.id || value === ev.name;
+                return (
+                  <button
+                    key={ev.id}
+                    type="button"
+                    onClick={() => handleSelect(ev)}
+                    className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-left transition-colors cursor-pointer ${
+                      isSelected ? 'bg-purple-50 text-purple-800 font-bold' : 'hover:bg-slate-50 text-slate-700'
+                    }`}
+                  >
+                    <div className="truncate">
+                      <div className="font-bold truncate">{ev.name}</div>
+                      <div className="text-[10px] text-slate-400 flex items-center gap-2">
+                        <span>{ev.category || 'Workshop'}</span>
+                        <span>•</span>
+                        <span>{ev.mode || 'Offline'}</span>
+                        {ev.total_quizzes > 0 && (
+                          <>
+                            <span>•</span>
+                            <span className="text-purple-600 font-medium">{ev.total_quizzes} Quiz Tracks</span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    {isSelected && <Check size={14} className="text-purple-600 shrink-0 ml-2" />}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Quick Create Event Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between pb-4 border-b border-slate-100">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                  <Sparkles size={18} />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Create New Club Event</h3>
+                  <p className="text-[11px] text-slate-500">Configure event details and sync to the main website.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {createError && (
+              <div className="mt-3 p-3 bg-red-50 border border-red-200 text-red-700 rounded-xl text-xs">
+                {createError}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateNewEvent} className="mt-4 space-y-3.5 text-xs">
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Event Name *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Spark '26, Azure Cloud Summit, GitLit Season 1"
+                  value={newEvent.name}
+                  onChange={(e) => setNewEvent({ ...newEvent, name: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={newEvent.category}
+                    onChange={(e) => setNewEvent({ ...newEvent, category: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
+                  >
+                    <option value="Technical Workshop">Technical Workshop</option>
+                    <option value="Hackathon">Hackathon</option>
+                    <option value="Buildathon">Buildathon</option>
+                    <option value="Conference">Conference</option>
+                    <option value="Code Fest">Code Fest</option>
+                    <option value="Quiz & Assessment">Quiz & Assessment</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Event Mode
+                  </label>
+                  <select
+                    value={newEvent.mode}
+                    onChange={(e) => setNewEvent({ ...newEvent, mode: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
+                  >
+                    <option value="Offline">Offline (Campus)</option>
+                    <option value="Online">Online (Virtual)</option>
+                    <option value="Hybrid">Hybrid</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Venue / Location
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. PRPCEM Main Auditorium"
+                  value={newEvent.venue}
+                  onChange={(e) => setNewEvent({ ...newEvent, venue: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  rows={2}
+                  placeholder="Brief description of the event agenda, topics, and activities..."
+                  value={newEvent.description}
+                  onChange={(e) => setNewEvent({ ...newEvent, description: e.target.value })}
+                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600"
+                />
+              </div>
+
+              <div className="flex gap-2.5 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(false)}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creating}
+                  className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-1.5 shadow-md shadow-purple-600/20 cursor-pointer"
+                >
+                  {creating ? 'Creating Event...' : 'Create & Select Event'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
