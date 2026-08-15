@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import AdminLayout from '../components/AdminLayout';
 import {
   Sparkles, Plus, Search, Calendar, MapPin, Globe, Users,
   Trash2, Edit3, ExternalLink, Mail, ArrowRight, ShieldCheck,
@@ -135,9 +134,8 @@ export default function AdminEvents() {
   });
 
   return (
-    <AdminLayout>
-      <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
-        {/* Top Header */}
+    <div className="space-y-6">
+      {/* Top Header */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-2xs">
           <div className="space-y-1">
             <div className="flex items-center gap-2.5">
@@ -496,7 +494,6 @@ export default function AdminEvents() {
             </div>
           </div>
         )}
-      </div>
-    </AdminLayout>
+    </div>
   );
 }
