@@ -80,9 +80,7 @@ export default function EventRegister() {
 
     const targetDate = event.registration_end_date
       ? new Date(event.registration_end_date)
-      : event.start_date
-      ? new Date(event.start_date)
-      : null;
+      : (event.end_date ? new Date(event.end_date) : null);
 
     if (!targetDate || isNaN(targetDate.getTime())) {
       setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0, isExpired: false });
@@ -186,7 +184,7 @@ export default function EventRegister() {
     );
   }
 
-  const isRegistrationClosed = !event.is_registration_open || event.is_registration_ended || timeLeft.isExpired;
+  const isRegistrationClosed = event?.registration_status === 'closed' || event?.registration_status === 'completed' || event?.is_registration_open === false || event?.status === 'completed' || (Boolean(event?.registration_end_date) && timeLeft.isExpired);
 
   return (
     <div className="min-h-screen bg-slate-50 font-segoe py-4 sm:py-8 px-3 sm:px-6">

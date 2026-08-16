@@ -490,7 +490,8 @@ export default function ScheduledQuizTake() {
     const att = resultData.attempt;
     const totalQuestions = resultData.totalQuestions || questions.length || 1;
     const accuracyPercent = Math.round(((att?.correct_count || 0) / totalQuestions) * 100);
-    const userEmail = email || studentAccount?.email || user?.email || '';
+    const userEmail = email || studentAccount?.email || user?.email || localStorage.getItem('msc_student_email') || '';
+    const userName = name || studentAccount?.name || user?.name || localStorage.getItem('msc_student_name') || '';
     const myRank = resultData?.rank || 1;
     const totalParticipants = resultData?.totalParticipants || leaderboardList.length || 1;
     const top10List = leaderboardList.slice(0, 10);
@@ -779,7 +780,8 @@ export default function ScheduledQuizTake() {
       const totalQuestions = occData?.quiz?.questions?.length || (userAttempt ? ((userAttempt.correct_count || 0) + (userAttempt.incorrect_count || 0) + (userAttempt.unanswered_count || 0)) : 0) || 10;
       const accuracyPercent = userAttempt ? Math.round(((userAttempt.correct_count || 0) / Math.max(1, totalQuestions)) * 100) : 0;
       const top10List = leaderboardList.slice(0, 10);
-      const userEmail = displayEmail || '';
+      const userEmail = displayEmail || email || studentAccount?.email || user?.email || localStorage.getItem('msc_student_email') || '';
+      const userName = displayName || name || studentAccount?.name || user?.name || localStorage.getItem('msc_student_name') || '';
 
       return (
         <div className="max-w-2xl mx-auto py-10 px-4 font-segoe text-center space-y-7 animate-fade-in">

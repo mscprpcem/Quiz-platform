@@ -51,6 +51,9 @@ export default function AdminUsers() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Copy Feedback State
+  const [copiedId, setCopiedId] = useState(null);
+
   // Bulk Selection State
   const [selectedUserIds, setSelectedUserIds] = useState([]);
   const [bulkDeleting, setBulkDeleting] = useState(false);
@@ -58,6 +61,16 @@ export default function AdminUsers() {
 
   // Feedback State
   const [alertMsg, setAlertMsg] = useState(null);
+
+  // Copy handle to clipboard
+  const handleCopy = (text, id) => {
+    if (!text) return;
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(text);
+    }
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   // Load Users from Backend Directory
   const fetchUsers = useCallback(async () => {
@@ -161,6 +174,8 @@ export default function AdminUsers() {
       setDeleting(false);
     }
   };
+
+  const handleDeleteUser = handleDeleteSingle;
 
   // Bulk delete selected users
   const handleBulkDelete = async () => {

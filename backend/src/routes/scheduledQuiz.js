@@ -420,7 +420,7 @@ router.get('/', authMiddleware, async (req, res) => {
 router.post('/', authMiddleware, async (req, res) => {
   try {
     const {
-      title, description, event_name, subject, difficulty, instructions,
+      title, description, event_id, event_name, subject, difficulty, instructions,
       schedule_type, start_date, end_date, start_time, end_time, timezone,
       start_iso, end_iso,
       time_limit, max_attempts, score_policy, shuffle_questions, shuffle_answers,
@@ -443,6 +443,7 @@ router.post('/', authMiddleware, async (req, res) => {
     const quiz = await Quiz.create({
       title,
       description,
+      event_id: event_id || null,
       event_name: event_name || 'Scheduled Challenge',
       subject: subject || 'General CS',
       join_code,
@@ -663,7 +664,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
     if (!quiz) return res.status(404).json({ error: 'Scheduled Quiz not found.' });
 
     const {
-      title, description, category, difficulty, instructions,
+      title, description, event_id, event_name, category, difficulty, instructions,
       schedule_type, start_date, end_date, start_time, end_time, timezone,
       start_iso, end_iso,
       time_limit, max_attempts, score_policy, shuffle_questions, shuffle_answers,
@@ -686,6 +687,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
     await quiz.update({
       title: title || quiz.title,
       description,
+      event_id: event_id !== undefined ? event_id : quiz.event_id,
+      event_name: event_name !== undefined ? event_name : quiz.event_name,
       subject: category || quiz.subject,
       custom_slug: cleanSlug,
       badge_title: badge_title !== undefined ? badge_title : quiz.badge_title,
@@ -964,6 +967,18 @@ router.post('/occurrences/:occurrenceId/start', async (req, res) => {
         }
         if (!occ && occurrences.length > 0) {
           occ = occurrences[occurrences.length - 1];
+        }
+        if (!occ) {
+          const defaultStart = quizRecord.scheduled_start ? new Date(quizRecord.scheduled_start) : new Date(now.getTime() - 5 * 60 * 1000);
+          const defaultEnd = quizRecord.scheduled_end ? new Date(quizRecord.scheduled_end) : new Date(defaultStart.getTime() + (quizRecord.time_limit || 60) * 60 * 1000);
+          occ = await ScheduledOccurrence.create({
+            quiz_id: quizRecord.id,
+            occurrence_number: 1,
+            title: `${quizRecord.title} (Session 1)`,
+            start_time: defaultStart,
+            end_time: defaultEnd,
+            status: 'SCHEDULED'
+          });
         }
       }
     }

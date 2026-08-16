@@ -315,7 +315,7 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 // Create new quiz
 router.post('/', authMiddleware, async (req, res) => {
   try {
-    const { title, event_name, subject, description, scheduled_start, scheduled_end, custom_slug, badge_title } = req.body;
+    const { title, event_id, event_name, subject, description, scheduled_start, scheduled_end, custom_slug, badge_title } = req.body;
 
     if (!title || !event_name) {
       return res.status(400).json({ error: 'Title and event name are required' });
@@ -330,6 +330,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
     const quiz = await Quiz.create({
       title,
+      event_id: event_id || null,
       event_name,
       subject: subject || 'DBMS',
       description,
@@ -351,7 +352,7 @@ router.post('/', authMiddleware, async (req, res) => {
 // Update quiz details
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
-    const { title, event_name, subject, description, scheduled_start, scheduled_end, custom_slug, badge_title } = req.body;
+    const { title, event_id, event_name, subject, description, scheduled_start, scheduled_end, custom_slug, badge_title } = req.body;
     const quiz = await Quiz.findByPk(req.params.id);
 
     if (!quiz) {
@@ -371,6 +372,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     await quiz.update({
       title: title || quiz.title,
+      event_id: event_id !== undefined ? event_id : quiz.event_id,
       event_name: event_name || quiz.event_name,
       subject: subject || quiz.subject,
       custom_slug: cleanSlug,

@@ -176,6 +176,64 @@ function sortEventsLatestFirst(events) {
   });
 }
 
+/**
+ * Accurately determines Event Lifecycle Status ('upcoming' | 'live' | 'completed')
+ * and Registration Status ('open' | 'closed' | 'completed' | 'pending' | 'full') independently.
+ */
+function computeEventAndRegStatus(ev, now = new Date(), isLiveNow = false, totalRegCount = 0) {
+  const maxRegs = ev.max_registrations ? parseInt(ev.max_registrations, 10) : null;
+  const isRegDeadlinePassed = ev.registration_end_date ? new Date(ev.registration_end_date) < now : false;
+  const isRegNotStartedYet = ev.registration_start_date ? new Date(ev.registration_start_date) > now : false;
+  const isCapacityFull = maxRegs !== null && maxRegs !== undefined && totalRegCount >= maxRegs;
+
+  const rawStatus = (ev.status || 'upcoming').toLowerCase().trim();
+  const isExplicitlyCompleted = rawStatus === 'completed' || rawStatus === 'past' || rawStatus === 'concluded' || rawStatus === 'cancelled';
+  const isEndDatePassed = ev.end_date ? new Date(ev.end_date) < now : false;
+  
+  const isEventCompleted = isExplicitlyCompleted || (isEndDatePassed && rawStatus !== 'upcoming' && rawStatus !== 'live');
+
+  // Event Lifecycle Status: 'completed' | 'live' | 'upcoming'
+  let eventStatus = 'upcoming';
+  if (isEventCompleted) {
+    eventStatus = 'completed';
+  } else if (isLiveNow || rawStatus === 'live') {
+    eventStatus = 'live';
+  } else {
+    eventStatus = 'upcoming';
+  }
+
+  // Registration Status: 'open' | 'closed' | 'completed' | 'pending' | 'full'
+  let regStatus = 'open';
+  if (isEventCompleted) {
+    regStatus = 'completed';
+  } else if (ev.is_registration_open === false || isRegDeadlinePassed || rawStatus === 'registration_closed') {
+    regStatus = 'closed';
+  } else if (isRegNotStartedYet) {
+    regStatus = 'pending';
+  } else if (isCapacityFull) {
+    regStatus = 'full';
+  } else {
+    regStatus = 'open';
+  }
+
+  // Requirements:
+  // Accepting Signups -> Show Register
+  // Registration Closed -> Hide Register
+  // Completed -> Hide Register
+  const isRegActive = regStatus === 'open' && !isEventCompleted;
+
+  return {
+    eventStatus,
+    regStatus,
+    isEventCompleted,
+    isRegActive,
+    isRegEnded: !isRegActive,
+    isRegPending: regStatus === 'pending',
+    isCapacityFull,
+    maxRegs
+  };
+}
+
 // ----------------------------------------------------
 // GET /api/events (Admin / Authenticated Route)
 // Returns ALL events (New DB Events + Old Static Events)
@@ -211,18 +269,8 @@ router.get('/', async (req, res) => {
       const actualRegCount = eventRegs.length;
       const initialRegCount = parseInt(ev.initial_registration_count, 10) || 0;
       const totalRegCount = actualRegCount + initialRegCount;
-      const maxRegs = ev.max_registrations ? parseInt(ev.max_registrations, 10) : null;
-      const isRegDeadlinePassed = ev.registration_end_date ? new Date(ev.registration_end_date) < now : false;
-      const isEventDateEnded = ev.end_date 
-        ? new Date(ev.end_date) < now 
-        : (ev.start_date ? new Date(ev.start_date) < now : false);
 
-      const isRegNotStartedYet = ev.registration_start_date ? new Date(ev.registration_start_date) > now : false;
-      const isCapacityFull = maxRegs !== null && maxRegs !== undefined && totalRegCount >= maxRegs;
-
-      const computedStatus = (ev.status === 'completed' || ev.status === 'past' || isEventDateEnded)
-        ? 'completed'
-        : (ev.status || 'upcoming');
+      const statusObj = computeEventAndRegStatus(ev, now, false, totalRegCount);
 
       formattedEvents.push({
         id: ev.id,
@@ -237,20 +285,24 @@ router.get('/', async (req, res) => {
         end_date: ev.end_date,
         registration_start_date: ev.registration_start_date,
         registration_end_date: ev.registration_end_date,
-        max_registrations: maxRegs,
+        max_registrations: statusObj.maxRegs,
         initial_registration_count: initialRegCount,
         actual_registration_count: actualRegCount,
         fee: ev.fee || 'Free',
-        is_registration_open: ev.is_registration_open !== false && !isEventDateEnded && !isRegDeadlinePassed,
+        is_registration_open: statusObj.isRegActive,
+        isRegistrationOpen: statusObj.isRegActive,
+        is_registration_ended: statusObj.isRegEnded,
+        isRegistrationEnded: statusObj.isRegEnded,
+        is_registration_pending: statusObj.isRegPending,
+        is_capacity_full: statusObj.isCapacityFull,
         rewards: ev.rewards || 'Certificates & Swags',
-        status: computedStatus,
+        status: statusObj.eventStatus,
+        event_status: statusObj.eventStatus,
+        registration_status: statusObj.regStatus,
         source: 'database',
         registration_count: totalRegCount,
         total_registration_count: totalRegCount,
-        seats_remaining: maxRegs ? Math.max(0, maxRegs - totalRegCount) : null,
-        is_registration_ended: isRegDeadlinePassed || isEventDateEnded,
-        is_registration_pending: isRegNotStartedYet,
-        is_capacity_full: isCapacityFull,
+        seats_remaining: statusObj.maxRegs ? Math.max(0, statusObj.maxRegs - totalRegCount) : null,
         quizzes: linkedQuizzes.map(q => ({
           id: q.id,
           title: q.title,
@@ -277,10 +329,16 @@ router.get('/', async (req, res) => {
           r.event_id === se.id || (r.event_name && r.event_name.toLowerCase().trim() === seKey)
         );
 
-        const isStaticEnded = se.endDate 
-          ? new Date(se.endDate) < now 
-          : (se.startDate ? new Date(se.startDate) < now : (se.status === 'past' || se.status === 'completed'));
-        const staticStatus = isStaticEnded ? 'completed' : (se.status || 'upcoming');
+        const initialRegCount = parseInt(se.initial_registration_count || se.registration_count, 10) || 0;
+        const totalRegCount = eventRegs.length + initialRegCount;
+
+        const fakeEv = {
+          ...se,
+          status: se.status || 'upcoming',
+          end_date: se.endDate ? new Date(se.endDate) : null,
+          start_date: se.startDate ? new Date(se.startDate) : null
+        };
+        const statusObj = computeEventAndRegStatus(fakeEv, now, false, totalRegCount);
 
         formattedEvents.push({
           id: se.id,
@@ -296,19 +354,23 @@ router.get('/', async (req, res) => {
           registration_start_date: null,
           registration_end_date: null,
           max_registrations: null,
-          initial_registration_count: 0,
+          initial_registration_count: initialRegCount,
           actual_registration_count: eventRegs.length,
           fee: 'Free',
-          is_registration_open: !isStaticEnded,
-          rewards: se.rewards || 'Certificates & Swags',
-          status: staticStatus,
-          source: 'json',
-          registration_count: eventRegs.length,
-          total_registration_count: eventRegs.length,
-          seats_remaining: null,
-          is_registration_ended: isStaticEnded,
-          is_registration_pending: false,
+          is_registration_open: statusObj.isRegActive,
+          isRegistrationOpen: statusObj.isRegActive,
+          is_registration_ended: statusObj.isRegEnded,
+          isRegistrationEnded: statusObj.isRegEnded,
+          is_registration_pending: statusObj.isRegPending,
           is_capacity_full: false,
+          rewards: se.rewards || 'Certificates & Swags',
+          status: statusObj.eventStatus,
+          event_status: statusObj.eventStatus,
+          registration_status: statusObj.regStatus,
+          source: 'json',
+          registration_count: totalRegCount,
+          total_registration_count: totalRegCount,
+          seats_remaining: null,
           quizzes: linkedQuizzes.map(q => ({
             id: q.id,
             title: q.title,
@@ -350,21 +412,48 @@ router.get('/details/:idOrSlug', async (req, res) => {
       event = await Event.findByPk(idOrSlug).catch(() => null);
     }
     if (!event) {
+      const cleanSlug = String(idOrSlug).trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      const rawName = String(idOrSlug).trim().replace(/-/g, ' ');
       event = await Event.findOne({
         where: {
           [Op.or]: [
             { slug: idOrSlug },
-            { slug: idOrSlug.toLowerCase() },
-            { name: idOrSlug }
+            { slug: cleanSlug },
+            { name: idOrSlug },
+            { name: rawName }
           ]
         }
       }).catch(() => null);
     }
 
     if (!event) {
+      const allEvents = await Event.findAll().catch(() => []);
+      const cleanTarget = String(idOrSlug).trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+      event = allEvents.find(e => {
+        const eSlug = (e.slug || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+        const eName = (e.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+        return eSlug === cleanTarget || eName === cleanTarget;
+      });
+    }
+
+    if (!event) {
       // Check static events fallback
-      const staticMatch = staticEvents.find(s => s.id === idOrSlug || (s.title && s.title.toLowerCase() === idOrSlug.toLowerCase()));
+      const cleanTarget = String(idOrSlug).trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+      const staticMatch = staticEvents.find(s => {
+        const sId = (s.id || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+        const sTitle = (s.title || s.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+        return sId === cleanTarget || sTitle === cleanTarget;
+      });
+
       if (staticMatch) {
+        const fakeEv = {
+          ...staticMatch,
+          status: staticMatch.status || 'upcoming',
+          end_date: staticMatch.endDate ? new Date(staticMatch.endDate) : null,
+          start_date: staticMatch.startDate ? new Date(staticMatch.startDate) : null
+        };
+        const statusObj = computeEventAndRegStatus(fakeEv, now, false, 0);
+
         return res.json({
           success: true,
           event: {
@@ -377,15 +466,26 @@ router.get('/details/:idOrSlug', async (req, res) => {
             mode: staticMatch.mode || 'Offline',
             venue: staticMatch.venue || 'PRPCEM Campus',
             start_date: staticMatch.startDate ? new Date(staticMatch.startDate) : null,
-            end_date: null,
+            end_date: staticMatch.endDate ? new Date(staticMatch.endDate) : null,
             registration_start_date: null,
             registration_end_date: null,
             max_registrations: null,
+            initial_registration_count: 0,
+            actual_registration_count: 0,
             fee: 'Free',
-            is_registration_open: true,
+            is_registration_open: statusObj.isRegActive,
+            isRegistrationOpen: statusObj.isRegActive,
+            is_registration_ended: statusObj.isRegEnded,
+            isRegistrationEnded: statusObj.isRegEnded,
+            is_registration_pending: statusObj.isRegPending,
+            is_capacity_full: false,
             rewards: staticMatch.rewards || 'Certificates & Swags',
-            status: staticMatch.status || 'upcoming',
+            status: statusObj.eventStatus,
+            event_status: statusObj.eventStatus,
+            registration_status: statusObj.regStatus,
             registration_count: 0,
+            total_registration_count: 0,
+            seats_remaining: null,
             quizzes: []
           }
         });
@@ -413,18 +513,8 @@ router.get('/details/:idOrSlug', async (req, res) => {
     const actualRegCount = allRegistrations.length;
     const initialRegCount = parseInt(event.initial_registration_count, 10) || 0;
     const totalRegCount = actualRegCount + initialRegCount;
-    const maxRegs = event.max_registrations ? parseInt(event.max_registrations, 10) : null;
-    const isRegDeadlinePassed = event.registration_end_date ? new Date(event.registration_end_date) < now : false;
-    const isEventDateEnded = event.end_date 
-      ? new Date(event.end_date) < now 
-      : (event.start_date ? new Date(event.start_date) < now : false);
 
-    const isRegNotStartedYet = event.registration_start_date ? new Date(event.registration_start_date) > now : false;
-    const isCapacityFull = maxRegs !== null && maxRegs !== undefined && totalRegCount >= maxRegs;
-
-    const computedStatus = (event.status === 'completed' || event.status === 'past' || isEventDateEnded)
-      ? 'completed'
-      : (event.status || 'upcoming');
+    const statusObj = computeEventAndRegStatus(event, now, false, totalRegCount);
 
     res.json({
       success: true,
@@ -441,19 +531,23 @@ router.get('/details/:idOrSlug', async (req, res) => {
         end_date: event.end_date,
         registration_start_date: event.registration_start_date,
         registration_end_date: event.registration_end_date,
-        max_registrations: maxRegs,
+        max_registrations: statusObj.maxRegs,
         initial_registration_count: initialRegCount,
         actual_registration_count: actualRegCount,
         fee: event.fee || 'Free',
-        is_registration_open: event.is_registration_open !== false && !isEventDateEnded && !isRegDeadlinePassed,
+        is_registration_open: statusObj.isRegActive,
+        isRegistrationOpen: statusObj.isRegActive,
+        is_registration_ended: statusObj.isRegEnded,
+        isRegistrationEnded: statusObj.isRegEnded,
+        is_registration_pending: statusObj.isRegPending,
+        is_capacity_full: statusObj.isCapacityFull,
         rewards: event.rewards,
-        status: computedStatus,
+        status: statusObj.eventStatus,
+        event_status: statusObj.eventStatus,
+        registration_status: statusObj.regStatus,
         registration_count: totalRegCount,
         total_registration_count: totalRegCount,
-        seats_remaining: maxRegs ? Math.max(0, maxRegs - totalRegCount) : null,
-        is_registration_ended: isRegDeadlinePassed || isEventDateEnded,
-        is_registration_pending: isRegNotStartedYet,
-        is_capacity_full: isCapacityFull,
+        seats_remaining: statusObj.maxRegs ? Math.max(0, statusObj.maxRegs - totalRegCount) : null,
         quizzes: linkedQuizzes.map(q => ({
           id: q.id,
           title: q.title,
@@ -890,8 +984,8 @@ router.get('/public', async (req, res) => {
 
       const actualRegCount = eventRegs.length;
       const initialRegCount = parseInt(dev.initial_registration_count, 10) || 0;
+      const totalRegCount = actualRegCount + initialRegCount;
       const quizTracks = [];
-      let totalRegCount = actualRegCount + initialRegCount;
       let isLiveNow = false;
 
       for (const q of linkedQuizzes) {
@@ -916,8 +1010,7 @@ router.get('/public', async (req, res) => {
           QuizAttempt.count({ where: { quiz_id: q.id } }).catch(() => 0)
         ]);
 
-        const regCount = (liveCount + attemptCount) + initialRegCount;
-        if (regCount > totalRegCount) totalRegCount = regCount;
+        const totalQuizAttempts = attemptCount + liveCount;
 
         const sDate = startTime ? new Date(startTime) : null;
         if (sDate && sDate <= now && (!endTime || new Date(endTime) >= now)) {
@@ -931,7 +1024,9 @@ router.get('/public', async (req, res) => {
           mode: q.mode,
           join_code: q.join_code,
           question_count: questionCount,
-          registration_count: regCount,
+          attempt_count: attemptCount,
+          total_attempts: totalQuizAttempts,
+          participant_count: totalQuizAttempts,
           direct_quiz_url: directUrl,
           start_time: startTime,
           end_time: endTime,
@@ -939,18 +1034,7 @@ router.get('/public', async (req, res) => {
         });
       }
 
-      const maxRegs = dev.max_registrations ? parseInt(dev.max_registrations, 10) : null;
-      const isRegDeadlinePassed = dev.registration_end_date ? new Date(dev.registration_end_date) < now : false;
-      const isRegNotStartedYet = dev.registration_start_date ? new Date(dev.registration_start_date) > now : false;
-      const isCapacityFull = maxRegs ? totalRegCount >= maxRegs : false;
-
-      const isEventDateEnded = dev.end_date 
-        ? new Date(dev.end_date) < now 
-        : (dev.start_date ? new Date(dev.start_date) < now : false);
-
-      const isCompleted = dev.status === 'completed' || dev.status === 'past' || isEventDateEnded;
-      const finalStatus = isCompleted ? 'completed' : (isLiveNow ? 'live' : (dev.status || 'upcoming'));
-
+      const statusObj = computeEventAndRegStatus(dev, now, isLiveNow, totalRegCount);
       const formattedDate = formatEventDateString(dev.start_date);
       const computedDuration = formatEventDuration(dev.start_date, dev.end_date, dev.duration);
       const regUrlRelative = `/register/${dev.slug || dev.id}`;
@@ -982,25 +1066,29 @@ router.get('/public', async (req, res) => {
         prizes: dev.rewards || 'Certificates & Swags',
         registration_start_date: dev.registration_start_date,
         registration_end_date: dev.registration_end_date,
-        max_registrations: maxRegs,
-        maxRegistrations: maxRegs,
+        max_registrations: statusObj.maxRegs,
+        maxRegistrations: statusObj.maxRegs,
         initial_registration_count: initialRegCount,
         actual_registration_count: actualRegCount,
-        seats_remaining: maxRegs ? Math.max(0, maxRegs - totalRegCount) : null,
-        seatsRemaining: maxRegs ? Math.max(0, maxRegs - totalRegCount) : null,
+        seats_remaining: statusObj.maxRegs ? Math.max(0, statusObj.maxRegs - totalRegCount) : null,
+        seatsRemaining: statusObj.maxRegs ? Math.max(0, statusObj.maxRegs - totalRegCount) : null,
         fee: dev.fee || 'Free',
         price: dev.fee || 'Free',
-        is_registration_open: dev.is_registration_open !== false && !isCompleted && !isRegDeadlinePassed,
-        isRegistrationOpen: dev.is_registration_open !== false && !isCompleted && !isRegDeadlinePassed,
-        is_registration_ended: isRegDeadlinePassed || isEventDateEnded,
-        isRegistrationEnded: isRegDeadlinePassed || isEventDateEnded,
-        is_registration_pending: isRegNotStartedYet,
-        is_capacity_full: isCapacityFull,
-        is_live: isLiveNow,
-        is_upcoming: finalStatus === 'upcoming',
-        status: finalStatus,
-        showOnHomePopup: finalStatus === 'upcoming' || Boolean(dev.showOnHomePopup),
-        popupMessage: dev.popupMessage || (finalStatus === 'upcoming' && dev.is_registration_open !== false ? `Registrations are live for ${dev.name}!` : ''),
+        is_registration_open: statusObj.isRegActive,
+        isRegistrationOpen: statusObj.isRegActive,
+        is_registration_ended: statusObj.isRegEnded,
+        isRegistrationEnded: statusObj.isRegEnded,
+        is_registration_pending: statusObj.isRegPending,
+        is_capacity_full: statusObj.isCapacityFull,
+        show_register_button: statusObj.isRegActive,
+        is_live: statusObj.eventStatus === 'live',
+        is_upcoming: statusObj.eventStatus === 'upcoming',
+        is_completed: statusObj.eventStatus === 'completed',
+        status: statusObj.eventStatus,
+        event_status: statusObj.eventStatus,
+        registration_status: statusObj.regStatus,
+        showOnHomePopup: statusObj.eventStatus === 'upcoming' || Boolean(dev.showOnHomePopup),
+        popupMessage: dev.popupMessage || (statusObj.eventStatus === 'upcoming' && statusObj.isRegActive ? `Registrations are live for ${dev.name}!` : ''),
         quizzes: quizTracks,
         total_quizzes_count: quizTracks.length,
         registration_count: totalRegCount,
@@ -1008,9 +1096,9 @@ router.get('/public', async (req, res) => {
         attendees_count: totalRegCount,
         registrations: totalRegCount,
         direct_quiz_url: quizTracks.length > 0 ? quizTracks[0].direct_quiz_url : null,
-        register: regUrlRelative,
-        registerUrl: regUrlAbsolute,
-        registration_url: regUrlAbsolute
+        register: statusObj.isRegActive ? regUrlRelative : null,
+        registerUrl: statusObj.isRegActive ? regUrlAbsolute : null,
+        registration_url: statusObj.isRegActive ? regUrlAbsolute : null
       });
     }
 
@@ -1024,14 +1112,21 @@ router.get('/public', async (req, res) => {
           r.event_id === se.id || (r.event_name && r.event_name.toLowerCase().trim() === seKey)
         );
 
-        const isStaticEnded = se.endDate 
-          ? new Date(se.endDate) < now 
-          : (se.startDate ? new Date(se.startDate) < now : (se.status === 'past' || se.status === 'completed'));
-        const staticStatus = isStaticEnded ? 'completed' : (se.status || 'upcoming');
+        const initialRegCount = parseInt(se.initial_registration_count || se.registration_count, 10) || 0;
+        const totalRegCount = eventRegs.length + initialRegCount;
+
+        const fakeEv = {
+          ...se,
+          status: se.status || 'upcoming',
+          end_date: se.endDate ? new Date(se.endDate) : null,
+          start_date: se.startDate ? new Date(se.startDate) : null
+        };
+        const statusObj = computeEventAndRegStatus(fakeEv, now, false, totalRegCount);
         const sePoster = resolveEventPoster(se.poster, seTitle);
         const seFormattedDate = se.date || (se.startDate ? formatEventDateString(se.startDate) : 'Past Event');
         const seDuration = se.duration || '1 Day';
-        const staticTotalCount = eventRegs.length + (parseInt(se.registration_count || se.initial_registration_count, 10) || 0);
+        const regUrlRelative = `/register/${se.id}`;
+        const regUrlAbsolute = `${baseUrl}/register/${se.id}`;
 
         eventsList.push({
           id: se.id,
@@ -1061,33 +1156,37 @@ router.get('/public', async (req, res) => {
           registration_end_date: null,
           max_registrations: null,
           maxRegistrations: null,
-          initial_registration_count: parseInt(se.initial_registration_count, 10) || 0,
+          initial_registration_count: initialRegCount,
           actual_registration_count: eventRegs.length,
           seats_remaining: null,
           seatsRemaining: null,
           fee: se.fee || 'Free',
           price: se.fee || 'Free',
-          is_registration_open: !isStaticEnded,
-          isRegistrationOpen: !isStaticEnded,
-          is_registration_ended: isStaticEnded,
-          isRegistrationEnded: isStaticEnded,
-          is_registration_pending: false,
+          is_registration_open: statusObj.isRegActive,
+          isRegistrationOpen: statusObj.isRegActive,
+          is_registration_ended: statusObj.isRegEnded,
+          isRegistrationEnded: statusObj.isRegEnded,
+          is_registration_pending: statusObj.isRegPending,
           is_capacity_full: false,
+          show_register_button: statusObj.isRegActive,
           is_live: false,
-          is_upcoming: staticStatus === 'upcoming',
-          status: staticStatus,
+          is_upcoming: statusObj.eventStatus === 'upcoming',
+          is_completed: statusObj.eventStatus === 'completed',
+          status: statusObj.eventStatus,
+          event_status: statusObj.eventStatus,
+          registration_status: statusObj.regStatus,
           showOnHomePopup: Boolean(se.showOnHomePopup),
           popupMessage: se.popupMessage || '',
           quizzes: [],
           total_quizzes_count: 0,
-          registration_count: staticTotalCount,
-          total_registration_count: staticTotalCount,
-          attendees_count: staticTotalCount,
-          registrations: staticTotalCount,
+          registration_count: totalRegCount,
+          total_registration_count: totalRegCount,
+          attendees_count: totalRegCount,
+          registrations: totalRegCount,
           direct_quiz_url: null,
-          register: se.register || `/register/${se.id}`,
-          registerUrl: se.register ? `${baseUrl}${se.register}` : `${baseUrl}/register/${se.id}`,
-          registration_url: se.register ? `${baseUrl}${se.register}` : `${baseUrl}/register/${se.id}`
+          register: statusObj.isRegActive ? (se.register || regUrlRelative) : null,
+          registerUrl: statusObj.isRegActive ? (se.register ? `${baseUrl}${se.register}` : regUrlAbsolute) : null,
+          registration_url: statusObj.isRegActive ? (se.register ? `${baseUrl}${se.register}` : regUrlAbsolute) : null
         });
       }
     }
@@ -1192,26 +1291,21 @@ router.post('/register', async (req, res) => {
     const now = new Date();
 
     if (targetEvent) {
-      // Check if registration manually closed
-      if (targetEvent.is_registration_open === false) {
+      const statusObj = computeEventAndRegStatus(targetEvent, now, false, 0);
+
+      if (!statusObj.isRegActive) {
+        if (statusObj.isEventCompleted) {
+          return res.status(400).json({ error: `Registration is unavailable because "${targetEvent.name}" has concluded.` });
+        }
+        if (statusObj.regStatus === 'pending') {
+          const openStr = new Date(targetEvent.registration_start_date).toLocaleString();
+          return res.status(400).json({ error: `Registration for "${targetEvent.name}" opens on ${openStr}.` });
+        }
+        if (targetEvent.registration_end_date && new Date(targetEvent.registration_end_date) < now) {
+          const deadlineStr = new Date(targetEvent.registration_end_date).toLocaleString();
+          return res.status(400).json({ error: `Registration deadline for "${targetEvent.name}" passed on ${deadlineStr}.` });
+        }
         return res.status(400).json({ error: `Registration for "${targetEvent.name}" is currently closed by the organizers.` });
-      }
-
-      // Check if event is concluded or cancelled
-      if (['completed', 'past', 'concluded', 'cancelled'].includes((targetEvent.status || '').toLowerCase())) {
-        return res.status(400).json({ error: `Registration is unavailable because "${targetEvent.name}" has ${targetEvent.status}.` });
-      }
-
-      // Check registration opening date
-      if (targetEvent.registration_start_date && new Date(targetEvent.registration_start_date) > now) {
-        const openStr = new Date(targetEvent.registration_start_date).toLocaleString();
-        return res.status(400).json({ error: `Registration for "${targetEvent.name}" opens on ${openStr}.` });
-      }
-
-      // Check registration deadline (Last Date)
-      if (targetEvent.registration_end_date && new Date(targetEvent.registration_end_date) < now) {
-        const deadlineStr = new Date(targetEvent.registration_end_date).toLocaleString();
-        return res.status(400).json({ error: `Registration deadline for "${targetEvent.name}" passed on ${deadlineStr}.` });
       }
 
       // Check capacity limit
