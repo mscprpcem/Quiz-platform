@@ -627,7 +627,7 @@ export default function ScheduledQuizTake() {
           ) : (
             <div className="space-y-2">
               {top10List.map((player) => {
-                const isCurrentPlayer = userEmail && player.email && player.email.toLowerCase() === userEmail.toLowerCase();
+                const isCurrentPlayer = (userEmail && (player.email?.toLowerCase() === userEmail.toLowerCase() || player.participant_email?.toLowerCase() === userEmail.toLowerCase())) || (userName && (player.participant_name?.toLowerCase() === userName.toLowerCase() || player.name?.toLowerCase() === userName.toLowerCase()));
                 
                 let rankBadge = (
                   <span className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-black text-xs border border-slate-200">
@@ -910,7 +910,7 @@ export default function ScheduledQuizTake() {
             ) : (
               <div className="space-y-2">
                 {top10List.map((player) => {
-                  const isCurrentPlayer = userEmail && player.email && player.email.toLowerCase() === userEmail.toLowerCase();
+                  const isCurrentPlayer = (userEmail && (player.email?.toLowerCase() === userEmail.toLowerCase() || player.participant_email?.toLowerCase() === userEmail.toLowerCase())) || (userName && (player.participant_name?.toLowerCase() === userName.toLowerCase() || player.name?.toLowerCase() === userName.toLowerCase()));
                   
                   let rankBadge = (
                     <span className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-black text-xs border border-slate-200">

@@ -23,6 +23,74 @@ const sanitizeQuizForPublic = (quiz) => {
   return json;
 };
 
+/**
+ * Deduplicates quiz attempts for each unique participant so only their LATEST attempt is shown on the leaderboard.
+ * Sorts and ranks all unique participants by:
+ * 1. Score (DESC)
+ * 2. Time Taken / Speed (ASC)
+ * 3. Correct answers count (DESC)
+ * 4. Submission time (ASC)
+ */
+function getLatestAttemptsLeaderboard(attempts) {
+  if (!Array.isArray(attempts) || attempts.length === 0) return [];
+
+  const latestByUser = new Map();
+
+  for (const rawAtt of attempts) {
+    const att = rawAtt.toJSON ? rawAtt.toJSON() : rawAtt;
+    const ssoId = att.sso_user_id ? String(att.sso_user_id).trim() : '';
+    const email = (att.participant_email || att.email || '').toLowerCase().trim();
+    const name = (att.participant_name || att.name || '').toLowerCase().trim();
+
+    // Unique user identifier priority: SSO ID -> Email -> Name
+    const userKey = ssoId ? `sso:${ssoId}` : (email ? `email:${email}` : `name:${name}`);
+    if (!userKey || userKey === 'name:') continue;
+
+    const existing = latestByUser.get(userKey);
+    if (!existing) {
+      latestByUser.set(userKey, att);
+    } else {
+      // Determine which attempt is newer/latest
+      const attTime = att.submitted_at ? new Date(att.submitted_at).getTime() : (att.createdAt ? new Date(att.createdAt).getTime() : 0);
+      const existTime = existing.submitted_at ? new Date(existing.submitted_at).getTime() : (existing.createdAt ? new Date(existing.createdAt).getTime() : 0);
+      const attNum = parseInt(att.attempt_number, 10) || 0;
+      const existNum = parseInt(existing.attempt_number, 10) || 0;
+
+      if (attNum > existNum || (attNum === existNum && attTime >= existTime)) {
+        latestByUser.set(userKey, att);
+      }
+    }
+  }
+
+  const latestList = Array.from(latestByUser.values());
+
+  // Rank by Score (DESC), Speed / Time Taken (ASC), Correct Count (DESC), Submission Time (ASC)
+  latestList.sort((a, b) => {
+    const scoreA = Number(a.score) || 0;
+    const scoreB = Number(b.score) || 0;
+    if (scoreB !== scoreA) return scoreB - scoreA;
+
+    const timeA = Number(a.time_taken_seconds) || 0;
+    const timeB = Number(b.time_taken_seconds) || 0;
+    if (timeA !== timeB) return timeA - timeB;
+
+    const correctA = Number(a.correct_count) || 0;
+    const correctB = Number(b.correct_count) || 0;
+    if (correctB !== correctA) return correctB - correctA;
+
+    const subA = a.submitted_at ? new Date(a.submitted_at).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+    const subB = b.submitted_at ? new Date(b.submitted_at).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+    return subA - subB;
+  });
+
+  return latestList.map((att, idx) => ({
+    ...att,
+    email: att.participant_email || att.email || '',
+    name: att.participant_name || att.name || 'Participant',
+    rank: idx + 1
+  }));
+}
+
 // Helper: Resolve occurrence by UUID, Quiz Join Code, Quiz UUID, or Title Slug
 const resolveOccurrence = async (identifier) => {
   if (!identifier) return null;
@@ -572,10 +640,16 @@ router.get('/:id', authMiddleware, async (req, res) => {
 
     const attempts = await QuizAttempt.findAll({
       where: { quiz_id: quiz.id },
-      order: [['score', 'DESC'], ['time_taken_seconds', 'ASC']]
+      order: [
+        ['attempt_number', 'DESC'],
+        ['submitted_at', 'DESC'],
+        ['createdAt', 'DESC']
+      ]
     });
 
-    return res.json({ quiz, attempts });
+    const latestLeaderboard = getLatestAttemptsLeaderboard(attempts.filter(a => a.status === 'completed'));
+
+    return res.json({ quiz, attempts: latestLeaderboard, allAttempts: attempts });
   } catch (error) {
     console.error('Fetch scheduled quiz error:', error);
     return res.status(500).json({ error: 'Failed to fetch scheduled quiz details.' });
@@ -1154,22 +1228,38 @@ router.post('/attempts/:attemptId/submit', async (req, res) => {
     await attempt.save();
 
     // Calculate Exact Rank strictly by Score (DESC), Time Taken / Speed (ASC), Correct Answers (DESC)
-    // Independent of calendar submission time so participants can take the quiz at any hour
+    // Considering ONLY the latest attempt of each participant
     const allCompleted = await QuizAttempt.findAll({
       where: {
         occurrence_id: attempt.occurrence_id,
         status: 'completed'
       },
       order: [
-        ['score', 'DESC'],
-        ['time_taken_seconds', 'ASC'],
-        ['correct_count', 'DESC']
+        ['attempt_number', 'DESC'],
+        ['submitted_at', 'DESC'],
+        ['createdAt', 'DESC']
       ]
     });
 
-    const totalParticipants = allCompleted.length;
-    const myIndex = allCompleted.findIndex(a => a.id === attempt.id);
-    const myRank = myIndex !== -1 ? myIndex + 1 : 1;
+    const rankedLeaderboard = getLatestAttemptsLeaderboard(allCompleted);
+    const totalParticipants = rankedLeaderboard.length;
+    const myKey = attempt.sso_user_id
+      ? `sso:${String(attempt.sso_user_id).trim()}`
+      : (attempt.participant_email
+        ? `email:${attempt.participant_email.toLowerCase().trim()}`
+        : `name:${(attempt.participant_name || '').toLowerCase().trim()}`);
+
+    const myEntry = rankedLeaderboard.find(a => {
+      if (a.id === attempt.id) return true;
+      const entryKey = a.sso_user_id
+        ? `sso:${String(a.sso_user_id).trim()}`
+        : (a.participant_email
+          ? `email:${a.participant_email.toLowerCase().trim()}`
+          : `name:${(a.participant_name || '').toLowerCase().trim()}`);
+      return entryKey === myKey;
+    });
+
+    const myRank = myEntry ? myEntry.rank : 1;
 
     return res.json({
       message: 'Quiz submitted successfully.',
@@ -1184,7 +1274,7 @@ router.post('/attempts/:attemptId/submit', async (req, res) => {
   }
 });
 
-// 12. Occurrence Leaderboard with Score & Speed Matrix Ranking (Top 10 & Full Standings)
+// 12. Occurrence Leaderboard with Score & Speed Matrix Ranking (Showing each user's latest score)
 router.get('/occurrences/:occurrenceId/leaderboard', async (req, res) => {
   try {
     const rawParam = req.params.occurrenceId ? req.params.occurrenceId.trim() : '';
@@ -1223,17 +1313,13 @@ router.get('/occurrences/:occurrenceId/leaderboard', async (req, res) => {
     const attempts = await QuizAttempt.findAll({
       where: whereClause,
       order: [
-        ['score', 'DESC'],
-        ['time_taken_seconds', 'ASC'],
-        ['correct_count', 'DESC']
-      ],
-      limit: 100
+        ['attempt_number', 'DESC'],
+        ['submitted_at', 'DESC'],
+        ['createdAt', 'DESC']
+      ]
     });
 
-    const ranked = attempts.map((att, idx) => ({
-      ...att.toJSON(),
-      rank: idx + 1
-    }));
+    const ranked = getLatestAttemptsLeaderboard(attempts);
 
     return res.json(ranked);
   } catch (error) {
