@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import {
@@ -119,6 +120,18 @@ export default function AdminEvents() {
   const [regsPage, setRegsPage] = useState(1);
   const [regsLimit, setRegsLimit] = useState(10);
   const [copyFeedback, setCopyFeedback] = useState(null);
+
+  // Lock body scroll when either modal is open
+  useEffect(() => {
+    if (modalOpen || regsModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [modalOpen, regsModalOpen]);
 
   const handlePosterUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -779,13 +792,13 @@ export default function AdminEvents() {
         </div>
       )}
 
-      {/* Registrations List Modal */}
-      {regsModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-3xl w-full shadow-2xl border border-slate-200 max-h-[90vh] flex flex-col justify-between">
+      {/* Registrations List Modal (Rendered in Portal) */}
+      {regsModalOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-fade-in">
+          <div className="bg-white rounded-3xl p-5 sm:p-7 max-w-3xl w-full shadow-2xl border border-slate-200 my-auto max-h-[90vh] flex flex-col justify-between">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shadow-2xs">
                   <Users size={20} />
                 </div>
                 <div>
@@ -793,7 +806,7 @@ export default function AdminEvents() {
                     {viewingEvent?.name} — Registrations
                   </h3>
                   <p className="text-xs text-slate-500 font-medium">
-                    {registrations.length} student(s) enrolled from the main website.
+                    {registrations.length} student(s) registered online through the portal.
                   </p>
                 </div>
               </div>
@@ -934,23 +947,24 @@ export default function AdminEvents() {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* Create / Edit Event Modal */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+      {/* Create / Edit Event Modal (Rendered in Portal on document.body) */}
+      {modalOpen && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-fade-in">
+          <div className="bg-white rounded-3xl p-5 sm:p-7 max-w-2xl w-full shadow-2xl border border-slate-200 my-auto max-h-[90vh] overflow-y-auto relative">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shadow-2xs">
                   <Sparkles size={20} />
                 </div>
                 <div>
                   <h3 className="text-lg font-black text-slate-900">
-                    {editingEvent ? 'Edit Club Event' : 'Create New Club Event'}
+                    {editingEvent ? `Edit Event: ${editingEvent.name}` : 'Create New Club Event'}
                   </h3>
-                  <p className="text-xs text-slate-500">Configure event schedule, registration deadline, capacity, and registration URLs.</p>
+                  <p className="text-xs text-slate-500">Configure event details, dates, attendee counts, and registration settings.</p>
                 </div>
               </div>
               <button
@@ -1009,7 +1023,113 @@ export default function AdminEvents() {
                 </p>
               </div>
 
-              {/* ════════ SECTION: EVENT DATE & TIME ════════ */}
+              {/* ════════ SECTION 1: ATTENDEES & REGISTRATIONS COUNT ════════ */}
+              <div className="p-4 bg-gradient-to-br from-purple-50/70 via-indigo-50/50 to-blue-50/70 border border-purple-200/80 rounded-2xl space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-2xs">
+                      <Users size={15} />
+                    </div>
+                    <div>
+                      <span className="text-xs font-black text-purple-950 uppercase tracking-wide block">
+                        Attendees & Registration Numbers
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        Set base count for past/offline events & configure seat limits
+                      </span>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[9px] font-bold text-slate-400 block uppercase tracking-wider">Displayed on Website</span>
+                    <span className="text-xs font-black text-purple-700 bg-white/80 px-2 py-0.5 rounded-lg border border-purple-200 inline-block">
+                      {(parseInt(formData.initial_registration_count, 10) || 0) + (editingEvent?.actual_registration_count || 0)} Students Enrolled
+                    </span>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-800 mb-1 flex items-center justify-between">
+                      <span>Initial / Base Count</span>
+                      <span className="text-[9px] text-purple-600 font-bold bg-purple-100/80 px-1.5 py-0.2 rounded">Editable</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 150 (Default: 0)"
+                      value={formData.initial_registration_count}
+                      onChange={(e) => setFormData({ ...formData, initial_registration_count: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-white border border-purple-300 rounded-xl text-xs font-black text-purple-950 outline-none focus:ring-2 focus:ring-purple-500 shadow-2xs"
+                    />
+                    <p className="text-[9px] text-slate-500 mt-1 leading-tight">
+                      Base count for past or offline participants. Online signups automatically add to this.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-800 mb-1">
+                      Seat / Capacity Limit
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="e.g. 200 (Blank = Unlimited)"
+                      value={formData.max_registrations}
+                      onChange={(e) => setFormData({ ...formData, max_registrations: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                    <p className="text-[9px] text-slate-400 mt-1 leading-tight">
+                      Maximum total seats allowed.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-800 mb-1">
+                      Registration Status
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, is_registration_open: !formData.is_registration_open })}
+                      className={`w-full px-3.5 py-2.5 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs ${
+                        formData.is_registration_open
+                          ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                          : 'bg-rose-100 hover:bg-rose-200 text-rose-700 border border-rose-300'
+                      }`}
+                    >
+                      {formData.is_registration_open ? (
+                        <>
+                          <Unlock size={13} />
+                          <span>Accepting Signups</span>
+                        </>
+                      ) : (
+                        <>
+                          <Lock size={13} />
+                          <span>Registration Closed</span>
+                        </>
+                      )}
+                    </button>
+                    <p className="text-[9px] text-slate-400 mt-1 leading-tight">
+                      Toggle if student registration form is active.
+                    </p>
+                  </div>
+                </div>
+
+                {editingEvent && (
+                  <div className="flex items-center justify-between bg-white/90 backdrop-blur-xs p-2.5 rounded-xl border border-purple-100 text-[11px] flex-wrap gap-2">
+                    <span className="text-slate-600 font-medium">
+                      🌐 Online student signups: <strong className="text-purple-700 font-black">{editingEvent.actual_registration_count || 0}</strong>
+                    </span>
+                    <span className="text-slate-600 font-medium">
+                      ➕ Base count: <strong className="text-purple-700 font-black">{parseInt(formData.initial_registration_count, 10) || 0}</strong>
+                    </span>
+                    <span className="text-purple-950 font-extrabold">
+                      = Total Count: <strong className="text-purple-600 font-black">{(parseInt(formData.initial_registration_count, 10) || 0) + (editingEvent.actual_registration_count || 0)}</strong>
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* ════════ SECTION 2: EVENT DATE & TIME ════════ */}
               <div className="p-4 bg-purple-50/40 border border-purple-100 rounded-2xl space-y-3">
                 <div className="flex items-center gap-2">
                   <Calendar size={16} className="text-purple-600" />
@@ -1046,16 +1166,16 @@ export default function AdminEvents() {
                 </div>
               </div>
 
-              {/* ════════ SECTION: REGISTRATION DEADLINE & CAPACITY ════════ */}
+              {/* ════════ SECTION 3: REGISTRATION DEADLINE WINDOW ════════ */}
               <div className="p-4 bg-blue-50/40 border border-blue-100 rounded-2xl space-y-3">
                 <div className="flex items-center gap-2">
                   <Timer size={16} className="text-blue-600" />
                   <span className="text-xs font-black text-blue-950 uppercase tracking-wide">
-                    Registration Deadline & Capacity Window
+                    Registration Deadline Window & Fee
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 mb-1">
                       Registration Opens On
@@ -1066,7 +1186,7 @@ export default function AdminEvents() {
                       onChange={(e) => setFormData({ ...formData, registration_start_date: e.target.value })}
                       className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                     />
-                    <p className="text-[9px] text-slate-400 mt-0.5">Leave blank for immediate registration opening.</p>
+                    <p className="text-[9px] text-slate-400 mt-0.5">Leave blank for immediate opening.</p>
                   </div>
 
                   <div>
@@ -1079,38 +1199,7 @@ export default function AdminEvents() {
                       onChange={(e) => setFormData({ ...formData, registration_end_date: e.target.value })}
                       className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                     />
-                    <p className="text-[9px] text-slate-400 mt-0.5">Submissions will be automatically closed after this deadline.</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-1 border-t border-blue-100/80">
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Initial Base Count
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="e.g. 100 (Default: 0)"
-                      value={formData.initial_registration_count}
-                      onChange={(e) => setFormData({ ...formData, initial_registration_count: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                    <p className="text-[8.5px] text-slate-400 mt-0.5">Increases as students register.</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Seat / Capacity Limit
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      placeholder="e.g. 100 (Blank = Unlimited)"
-                      value={formData.max_registrations}
-                      onChange={(e) => setFormData({ ...formData, max_registrations: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <p className="text-[9px] text-slate-400 mt-0.5">Auto-closes after this date.</p>
                   </div>
 
                   <div>
@@ -1124,33 +1213,6 @@ export default function AdminEvents() {
                       onChange={(e) => setFormData({ ...formData, fee: e.target.value })}
                       className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
                     />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Registration Status
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => setFormData({ ...formData, is_registration_open: !formData.is_registration_open })}
-                      className={`w-full px-3 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                        formData.is_registration_open
-                          ? 'bg-emerald-600 text-white shadow-2xs'
-                          : 'bg-rose-100 text-rose-700 border border-rose-200'
-                      }`}
-                    >
-                      {formData.is_registration_open ? (
-                        <>
-                          <Unlock size={13} />
-                          <span>Accepting</span>
-                        </>
-                      ) : (
-                        <>
-                          <Lock size={13} />
-                          <span>Paused</span>
-                        </>
-                      )}
-                    </button>
                   </div>
                 </div>
               </div>
@@ -1367,7 +1429,8 @@ export default function AdminEvents() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
