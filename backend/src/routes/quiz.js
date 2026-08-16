@@ -199,7 +199,29 @@ router.post('/preset/dbms', authMiddleware, async (req, res) => {
 // Get all quizzes (admin)
 router.get('/', authMiddleware, async (req, res) => {
   try {
+    const { mode, all } = req.query;
+    const where = {};
+
+    if (mode) {
+      if (mode.toUpperCase() === 'LIVE') {
+        where[Op.or] = [
+          { mode: 'LIVE' },
+          { mode: null },
+          { mode: { [Op.ne]: 'SCHEDULED' } }
+        ];
+      } else {
+        where.mode = mode;
+      }
+    } else if (all !== 'true') {
+      where[Op.or] = [
+        { mode: 'LIVE' },
+        { mode: null },
+        { mode: { [Op.ne]: 'SCHEDULED' } }
+      ];
+    }
+
     const quizzes = await Quiz.findAll({
+      where,
       order: [['createdAt', 'DESC']]
     });
 

@@ -104,8 +104,8 @@ export default function QuizManagement() {
   const loadQuizzes = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/api/quizzes');
-      setQuizzes(res.data);
+      const res = await api.get('/api/quizzes?mode=LIVE');
+      setQuizzes(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error(err);
     } finally {
@@ -546,7 +546,7 @@ export default function QuizManagement() {
                 activeTab === 'active' ? 'bg-white text-purple-700 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Active & Draft ({quizzes.filter(q => !isQuizExpired(q)).length})
+              Active & Draft ({quizzes.filter(q => q.mode !== 'SCHEDULED' && !isQuizExpired(q)).length})
             </button>
             <button
               onClick={() => setActiveTab('completed')}
@@ -554,7 +554,7 @@ export default function QuizManagement() {
                 activeTab === 'completed' ? 'bg-white text-purple-700 shadow-2xs font-black' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
-              Completed & Expired ({quizzes.filter(q => isQuizExpired(q)).length})
+              Completed & Expired ({quizzes.filter(q => q.mode !== 'SCHEDULED' && isQuizExpired(q)).length})
             </button>
           </div>
 
@@ -574,6 +574,7 @@ export default function QuizManagement() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {quizzes
+            .filter(q => q.mode !== 'SCHEDULED')
             .filter(q => activeTab === 'completed' ? isQuizExpired(q) : !isQuizExpired(q))
             .map((quiz) => {
             const isExpired = quiz.scheduled_start && new Date(quiz.scheduled_start) < new Date() && quiz.status === 'draft';
