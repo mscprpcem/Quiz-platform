@@ -9,23 +9,12 @@ const { Event, Quiz, Question, Participant, QuizAttempt, ScheduledOccurrence, Us
 const { sendCustomBroadcastEmail } = require('../services/emailService');
 const { uploadImageToAzureBlob } = require('../services/azureBlobService');
 const { Op } = require('sequelize');
+const authMiddleware = require('../middleware/auth');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'msc_quiz_secret_key_2026';
 
-// Permissive admin auth handler
-const adminAuth = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.split(' ')[1];
-    try {
-      const decoded = jwt.verify(token, JWT_SECRET);
-      req.user = decoded;
-    } catch (e) {
-      // Stale or expired token, still proceed
-    }
-  }
-  next();
-};
+// Strict admin auth handler
+const adminAuth = authMiddleware;
 
 const upload = multer({
   storage: multer.memoryStorage(),

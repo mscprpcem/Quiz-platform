@@ -167,6 +167,7 @@ app.use("/api/branding", brandingRoutes);
 app.use("/api/student", studentSyncRoutes);
 app.use("/api/admin/email-dispatch", emailDispatchRoutes);
 app.use("/api/admin/users", userDirectoryRoutes);
+app.use("/api/users-directory", userDirectoryRoutes);
 app.use("/api/events", eventsApiRoutes);
 app.use("/api/v1/events", eventsApiRoutes);
 app.use("/oauth", ssoRoutes);
