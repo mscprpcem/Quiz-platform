@@ -383,17 +383,23 @@ export default function AdminEvents() {
     if (selectedFilter === 'ALL') return true;
     
     const status = (e.status || '').toUpperCase();
+    const now = new Date();
+    const isEventEnded = e.end_date 
+      ? new Date(e.end_date) < now 
+      : (e.start_date ? new Date(e.start_date) < now : false);
+    const isCompleted = status === 'COMPLETED' || status === 'PAST' || status === 'CONCLUDED' || isEventEnded;
+
     if (selectedFilter === 'COMPLETED') {
-      return status === 'COMPLETED' || status === 'PAST' || status === 'CONCLUDED';
+      return isCompleted;
     }
     if (selectedFilter === 'UPCOMING') {
-      return status === 'UPCOMING' || status === 'OPEN' || status === 'ACTIVE';
+      return !isCompleted && (status === 'UPCOMING' || status === 'OPEN' || status === 'ACTIVE');
     }
     if (selectedFilter === 'LIVE') {
-      return status === 'LIVE' || e.is_live;
+      return (status === 'LIVE' || e.is_live) && !isEventEnded;
     }
     if (selectedFilter === 'REG_OPEN') {
-      return e.is_registration_open && !e.is_registration_ended;
+      return e.is_registration_open && !e.is_registration_ended && !isEventEnded;
     }
     return status === selectedFilter;
   });

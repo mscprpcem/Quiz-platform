@@ -147,8 +147,13 @@ router.get('/', async (req, res) => {
       const regCount = eventRegs.length;
       const maxRegs = ev.max_registrations ? parseInt(ev.max_registrations, 10) : null;
       const isRegDeadlinePassed = ev.registration_end_date ? new Date(ev.registration_end_date) < now : false;
-      const isRegNotStartedYet = ev.registration_start_date ? new Date(ev.registration_start_date) > now : false;
-      const isCapacityFull = maxRegs ? regCount >= maxRegs : false;
+      const isEventDateEnded = ev.end_date 
+        ? new Date(ev.end_date) < now 
+        : (ev.start_date ? new Date(ev.start_date) < now : false);
+
+      const computedStatus = (ev.status === 'completed' || ev.status === 'past' || isEventDateEnded)
+        ? 'completed'
+        : (ev.status || 'upcoming');
 
       formattedEvents.push({
         id: ev.id,
@@ -165,13 +170,13 @@ router.get('/', async (req, res) => {
         registration_end_date: ev.registration_end_date,
         max_registrations: maxRegs,
         fee: ev.fee || 'Free',
-        is_registration_open: ev.is_registration_open !== false,
+        is_registration_open: ev.is_registration_open !== false && !isEventDateEnded && !isRegDeadlinePassed,
         rewards: ev.rewards || 'Certificates & Swags',
-        status: ev.status || 'upcoming',
+        status: computedStatus,
         source: 'database',
         registration_count: regCount,
         seats_remaining: maxRegs ? Math.max(0, maxRegs - regCount) : null,
-        is_registration_ended: isRegDeadlinePassed,
+        is_registration_ended: isRegDeadlinePassed || isEventDateEnded,
         is_registration_pending: isRegNotStartedYet,
         is_capacity_full: isCapacityFull,
         quizzes: linkedQuizzes.map(q => ({
@@ -200,6 +205,11 @@ router.get('/', async (req, res) => {
           r.event_id === se.id || (r.event_name && r.event_name.toLowerCase().trim() === seKey)
         );
 
+        const isStaticEnded = se.endDate 
+          ? new Date(se.endDate) < now 
+          : (se.startDate ? new Date(se.startDate) < now : (se.status === 'past' || se.status === 'completed'));
+        const staticStatus = isStaticEnded ? 'completed' : (se.status || 'upcoming');
+
         formattedEvents.push({
           id: se.id,
           name: seTitle,
@@ -210,18 +220,18 @@ router.get('/', async (req, res) => {
           mode: se.mode || 'Offline',
           venue: se.venue || 'PRPCEM Campus',
           start_date: se.startDate ? new Date(se.startDate) : null,
-          end_date: null,
+          end_date: se.endDate ? new Date(se.endDate) : null,
           registration_start_date: null,
           registration_end_date: null,
           max_registrations: null,
           fee: 'Free',
-          is_registration_open: true,
+          is_registration_open: !isStaticEnded,
           rewards: se.rewards || 'Certificates & Swags',
-          status: se.status === 'past' ? 'completed' : (se.status || 'upcoming'),
+          status: staticStatus,
           source: 'json',
           registration_count: eventRegs.length,
           seats_remaining: null,
-          is_registration_ended: false,
+          is_registration_ended: isStaticEnded,
           is_registration_pending: false,
           is_capacity_full: false,
           quizzes: linkedQuizzes.map(q => ({
@@ -325,8 +335,13 @@ router.get('/details/:idOrSlug', async (req, res) => {
     const regCount = allRegistrations.length;
     const maxRegs = event.max_registrations ? parseInt(event.max_registrations, 10) : null;
     const isRegDeadlinePassed = event.registration_end_date ? new Date(event.registration_end_date) < now : false;
-    const isRegNotStartedYet = event.registration_start_date ? new Date(event.registration_start_date) > now : false;
-    const isCapacityFull = maxRegs ? regCount >= maxRegs : false;
+    const isEventDateEnded = event.end_date 
+      ? new Date(event.end_date) < now 
+      : (event.start_date ? new Date(event.start_date) < now : false);
+
+    const computedStatus = (event.status === 'completed' || event.status === 'past' || isEventDateEnded)
+      ? 'completed'
+      : (event.status || 'upcoming');
 
     res.json({
       success: true,
@@ -345,12 +360,12 @@ router.get('/details/:idOrSlug', async (req, res) => {
         registration_end_date: event.registration_end_date,
         max_registrations: maxRegs,
         fee: event.fee || 'Free',
-        is_registration_open: event.is_registration_open !== false,
+        is_registration_open: event.is_registration_open !== false && !isEventDateEnded && !isRegDeadlinePassed,
         rewards: event.rewards,
-        status: event.status,
+        status: computedStatus,
         registration_count: regCount,
         seats_remaining: maxRegs ? Math.max(0, maxRegs - regCount) : null,
-        is_registration_ended: isRegDeadlinePassed,
+        is_registration_ended: isRegDeadlinePassed || isEventDateEnded,
         is_registration_pending: isRegNotStartedYet,
         is_capacity_full: isCapacityFull,
         quizzes: linkedQuizzes.map(q => ({
@@ -736,14 +751,39 @@ router.get('/public', async (req, res) => {
         registration_end_date: dev.registration_end_date,
         max_registrations: maxRegs,
         seats_remaining: maxRegs ? Math.max(0, maxRegs - totalRegCount) : null,
+      const isEventDateEnded = dev.end_date 
+        ? new Date(dev.end_date) < now 
+        : (dev.start_date ? new Date(dev.start_date) < now : false);
+
+      const isCompleted = dev.status === 'completed' || dev.status === 'past' || isEventDateEnded;
+      const finalStatus = isCompleted ? 'completed' : (isLiveNow ? 'live' : (dev.status || 'upcoming'));
+
+      eventsList.push({
+        id: dev.id,
+        event_name: dev.name,
+        title: dev.name,
+        slug: dev.slug,
+        description: dev.description || `Official challenges and technical sessions for ${dev.name}.`,
+        poster: resolvedPoster,
+        category: dev.category || 'Innovation Challenge',
+        mode: dev.mode || 'Hybrid',
+        venue: dev.venue || 'PRPCEM Campus & Virtual',
+        rewards: dev.rewards || 'Certificates & Swags',
+        start_date: dev.start_date ? new Date(dev.start_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Coming Soon",
+        start_time: dev.start_date || dev.createdAt,
+        end_time: dev.end_date,
+        registration_start_date: dev.registration_start_date,
+        registration_end_date: dev.registration_end_date,
+        max_registrations: maxRegs,
+        seats_remaining: maxRegs ? Math.max(0, maxRegs - totalRegCount) : null,
         fee: dev.fee || 'Free',
-        is_registration_open: dev.is_registration_open !== false,
-        is_registration_ended: isRegDeadlinePassed,
+        is_registration_open: dev.is_registration_open !== false && !isCompleted && !isRegDeadlinePassed,
+        is_registration_ended: isRegDeadlinePassed || isEventDateEnded,
         is_registration_pending: isRegNotStartedYet,
         is_capacity_full: isCapacityFull,
         is_live: isLiveNow,
-        is_upcoming: dev.status === 'upcoming',
-        status: dev.status || 'upcoming',
+        is_upcoming: finalStatus === 'upcoming',
+        status: finalStatus,
         quizzes: quizTracks,
         total_quizzes_count: quizTracks.length,
         total_registration_count: totalRegCount,
@@ -762,6 +802,11 @@ router.get('/public', async (req, res) => {
           r.event_id === se.id || (r.event_name && r.event_name.toLowerCase().trim() === seKey)
         );
 
+        const isStaticEnded = se.endDate 
+          ? new Date(se.endDate) < now 
+          : (se.startDate ? new Date(se.startDate) < now : (se.status === 'past' || se.status === 'completed'));
+        const staticStatus = isStaticEnded ? 'completed' : (se.status || 'upcoming');
+
         eventsList.push({
           id: se.id,
           event_name: seTitle,
@@ -775,19 +820,19 @@ router.get('/public', async (req, res) => {
           rewards: se.rewards || 'Certificates & Swags',
           start_date: se.date || (se.startDate ? new Date(se.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Past Event"),
           start_time: se.startDate ? new Date(se.startDate) : new Date(2025, 0, 1),
-          end_time: null,
+          end_time: se.endDate ? new Date(se.endDate) : null,
           registration_start_date: null,
           registration_end_date: null,
           max_registrations: null,
           seats_remaining: null,
           fee: 'Free',
-          is_registration_open: true,
-          is_registration_ended: false,
+          is_registration_open: !isStaticEnded,
+          is_registration_ended: isStaticEnded,
           is_registration_pending: false,
           is_capacity_full: false,
           is_live: false,
-          is_upcoming: se.status === 'upcoming',
-          status: se.status === 'past' ? 'completed' : (se.status || 'upcoming'),
+          is_upcoming: staticStatus === 'upcoming',
+          status: staticStatus,
           quizzes: [],
           total_quizzes_count: 0,
           total_registration_count: eventRegs.length,
