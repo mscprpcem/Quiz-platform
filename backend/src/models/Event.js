@@ -57,6 +57,10 @@ const Event = sequelize.define('Event', {
     allowNull: true,
     defaultValue: null // null indicates unlimited capacity
   },
+  initial_registration_count: {
+    type: DataTypes.INTEGER,
+    defaultValue: 0
+  },
   fee: {
     type: DataTypes.STRING,
     defaultValue: 'Free'

@@ -99,6 +99,7 @@ export default function AdminEvents() {
     registration_start_date: '',
     registration_end_date: '',
     max_registrations: '',
+    initial_registration_count: '',
     fee: 'Free',
     is_registration_open: true,
     rewards: 'Certificates, Prizes & Swags',
@@ -229,6 +230,7 @@ export default function AdminEvents() {
       registration_start_date: formatToDateTimeLocal(new Date()),
       registration_end_date: formatToDateTimeLocal(regDeadline),
       max_registrations: '',
+      initial_registration_count: '',
       fee: 'Free',
       is_registration_open: true,
       rewards: 'Certificates, Prizes & Swags',
@@ -253,6 +255,7 @@ export default function AdminEvents() {
       registration_start_date: formatToDateTimeLocal(ev.registration_start_date),
       registration_end_date: formatToDateTimeLocal(ev.registration_end_date),
       max_registrations: ev.max_registrations !== null && ev.max_registrations !== undefined ? String(ev.max_registrations) : '',
+      initial_registration_count: ev.initial_registration_count !== undefined && ev.initial_registration_count !== null ? String(ev.initial_registration_count) : '0',
       fee: ev.fee || 'Free',
       is_registration_open: ev.is_registration_open !== false,
       rewards: ev.rewards || 'Certificates & Swags',
@@ -350,7 +353,8 @@ export default function AdminEvents() {
         end_date: formData.end_date ? new Date(formData.end_date).toISOString() : null,
         registration_start_date: formData.registration_start_date ? new Date(formData.registration_start_date).toISOString() : null,
         registration_end_date: formData.registration_end_date ? new Date(formData.registration_end_date).toISOString() : null,
-        max_registrations: formData.max_registrations ? parseInt(formData.max_registrations, 10) : null
+        max_registrations: formData.max_registrations ? parseInt(formData.max_registrations, 10) : null,
+        initial_registration_count: formData.initial_registration_count !== '' ? parseInt(formData.initial_registration_count, 10) : 0
       };
 
       if (editingEvent && !editingEvent.id.startsWith('auto-')) {
@@ -677,18 +681,23 @@ export default function AdminEvents() {
                       
                       {/* Website Registrations Count & Capacity */}
                       <div className="flex items-center justify-between pt-1">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <Users size={13} className="text-purple-600 shrink-0" />
                           <span className="font-extrabold text-purple-700">
                             {ev.registration_count || 0}
                             {ev.max_registrations ? ` / ${ev.max_registrations} Seats` : ' Enrolled'}
                           </span>
+                          {parseInt(ev.initial_registration_count, 10) > 0 && (
+                            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md">
+                              ({ev.actual_registration_count || 0} online + {ev.initial_registration_count} base)
+                            </span>
+                          )}
                         </div>
                         <button
                           onClick={() => handleViewRegistrations(ev)}
                           className="text-[11px] font-extrabold text-blue-600 hover:text-blue-800 underline cursor-pointer"
                         >
-                          View List
+                          View List ({ev.actual_registration_count || 0})
                         </button>
                       </div>
 
@@ -1074,7 +1083,22 @@ export default function AdminEvents() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 border-t border-blue-100/80">
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-1 border-t border-blue-100/80">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Initial Base Count
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="e.g. 100 (Default: 0)"
+                      value={formData.initial_registration_count}
+                      onChange={(e) => setFormData({ ...formData, initial_registration_count: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-[8.5px] text-slate-400 mt-0.5">Increases as students register.</p>
+                  </div>
+
                   <div>
                     <label className="block text-[11px] font-bold text-slate-700 mb-1">
                       Seat / Capacity Limit
@@ -1118,12 +1142,12 @@ export default function AdminEvents() {
                       {formData.is_registration_open ? (
                         <>
                           <Unlock size={13} />
-                          <span>Accepting Registrations</span>
+                          <span>Accepting</span>
                         </>
                       ) : (
                         <>
                           <Lock size={13} />
-                          <span>Registration Paused</span>
+                          <span>Paused</span>
                         </>
                       )}
                     </button>

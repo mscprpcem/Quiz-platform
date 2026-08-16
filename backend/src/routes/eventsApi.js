@@ -179,7 +179,9 @@ router.get('/', async (req, res) => {
         r.event_id === ev.id || r.event_id === ev.slug || (r.event_name && r.event_name.toLowerCase().trim() === evNameLower)
       );
 
-      const regCount = eventRegs.length;
+      const actualRegCount = eventRegs.length;
+      const initialRegCount = parseInt(ev.initial_registration_count, 10) || 0;
+      const totalRegCount = actualRegCount + initialRegCount;
       const maxRegs = ev.max_registrations ? parseInt(ev.max_registrations, 10) : null;
       const isRegDeadlinePassed = ev.registration_end_date ? new Date(ev.registration_end_date) < now : false;
       const isEventDateEnded = ev.end_date 
@@ -187,7 +189,7 @@ router.get('/', async (req, res) => {
         : (ev.start_date ? new Date(ev.start_date) < now : false);
 
       const isRegNotStartedYet = ev.registration_start_date ? new Date(ev.registration_start_date) > now : false;
-      const isCapacityFull = maxRegs !== null && maxRegs !== undefined && regCount >= maxRegs;
+      const isCapacityFull = maxRegs !== null && maxRegs !== undefined && totalRegCount >= maxRegs;
 
       const computedStatus = (ev.status === 'completed' || ev.status === 'past' || isEventDateEnded)
         ? 'completed'
@@ -207,13 +209,16 @@ router.get('/', async (req, res) => {
         registration_start_date: ev.registration_start_date,
         registration_end_date: ev.registration_end_date,
         max_registrations: maxRegs,
+        initial_registration_count: initialRegCount,
+        actual_registration_count: actualRegCount,
         fee: ev.fee || 'Free',
         is_registration_open: ev.is_registration_open !== false && !isEventDateEnded && !isRegDeadlinePassed,
         rewards: ev.rewards || 'Certificates & Swags',
         status: computedStatus,
         source: 'database',
-        registration_count: regCount,
-        seats_remaining: maxRegs ? Math.max(0, maxRegs - regCount) : null,
+        registration_count: totalRegCount,
+        total_registration_count: totalRegCount,
+        seats_remaining: maxRegs ? Math.max(0, maxRegs - totalRegCount) : null,
         is_registration_ended: isRegDeadlinePassed || isEventDateEnded,
         is_registration_pending: isRegNotStartedYet,
         is_capacity_full: isCapacityFull,
@@ -262,12 +267,15 @@ router.get('/', async (req, res) => {
           registration_start_date: null,
           registration_end_date: null,
           max_registrations: null,
+          initial_registration_count: 0,
+          actual_registration_count: eventRegs.length,
           fee: 'Free',
           is_registration_open: !isStaticEnded,
           rewards: se.rewards || 'Certificates & Swags',
           status: staticStatus,
           source: 'json',
           registration_count: eventRegs.length,
+          total_registration_count: eventRegs.length,
           seats_remaining: null,
           is_registration_ended: isStaticEnded,
           is_registration_pending: false,
@@ -373,7 +381,9 @@ router.get('/details/:idOrSlug', async (req, res) => {
       q.event_id === event.id || (q.event_name && q.event_name.toLowerCase().trim() === event.name.toLowerCase().trim())
     );
 
-    const regCount = allRegistrations.length;
+    const actualRegCount = allRegistrations.length;
+    const initialRegCount = parseInt(event.initial_registration_count, 10) || 0;
+    const totalRegCount = actualRegCount + initialRegCount;
     const maxRegs = event.max_registrations ? parseInt(event.max_registrations, 10) : null;
     const isRegDeadlinePassed = event.registration_end_date ? new Date(event.registration_end_date) < now : false;
     const isEventDateEnded = event.end_date 
@@ -381,7 +391,7 @@ router.get('/details/:idOrSlug', async (req, res) => {
       : (event.start_date ? new Date(event.start_date) < now : false);
 
     const isRegNotStartedYet = event.registration_start_date ? new Date(event.registration_start_date) > now : false;
-    const isCapacityFull = maxRegs !== null && maxRegs !== undefined && regCount >= maxRegs;
+    const isCapacityFull = maxRegs !== null && maxRegs !== undefined && totalRegCount >= maxRegs;
 
     const computedStatus = (event.status === 'completed' || event.status === 'past' || isEventDateEnded)
       ? 'completed'
@@ -403,12 +413,15 @@ router.get('/details/:idOrSlug', async (req, res) => {
         registration_start_date: event.registration_start_date,
         registration_end_date: event.registration_end_date,
         max_registrations: maxRegs,
+        initial_registration_count: initialRegCount,
+        actual_registration_count: actualRegCount,
         fee: event.fee || 'Free',
         is_registration_open: event.is_registration_open !== false && !isEventDateEnded && !isRegDeadlinePassed,
         rewards: event.rewards,
         status: computedStatus,
-        registration_count: regCount,
-        seats_remaining: maxRegs ? Math.max(0, maxRegs - regCount) : null,
+        registration_count: totalRegCount,
+        total_registration_count: totalRegCount,
+        seats_remaining: maxRegs ? Math.max(0, maxRegs - totalRegCount) : null,
         is_registration_ended: isRegDeadlinePassed || isEventDateEnded,
         is_registration_pending: isRegNotStartedYet,
         is_capacity_full: isCapacityFull,
@@ -499,6 +512,7 @@ router.post('/', adminAuth, async (req, res) => {
       registration_start_date,
       registration_end_date,
       max_registrations,
+      initial_registration_count,
       fee,
       is_registration_open,
       rewards,
@@ -522,6 +536,9 @@ router.post('/', adminAuth, async (req, res) => {
     const parsedMaxRegs = max_registrations !== undefined && max_registrations !== '' && max_registrations !== null
       ? parseInt(max_registrations, 10)
       : null;
+    const parsedInitialRegs = initial_registration_count !== undefined && initial_registration_count !== '' && initial_registration_count !== null
+      ? Math.max(0, parseInt(initial_registration_count, 10))
+      : 0;
 
     if (parsedStartDate && parsedEndDate && parsedEndDate < parsedStartDate) {
       return res.status(400).json({ error: 'Event End Date & Time cannot be earlier than Event Start Date & Time.' });
@@ -542,13 +559,14 @@ router.post('/', adminAuth, async (req, res) => {
         registration_start_date: parsedRegStartDate,
         registration_end_date: parsedRegEndDate,
         max_registrations: parsedMaxRegs,
+        initial_registration_count: parsedInitialRegs,
         fee: fee || 'Free',
         is_registration_open: is_registration_open !== false,
         rewards: rewards || 'Certificates & Swags',
         status: status || 'upcoming'
       });
     } catch (createErr) {
-      if (createErr.message && (/is_registration_open/i.test(createErr.message) || /column.*does not exist/i.test(createErr.message) || /no such column/i.test(createErr.message))) {
+      if (createErr.message && (/is_registration_open/i.test(createErr.message) || /initial_registration_count/i.test(createErr.message) || /column.*does not exist/i.test(createErr.message) || /no such column/i.test(createErr.message))) {
         console.warn('⚠️ Missing column detected in Events table. Running on-the-fly schema repair...');
         await ensureEventsTableSchema(Event.sequelize);
         newEvent = await Event.create({
@@ -564,6 +582,7 @@ router.post('/', adminAuth, async (req, res) => {
           registration_start_date: parsedRegStartDate,
           registration_end_date: parsedRegEndDate,
           max_registrations: parsedMaxRegs,
+          initial_registration_count: parsedInitialRegs,
           fee: fee || 'Free',
           is_registration_open: is_registration_open !== false,
           rewards: rewards || 'Certificates & Swags',
@@ -656,6 +675,7 @@ router.put('/:id', adminAuth, async (req, res) => {
       registration_start_date,
       registration_end_date,
       max_registrations,
+      initial_registration_count,
       fee,
       is_registration_open,
       rewards,
@@ -684,6 +704,9 @@ router.put('/:id', adminAuth, async (req, res) => {
     if (max_registrations !== undefined) {
       event.max_registrations = max_registrations !== '' && max_registrations !== null ? parseInt(max_registrations, 10) : null;
     }
+    if (initial_registration_count !== undefined) {
+      event.initial_registration_count = initial_registration_count !== '' && initial_registration_count !== null ? Math.max(0, parseInt(initial_registration_count, 10)) : 0;
+    }
     if (fee !== undefined) event.fee = fee || 'Free';
     if (is_registration_open !== undefined) event.is_registration_open = Boolean(is_registration_open);
     if (rewards !== undefined) event.rewards = rewards;
@@ -696,7 +719,7 @@ router.put('/:id', adminAuth, async (req, res) => {
     try {
       await event.save();
     } catch (saveErr) {
-      if (saveErr.message && (/is_registration_open/i.test(saveErr.message) || /column.*does not exist/i.test(saveErr.message) || /no such column/i.test(saveErr.message))) {
+      if (saveErr.message && (/is_registration_open/i.test(saveErr.message) || /initial_registration_count/i.test(saveErr.message) || /column.*does not exist/i.test(saveErr.message) || /no such column/i.test(saveErr.message))) {
         console.warn('⚠️ Missing column detected on event save. Running on-the-fly schema repair...');
         await ensureEventsTableSchema(Event.sequelize);
         await event.save();
@@ -781,8 +804,10 @@ router.get('/public', async (req, res) => {
         r.event_id === dev.id || r.event_id === dev.slug || (r.event_name && r.event_name.toLowerCase().trim() === devNameLower)
       );
 
+      const actualRegCount = eventRegs.length;
+      const initialRegCount = parseInt(dev.initial_registration_count, 10) || 0;
       const quizTracks = [];
-      let totalRegCount = eventRegs.length;
+      let totalRegCount = actualRegCount + initialRegCount;
       let isLiveNow = false;
 
       for (const q of linkedQuizzes) {
@@ -807,7 +832,7 @@ router.get('/public', async (req, res) => {
           QuizAttempt.count({ where: { quiz_id: q.id } }).catch(() => 0)
         ]);
 
-        const regCount = liveCount + attemptCount;
+        const regCount = (liveCount + attemptCount) + initialRegCount;
         if (regCount > totalRegCount) totalRegCount = regCount;
 
         const sDate = startTime ? new Date(startTime) : null;
@@ -859,6 +884,8 @@ router.get('/public', async (req, res) => {
         registration_start_date: dev.registration_start_date,
         registration_end_date: dev.registration_end_date,
         max_registrations: maxRegs,
+        initial_registration_count: initialRegCount,
+        actual_registration_count: actualRegCount,
         seats_remaining: maxRegs ? Math.max(0, maxRegs - totalRegCount) : null,
         fee: dev.fee || 'Free',
         is_registration_open: dev.is_registration_open !== false && !isCompleted && !isRegDeadlinePassed,
@@ -870,6 +897,7 @@ router.get('/public', async (req, res) => {
         status: finalStatus,
         quizzes: quizTracks,
         total_quizzes_count: quizTracks.length,
+        registration_count: totalRegCount,
         total_registration_count: totalRegCount,
         direct_quiz_url: quizTracks.length > 0 ? quizTracks[0].direct_quiz_url : null,
         register: `/register/${dev.slug || dev.id}`
@@ -1047,8 +1075,10 @@ router.post('/register', async (req, res) => {
               ]
             }
           });
+          const initialCount = parseInt(targetEvent.initial_registration_count, 10) || 0;
+          const totalCurrent = currentCount + initialCount;
 
-          if (currentCount >= targetEvent.max_registrations) {
+          if (totalCurrent >= targetEvent.max_registrations) {
             return res.status(400).json({ error: `Registration capacity reached for "${targetEvent.name}" (Limit: ${targetEvent.max_registrations} seats).` });
           }
         }

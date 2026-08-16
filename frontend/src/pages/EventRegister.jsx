@@ -138,6 +138,13 @@ export default function EventRegister() {
 
       if (res.data?.success) {
         setRegisteredSuccess(res.data);
+        setEvent(prev => prev ? {
+          ...prev,
+          registration_count: (prev.registration_count || 0) + 1,
+          seats_remaining: prev.seats_remaining !== null && prev.seats_remaining !== undefined
+            ? Math.max(0, prev.seats_remaining - 1)
+            : null
+        } : prev);
       }
     } catch (err) {
       console.error('Registration failed:', err);
@@ -288,6 +295,37 @@ export default function EventRegister() {
                   <span className="font-bold">Rewards: {event.rewards}</span>
                 </div>
               )}
+
+              {/* Live Registered Count & Capacity Card */}
+              <div className="p-3 sm:p-3.5 bg-purple-50/80 border border-purple-100 rounded-2xl space-y-1.5">
+                <div className="flex items-center justify-between text-xs flex-wrap gap-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded-lg bg-purple-600 text-white flex items-center justify-center shadow-2xs">
+                      <Users size={13} />
+                    </div>
+                    <span className="font-extrabold text-purple-950">
+                      {event.registration_count || 0} Students Registered
+                    </span>
+                  </div>
+                  {event.max_registrations && (
+                    <span className="text-[11px] font-bold text-purple-700 font-mono">
+                      {event.seats_remaining !== null ? `${event.seats_remaining} seats remaining` : `${event.max_registrations} Max Capacity`}
+                    </span>
+                  )}
+                </div>
+                {event.max_registrations && (
+                  <div className="w-full bg-purple-200/60 h-1.5 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${
+                        (event.registration_count || 0) >= event.max_registrations ? 'bg-rose-500' : 'bg-purple-600'
+                      }`}
+                      style={{
+                        width: `${Math.min(100, Math.round(((event.registration_count || 0) / event.max_registrations) * 100))}%`
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Registration Deadline Countdown Bar */}
