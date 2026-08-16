@@ -121,6 +121,10 @@ export default function AdminEvents() {
   const [regsLimit, setRegsLimit] = useState(10);
   const [copyFeedback, setCopyFeedback] = useState(null);
 
+  // Events Grid Pagination (9 events per page)
+  const [eventsPage, setEventsPage] = useState(1);
+  const [eventsLimit, setEventsLimit] = useState(9);
+
   // Lock body scroll when either modal is open
   useEffect(() => {
     if (modalOpen || regsModalOpen) {
@@ -435,6 +439,236 @@ export default function AdminEvents() {
       (r.branch || '').toLowerCase().includes(q);
   });
 
+  const totalEventsPages = eventsLimit === 0 ? 1 : (Math.ceil(filteredEvents.length / eventsLimit) || 1);
+  const paginatedEvents = eventsLimit === 0 ? filteredEvents : filteredEvents.slice((eventsPage - 1) * eventsLimit, eventsPage * eventsLimit);
+
+  const renderEventCard = (ev) => {
+    const currentSlug = ev.slug || ev.id;
+    const isCopied = copyFeedback === currentSlug;
+    const hasDates = Boolean(ev.start_date);
+    const isRegClosed = !ev.is_registration_open || ev.is_registration_ended;
+
+    return (
+      <div
+        key={ev.id}
+        className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-2xs hover:shadow-md transition-all flex flex-col justify-between group"
+      >
+        <div>
+          {/* Poster Preview Header */}
+          <div className="relative h-48 bg-slate-950 overflow-hidden">
+            <img
+              src={ev.poster_url || POSTER_GALLERY[0].url}
+              alt={ev.name}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = POSTER_GALLERY[0].url;
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
+            
+            {/* Status & Fee Badges */}
+            <div className="absolute top-3 left-3 flex items-center gap-1.5">
+              <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm ${
+                (ev.status || '').toLowerCase() === 'live' || ev.is_live
+                  ? 'bg-emerald-500 text-white animate-pulse'
+                  : (ev.status || '').toLowerCase() === 'completed' || (ev.status || '').toLowerCase() === 'past'
+                  ? 'bg-slate-600/90 text-white backdrop-blur-xs'
+                  : 'bg-purple-600 text-white'
+              }`}>
+                {ev.status || 'Upcoming'}
+              </span>
+              {ev.fee && (
+                <span className="px-2 py-1 rounded-full text-[10px] font-extrabold bg-black/60 text-white backdrop-blur-xs border border-white/20">
+                  {ev.fee}
+                </span>
+              )}
+            </div>
+
+            {/* Top Action Icons */}
+            <div className="absolute top-3 right-3 flex items-center gap-1.5">
+              <button
+                onClick={() => openEditModal(ev)}
+                className="p-1.5 bg-white/80 hover:bg-white text-slate-700 rounded-xl backdrop-blur-xs transition-colors cursor-pointer"
+                title="Edit event"
+              >
+                <Edit3 size={13} />
+              </button>
+              {ev.source === 'database' && (
+                <button
+                  onClick={() => handleDeleteEvent(ev.id, ev.name)}
+                  className="p-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-xl backdrop-blur-xs transition-colors cursor-pointer"
+                  title="Delete event"
+                >
+                  <Trash2 size={13} />
+                </button>
+              )}
+            </div>
+
+            {/* Category Pill on bottom of image */}
+            <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white">
+              <span className="text-[11px] font-bold opacity-90 truncate">
+                {ev.category || 'MSC Flagship Event'}
+              </span>
+              <span className="text-[10px] font-black bg-white/20 px-2 py-0.5 rounded-md backdrop-blur-xs">
+                {ev.mode || 'Hybrid'}
+              </span>
+            </div>
+          </div>
+
+          {/* Event Content Body */}
+          <div className="p-5 space-y-3">
+            <div>
+              <h3 className="text-base font-black text-slate-900 group-hover:text-purple-600 transition-colors line-clamp-1">
+                {ev.name}
+              </h3>
+              <p className="text-xs text-slate-500 line-clamp-2 mt-1">
+                {ev.description || 'Official challenges and tracks for this event.'}
+              </p>
+            </div>
+
+            {/* 📅 Event Date & Timing Badge */}
+            <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 space-y-1.5 text-[11px]">
+              <div className="flex items-center justify-between text-slate-800 font-bold">
+                <div className="flex items-center gap-1.5 truncate">
+                  <Calendar size={13} className="text-purple-600 shrink-0" />
+                  <span className="truncate">
+                    {ev.start_date
+                      ? `${formatDisplayDateTime(ev.start_date, true)}${ev.end_date ? ` → ${formatDisplayDateTime(ev.end_date, false)}` : ''}`
+                      : 'Date TBA'}
+                  </span>
+                </div>
+              </div>
+
+              {/* ⏳ Registration Deadline */}
+              <div className="flex items-center justify-between text-[10px] pt-1 border-t border-slate-200/60">
+                <div className="flex items-center gap-1 text-slate-500 font-medium truncate">
+                  <Clock size={11} className="text-slate-400 shrink-0" />
+                  <span>
+                    Reg Deadline: {ev.registration_end_date ? formatDisplayDateTime(ev.registration_end_date, true) : 'Open till start'}
+                  </span>
+                </div>
+                <span className={`px-1.5 py-0.5 rounded font-extrabold uppercase text-[9px] ${
+                  isRegClosed
+                    ? 'bg-rose-100 text-rose-700'
+                    : 'bg-emerald-100 text-emerald-800'
+                }`}>
+                  {isRegClosed ? 'Closed' : 'Open'}
+                </span>
+              </div>
+            </div>
+
+            {/* Live Website Slug Registration Badge */}
+            <div className="bg-purple-50/70 border border-purple-100 rounded-xl p-2 flex items-center justify-between gap-2 text-[11px]">
+              <div className="flex items-center gap-1.5 truncate">
+                <LinkIcon size={12} className="text-purple-600 shrink-0" />
+                <span className="font-mono font-bold text-purple-800 truncate">
+                  /register/{currentSlug}
+                </span>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => handleCopyLink(currentSlug)}
+                  className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1 ${
+                    isCopied
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-white text-purple-700 border border-purple-200 hover:bg-purple-100'
+                  }`}
+                  title="Copy Full Registration URL"
+                >
+                  {isCopied ? <Check size={11} /> : <Copy size={11} />}
+                  <span>{isCopied ? 'Copied' : 'Copy'}</span>
+                </button>
+                <a
+                  href={`https://mscprpcem.tech/register/${currentSlug}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="p-1 text-purple-600 hover:text-purple-800 hover:bg-white rounded-md cursor-pointer"
+                  title="Open Registration Page"
+                >
+                  <ExternalLink size={12} />
+                </a>
+              </div>
+            </div>
+
+            <div className="text-[11px] text-slate-500 space-y-1.5 pt-1 border-t border-slate-100">
+              <div className="flex items-center gap-2">
+                <MapPin size={13} className="text-slate-400 shrink-0" />
+                <span className="truncate">{ev.venue || 'PRPCEM Amravati'}</span>
+              </div>
+              
+              {/* Website Registrations Count & Capacity */}
+              <div className="flex items-center justify-between pt-1">
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <Users size={13} className="text-purple-600 shrink-0" />
+                  <span className="font-extrabold text-purple-700">
+                    {ev.registration_count || 0}
+                    {ev.max_registrations ? ` / ${ev.max_registrations} Seats` : ' Enrolled'}
+                  </span>
+                  {parseInt(ev.initial_registration_count, 10) > 0 && (
+                    <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md">
+                      ({ev.actual_registration_count || 0} online + {ev.initial_registration_count} base)
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => handleViewRegistrations(ev)}
+                  className="text-[11px] font-extrabold text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                >
+                  View List ({ev.actual_registration_count || 0})
+                </button>
+              </div>
+
+              {/* Capacity Progress Bar if limit set */}
+              {ev.max_registrations && (
+                <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all ${
+                      (ev.registration_count || 0) >= ev.max_registrations ? 'bg-rose-500' : 'bg-purple-600'
+                    }`}
+                    style={{
+                      width: `${Math.min(100, Math.round(((ev.registration_count || 0) / ev.max_registrations) * 100))}%`
+                    }}
+                  />
+                </div>
+              )}
+
+              <div className="flex items-center gap-2">
+                <BookOpen size={13} className="text-slate-400 shrink-0" />
+                <span>
+                  {ev.total_quizzes > 0 ? (
+                    <span className="text-slate-700 font-bold">{ev.total_quizzes} Quiz Track(s) Attached</span>
+                  ) : (
+                    <span className="text-slate-400 font-medium">Standalone Event (0 Quizzes Attached)</span>
+                  )}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer Action Buttons */}
+        <div className="p-5 pt-0 grid grid-cols-2 gap-2 text-xs font-bold mt-2">
+          <button
+            onClick={() => navigate(`/admin/scheduled-quizzes/create?event=${encodeURIComponent(ev.name)}`)}
+            className="py-2 px-3 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
+          >
+            <Plus size={13} />
+            <span>Attach Quiz</span>
+          </button>
+
+          <button
+            onClick={() => navigate(`/admin/email-dispatch?eventId=${encodeURIComponent(ev.id)}&event=${encodeURIComponent(ev.name)}`)}
+            className="py-2 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
+          >
+            <Mail size={13} />
+            <span>Dispatch Email</span>
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Top Header */}
@@ -479,7 +713,10 @@ export default function AdminEvents() {
             type="text"
             placeholder="Search by event name, slug, venue..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setEventsPage(1);
+            }}
             className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-2xl text-xs font-bold text-slate-800 placeholder-slate-400 outline-hidden focus:border-purple-600"
           />
         </div>
@@ -494,7 +731,10 @@ export default function AdminEvents() {
           ].map(({ key, label }) => (
             <button
               key={key}
-              onClick={() => setSelectedFilter(key)}
+              onClick={() => {
+                setSelectedFilter(key);
+                setEventsPage(1);
+              }}
               className={`px-3 py-1.5 rounded-xl text-[11px] font-extrabold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
                 selectedFilter === key
                   ? 'bg-purple-600 text-white shadow-2xs'
@@ -536,259 +776,78 @@ export default function AdminEvents() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredEvents.map((ev) => {
-            const currentSlug = ev.slug || ev.id;
-            const isCopied = copyFeedback === currentSlug;
-            const hasDates = Boolean(ev.start_date);
-            const isRegClosed = !ev.is_registration_open || ev.is_registration_ended;
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {paginatedEvents.map((ev) => renderEventCard(ev))}
+          </div>
 
-            return (
-              <div
-                key={ev.id}
-                className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-2xs hover:shadow-md transition-all flex flex-col justify-between group"
-              >
-                <div>
-                  {/* Poster Preview Header */}
-                  <div className="relative h-48 bg-slate-950 overflow-hidden">
-                    <img
-                      src={ev.poster_url || POSTER_GALLERY[0].url}
-                      alt={ev.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = POSTER_GALLERY[0].url;
-                      }}
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
-                    
-                    {/* Status & Fee Badges */}
-                    <div className="absolute top-3 left-3 flex items-center gap-1.5">
-                      <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm ${
-                        (ev.status || '').toLowerCase() === 'live' || ev.is_live
-                          ? 'bg-emerald-500 text-white animate-pulse'
-                          : (ev.status || '').toLowerCase() === 'completed' || (ev.status || '').toLowerCase() === 'past'
-                          ? 'bg-slate-600/90 text-white backdrop-blur-xs'
-                          : 'bg-purple-600 text-white'
-                      }`}>
-                        {ev.status || 'Upcoming'}
-                      </span>
-                      {ev.fee && (
-                        <span className="px-2 py-1 rounded-full text-[10px] font-extrabold bg-black/60 text-white backdrop-blur-xs border border-white/20">
-                          {ev.fee}
-                        </span>
-                      )}
-                    </div>
-
-                    {/* Top Action Icons */}
-                    <div className="absolute top-3 right-3 flex items-center gap-1.5">
-                      <button
-                        onClick={() => openEditModal(ev)}
-                        className="p-1.5 bg-white/80 hover:bg-white text-slate-700 rounded-xl backdrop-blur-xs transition-colors cursor-pointer"
-                        title="Edit event"
-                      >
-                        <Edit3 size={13} />
-                      </button>
-                      {ev.source === 'database' && (
-                        <button
-                          onClick={() => handleDeleteEvent(ev.id, ev.name)}
-                          className="p-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-xl backdrop-blur-xs transition-colors cursor-pointer"
-                          title="Delete event"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Category Pill on bottom of image */}
-                    <div className="absolute bottom-3 left-3 right-3 flex items-center justify-between text-white">
-                      <span className="text-[11px] font-bold opacity-90 truncate">
-                        {ev.category || 'MSC Flagship Event'}
-                      </span>
-                      <span className="text-[10px] font-black bg-white/20 px-2 py-0.5 rounded-md backdrop-blur-xs">
-                        {ev.mode || 'Hybrid'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Event Content Body */}
-                  <div className="p-5 space-y-3">
-                    <div>
-                      <h3 className="text-base font-black text-slate-900 group-hover:text-purple-600 transition-colors line-clamp-1">
-                        {ev.name}
-                      </h3>
-                      <p className="text-xs text-slate-500 line-clamp-2 mt-1">
-                        {ev.description || 'Official challenges and tracks for this event.'}
-                      </p>
-                    </div>
-
-                    {/* 📅 Event Date & Timing Badge */}
-                    <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 space-y-1.5 text-[11px]">
-                      <div className="flex items-center justify-between text-slate-800 font-bold">
-                        <div className="flex items-center gap-1.5 truncate">
-                          <Calendar size={13} className="text-purple-600 shrink-0" />
-                          <span className="truncate">
-                            {ev.start_date
-                              ? `${formatDisplayDateTime(ev.start_date, true)}${ev.end_date ? ` → ${formatDisplayDateTime(ev.end_date, false)}` : ''}`
-                              : 'Date TBA'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* ⏳ Registration Deadline */}
-                      <div className="flex items-center justify-between text-[10px] pt-1 border-t border-slate-200/60">
-                        <div className="flex items-center gap-1 text-slate-500 font-medium truncate">
-                          <Clock size={11} className="text-slate-400 shrink-0" />
-                          <span>
-                            Reg Deadline: {ev.registration_end_date ? formatDisplayDateTime(ev.registration_end_date, true) : 'Open till start'}
-                          </span>
-                        </div>
-                        <span className={`px-1.5 py-0.5 rounded font-extrabold uppercase text-[9px] ${
-                          isRegClosed
-                            ? 'bg-rose-100 text-rose-700'
-                            : 'bg-emerald-100 text-emerald-800'
-                        }`}>
-                          {isRegClosed ? 'Closed' : 'Open'}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Live Website Slug Registration Badge */}
-                    <div className="bg-purple-50/70 border border-purple-100 rounded-xl p-2 flex items-center justify-between gap-2 text-[11px]">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <LinkIcon size={12} className="text-purple-600 shrink-0" />
-                        <span className="font-mono font-bold text-purple-800 truncate">
-                          /register/{currentSlug}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <button
-                          onClick={() => handleCopyLink(currentSlug)}
-                          className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1 ${
-                            isCopied
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-white text-purple-700 border border-purple-200 hover:bg-purple-100'
-                          }`}
-                          title="Copy Full Registration URL"
-                        >
-                          {isCopied ? <Check size={11} /> : <Copy size={11} />}
-                          <span>{isCopied ? 'Copied' : 'Copy'}</span>
-                        </button>
-                        <a
-                          href={`https://mscprpcem.tech/register/${currentSlug}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="p-1 text-purple-600 hover:text-purple-800 hover:bg-white rounded-md cursor-pointer"
-                          title="Open Registration Page"
-                        >
-                          <ExternalLink size={12} />
-                        </a>
-                      </div>
-                    </div>
-
-                    <div className="text-[11px] text-slate-500 space-y-1.5 pt-1 border-t border-slate-100">
-                      <div className="flex items-center gap-2">
-                        <MapPin size={13} className="text-slate-400 shrink-0" />
-                        <span className="truncate">{ev.venue || 'PRPCEM Amravati'}</span>
-                      </div>
-                      
-                      {/* Website Registrations Count & Capacity */}
-                      <div className="flex items-center justify-between pt-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <Users size={13} className="text-purple-600 shrink-0" />
-                          <span className="font-extrabold text-purple-700">
-                            {ev.registration_count || 0}
-                            {ev.max_registrations ? ` / ${ev.max_registrations} Seats` : ' Enrolled'}
-                          </span>
-                          {parseInt(ev.initial_registration_count, 10) > 0 && (
-                            <span className="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded-md">
-                              ({ev.actual_registration_count || 0} online + {ev.initial_registration_count} base)
-                            </span>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => handleViewRegistrations(ev)}
-                          className="text-[11px] font-extrabold text-blue-600 hover:text-blue-800 underline cursor-pointer"
-                        >
-                          View List ({ev.actual_registration_count || 0})
-                        </button>
-                      </div>
-
-                      {/* Capacity Progress Bar if limit set */}
-                      {ev.max_registrations && (
-                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all ${
-                              (ev.registration_count || 0) >= ev.max_registrations ? 'bg-rose-500' : 'bg-purple-600'
-                            }`}
-                            style={{
-                              width: `${Math.min(100, Math.round(((ev.registration_count || 0) / ev.max_registrations) * 100))}%`
-                            }}
-                          />
-                        </div>
-                      )}
-
-                      <div className="flex items-center gap-2">
-                        <BookOpen size={13} className="text-slate-400 shrink-0" />
-                        <span>
-                          {ev.total_quizzes > 0 ? (
-                            <span className="text-slate-700 font-bold">{ev.total_quizzes} Quiz Track(s) Attached</span>
-                          ) : (
-                            <span className="text-slate-400 font-medium">Standalone Event (0 Quizzes Attached)</span>
-                          )}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Attached Quiz Tracks List */}
-                    {ev.quizzes && ev.quizzes.length > 0 && (
-                      <div className="space-y-1.5 pt-2">
-                        <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
-                          Included Quiz Tracks ({ev.quizzes.length}):
-                        </span>
-                        <div className="space-y-1 max-h-28 overflow-y-auto pr-1 text-xs">
-                          {ev.quizzes.map((q) => (
-                            <div
-                              key={q.id}
-                              className="p-2 bg-slate-50 border border-slate-100 rounded-xl flex items-center justify-between text-[11px]"
-                            >
-                              <div className="truncate font-bold text-slate-700">
-                                {q.title}
-                              </div>
-                              <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-md uppercase ${
-                                q.mode === 'SCHEDULED' ? 'bg-blue-100 text-blue-800' : 'bg-purple-100 text-purple-800'
-                              }`}>
-                                {q.mode}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Footer Action Buttons */}
-                <div className="p-5 pt-0 grid grid-cols-2 gap-2 text-xs font-bold">
-                  <button
-                    onClick={() => navigate(`/admin/scheduled-quizzes/create?event=${encodeURIComponent(ev.name)}`)}
-                    className="py-2 px-3 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                  >
-                    <Plus size={13} />
-                    <span>Attach Quiz</span>
-                  </button>
-
-                  <button
-                    onClick={() => navigate(`/admin/email-dispatch?eventId=${encodeURIComponent(ev.id)}&event=${encodeURIComponent(ev.name)}`)}
-                    className="py-2 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
-                  >
-                    <Mail size={13} />
-                    <span>Dispatch Email</span>
-                  </button>
-                </div>
+          {/* Pagination Controls Bar (9 items per page) */}
+          {filteredEvents.length > 0 && (
+            <div className="bg-white rounded-2xl border border-slate-200 p-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs shadow-2xs">
+              <div className="text-slate-500 font-bold">
+                Showing{' '}
+                <span className="text-slate-900 font-extrabold">
+                  {filteredEvents.length === 0 ? 0 : (eventsPage - 1) * (eventsLimit || filteredEvents.length) + 1}
+                </span>{' '}
+                to{' '}
+                <span className="text-slate-900 font-extrabold">
+                  {eventsLimit === 0 ? filteredEvents.length : Math.min(eventsPage * eventsLimit, filteredEvents.length)}
+                </span>{' '}
+                of <span className="text-purple-600 font-black">{filteredEvents.length}</span> event(s)
               </div>
-            );
-          })}
+
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 mr-2">
+                  <span className="text-[11px] font-bold text-slate-400">Show:</span>
+                  <select
+                    value={eventsLimit}
+                    onChange={(e) => {
+                      setEventsLimit(parseInt(e.target.value, 10));
+                      setEventsPage(1);
+                    }}
+                    className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-700 outline-none focus:ring-2 focus:ring-purple-500 cursor-pointer"
+                  >
+                    <option value={9}>9 / page</option>
+                    <option value={18}>18 / page</option>
+                    <option value={27}>27 / page</option>
+                    <option value={0}>All events</option>
+                  </select>
+                </div>
+
+                {eventsLimit > 0 && totalEventsPages > 1 && (
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setEventsPage((prev) => Math.max(1, prev - 1))}
+                      disabled={eventsPage === 1}
+                      className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none cursor-pointer transition-all"
+                    >
+                      Prev
+                    </button>
+                    {Array.from({ length: totalEventsPages }, (_, i) => i + 1).map((pg) => (
+                      <button
+                        key={pg}
+                        onClick={() => setEventsPage(pg)}
+                        className={`w-8 h-8 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                          eventsPage === pg
+                            ? 'bg-purple-600 text-white shadow-2xs'
+                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        {pg}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setEventsPage((prev) => Math.min(totalEventsPages, prev + 1))}
+                      disabled={eventsPage >= totalEventsPages}
+                      className="px-3 py-1.5 bg-white border border-slate-200 rounded-xl font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:pointer-events-none cursor-pointer transition-all"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

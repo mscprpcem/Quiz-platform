@@ -103,6 +103,35 @@ function resolveEventPoster(posterUrl, eventName) {
 }
 
 /**
+ * Formats a date into human-readable event date string like 'Saturday, July 25, 2026'.
+ */
+function formatEventDateString(dateVal) {
+  if (!dateVal) return 'Date Coming Soon';
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return typeof dateVal === 'string' ? dateVal : 'Date Coming Soon';
+  return d.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
+  });
+}
+
+/**
+ * Computes event duration (e.g. '1 Day', '3 Day', 'Multi-Day').
+ */
+function formatEventDuration(startDate, endDate, explicitDuration) {
+  if (explicitDuration) return explicitDuration;
+  if (!startDate || !endDate) return '1 Day';
+  const s = new Date(startDate).getTime();
+  const e = new Date(endDate).getTime();
+  if (isNaN(s) || isNaN(e) || e <= s) return '1 Day';
+  const diffDays = Math.round((e - s) / (1000 * 60 * 60 * 24));
+  if (diffDays <= 1) return '1 Day';
+  return `${diffDays} Days`;
+}
+
+/**
  * Normalizes an event's date into a numerical millisecond timestamp for chronological sorting.
  * Checks start_date, startDate, start_time, registration_start_date, date, and createdAt.
  */
@@ -867,40 +896,66 @@ router.get('/public', async (req, res) => {
       const isCompleted = dev.status === 'completed' || dev.status === 'past' || isEventDateEnded;
       const finalStatus = isCompleted ? 'completed' : (isLiveNow ? 'live' : (dev.status || 'upcoming'));
 
+      const formattedDate = formatEventDateString(dev.start_date);
+      const computedDuration = formatEventDuration(dev.start_date, dev.end_date, dev.duration);
+      const regUrlRelative = `/register/${dev.slug || dev.id}`;
+      const regUrlAbsolute = `${baseUrl}/register/${dev.slug || dev.id}`;
+
       eventsList.push({
         id: dev.id,
         event_name: dev.name,
+        name: dev.name,
         title: dev.name,
-        slug: dev.slug,
+        slug: dev.slug || dev.id,
         description: dev.description || `Official challenges and technical sessions for ${dev.name}.`,
         poster: resolvedPoster,
+        poster_url: resolvedPoster,
+        banner: resolvedPoster,
+        image: resolvedPoster,
+        date: formattedDate,
+        startDate: dev.start_date ? new Date(dev.start_date).toISOString().split('T')[0] : null,
+        endDate: dev.end_date ? new Date(dev.end_date).toISOString().split('T')[0] : null,
+        start_date: formattedDate,
+        end_date: dev.end_date ? formatEventDateString(dev.end_date) : null,
+        start_time: dev.start_date || dev.createdAt,
+        end_time: dev.end_date,
+        duration: computedDuration,
         category: dev.category || 'Innovation Challenge',
         mode: dev.mode || 'Hybrid',
         venue: dev.venue || 'PRPCEM Campus & Virtual',
         rewards: dev.rewards || 'Certificates & Swags',
-        start_date: dev.start_date ? new Date(dev.start_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Coming Soon",
-        start_time: dev.start_date || dev.createdAt,
-        end_time: dev.end_date,
+        prizes: dev.rewards || 'Certificates & Swags',
         registration_start_date: dev.registration_start_date,
         registration_end_date: dev.registration_end_date,
         max_registrations: maxRegs,
+        maxRegistrations: maxRegs,
         initial_registration_count: initialRegCount,
         actual_registration_count: actualRegCount,
         seats_remaining: maxRegs ? Math.max(0, maxRegs - totalRegCount) : null,
+        seatsRemaining: maxRegs ? Math.max(0, maxRegs - totalRegCount) : null,
         fee: dev.fee || 'Free',
+        price: dev.fee || 'Free',
         is_registration_open: dev.is_registration_open !== false && !isCompleted && !isRegDeadlinePassed,
+        isRegistrationOpen: dev.is_registration_open !== false && !isCompleted && !isRegDeadlinePassed,
         is_registration_ended: isRegDeadlinePassed || isEventDateEnded,
+        isRegistrationEnded: isRegDeadlinePassed || isEventDateEnded,
         is_registration_pending: isRegNotStartedYet,
         is_capacity_full: isCapacityFull,
         is_live: isLiveNow,
         is_upcoming: finalStatus === 'upcoming',
         status: finalStatus,
+        showOnHomePopup: finalStatus === 'upcoming' || Boolean(dev.showOnHomePopup),
+        popupMessage: dev.popupMessage || (finalStatus === 'upcoming' && dev.is_registration_open !== false ? `Registrations are live for ${dev.name}!` : ''),
         quizzes: quizTracks,
         total_quizzes_count: quizTracks.length,
         registration_count: totalRegCount,
         total_registration_count: totalRegCount,
+        attendees_count: totalRegCount,
+        registrations: totalRegCount,
         direct_quiz_url: quizTracks.length > 0 ? quizTracks[0].direct_quiz_url : null,
-        register: `/register/${dev.slug || dev.id}`
+        register: regUrlRelative,
+        registerUrl: regUrlAbsolute,
+        registration_url: regUrlAbsolute
       });
     }
 
@@ -918,38 +973,66 @@ router.get('/public', async (req, res) => {
           ? new Date(se.endDate) < now 
           : (se.startDate ? new Date(se.startDate) < now : (se.status === 'past' || se.status === 'completed'));
         const staticStatus = isStaticEnded ? 'completed' : (se.status || 'upcoming');
+        const sePoster = resolveEventPoster(se.poster, seTitle);
+        const seFormattedDate = se.date || (se.startDate ? formatEventDateString(se.startDate) : 'Past Event');
+        const seDuration = se.duration || '1 Day';
+        const staticTotalCount = eventRegs.length + (parseInt(se.registration_count || se.initial_registration_count, 10) || 0);
 
         eventsList.push({
           id: se.id,
           event_name: seTitle,
+          name: seTitle,
           title: seTitle,
           slug: se.id,
-          description: se.description,
-          poster: resolveEventPoster(se.poster, seTitle),
+          description: se.description || `Community event by MSC-PRPCEM.`,
+          poster: sePoster,
+          poster_url: sePoster,
+          banner: sePoster,
+          image: sePoster,
+          date: seFormattedDate,
+          startDate: se.startDate || null,
+          endDate: se.endDate || null,
+          start_date: seFormattedDate,
+          end_date: se.endDate ? formatEventDateString(se.endDate) : null,
+          start_time: se.startDate ? new Date(se.startDate) : new Date(2025, 0, 1),
+          end_time: se.endDate ? new Date(se.endDate) : null,
+          duration: seDuration,
           category: se.category || 'Flagship Event',
           mode: se.mode || 'Offline',
           venue: se.venue || 'PRPCEM Campus',
           rewards: se.rewards || 'Certificates & Swags',
-          start_date: se.date || (se.startDate ? new Date(se.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Past Event"),
-          start_time: se.startDate ? new Date(se.startDate) : new Date(2025, 0, 1),
-          end_time: se.endDate ? new Date(se.endDate) : null,
+          prizes: se.rewards || 'Certificates & Swags',
           registration_start_date: null,
           registration_end_date: null,
           max_registrations: null,
+          maxRegistrations: null,
+          initial_registration_count: parseInt(se.initial_registration_count, 10) || 0,
+          actual_registration_count: eventRegs.length,
           seats_remaining: null,
-          fee: 'Free',
+          seatsRemaining: null,
+          fee: se.fee || 'Free',
+          price: se.fee || 'Free',
           is_registration_open: !isStaticEnded,
+          isRegistrationOpen: !isStaticEnded,
           is_registration_ended: isStaticEnded,
+          isRegistrationEnded: isStaticEnded,
           is_registration_pending: false,
           is_capacity_full: false,
           is_live: false,
           is_upcoming: staticStatus === 'upcoming',
           status: staticStatus,
+          showOnHomePopup: Boolean(se.showOnHomePopup),
+          popupMessage: se.popupMessage || '',
           quizzes: [],
           total_quizzes_count: 0,
-          total_registration_count: eventRegs.length,
+          registration_count: staticTotalCount,
+          total_registration_count: staticTotalCount,
+          attendees_count: staticTotalCount,
+          registrations: staticTotalCount,
           direct_quiz_url: null,
-          register: se.register || `/register/${se.id}`
+          register: se.register || `/register/${se.id}`,
+          registerUrl: se.register ? `${baseUrl}${se.register}` : `${baseUrl}/register/${se.id}`,
+          registration_url: se.register ? `${baseUrl}${se.register}` : `${baseUrl}/register/${se.id}`
         });
       }
     }
@@ -957,10 +1040,35 @@ router.get('/public', async (req, res) => {
     // Sort all public events so the latest date comes first
     sortEventsLatestFirst(eventsList);
 
+    const total = eventsList.length;
+    const requestedPage = req.query.page !== undefined ? parseInt(req.query.page, 10) : null;
+    const defaultPageSize = 9;
+    const limit = req.query.limit === 'all' 
+      ? total 
+      : (req.query.limit ? Math.max(1, parseInt(req.query.limit, 10)) : (requestedPage !== null ? defaultPageSize : total));
+
+    const totalPages = Math.ceil(total / (limit || defaultPageSize)) || 1;
+    let currentPage = 1;
+    let paginatedList = eventsList;
+
+    if (requestedPage !== null && !isNaN(requestedPage)) {
+      currentPage = Math.max(1, requestedPage);
+      const effectiveLimit = limit || defaultPageSize;
+      const startIndex = (currentPage - 1) * effectiveLimit;
+      paginatedList = eventsList.slice(startIndex, startIndex + effectiveLimit);
+    }
+
     res.json({
       success: true,
-      count: eventsList.length,
-      events: eventsList
+      total,
+      count: paginatedList.length,
+      page: currentPage,
+      limit: limit || defaultPageSize,
+      totalPages,
+      hasMore: currentPage < totalPages,
+      defaultPageSize: 9,
+      events: paginatedList,
+      allEvents: eventsList
     });
   } catch (err) {
     console.error('Error fetching public events:', err);
