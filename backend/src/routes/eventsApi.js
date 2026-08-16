@@ -733,24 +733,6 @@ router.get('/public', async (req, res) => {
       const isRegNotStartedYet = dev.registration_start_date ? new Date(dev.registration_start_date) > now : false;
       const isCapacityFull = maxRegs ? totalRegCount >= maxRegs : false;
 
-      eventsList.push({
-        id: dev.id,
-        event_name: dev.name,
-        title: dev.name,
-        slug: dev.slug,
-        description: dev.description || `Official challenges and technical sessions for ${dev.name}.`,
-        poster: resolvedPoster,
-        category: dev.category || 'Innovation Challenge',
-        mode: dev.mode || 'Hybrid',
-        venue: dev.venue || 'PRPCEM Campus & Virtual',
-        rewards: dev.rewards || 'Certificates & Swags',
-        start_date: dev.start_date ? new Date(dev.start_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Coming Soon",
-        start_time: dev.start_date || dev.createdAt,
-        end_time: dev.end_date,
-        registration_start_date: dev.registration_start_date,
-        registration_end_date: dev.registration_end_date,
-        max_registrations: maxRegs,
-        seats_remaining: maxRegs ? Math.max(0, maxRegs - totalRegCount) : null,
       const isEventDateEnded = dev.end_date 
         ? new Date(dev.end_date) < now 
         : (dev.start_date ? new Date(dev.start_date) < now : false);
