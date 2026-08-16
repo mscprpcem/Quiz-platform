@@ -102,6 +102,51 @@ function resolveEventPoster(posterUrl, eventName) {
   return 'https://mscprpcem.blob.core.windows.net/events/clean_529287766.png';
 }
 
+/**
+ * Normalizes an event's date into a numerical millisecond timestamp for chronological sorting.
+ * Checks start_date, startDate, start_time, registration_start_date, date, and createdAt.
+ */
+function getEventSortTimestamp(ev) {
+  if (!ev) return 0;
+  const candidates = [
+    ev.start_date,
+    ev.startDate,
+    ev.start_time,
+    ev.registration_start_date,
+    ev.date,
+    ev.createdAt
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate) {
+      const parsed = new Date(candidate).getTime();
+      if (!isNaN(parsed) && parsed > 0) {
+        return parsed;
+      }
+    }
+  }
+  return 0;
+}
+
+/**
+ * Sorts an array of events descending so latest date appears first.
+ */
+function sortEventsLatestFirst(events) {
+  return events.sort((a, b) => {
+    const timeA = getEventSortTimestamp(a);
+    const timeB = getEventSortTimestamp(b);
+    if (timeB !== timeA) {
+      return timeB - timeA; // Descending: latest date first
+    }
+    const createdA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const createdB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    if (createdB !== createdA) {
+      return createdB - createdA;
+    }
+    return (a.name || a.title || '').localeCompare(b.name || b.title || '');
+  });
+}
+
 // ----------------------------------------------------
 // GET /api/events (Admin / Authenticated Route)
 // Returns ALL events (New DB Events + Old Static Events)
@@ -113,7 +158,7 @@ router.get('/', async (req, res) => {
     
     // 1. Fetch all DB events, all quizzes, and registrations
     const [dbEvents, allQuizzes, allRegistrations] = await Promise.all([
-      Event.findAll({ order: [['createdAt', 'DESC']] }).catch(() => []),
+      Event.findAll({ order: [['start_date', 'DESC'], ['createdAt', 'DESC']] }).catch(() => []),
       Quiz.findAll({ order: [['createdAt', 'DESC']] }).catch(() => []),
       EventRegistration.findAll({ order: [['createdAt', 'DESC']] }).catch(() => [])
     ]);
@@ -239,6 +284,9 @@ router.get('/', async (req, res) => {
         });
       }
     }
+
+    // Sort all events so the latest date comes first
+    sortEventsLatestFirst(formattedEvents);
 
     res.json({
       success: true,
@@ -701,7 +749,7 @@ router.get('/public', async (req, res) => {
 
     // 1. Fetch DB Events, Quizzes, and Registrations safely
     const [dbEvents, allQuizzes, allRegistrations] = await Promise.all([
-      Event.findAll({ order: [['createdAt', 'DESC']] }).catch(() => []),
+      Event.findAll({ order: [['start_date', 'DESC'], ['createdAt', 'DESC']] }).catch(() => []),
       Quiz.findAll({
         include: [
           {
@@ -877,6 +925,9 @@ router.get('/public', async (req, res) => {
         });
       }
     }
+
+    // Sort all public events so the latest date comes first
+    sortEventsLatestFirst(eventsList);
 
     res.json({
       success: true,

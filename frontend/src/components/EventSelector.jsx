@@ -114,7 +114,11 @@ export default function EventSelector({
   const filteredEvents = events.filter(e =>
     (e.name || '').toLowerCase().includes(search.toLowerCase()) ||
     (e.category || '').toLowerCase().includes(search.toLowerCase())
-  );
+  ).sort((a, b) => {
+    const timeA = new Date(a.start_date || a.startDate || a.date || a.createdAt || 0).getTime() || 0;
+    const timeB = new Date(b.start_date || b.startDate || b.date || b.createdAt || 0).getTime() || 0;
+    return timeB - timeA;
+  });
 
   const selectedEvent = events.find(e =>
     e.id === value || (e.name && value && e.name.toLowerCase() === value.toLowerCase())

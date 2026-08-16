@@ -402,6 +402,11 @@ export default function AdminEvents() {
       return e.is_registration_open && !e.is_registration_ended && !isEventEnded;
     }
     return status === selectedFilter;
+  }).sort((a, b) => {
+    const timeA = new Date(a.start_date || a.startDate || a.date || a.createdAt || 0).getTime() || 0;
+    const timeB = new Date(b.start_date || b.startDate || b.date || b.createdAt || 0).getTime() || 0;
+    if (timeB !== timeA) return timeB - timeA;
+    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
   });
 
   const filteredRegs = registrations.filter(r => {
