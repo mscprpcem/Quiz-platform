@@ -5,7 +5,8 @@ import {
   Sparkles, Plus, Search, Calendar, MapPin, Globe, Users,
   Trash2, Edit3, ExternalLink, Mail, ArrowRight, ShieldCheck,
   AlertCircle, RefreshCw, X, Radio, BookOpen, Image, Check, Download, FileText,
-  Copy, Link as LinkIcon, Upload, CloudUpload, CheckCircle2
+  Copy, Link as LinkIcon, Upload, CloudUpload, CheckCircle2, Clock, Timer,
+  Lock, Unlock, Tag, AlertTriangle
 } from 'lucide-react';
 
 const POSTER_GALLERY = [
@@ -47,6 +48,34 @@ const POSTER_GALLERY = [
   }
 ];
 
+// Helper: Convert Date or ISO string to format required by <input type="datetime-local" />
+const formatToDateTimeLocal = (dateVal) => {
+  if (!dateVal) return '';
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+// Helper: Format readable date time string
+const formatDisplayDateTime = (dateVal, includeTime = true) => {
+  if (!dateVal) return null;
+  const d = new Date(dateVal);
+  if (isNaN(d.getTime())) return null;
+  const options = {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    ...(includeTime ? { hour: '2-digit', minute: '2-digit' } : {})
+  };
+  return d.toLocaleString('en-US', options);
+};
+
 export default function AdminEvents() {
   const navigate = useNavigate();
   const [events, setEvents] = useState([]);
@@ -65,6 +94,13 @@ export default function AdminEvents() {
     venue: 'PRPCEM Campus & Virtual',
     poster_url: POSTER_GALLERY[0].url,
     description: '',
+    start_date: '',
+    end_date: '',
+    registration_start_date: '',
+    registration_end_date: '',
+    max_registrations: '',
+    fee: 'Free',
+    is_registration_open: true,
     rewards: 'Certificates, Prizes & Swags',
     status: 'upcoming'
   });
@@ -174,6 +210,11 @@ export default function AdminEvents() {
   };
 
   const openCreateModal = () => {
+    const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    nextWeek.setHours(10, 0, 0, 0);
+    const nextWeekEnd = new Date(nextWeek.getTime() + 6 * 60 * 60 * 1000); // 4 PM same day
+    const regDeadline = new Date(nextWeek.getTime() - 2 * 60 * 60 * 1000); // 8 AM same day
+
     setEditingEvent(null);
     setFormData({
       name: '',
@@ -183,6 +224,13 @@ export default function AdminEvents() {
       venue: 'PRPCEM Campus & Virtual',
       poster_url: POSTER_GALLERY[0].url,
       description: '',
+      start_date: formatToDateTimeLocal(nextWeek),
+      end_date: formatToDateTimeLocal(nextWeekEnd),
+      registration_start_date: formatToDateTimeLocal(new Date()),
+      registration_end_date: formatToDateTimeLocal(regDeadline),
+      max_registrations: '',
+      fee: 'Free',
+      is_registration_open: true,
       rewards: 'Certificates, Prizes & Swags',
       status: 'upcoming'
     });
@@ -200,6 +248,13 @@ export default function AdminEvents() {
       venue: ev.venue || 'PRPCEM Amravati',
       poster_url: ev.poster_url || POSTER_GALLERY[0].url,
       description: ev.description || '',
+      start_date: formatToDateTimeLocal(ev.start_date),
+      end_date: formatToDateTimeLocal(ev.end_date),
+      registration_start_date: formatToDateTimeLocal(ev.registration_start_date),
+      registration_end_date: formatToDateTimeLocal(ev.registration_end_date),
+      max_registrations: ev.max_registrations !== null && ev.max_registrations !== undefined ? String(ev.max_registrations) : '',
+      fee: ev.fee || 'Free',
+      is_registration_open: ev.is_registration_open !== false,
       rewards: ev.rewards || 'Certificates & Swags',
       status: ev.status || 'upcoming'
     });
@@ -280,18 +335,32 @@ export default function AdminEvents() {
       return;
     }
 
+    if (formData.start_date && formData.end_date && new Date(formData.end_date) < new Date(formData.start_date)) {
+      setErrorMsg('Event End Date & Time cannot be earlier than Start Date & Time.');
+      return;
+    }
+
     try {
       setSubmitting(true);
       setErrorMsg('');
 
+      const payload = {
+        ...formData,
+        start_date: formData.start_date ? new Date(formData.start_date).toISOString() : null,
+        end_date: formData.end_date ? new Date(formData.end_date).toISOString() : null,
+        registration_start_date: formData.registration_start_date ? new Date(formData.registration_start_date).toISOString() : null,
+        registration_end_date: formData.registration_end_date ? new Date(formData.registration_end_date).toISOString() : null,
+        max_registrations: formData.max_registrations ? parseInt(formData.max_registrations, 10) : null
+      };
+
       if (editingEvent && !editingEvent.id.startsWith('auto-')) {
-        const res = await api.put(`/api/events/${editingEvent.id}`, formData);
+        const res = await api.put(`/api/events/${editingEvent.id}`, payload);
         if (res.data?.success) {
           fetchEvents();
           setModalOpen(false);
         }
       } else {
-        const res = await api.post('/api/events', formData);
+        const res = await api.post('/api/events', payload);
         if (res.data?.success) {
           fetchEvents();
           setModalOpen(false);
@@ -323,6 +392,9 @@ export default function AdminEvents() {
     if (selectedFilter === 'LIVE') {
       return status === 'LIVE' || e.is_live;
     }
+    if (selectedFilter === 'REG_OPEN') {
+      return e.is_registration_open && !e.is_registration_ended;
+    }
     return status === selectedFilter;
   });
 
@@ -347,7 +419,7 @@ export default function AdminEvents() {
             <div>
               <h1 className="text-2xl font-black text-slate-900 tracking-tight">Event Management</h1>
               <p className="text-xs text-slate-500 font-medium">
-                Create official club events, configure custom <code>/register/:slug</code> URLs, and track student participants.
+                Configure event dates, registration deadlines, capacity limits, and custom <code>/register/:slug</code> URLs.
               </p>
             </div>
           </div>
@@ -385,17 +457,23 @@ export default function AdminEvents() {
         </div>
 
         <div className="flex items-center gap-1.5 bg-white p-1 rounded-2xl border border-slate-200 self-stretch sm:self-auto overflow-x-auto">
-          {['ALL', 'UPCOMING', 'LIVE', 'COMPLETED'].map((filter) => (
+          {[
+            { key: 'ALL', label: 'All Events' },
+            { key: 'UPCOMING', label: 'Upcoming' },
+            { key: 'REG_OPEN', label: 'Reg Open' },
+            { key: 'LIVE', label: 'Live Now' },
+            { key: 'COMPLETED', label: 'Completed' }
+          ].map(({ key, label }) => (
             <button
-              key={filter}
-              onClick={() => setSelectedFilter(filter)}
+              key={key}
+              onClick={() => setSelectedFilter(key)}
               className={`px-3 py-1.5 rounded-xl text-[11px] font-extrabold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
-                selectedFilter === filter
+                selectedFilter === key
                   ? 'bg-purple-600 text-white shadow-2xs'
                   : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
               }`}
             >
-              {filter}
+              {label}
             </button>
           ))}
         </div>
@@ -419,7 +497,7 @@ export default function AdminEvents() {
           </div>
           <h3 className="text-base font-black text-slate-900">No Events Found</h3>
           <p className="text-xs text-slate-500 max-w-sm mx-auto">
-            Create an event (e.g. <strong>VisionX Season 2</strong>) with a custom slug to display on the main website and link challenge quizzes.
+            Create an event (e.g. <strong>VisionX Season 2</strong>) with full scheduling, registration deadlines, and link challenge quizzes.
           </p>
           <button
             onClick={openCreateModal}
@@ -434,6 +512,8 @@ export default function AdminEvents() {
           {filteredEvents.map((ev) => {
             const currentSlug = ev.slug || ev.id;
             const isCopied = copyFeedback === currentSlug;
+            const hasDates = Boolean(ev.start_date);
+            const isRegClosed = !ev.is_registration_open || ev.is_registration_ended;
 
             return (
               <div
@@ -454,8 +534,8 @@ export default function AdminEvents() {
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-transparent" />
                     
-                    {/* Status Badge */}
-                    <div className="absolute top-3 left-3">
+                    {/* Status & Fee Badges */}
+                    <div className="absolute top-3 left-3 flex items-center gap-1.5">
                       <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm ${
                         (ev.status || '').toLowerCase() === 'live' || ev.is_live
                           ? 'bg-emerald-500 text-white animate-pulse'
@@ -465,6 +545,11 @@ export default function AdminEvents() {
                       }`}>
                         {ev.status || 'Upcoming'}
                       </span>
+                      {ev.fee && (
+                        <span className="px-2 py-1 rounded-full text-[10px] font-extrabold bg-black/60 text-white backdrop-blur-xs border border-white/20">
+                          {ev.fee}
+                        </span>
+                      )}
                     </div>
 
                     {/* Top Action Icons */}
@@ -509,6 +594,37 @@ export default function AdminEvents() {
                       </p>
                     </div>
 
+                    {/* 📅 Event Date & Timing Badge */}
+                    <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 space-y-1.5 text-[11px]">
+                      <div className="flex items-center justify-between text-slate-800 font-bold">
+                        <div className="flex items-center gap-1.5 truncate">
+                          <Calendar size={13} className="text-purple-600 shrink-0" />
+                          <span className="truncate">
+                            {ev.start_date
+                              ? `${formatDisplayDateTime(ev.start_date, true)}${ev.end_date ? ` → ${formatDisplayDateTime(ev.end_date, false)}` : ''}`
+                              : 'Date TBA'}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* ⏳ Registration Deadline */}
+                      <div className="flex items-center justify-between text-[10px] pt-1 border-t border-slate-200/60">
+                        <div className="flex items-center gap-1 text-slate-500 font-medium truncate">
+                          <Clock size={11} className="text-slate-400 shrink-0" />
+                          <span>
+                            Reg Deadline: {ev.registration_end_date ? formatDisplayDateTime(ev.registration_end_date, true) : 'Open till start'}
+                          </span>
+                        </div>
+                        <span className={`px-1.5 py-0.5 rounded font-extrabold uppercase text-[9px] ${
+                          isRegClosed
+                            ? 'bg-rose-100 text-rose-700'
+                            : 'bg-emerald-100 text-emerald-800'
+                        }`}>
+                          {isRegClosed ? 'Closed' : 'Open'}
+                        </span>
+                      </div>
+                    </div>
+
                     {/* Live Website Slug Registration Badge */}
                     <div className="bg-purple-50/70 border border-purple-100 rounded-xl p-2 flex items-center justify-between gap-2 text-[11px]">
                       <div className="flex items-center gap-1.5 truncate">
@@ -548,12 +664,13 @@ export default function AdminEvents() {
                         <span className="truncate">{ev.venue || 'PRPCEM Amravati'}</span>
                       </div>
                       
-                      {/* Website Registrations Count */}
+                      {/* Website Registrations Count & Capacity */}
                       <div className="flex items-center justify-between pt-1">
                         <div className="flex items-center gap-1.5">
                           <Users size={13} className="text-purple-600 shrink-0" />
                           <span className="font-extrabold text-purple-700">
-                            {ev.registration_count || 0} Registered Student(s)
+                            {ev.registration_count || 0}
+                            {ev.max_registrations ? ` / ${ev.max_registrations} Seats` : ' Enrolled'}
                           </span>
                         </div>
                         <button
@@ -563,6 +680,20 @@ export default function AdminEvents() {
                           View List
                         </button>
                       </div>
+
+                      {/* Capacity Progress Bar if limit set */}
+                      {ev.max_registrations && (
+                        <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              (ev.registration_count || 0) >= ev.max_registrations ? 'bg-rose-500' : 'bg-purple-600'
+                            }`}
+                            style={{
+                              width: `${Math.min(100, Math.round(((ev.registration_count || 0) / ev.max_registrations) * 100))}%`
+                            }}
+                          />
+                        </div>
+                      )}
 
                       <div className="flex items-center gap-2">
                         <BookOpen size={13} className="text-slate-400 shrink-0" />
@@ -789,7 +920,7 @@ export default function AdminEvents() {
       {/* Create / Edit Event Modal */}
       {modalOpen && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-xl w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-3xl p-6 md:p-8 max-w-2xl w-full shadow-2xl border border-slate-200 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
                 <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
@@ -799,7 +930,7 @@ export default function AdminEvents() {
                   <h3 className="text-lg font-black text-slate-900">
                     {editingEvent ? 'Edit Club Event' : 'Create New Club Event'}
                   </h3>
-                  <p className="text-xs text-slate-500">Configure event details and custom website registration URL.</p>
+                  <p className="text-xs text-slate-500">Configure event schedule, registration deadline, capacity, and registration URLs.</p>
                 </div>
               </div>
               <button
@@ -811,12 +942,15 @@ export default function AdminEvents() {
             </div>
 
             {errorMsg && (
-              <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-xs font-bold">
-                {errorMsg}
+              <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-2xl text-xs font-bold flex items-center gap-2">
+                <AlertTriangle size={15} className="shrink-0" />
+                <span>{errorMsg}</span>
               </div>
             )}
 
             <form onSubmit={handleSaveEvent} className="mt-5 space-y-4 text-xs">
+              
+              {/* Event Name */}
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 mb-1">
                   Event Name *
@@ -827,7 +961,7 @@ export default function AdminEvents() {
                   placeholder="e.g. VisionX Season 2, Spark '26, .NET Conf Amravati"
                   value={formData.name}
                   onChange={(e) => handleNameChange(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 font-bold"
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-600 font-bold text-slate-900"
                 />
               </div>
 
@@ -853,6 +987,137 @@ export default function AdminEvents() {
                 <p className="text-[10px] text-slate-400 mt-1">
                   Students can open <code className="text-purple-600 font-bold">https://mscprpcem.tech/register/{formData.slug || 'event-slug'}</code> directly to register.
                 </p>
+              </div>
+
+              {/* ════════ SECTION: EVENT DATE & TIME ════════ */}
+              <div className="p-4 bg-purple-50/40 border border-purple-100 rounded-2xl space-y-3">
+                <div className="flex items-center gap-2">
+                  <Calendar size={16} className="text-purple-600" />
+                  <span className="text-xs font-black text-purple-950 uppercase tracking-wide">
+                    Event Schedule (Date & Time)
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Event Starts At (Date & Time) *
+                    </label>
+                    <input
+                      type="datetime-local"
+                      required
+                      value={formData.start_date}
+                      onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Event Ends At (Date & Time)
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={formData.end_date}
+                      onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-purple-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* ════════ SECTION: REGISTRATION DEADLINE & CAPACITY ════════ */}
+              <div className="p-4 bg-blue-50/40 border border-blue-100 rounded-2xl space-y-3">
+                <div className="flex items-center gap-2">
+                  <Timer size={16} className="text-blue-600" />
+                  <span className="text-xs font-black text-blue-950 uppercase tracking-wide">
+                    Registration Deadline & Capacity Window
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Registration Opens On
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={formData.registration_start_date}
+                      onChange={(e) => setFormData({ ...formData, registration_start_date: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-[9px] text-slate-400 mt-0.5">Leave blank for immediate registration opening.</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Registration Last Date / Deadline *
+                    </label>
+                    <input
+                      type="datetime-local"
+                      value={formData.registration_end_date}
+                      onChange={(e) => setFormData({ ...formData, registration_end_date: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                    <p className="text-[9px] text-slate-400 mt-0.5">Submissions will be automatically closed after this deadline.</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 border-t border-blue-100/80">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Seat / Capacity Limit
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="e.g. 100 (Blank = Unlimited)"
+                      value={formData.max_registrations}
+                      onChange={(e) => setFormData({ ...formData, max_registrations: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Entry Fee / Price
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Free, ₹50, ₹100"
+                      value={formData.fee}
+                      onChange={(e) => setFormData({ ...formData, fee: e.target.value })}
+                      className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Registration Status
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, is_registration_open: !formData.is_registration_open })}
+                      className={`w-full px-3 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                        formData.is_registration_open
+                          ? 'bg-emerald-600 text-white shadow-2xs'
+                          : 'bg-rose-100 text-rose-700 border border-rose-200'
+                      }`}
+                    >
+                      {formData.is_registration_open ? (
+                        <>
+                          <Unlock size={13} />
+                          <span>Accepting Registrations</span>
+                        </>
+                      ) : (
+                        <>
+                          <Lock size={13} />
+                          <span>Registration Paused</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* Poster Upload & Gallery Section */}
@@ -969,7 +1234,8 @@ export default function AdminEvents() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              {/* Category, Mode, and Status */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold text-slate-700 mb-1">Category</label>
                   <select
@@ -982,6 +1248,7 @@ export default function AdminEvents() {
                     <option value="Technical Workshop">Technical Workshop</option>
                     <option value="Hackathon">Hackathon</option>
                     <option value="AI / Cloud Skill Fest">AI / Cloud Skill Fest</option>
+                    <option value="Conference">Conference</option>
                   </select>
                 </div>
 
@@ -997,13 +1264,28 @@ export default function AdminEvents() {
                     <option value="Online">Online</option>
                   </select>
                 </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">Event Status</label>
+                  <select
+                    value={formData.status}
+                    onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-hidden"
+                  >
+                    <option value="upcoming">Upcoming</option>
+                    <option value="registration_open">Registration Open</option>
+                    <option value="registration_closed">Registration Closed</option>
+                    <option value="live">Live Now</option>
+                    <option value="completed">Completed / Past</option>
+                  </select>
+                </div>
               </div>
 
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 mb-1">Venue</label>
                 <input
                   type="text"
-                  placeholder="e.g. PRPCEM Campus / Auditorium"
+                  placeholder="e.g. PRPCEM Campus / Main Auditorium"
                   value={formData.venue}
                   onChange={(e) => setFormData({ ...formData, venue: e.target.value })}
                   className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-hidden"

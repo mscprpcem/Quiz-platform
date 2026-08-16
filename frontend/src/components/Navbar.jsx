@@ -144,83 +144,111 @@ export default function Navbar() {
               )}
             </div>
 
-            {/* Mobile hamburger */}
+            {/* Mobile hamburger button */}
             <button
-              className="md:hidden p-2 rounded-md transition-all text-brand-textMuted hover:bg-brand-lightBlue"
+              className="md:hidden p-2.5 rounded-xl transition-all text-brand-textMuted hover:text-brand-blue hover:bg-brand-lightBlue active:scale-95 cursor-pointer"
               onClick={() => setMobileOpen((o) => !o)}
               aria-label="Toggle menu"
             >
-              {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+              {mobileOpen ? <X size={22} className="text-brand-blue" /> : <Menu size={22} />}
             </button>
           </div>
         </div>
 
-        {/* Mobile Drawer */}
+        {/* Mobile Drawer with Backdrop */}
         {mobileOpen && (
-          <div className="md:hidden border-t px-4 py-3 space-y-2 shadow-lg animate-fade-in bg-white border-brand-border text-brand-textMain">
-            <button
-              onClick={() => navTo('/')}
-              className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all ${
-                isActive('/') ? 'text-brand-blue bg-brand-lightBlue' : 'text-brand-textMuted hover:bg-brand-lightBlue/60'
-              }`}
-            >
-              <Home size={16} />
-              Home
-            </button>
-
-            <button
-              onClick={() => navTo('/courses')}
-              className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all ${
-                isActive('/courses') ? 'text-brand-blue bg-brand-lightBlue' : 'text-brand-textMuted hover:bg-brand-lightBlue/60'
-              }`}
-            >
-              <BookOpen size={16} />
-              Courses
-            </button>
-
-            <button
-              onClick={() => navTo('/join')}
-              className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all ${
-                isActive('/join') ? 'text-brand-blue bg-brand-lightBlue' : 'text-brand-textMuted hover:bg-brand-lightBlue/60'
-              }`}
-            >
-              <Play size={16} />
-              Join Quiz
-            </button>
-
-            {studentAccount ? (
-              <div className="border-t border-slate-200 pt-2 mt-2 space-y-2">
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl space-y-1">
-                  <div className="flex items-center space-x-2 text-xs font-extrabold text-blue-900">
-                    <ShieldCheck size={15} className="text-blue-600" />
-                    <span>Signed In: {studentAccount.name || studentAccount.email}</span>
-                  </div>
-                  <p className="text-[11px] text-blue-700 font-medium">{studentAccount.email}</p>
-                </div>
-
-                <button
-                  onClick={() => {
-                    studentLogout();
-                    setMobileOpen(false);
-                    navigate('/');
-                  }}
-                  className="w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 transition-all cursor-pointer"
-                >
-                  <LogOut size={16} />
-                  Sign Out
-                </button>
-              </div>
-            ) : (
+          <div className="md:hidden border-t border-brand-border bg-white/95 backdrop-blur-2xl shadow-xl animate-fade-in divide-y divide-slate-100">
+            <div className="px-4 py-3 space-y-1.5">
               <button
-                onClick={() => navTo('/login')}
-                className={`w-full text-left flex items-center gap-2 px-3 py-2 rounded-md text-sm font-semibold transition-all ${
-                  isActive('/login') ? 'text-brand-blue bg-brand-lightBlue' : 'text-brand-textMuted hover:bg-brand-lightBlue/60'
+                onClick={() => navTo('/')}
+                className={`w-full text-left flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  isActive('/') ? 'text-brand-blue bg-blue-50/80 shadow-2xs' : 'text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                <User size={16} />
-                Login / Register
+                <div className="flex items-center gap-2.5">
+                  <Home size={17} className={isActive('/') ? 'text-brand-blue' : 'text-slate-400'} />
+                  <span>Home</span>
+                </div>
+                {isActive('/') && <div className="w-1.5 h-1.5 rounded-full bg-brand-blue"></div>}
               </button>
-            )}
+
+              <button
+                onClick={() => navTo('/courses')}
+                className={`w-full text-left flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  isActive('/courses') ? 'text-brand-blue bg-blue-50/80 shadow-2xs' : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <BookOpen size={17} className={isActive('/courses') ? 'text-brand-blue' : 'text-slate-400'} />
+                  <span>Courses & Tracks</span>
+                </div>
+                {isActive('/courses') && <div className="w-1.5 h-1.5 rounded-full bg-brand-blue"></div>}
+              </button>
+
+              <button
+                onClick={() => navTo('/join')}
+                className={`w-full text-left flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
+                  isActive('/join') ? 'text-brand-blue bg-blue-50/80 shadow-2xs' : 'text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center gap-2.5">
+                  <Play size={17} className={isActive('/join') ? 'text-brand-blue' : 'text-slate-400'} />
+                  <span>Join Live Quiz</span>
+                </div>
+                {isActive('/join') && <div className="w-1.5 h-1.5 rounded-full bg-brand-blue"></div>}
+              </button>
+            </div>
+
+            {/* Student Auth / Profile Section */}
+            <div className="p-4 bg-slate-50/60">
+              {studentAccount ? (
+                <div className="space-y-2.5">
+                  <div className="p-3 bg-white border border-blue-100 rounded-2xl shadow-2xs flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold text-xs shrink-0 border border-blue-200/60">
+                        <ShieldCheck size={16} />
+                      </div>
+                      <div className="truncate">
+                        <div className="text-xs font-black text-slate-900 truncate">
+                          {studentAccount.name || studentAccount.email.split('@')[0]}
+                        </div>
+                        <div className="text-[10px] text-slate-500 font-medium truncate">{studentAccount.email}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => navTo('/login')}
+                      className="py-2.5 px-3 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all text-center cursor-pointer shadow-2xs"
+                    >
+                      Profile
+                    </button>
+                    <button
+                      onClick={() => {
+                        studentLogout();
+                        setMobileOpen(false);
+                        navigate('/');
+                      }}
+                      className="py-2.5 px-3 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <LogOut size={13} />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <button
+                    onClick={() => navTo('/login')}
+                    className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <User size={15} />
+                    <span>Student Login / Register</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </nav>

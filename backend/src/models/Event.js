@@ -44,6 +44,27 @@ const Event = sequelize.define('Event', {
     type: DataTypes.DATE,
     allowNull: true
   },
+  registration_start_date: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  registration_end_date: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  max_registrations: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    defaultValue: null // null indicates unlimited capacity
+  },
+  fee: {
+    type: DataTypes.STRING,
+    defaultValue: 'Free'
+  },
+  is_registration_open: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
+  },
   rewards: {
     type: DataTypes.STRING,
     defaultValue: 'Certificates & Swags'

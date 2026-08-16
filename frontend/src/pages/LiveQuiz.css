@@ -6,3 +6,37 @@
 .live-quiz-bg {
   background-color: #F5FAFF !important;
 }
+
+/* Mobile & Touch Optimizations for Live Quiz Gameplay */
+@media (max-width: 640px) {
+  .live-quiz-bg {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+    padding-top: 0.75rem !important;
+  }
+
+  /* Compact gameplay container */
+  .live-quiz-card {
+    padding: 1rem !important;
+    border-radius: 1.25rem !important;
+  }
+
+  /* Touch-friendly option cards */
+  .live-option-btn {
+    padding: 0.875rem 1rem !important;
+    min-height: 52px !important;
+    border-radius: 1rem !important;
+  }
+
+  /* Responsive interim leaderboard rows */
+  .leaderboard-row-compact {
+    padding: 0.5rem 0.75rem !important;
+    font-size: 0.75rem !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .live-option-btn {
+    padding: 0.75rem 0.875rem !important;
+  }
+}

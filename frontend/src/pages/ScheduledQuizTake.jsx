@@ -1197,34 +1197,34 @@ export default function ScheduledQuizTake() {
       )}
 
       {/* Top Bar with Server Timer & Fullscreen Status */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-0 shadow-2xs">
-        <div>
-          <h3 className="text-sm font-black text-slate-900 truncate max-w-xs">{occData?.quiz?.title}</h3>
+      <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 flex items-center justify-between gap-2 shadow-2xs">
+        <div className="min-w-0">
+          <h3 className="text-xs sm:text-sm font-black text-slate-900 truncate max-w-[180px] sm:max-w-xs">{occData?.quiz?.title}</h3>
           <span className="text-[10px] font-bold text-slate-400">Question {currentQIndex + 1} of {questions.length}</span>
         </div>
 
-        <div className="flex items-center justify-between sm:justify-end space-x-2">
+        <div className="flex items-center space-x-2 shrink-0">
           {requireFullscreen && (
             <button
               onClick={enterFullscreen}
-              className={`px-3 py-2 rounded-xl border text-xs font-extrabold flex items-center space-x-1.5 cursor-pointer transition-all ${
+              className={`px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl border text-[11px] font-extrabold flex items-center space-x-1 cursor-pointer transition-all ${
                 isFullscreen 
                   ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
                   : 'bg-amber-50 text-amber-700 border-amber-300 animate-pulse'
               }`}
               title={isFullscreen ? 'Fullscreen active' : 'Click to re-enter fullscreen'}
             >
-              <Maximize size={13} />
-              <span>{isFullscreen ? 'Fullscreen Active' : 'Enter Fullscreen'}</span>
+              <Maximize size={12} />
+              <span className="hidden sm:inline">{isFullscreen ? 'Fullscreen Active' : 'Enter Fullscreen'}</span>
             </button>
           )}
 
           {/* Server Authoritative Timer Display */}
-          <div className={`px-3.5 sm:px-4 py-2 rounded-xl border flex items-center space-x-2 text-xs font-black ${
+          <div className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-xl border flex items-center space-x-1.5 text-xs font-black ${
             timeLeftSeconds < 180 ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' : 'bg-blue-50 text-blue-700 border-blue-200'
           }`}>
-            <Clock size={16} />
-            <span>{formatTime(timeLeftSeconds)}</span>
+            <Clock size={15} />
+            <span className="font-mono">{formatTime(timeLeftSeconds)}</span>
           </div>
         </div>
       </div>
@@ -1239,36 +1239,36 @@ export default function ScheduledQuizTake() {
 
       {/* Question Card */}
       {currentQ && (
-        <div className="bg-white border border-slate-200 rounded-3xl p-5 sm:p-8 shadow-xs space-y-6">
-          <div className="space-y-2">
-            <span className="text-[10px] font-black text-blue-600 uppercase">Q{currentQIndex + 1}</span>
-            <h2 className="text-base sm:text-lg font-extrabold text-slate-900 leading-snug">{currentQ.question}</h2>
+        <div className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-8 shadow-xs space-y-5 sm:space-y-6">
+          <div className="space-y-1.5">
+            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Question {currentQIndex + 1}</span>
+            <h2 className="text-sm sm:text-lg font-extrabold text-slate-900 leading-snug">{currentQ.question}</h2>
           </div>
 
           {/* Options */}
-          <div className="space-y-3">
+          <div className="space-y-2.5 sm:space-y-3">
             {currentQ.options?.map((opt) => {
               const isSelected = selectedAnswers[currentQ.id] === opt.key;
               return (
                 <button
                   key={opt.key}
                   onClick={() => handleSelectOption(currentQ.id, opt.key)}
-                  className={`w-full p-3.5 sm:p-4 rounded-2xl border text-left text-xs font-bold transition-all flex items-center justify-between cursor-pointer min-h-[48px] ${
+                  className={`w-full p-3 sm:p-4 rounded-2xl border text-left text-xs font-bold transition-all flex items-center justify-between gap-2.5 cursor-pointer min-h-[50px] active:scale-[0.99] ${
                     isSelected 
-                      ? 'bg-blue-50 border-blue-500 text-blue-900 shadow-xs' 
+                      ? 'bg-blue-50 border-blue-500 text-blue-900 shadow-2xs ring-2 ring-blue-500/20' 
                       : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
                   }`}
                 >
-                  <div className="flex items-center space-x-3">
-                    <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black flex-shrink-0 ${
+                  <div className="flex items-start sm:items-center space-x-3 min-w-0 flex-1">
+                    <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black shrink-0 mt-0.5 sm:mt-0 ${
                       isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
                     }`}>
                       {opt.key}
                     </span>
-                    <span>{opt.text}</span>
+                    <span className="break-words leading-relaxed flex-1">{opt.text}</span>
                   </div>
 
-                  {isSelected && <CheckSquare size={16} className="text-blue-600 flex-shrink-0 ml-2" />}
+                  {isSelected && <CheckSquare size={16} className="text-blue-600 shrink-0 ml-1" />}
                 </button>
               );
             })}
@@ -1279,7 +1279,7 @@ export default function ScheduledQuizTake() {
             <button
               onClick={() => setCurrentQIndex(prev => Math.max(0, prev - 1))}
               disabled={currentQIndex === 0}
-              className="px-4 py-2.5 border rounded-xl text-xs font-bold disabled:opacity-40 cursor-pointer min-h-[40px]"
+              className="px-4 py-2.5 border rounded-xl text-xs font-bold disabled:opacity-40 cursor-pointer min-h-[44px]"
             >
               Previous
             </button>
@@ -1287,14 +1287,14 @@ export default function ScheduledQuizTake() {
             {currentQIndex < questions.length - 1 ? (
               <button
                 onClick={() => setCurrentQIndex(prev => Math.min(questions.length - 1, prev + 1))}
-                className="px-5 py-2.5 bg-blue-600 text-white font-extrabold rounded-xl text-xs cursor-pointer hover:bg-blue-700 min-h-[40px] shadow-sm active:scale-98"
+                className="px-5 py-2.5 bg-blue-600 text-white font-extrabold rounded-xl text-xs cursor-pointer hover:bg-blue-700 min-h-[44px] shadow-sm active:scale-98"
               >
                 Next Question
               </button>
             ) : (
               <button
                 onClick={() => handleFinalSubmit(false)}
-                className="px-6 py-2.5 bg-emerald-600 text-white font-extrabold rounded-xl text-xs shadow-md cursor-pointer hover:bg-emerald-700 min-h-[40px] active:scale-98"
+                className="px-6 py-2.5 bg-emerald-600 text-white font-extrabold rounded-xl text-xs shadow-md cursor-pointer hover:bg-emerald-700 min-h-[44px] active:scale-98"
               >
                 Submit Quiz
               </button>

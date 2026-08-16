@@ -119,6 +119,7 @@ function resolveEventPoster(posterUrl, eventName) {
 router.get('/', async (req, res) => {
   try {
     const baseUrl = getQuizPlatformBaseUrl();
+    const now = new Date();
     
     // 1. Fetch all DB events, all quizzes, and registrations
     const [dbEvents, allQuizzes, allRegistrations] = await Promise.all([
@@ -143,6 +144,12 @@ router.get('/', async (req, res) => {
         r.event_id === ev.id || r.event_id === ev.slug || (r.event_name && r.event_name.toLowerCase().trim() === evNameLower)
       );
 
+      const regCount = eventRegs.length;
+      const maxRegs = ev.max_registrations ? parseInt(ev.max_registrations, 10) : null;
+      const isRegDeadlinePassed = ev.registration_end_date ? new Date(ev.registration_end_date) < now : false;
+      const isRegNotStartedYet = ev.registration_start_date ? new Date(ev.registration_start_date) > now : false;
+      const isCapacityFull = maxRegs ? regCount >= maxRegs : false;
+
       formattedEvents.push({
         id: ev.id,
         name: ev.name,
@@ -154,10 +161,19 @@ router.get('/', async (req, res) => {
         venue: ev.venue || 'PRPCEM Amravati',
         start_date: ev.start_date,
         end_date: ev.end_date,
+        registration_start_date: ev.registration_start_date,
+        registration_end_date: ev.registration_end_date,
+        max_registrations: maxRegs,
+        fee: ev.fee || 'Free',
+        is_registration_open: ev.is_registration_open !== false,
         rewards: ev.rewards || 'Certificates & Swags',
         status: ev.status || 'upcoming',
         source: 'database',
-        registration_count: eventRegs.length,
+        registration_count: regCount,
+        seats_remaining: maxRegs ? Math.max(0, maxRegs - regCount) : null,
+        is_registration_ended: isRegDeadlinePassed,
+        is_registration_pending: isRegNotStartedYet,
+        is_capacity_full: isCapacityFull,
         quizzes: linkedQuizzes.map(q => ({
           id: q.id,
           title: q.title,
@@ -195,10 +211,19 @@ router.get('/', async (req, res) => {
           venue: se.venue || 'PRPCEM Campus',
           start_date: se.startDate ? new Date(se.startDate) : null,
           end_date: null,
+          registration_start_date: null,
+          registration_end_date: null,
+          max_registrations: null,
+          fee: 'Free',
+          is_registration_open: true,
           rewards: se.rewards || 'Certificates & Swags',
           status: se.status === 'past' ? 'completed' : (se.status || 'upcoming'),
           source: 'json',
           registration_count: eventRegs.length,
+          seats_remaining: null,
+          is_registration_ended: false,
+          is_registration_pending: false,
+          is_capacity_full: false,
           quizzes: linkedQuizzes.map(q => ({
             id: q.id,
             title: q.title,
@@ -220,6 +245,127 @@ router.get('/', async (req, res) => {
   } catch (err) {
     console.error('Error fetching admin events:', err);
     res.status(500).json({ error: 'Failed to fetch events: ' + err.message });
+  }
+});
+
+// ----------------------------------------------------
+// GET /api/events/details/:idOrSlug (Single Event Details)
+// ----------------------------------------------------
+router.get('/details/:idOrSlug', async (req, res) => {
+  try {
+    const { idOrSlug } = req.params;
+    const baseUrl = getQuizPlatformBaseUrl();
+    const now = new Date();
+
+    let event = null;
+    if (isValidUUID(idOrSlug)) {
+      event = await Event.findByPk(idOrSlug).catch(() => null);
+    }
+    if (!event) {
+      event = await Event.findOne({
+        where: {
+          [Op.or]: [
+            { slug: idOrSlug },
+            { slug: idOrSlug.toLowerCase() },
+            { name: idOrSlug }
+          ]
+        }
+      }).catch(() => null);
+    }
+
+    if (!event) {
+      // Check static events fallback
+      const staticMatch = staticEvents.find(s => s.id === idOrSlug || (s.title && s.title.toLowerCase() === idOrSlug.toLowerCase()));
+      if (staticMatch) {
+        return res.json({
+          success: true,
+          event: {
+            id: staticMatch.id,
+            name: staticMatch.title,
+            slug: staticMatch.id,
+            description: staticMatch.description,
+            poster_url: resolveEventPoster(staticMatch.poster, staticMatch.title),
+            category: staticMatch.category || 'Technical Workshop',
+            mode: staticMatch.mode || 'Offline',
+            venue: staticMatch.venue || 'PRPCEM Campus',
+            start_date: staticMatch.startDate ? new Date(staticMatch.startDate) : null,
+            end_date: null,
+            registration_start_date: null,
+            registration_end_date: null,
+            max_registrations: null,
+            fee: 'Free',
+            is_registration_open: true,
+            rewards: staticMatch.rewards || 'Certificates & Swags',
+            status: staticMatch.status || 'upcoming',
+            registration_count: 0,
+            quizzes: []
+          }
+        });
+      }
+      return res.status(404).json({ error: `Event "${idOrSlug}" not found.` });
+    }
+
+    const [allQuizzes, allRegistrations] = await Promise.all([
+      Quiz.findAll({ order: [['createdAt', 'DESC']] }).catch(() => []),
+      EventRegistration.findAll({
+        where: {
+          [Op.or]: [
+            { event_id: event.id },
+            { event_id: event.slug || '' },
+            { event_name: event.name }
+          ]
+        }
+      }).catch(() => [])
+    ]);
+
+    const linkedQuizzes = allQuizzes.filter(q =>
+      q.event_id === event.id || (q.event_name && q.event_name.toLowerCase().trim() === event.name.toLowerCase().trim())
+    );
+
+    const regCount = allRegistrations.length;
+    const maxRegs = event.max_registrations ? parseInt(event.max_registrations, 10) : null;
+    const isRegDeadlinePassed = event.registration_end_date ? new Date(event.registration_end_date) < now : false;
+    const isRegNotStartedYet = event.registration_start_date ? new Date(event.registration_start_date) > now : false;
+    const isCapacityFull = maxRegs ? regCount >= maxRegs : false;
+
+    res.json({
+      success: true,
+      event: {
+        id: event.id,
+        name: event.name,
+        slug: event.slug,
+        description: event.description,
+        poster_url: resolveEventPoster(event.poster_url, event.name),
+        category: event.category,
+        mode: event.mode,
+        venue: event.venue,
+        start_date: event.start_date,
+        end_date: event.end_date,
+        registration_start_date: event.registration_start_date,
+        registration_end_date: event.registration_end_date,
+        max_registrations: maxRegs,
+        fee: event.fee || 'Free',
+        is_registration_open: event.is_registration_open !== false,
+        rewards: event.rewards,
+        status: event.status,
+        registration_count: regCount,
+        seats_remaining: maxRegs ? Math.max(0, maxRegs - regCount) : null,
+        is_registration_ended: isRegDeadlinePassed,
+        is_registration_pending: isRegNotStartedYet,
+        is_capacity_full: isCapacityFull,
+        quizzes: linkedQuizzes.map(q => ({
+          id: q.id,
+          title: q.title,
+          mode: q.mode,
+          join_code: q.join_code,
+          status: q.status,
+          direct_url: q.mode === 'SCHEDULED' ? `${baseUrl}/q/${q.custom_slug || q.id}` : `${baseUrl}/join/${q.join_code}`
+        }))
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching single event details:', err);
+    res.status(500).json({ error: 'Failed to fetch event details: ' + err.message });
   }
 });
 
@@ -291,6 +437,11 @@ router.post('/', adminAuth, async (req, res) => {
       venue,
       start_date,
       end_date,
+      registration_start_date,
+      registration_end_date,
+      max_registrations,
+      fee,
+      is_registration_open,
       rewards,
       status
     } = req.body;
@@ -305,6 +456,18 @@ router.post('/', adminAuth, async (req, res) => {
       : cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const finalPoster = resolveEventPoster(poster_url, cleanName);
 
+    const parsedStartDate = start_date ? new Date(start_date) : new Date();
+    const parsedEndDate = end_date ? new Date(end_date) : null;
+    const parsedRegStartDate = registration_start_date ? new Date(registration_start_date) : null;
+    const parsedRegEndDate = registration_end_date ? new Date(registration_end_date) : null;
+    const parsedMaxRegs = max_registrations !== undefined && max_registrations !== '' && max_registrations !== null
+      ? parseInt(max_registrations, 10)
+      : null;
+
+    if (parsedStartDate && parsedEndDate && parsedEndDate < parsedStartDate) {
+      return res.status(400).json({ error: 'Event End Date & Time cannot be earlier than Event Start Date & Time.' });
+    }
+
     const newEvent = await Event.create({
       name: cleanName,
       slug: cleanSlug,
@@ -313,8 +476,13 @@ router.post('/', adminAuth, async (req, res) => {
       category: category || 'Innovation Challenge',
       mode: mode || 'Hybrid',
       venue: venue || 'PRPCEM Campus & Virtual',
-      start_date: start_date ? new Date(start_date) : new Date(),
-      end_date: end_date ? new Date(end_date) : null,
+      start_date: parsedStartDate,
+      end_date: parsedEndDate,
+      registration_start_date: parsedRegStartDate,
+      registration_end_date: parsedRegEndDate,
+      max_registrations: parsedMaxRegs,
+      fee: fee || 'Free',
+      is_registration_open: is_registration_open !== false,
       rewards: rewards || 'Certificates & Swags',
       status: status || 'upcoming'
     });
@@ -378,6 +546,11 @@ router.put('/:id', adminAuth, async (req, res) => {
       venue,
       start_date,
       end_date,
+      registration_start_date,
+      registration_end_date,
+      max_registrations,
+      fee,
+      is_registration_open,
       rewards,
       status
     } = req.body;
@@ -399,8 +572,19 @@ router.put('/:id', adminAuth, async (req, res) => {
     if (venue !== undefined) event.venue = venue;
     if (start_date !== undefined) event.start_date = start_date ? new Date(start_date) : null;
     if (end_date !== undefined) event.end_date = end_date ? new Date(end_date) : null;
+    if (registration_start_date !== undefined) event.registration_start_date = registration_start_date ? new Date(registration_start_date) : null;
+    if (registration_end_date !== undefined) event.registration_end_date = registration_end_date ? new Date(registration_end_date) : null;
+    if (max_registrations !== undefined) {
+      event.max_registrations = max_registrations !== '' && max_registrations !== null ? parseInt(max_registrations, 10) : null;
+    }
+    if (fee !== undefined) event.fee = fee || 'Free';
+    if (is_registration_open !== undefined) event.is_registration_open = Boolean(is_registration_open);
     if (rewards !== undefined) event.rewards = rewards;
     if (status !== undefined) event.status = status;
+
+    if (event.start_date && event.end_date && new Date(event.end_date) < new Date(event.start_date)) {
+      return res.status(400).json({ error: 'Event End Date & Time cannot be earlier than Event Start Date & Time.' });
+    }
 
     await event.save();
 
@@ -529,10 +713,16 @@ router.get('/public', async (req, res) => {
         });
       }
 
+      const maxRegs = dev.max_registrations ? parseInt(dev.max_registrations, 10) : null;
+      const isRegDeadlinePassed = dev.registration_end_date ? new Date(dev.registration_end_date) < now : false;
+      const isRegNotStartedYet = dev.registration_start_date ? new Date(dev.registration_start_date) > now : false;
+      const isCapacityFull = maxRegs ? totalRegCount >= maxRegs : false;
+
       eventsList.push({
         id: dev.id,
         event_name: dev.name,
         title: dev.name,
+        slug: dev.slug,
         description: dev.description || `Official challenges and technical sessions for ${dev.name}.`,
         poster: resolvedPoster,
         category: dev.category || 'Innovation Challenge',
@@ -542,6 +732,15 @@ router.get('/public', async (req, res) => {
         start_date: dev.start_date ? new Date(dev.start_date).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Coming Soon",
         start_time: dev.start_date || dev.createdAt,
         end_time: dev.end_date,
+        registration_start_date: dev.registration_start_date,
+        registration_end_date: dev.registration_end_date,
+        max_registrations: maxRegs,
+        seats_remaining: maxRegs ? Math.max(0, maxRegs - totalRegCount) : null,
+        fee: dev.fee || 'Free',
+        is_registration_open: dev.is_registration_open !== false,
+        is_registration_ended: isRegDeadlinePassed,
+        is_registration_pending: isRegNotStartedYet,
+        is_capacity_full: isCapacityFull,
         is_live: isLiveNow,
         is_upcoming: dev.status === 'upcoming',
         status: dev.status || 'upcoming',
@@ -567,6 +766,7 @@ router.get('/public', async (req, res) => {
           id: se.id,
           event_name: seTitle,
           title: seTitle,
+          slug: se.id,
           description: se.description,
           poster: resolveEventPoster(se.poster, seTitle),
           category: se.category || 'Flagship Event',
@@ -576,6 +776,15 @@ router.get('/public', async (req, res) => {
           start_date: se.date || (se.startDate ? new Date(se.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "Past Event"),
           start_time: se.startDate ? new Date(se.startDate) : new Date(2025, 0, 1),
           end_time: null,
+          registration_start_date: null,
+          registration_end_date: null,
+          max_registrations: null,
+          seats_remaining: null,
+          fee: 'Free',
+          is_registration_open: true,
+          is_registration_ended: false,
+          is_registration_pending: false,
+          is_capacity_full: false,
           is_live: false,
           is_upcoming: se.status === 'upcoming',
           status: se.status === 'past' ? 'completed' : (se.status || 'upcoming'),
@@ -640,7 +849,81 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Valid Email address is required.' });
     }
 
-    // 1. If User account already exists, sync college/branch if needed
+    // 1. Look up target event in DB for validation
+    let targetEvent = null;
+    if (isValidUUID(targetEventId)) {
+      targetEvent = await Event.findByPk(targetEventId).catch(() => null);
+    }
+    if (!targetEvent) {
+      targetEvent = await Event.findOne({
+        where: {
+          [Op.or]: [
+            { slug: targetEventId },
+            { slug: targetEventId.toLowerCase() },
+            { name: targetEventName }
+          ]
+        }
+      }).catch(() => null);
+    }
+
+    const now = new Date();
+
+    if (targetEvent) {
+      // Check if registration manually closed
+      if (targetEvent.is_registration_open === false) {
+        return res.status(400).json({ error: `Registration for "${targetEvent.name}" is currently closed by the organizers.` });
+      }
+
+      // Check if event is concluded or cancelled
+      if (['completed', 'past', 'concluded', 'cancelled'].includes((targetEvent.status || '').toLowerCase())) {
+        return res.status(400).json({ error: `Registration is unavailable because "${targetEvent.name}" has ${targetEvent.status}.` });
+      }
+
+      // Check registration opening date
+      if (targetEvent.registration_start_date && new Date(targetEvent.registration_start_date) > now) {
+        const openStr = new Date(targetEvent.registration_start_date).toLocaleString();
+        return res.status(400).json({ error: `Registration for "${targetEvent.name}" opens on ${openStr}.` });
+      }
+
+      // Check registration deadline (Last Date)
+      if (targetEvent.registration_end_date && new Date(targetEvent.registration_end_date) < now) {
+        const deadlineStr = new Date(targetEvent.registration_end_date).toLocaleString();
+        return res.status(400).json({ error: `Registration deadline for "${targetEvent.name}" passed on ${deadlineStr}.` });
+      }
+
+      // Check capacity limit
+      if (targetEvent.max_registrations && targetEvent.max_registrations > 0) {
+        const existingThisUser = await EventRegistration.findOne({
+          where: {
+            email: cleanEmail,
+            [Op.or]: [
+              { event_id: targetEvent.id },
+              { event_id: targetEvent.slug || '' },
+              { event_id: targetEventId }
+            ]
+          }
+        });
+
+        if (!existingThisUser) {
+          const currentCount = await EventRegistration.count({
+            where: {
+              [Op.or]: [
+                { event_id: targetEvent.id },
+                { event_id: targetEvent.slug || '' },
+                { event_id: targetEventId },
+                { event_name: targetEvent.name }
+              ]
+            }
+          });
+
+          if (currentCount >= targetEvent.max_registrations) {
+            return res.status(400).json({ error: `Registration capacity reached for "${targetEvent.name}" (Limit: ${targetEvent.max_registrations} seats).` });
+          }
+        }
+      }
+    }
+
+    // 2. If User account already exists, sync college/branch if needed
     if (User) {
       const existingUser = await User.findOne({ where: { email: cleanEmail } });
       if (existingUser && !existingUser.college && cleanCollege) {
@@ -648,22 +931,23 @@ router.post('/register', async (req, res) => {
       }
     }
 
-    // 2. Record Event Registration in DB
+    // 3. Record Event Registration in DB
     let registration = await EventRegistration.findOne({
       where: {
         email: cleanEmail,
         [Op.or]: [
           { event_id: targetEventId },
-          { event_id: targetEventId.toLowerCase() }
+          { event_id: targetEventId.toLowerCase() },
+          ...(targetEvent ? [{ event_id: targetEvent.id }] : [])
         ]
       }
     });
 
     if (!registration) {
       registration = await EventRegistration.create({
-        event_id: targetEventId,
-        event_name: targetEventName,
-        user_id: user?.id || null,
+        event_id: targetEvent ? targetEvent.id : targetEventId,
+        event_name: targetEvent ? targetEvent.name : targetEventName,
+        user_id: req.user?.id || null,
         full_name: cleanName,
         email: cleanEmail,
         phone: cleanPhone,
@@ -685,7 +969,7 @@ router.post('/register', async (req, res) => {
       }).catch(() => {});
     }
 
-    // 3. Find Matching Quizzes for this Event
+    // 4. Find Matching Quizzes for this Event
     let matchingQuizzes = [];
 
     if (quizId) {
@@ -710,6 +994,7 @@ router.post('/register', async (req, res) => {
       const allQuizzes = await Quiz.findAll();
       matchingQuizzes = allQuizzes.filter(q =>
         q.event_id === targetEventId ||
+        (targetEvent && q.event_id === targetEvent.id) ||
         (q.event_name && (q.event_name.toLowerCase().includes(matchSearch) || matchSearch.includes(q.event_name.toLowerCase())))
       );
     }
@@ -741,10 +1026,10 @@ router.post('/register', async (req, res) => {
       });
     }
 
-    const primaryEventName = targetEventName || (matchingQuizzes[0]?.event_name) || 'MSC Event';
+    const primaryEventName = (targetEvent && targetEvent.name) || targetEventName || (matchingQuizzes[0]?.event_name) || 'MSC Event';
     const primaryDirectUrl = registeredTracks[0]?.direct_url || `${baseUrl}/login`;
 
-    // 4. Send Instant Confirmation Email
+    // 5. Send Instant Confirmation Email
     try {
       const tracksListHtml = registeredTracks.length > 0
         ? registeredTracks.map(t => `
@@ -793,7 +1078,7 @@ router.post('/register', async (req, res) => {
         year: cleanYear
       },
       participant: {
-        id: user.id,
+        id: req.user?.id || registration.id,
         name: cleanName,
         email: cleanEmail,
         college: cleanCollege

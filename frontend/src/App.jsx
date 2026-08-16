@@ -43,6 +43,7 @@ import AuthCallback from './pages/AuthCallback';
 import AdminEmailDispatch from './pages/AdminEmailDispatch';
 import AdminEvents from './pages/AdminEvents';
 import AdminUsers from './pages/AdminUsers';
+import EventRegister from './pages/EventRegister';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -137,6 +138,11 @@ export default function App() {
 
                 {/* Central OAuth 2.0 PKCE Callback Route */}
                 <Route path="/auth/callback" element={<AuthCallback />} />
+
+                {/* Public Event Registration Routes */}
+                <Route path="/register/:slug" element={<EventRegister />} />
+                <Route path="/event/:slug" element={<EventRegister />} />
+                <Route path="/events/:slug" element={<EventRegister />} />
 
                 {/* Student Auth Routes with Verification Portal Sync */}
                 <Route path="/login" element={<StudentAuth />} />

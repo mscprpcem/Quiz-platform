@@ -175,35 +175,34 @@ export default function Home() {
         <div className="absolute bottom-[-10%] left-[30%] w-[500px] h-[500px] rounded-full bg-purple-400/10 blur-[140px]"></div>
       </div>
 
-      <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 space-y-20 sm:space-y-24 relative z-10 py-10 sm:py-16">
+      <div className="max-w-6xl mx-auto w-full px-3.5 sm:px-6 space-y-12 sm:space-y-24 relative z-10 py-6 sm:py-16">
 
         {/* ════════ 1. HERO SECTION ════════ */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-16 items-center text-left">
-          <div className="lg:col-span-7 space-y-6">
-          
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 items-center text-left">
+          <div className="lg:col-span-7 space-y-5 sm:space-y-6">
 
-            <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-brand-textMain tracking-tight leading-[1.15]">
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-brand-textMain tracking-tight leading-tight sm:leading-[1.15]">
               Microsoft Student Club PRPCEM <br/>
               <span className="text-brand-blue bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600 text-transparent">
                 Quiz Platform
               </span>
             </h1>
 
-            <p className="text-sm sm:text-base text-brand-textMuted leading-relaxed">
+            <p className="text-xs sm:text-base text-brand-textMuted leading-relaxed">
               Participate in quizzes conducted during club events. Compete, learn, and excel. Built for students, developers, and tech enthusiasts.
             </p>
 
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
               <button 
                 onClick={() => scrollSection('join-quiz')}
-                className="flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer text-xs uppercase tracking-wide"
+                className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer text-xs uppercase tracking-wide"
               >
                 <span>Join Quiz</span>
                 <Play size={13} fill="currentColor" />
               </button>
               <button 
                 onClick={() => scrollSection('upcoming-quizzes')}
-                className="flex items-center justify-center space-x-2 bg-white hover:bg-zinc-50 border border-brand-border text-brand-textMain font-bold py-3.5 px-6 rounded-xl shadow-sm hover:shadow transition-all active:scale-95 cursor-pointer text-xs uppercase tracking-wide"
+                className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-white hover:bg-zinc-50 border border-brand-border text-brand-textMain font-bold py-3.5 px-6 rounded-xl shadow-sm hover:shadow transition-all active:scale-95 cursor-pointer text-xs uppercase tracking-wide"
               >
                 <span>Upcoming Events</span>
                 <Calendar size={13} />
@@ -217,28 +216,28 @@ export default function Home() {
               <div className="grid grid-cols-2 border-b border-brand-border bg-zinc-50">
                 <button 
                   onClick={() => { setJoinTab('code'); setJoinError(''); }}
-                  className={`py-2.5 sm:py-3 px-1 text-center text-xs font-bold leading-tight transition-all border-b-2 ${joinTab === 'code' ? 'border-brand-blue text-brand-blue bg-white' : 'border-transparent text-brand-textMuted hover:text-brand-textMain'}`}
+                  className={`py-2.5 sm:py-3 px-2 text-center text-xs font-bold leading-tight transition-all border-b-2 cursor-pointer ${joinTab === 'code' ? 'border-brand-blue text-brand-blue bg-white' : 'border-transparent text-brand-textMuted hover:text-brand-textMain'}`}
                 >
                   Enter Join Code
                 </button>
                 <button 
                   onClick={() => { setJoinTab('qr'); setJoinError(''); }}
-                  className={`py-2.5 sm:py-3 px-1 text-center text-xs font-bold leading-tight transition-all border-b-2 ${joinTab === 'qr' ? 'border-brand-blue text-brand-blue bg-white' : 'border-transparent text-brand-textMuted hover:text-brand-textMain'}`}
+                  className={`py-2.5 sm:py-3 px-2 text-center text-xs font-bold leading-tight transition-all border-b-2 cursor-pointer ${joinTab === 'qr' ? 'border-brand-blue text-brand-blue bg-white' : 'border-transparent text-brand-textMuted hover:text-brand-textMain'}`}
                 >
                   Scan QR Code
                 </button>
               </div>
 
-              <div className="p-6 sm:p-8 space-y-6">
+              <div className="p-4 sm:p-8 space-y-4 sm:space-y-6">
                 {joinError && (
-                  <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-2 rounded-xl text-xs font-semibold animate-fade-in">
+                  <div className="bg-red-50 border border-red-100 text-red-600 px-3.5 py-2 rounded-xl text-xs font-semibold animate-fade-in">
                     {joinError}
                   </div>
                 )}
 
                 {joinTab === 'code' && (
                   <form onSubmit={handleQuickJoinSubmit} className="space-y-4">
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <label htmlFor="quizCode" className="block text-[10px] font-bold text-brand-textMuted uppercase tracking-widest">
                         6-Digit Quiz Code
                       </label>
@@ -252,11 +251,11 @@ export default function Home() {
                           setJoinCode(e.target.value.toUpperCase());
                           setJoinError('');
                         }}
-                        className="block w-full border rounded-xl py-3.5 px-4 text-center font-black text-xl tracking-[0.35em] text-brand-textMain uppercase transition-all duration-200 placeholder:text-zinc-200 focus:bg-white focus:border-brand-blue focus:outline-none focus:ring-4 focus:ring-brand-blue/10 home-join-card-bg"
+                        className="block w-full border rounded-xl py-3 sm:py-3.5 px-3 sm:px-4 text-center font-black text-lg sm:text-xl tracking-[0.2em] sm:tracking-[0.35em] text-brand-textMain uppercase transition-all duration-200 placeholder:text-zinc-300 focus:bg-white focus:border-brand-blue focus:outline-none focus:ring-4 focus:ring-brand-blue/10 home-join-card-bg"
                       />
                     </div>
-                    <button type="submit" className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-xl shadow-md transition-all active:scale-95 cursor-pointer text-sm">
-                      Join
+                    <button type="submit" className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-xl shadow-md transition-all active:scale-95 cursor-pointer text-xs uppercase tracking-wider">
+                      Join Quiz
                     </button>
                   </form>
                 )}
@@ -271,7 +270,7 @@ export default function Home() {
                   <div className="text-center space-y-4 py-3">
                     <p className="text-xs text-brand-textMuted">Are you pre-registered for the event? Login to access your active event lobby.</p>
                     <button 
-                      onClick={() => navigate('/admin/login')}
+                      onClick={() => navigate('/login')}
                       className="flex items-center justify-center space-x-1.5 px-6 py-2.5 mx-auto bg-white border border-brand-border text-brand-blue hover:text-brand-dark hover:bg-zinc-50 font-bold rounded-xl shadow-sm transition-all active:scale-95 text-xs"
                     >
                       <span>Login Credentials</span>

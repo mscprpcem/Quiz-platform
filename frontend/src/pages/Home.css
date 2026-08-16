@@ -214,6 +214,7 @@
   .leaderboard-grid-wrapper {
     padding: 1rem !important;
     gap: 1rem !important;
+    border-radius: 1.25rem !important;
   }
 
   .leaderboard-top3-container {
@@ -221,9 +222,20 @@
     gap: 0.75rem !important;
   }
 
+  .medalist-card {
+    padding: 1.25rem 1rem !important;
+    border-radius: 1.25rem !important;
+  }
+
   .medalist-card-gold {
     order: -1 !important; /* Gold on top on single column mobile */
     transform: none !important;
+    border-width: 2px !important;
+  }
+
+  .leaderboard-runnerups-container {
+    padding: 0.875rem !important;
+    border-radius: 1.25rem !important;
   }
 
   .recent-events-grid {
@@ -231,26 +243,42 @@
     gap: 0.75rem !important;
   }
 
+  .recent-event-card {
+    padding: 1rem !important;
+    border-radius: 1.25rem !important;
+  }
+
   .verify-cert-card {
     padding: 1.25rem !important;
+    border-radius: 1.25rem !important;
   }
 
   .faq-question-btn {
     padding: 1rem !important;
   }
 
+  .faq-question-text {
+    font-size: 0.8125rem !important;
+  }
+
   .faq-answer-panel {
     padding: 0 1rem 1rem 1rem !important;
+    font-size: 0.75rem !important;
   }
 }
 
 @media (max-width: 480px) {
   .leaderboard-runnerup-row {
-    padding: 0.625rem !important;
+    padding: 0.625rem 0.75rem !important;
   }
 
   .recent-event-card {
+    padding: 0.875rem !important;
+  }
+
+  .feature-card-glow {
     padding: 1rem !important;
+    min-height: auto !important;
   }
 }
 

@@ -63,6 +63,9 @@ export default function EventSelector({
     venue: 'PRPCEM Campus & Virtual',
     poster_url: POSTER_GALLERY[0].url,
     description: '',
+    start_date: '',
+    end_date: '',
+    registration_end_date: '',
     rewards: 'Certificates & Swags'
   });
   const [creating, setCreating] = useState(false);
@@ -385,6 +388,33 @@ export default function EventSelector({
                     <option value="Offline">Offline (Campus)</option>
                     <option value="Online">Online (Virtual)</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Event Dates & Registration Deadline */}
+              <div className="grid grid-cols-2 gap-3 p-3 bg-purple-50/50 rounded-xl border border-purple-100">
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Event Starts On *
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={newEvent.start_date}
+                    onChange={(e) => setNewEvent({ ...newEvent, start_date: e.target.value })}
+                    className="w-full px-2.5 py-1.5 bg-white border border-purple-200 rounded-lg text-[11px] font-bold text-slate-800 outline-none focus:ring-2 focus:ring-purple-500"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                    Reg Deadline
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={newEvent.registration_end_date}
+                    onChange={(e) => setNewEvent({ ...newEvent, registration_end_date: e.target.value })}
+                    className="w-full px-2.5 py-1.5 bg-white border border-purple-200 rounded-lg text-[11px] font-bold text-slate-800 outline-none focus:ring-2 focus:ring-purple-500"
+                  />
                 </div>
               </div>
 

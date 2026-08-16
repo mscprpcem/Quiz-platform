@@ -16,11 +16,11 @@ export default function Footer() {
       {/* Top accent gradient line */}
       <div className="footer-top-accent"></div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12 relative z-10 text-left">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-8 md:gap-6 pb-10 border-b border-zinc-100">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12 relative z-10 text-left">
+        <div className="grid grid-cols-2 md:grid-cols-12 gap-6 md:gap-6 pb-8 sm:pb-10 border-b border-zinc-100">
           
-          {/* Column 1: Brand (Col span 4) */}
-          <div className="md:col-span-4 space-y-4">
+          {/* Column 1: Brand (Col span 12 on mobile, 4 on desktop) */}
+          <div className="col-span-2 md:col-span-4 space-y-3 sm:space-y-4">
             <div className="flex items-center gap-2.5">
               {/* Microsoft Colors Custom Grid Logo */}
               <div className="grid grid-cols-2 gap-[2px] w-4.5 h-4.5 flex-shrink-0">
@@ -30,7 +30,7 @@ export default function Footer() {
                 <div className="bg-[#FFB900] rounded-[0.5px]"></div>
               </div>
               <div className="text-left">
-                <span className="font-black text-sm tracking-wide text-brand-textMain uppercase block leading-none">Microsoft Student Club PRPCEM</span>
+                <span className="font-black text-xs sm:text-sm tracking-wide text-brand-textMain uppercase block leading-none">Microsoft Student Club PRPCEM</span>
                 <span className="font-extrabold text-[9px] text-brand-blue tracking-widest uppercase block mt-1">Quiz Platform</span>
               </div>
             </div>
@@ -43,10 +43,10 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Column 2: Club Ecosystem (Col span 2) */}
-          <div className="md:col-span-2 space-y-4">
+          {/* Column 2: Club Ecosystem (Col span 1 on mobile, 2 on desktop) */}
+          <div className="col-span-1 md:col-span-2 space-y-3 sm:space-y-4">
             <span className="footer-section-title">Club Ecosystem</span>
-            <ul className="space-y-2.5">
+            <ul className="space-y-2">
               <li>
                 <a href="https://www.mscprpcem.tech" target="_blank" rel="noopener noreferrer" className="footer-link flex items-center gap-1">
                   <span>Main Website</span>
@@ -57,40 +57,40 @@ export default function Footer() {
                 <Link to="/" className="footer-link">Quiz Platform</Link>
               </li>
               <li>
-                <Link to="/courses" className="footer-link">Courses (Coming Soon)</Link>
+                <Link to="/courses" className="footer-link">Courses</Link>
               </li>
             </ul>
           </div>
 
-          {/* Column 3: Resources (Col span 2) */}
-          <div className="md:col-span-2 space-y-4">
+          {/* Column 3: Resources (Col span 1 on mobile, 2 on desktop) */}
+          <div className="col-span-1 md:col-span-2 space-y-3 sm:space-y-4">
             <span className="footer-section-title">Resources</span>
-            <ul className="space-y-2.5">
+            <ul className="space-y-2">
               <li>
                 <Link to="/rules" className="footer-link">Quiz Rules</Link>
               </li>
               <li>
-                <Link to="/faq-details" className="footer-link">FAQ</Link>
+                <Link to="/faq" className="footer-link">FAQ</Link>
               </li>
               <li>
-                <Link to="/user-guide" className="footer-link">User Guide</Link>
+                <Link to="/guide" className="footer-link">User Guide</Link>
               </li>
               <li>
-                <Link to="/support-sla" className="footer-link">Support</Link>
+                <Link to="/sla" className="footer-link">Support</Link>
               </li>
               <li>
                 <Link to="/report-issue" className="footer-link">Report Issue</Link>
               </li>
               <li>
-                <Link to="/documentation" className="footer-link">Documentation</Link>
+                <Link to="/docs" className="footer-link">Documentation</Link>
               </li>
             </ul>
           </div>
 
-          {/* Column 4: Legal (Col span 2) */}
-          <div className="md:col-span-2 space-y-4">
+          {/* Column 4: Legal (Col span 1 on mobile, 2 on desktop) */}
+          <div className="col-span-1 md:col-span-2 space-y-3 sm:space-y-4">
             <span className="footer-section-title">Legal</span>
-            <ul className="space-y-2.5">
+            <ul className="space-y-2">
               <li>
                 <Link to="/privacy" className="footer-link">Privacy Policy</Link>
               </li>
@@ -112,10 +112,10 @@ export default function Footer() {
             </ul>
           </div>
 
-          {/* Column 5: Connect (Col span 2) */}
-          <div className="md:col-span-2 space-y-4">
+          {/* Column 5: Connect (Col span 1 on mobile, 2 on desktop) */}
+          <div className="col-span-1 md:col-span-2 space-y-3 sm:space-y-4">
             <span className="footer-section-title">Connect</span>
-            <ul className="space-y-2.5">
+            <ul className="space-y-2">
               <li>
                 <a href="https://linktr.ee/mscprpcem" target="_blank" rel="noopener noreferrer" className="footer-link font-bold text-brand-blue flex items-center gap-1">
                   <span>Linktree</span>
