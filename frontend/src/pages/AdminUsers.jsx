@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import api from '../services/api';
-import AdminLayout from '../components/AdminLayout';
 import {
   Users,
   Search,
@@ -58,38 +57,37 @@ export default function AdminUsers() {
   const [showBulkDeleteModal, setShowBulkDeleteModal] = useState(false);
 
   // Feedback State
-  const [copiedId, setCopiedId] = useState(null);
-  const [alertMsg, setAlertMsg] = useState(null); // { type: 'success' | 'error', text: '' }
+  const [alertMsg, setAlertMsg] = useState(null);
 
-  // Fetch Users from Backend
+  // Load Users from Backend Directory
   const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: limit.toString()
+      const res = await api.get('/api/users-directory', {
+        params: {
+          page,
+          limit,
+          search: search.trim() || undefined,
+          role: roleFilter !== 'all' ? roleFilter : undefined,
+          status: statusFilter !== 'all' ? statusFilter : undefined
+        }
       });
 
-      if (search.trim()) params.set('search', search.trim());
-      if (roleFilter !== 'all') params.set('role', roleFilter);
-      if (statusFilter !== 'all') params.set('status', statusFilter);
-
-      const res = await api.get(`/api/admin/users?${params.toString()}`);
-      if (res.data && res.data.users) {
-        setUsers(res.data.users);
-        setPagination(res.data.pagination || {
-          total: res.data.users.length,
-          totalPages: 1,
-          hasPrev: false,
-          hasNext: false
-        });
+      if (res.data?.success) {
+        setUsers(res.data.users || []);
         if (res.data.stats) {
           setStats(res.data.stats);
         }
+        if (res.data.pagination) {
+          setPagination(res.data.pagination);
+        }
       }
     } catch (err) {
-      console.error('Error loading users:', err);
-      showAlert('error', err.response?.data?.error || 'Failed to load user directory.');
+      console.error('Fetch users error:', err);
+      setAlertMsg({
+        type: 'error',
+        text: err.response?.data?.error || 'Failed to load user directory.'
+      });
     } finally {
       setLoading(false);
     }
@@ -99,17 +97,13 @@ export default function AdminUsers() {
     fetchUsers();
   }, [fetchUsers]);
 
-  // Reset page to 1 when filters or limit change
-  const handleLimitChange = (newLimit) => {
-    setLimit(newLimit);
-    setPage(1);
-  };
-
+  // Handle Search Input Change
   const handleSearchChange = (e) => {
     setSearch(e.target.value);
     setPage(1);
   };
 
+  // Handle Filter Changes
   const handleRoleFilterChange = (e) => {
     setRoleFilter(e.target.value);
     setPage(1);
@@ -120,108 +114,118 @@ export default function AdminUsers() {
     setPage(1);
   };
 
-  const showAlert = (type, text) => {
-    setAlertMsg({ type, text });
-    setTimeout(() => setAlertMsg(null), 4000);
+  const handleLimitChange = (newLimit) => {
+    setLimit(newLimit);
+    setPage(1);
   };
 
-  // Copy helper
-  const handleCopy = (text, id) => {
-    navigator.clipboard.writeText(text).then(() => {
-      setCopiedId(id);
-      setTimeout(() => setCopiedId(null), 1800);
-    });
+  // Toggle Single User Selection
+  const toggleSelectUser = (id) => {
+    setSelectedUserIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
   };
 
-  // Single User Deletion
-  const handleDeleteUser = async () => {
+  // Toggle Select All Users on Current Page
+  const toggleSelectAll = () => {
+    if (users.every((u) => selectedUserIds.includes(u.id))) {
+      setSelectedUserIds((prev) => prev.filter((id) => !users.some((u) => u.id === id)));
+    } else {
+      const currentPageIds = users.map((u) => u.id);
+      setSelectedUserIds((prev) => Array.from(new Set([...prev, ...currentPageIds])));
+    }
+  };
+
+  // Delete a single user
+  const handleDeleteSingle = async () => {
     if (!deleteTarget) return;
     try {
       setDeleting(true);
-      const res = await api.delete(`/api/admin/users/${deleteTarget.id}`);
-      showAlert('success', res.data?.message || 'User deleted successfully.');
-      setDeleteTarget(null);
-      setSelectedUserIds(prev => prev.filter(id => id !== deleteTarget.id));
-      fetchUsers();
+      const res = await api.delete(`/api/users-directory/${deleteTarget.id}`);
+      if (res.data?.success) {
+        setAlertMsg({
+          type: 'success',
+          text: `User "${deleteTarget.name || deleteTarget.email}" deleted successfully.`
+        });
+        setDeleteTarget(null);
+        setSelectedUserIds((prev) => prev.filter((id) => id !== deleteTarget.id));
+        fetchUsers();
+      }
     } catch (err) {
-      console.error('Error deleting user:', err);
-      showAlert('error', err.response?.data?.error || 'Failed to delete user.');
+      console.error('Delete user error:', err);
+      setAlertMsg({
+        type: 'error',
+        text: err.response?.data?.error || 'Failed to delete user.'
+      });
     } finally {
       setDeleting(false);
     }
   };
 
-  // Bulk Delete
+  // Bulk delete selected users
   const handleBulkDelete = async () => {
     if (selectedUserIds.length === 0) return;
     try {
       setBulkDeleting(true);
-      const res = await api.post('/api/admin/users/bulk-delete', {
+      const res = await api.post('/api/users-directory/bulk-delete', {
         userIds: selectedUserIds
       });
-      showAlert('success', res.data?.message || `Deleted ${selectedUserIds.length} users successfully.`);
-      setSelectedUserIds([]);
-      setShowBulkDeleteModal(false);
-      fetchUsers();
+
+      if (res.data?.success) {
+        setAlertMsg({
+          type: 'success',
+          text: `Successfully deleted ${res.data.deletedCount} user(s).`
+        });
+        setShowBulkDeleteModal(false);
+        setSelectedUserIds([]);
+        fetchUsers();
+      }
     } catch (err) {
       console.error('Bulk delete error:', err);
-      showAlert('error', err.response?.data?.error || 'Failed to bulk delete users.');
+      setAlertMsg({
+        type: 'error',
+        text: err.response?.data?.error || 'Failed to perform bulk delete.'
+      });
     } finally {
       setBulkDeleting(false);
     }
   };
 
-  // Toggle Single Selection
-  const toggleSelectUser = (id) => {
-    setSelectedUserIds(prev =>
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
-    );
-  };
-
-  // Toggle All Selection on current page
-  const toggleSelectAll = () => {
-    const currentPageIds = users.map(u => u.id);
-    const allSelected = currentPageIds.every(id => selectedUserIds.includes(id));
-    if (allSelected) {
-      setSelectedUserIds(prev => prev.filter(id => !currentPageIds.includes(id)));
-    } else {
-      setSelectedUserIds(prev => Array.from(new Set([...prev, ...currentPageIds])));
-    }
-  };
-
-  // Export to CSV
+  // Export Users as CSV
   const exportUsersCSV = () => {
     if (users.length === 0) {
-      alert('No user records to export.');
+      setAlertMsg({ type: 'error', text: 'No users available to export.' });
       return;
     }
-    const headers = ['Name', 'Username', 'Email', 'College', 'Role', 'Status', 'Joined Date'];
-    const rows = users.map(u => [
+
+    const headers = ['ID', 'Name', 'Email', 'College', 'Role', 'Status', 'PRN/Roll No', 'Created At'];
+    const rows = users.map((u) => [
+      `"${u.id || ''}"`,
       `"${(u.name || '').replace(/"/g, '""')}"`,
-      `"${(u.username || '').replace(/"/g, '""')}"`,
       `"${(u.email || '').replace(/"/g, '""')}"`,
       `"${(u.college || '').replace(/"/g, '""')}"`,
-      u.role || 'student',
-      u.is_verified ? 'Verified' : 'Pending',
-      u.createdAt ? new Date(u.createdAt).toISOString() : ''
+      `"${u.role || 'student'}"`,
+      `"${u.is_verified ? 'Verified' : 'Pending'}"`,
+      `"${u.roll_no || ''}"`,
+      `"${u.createdAt ? new Date(u.createdAt).toISOString() : ''}"`
     ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    const encodedUri = encodeURI(csvContent);
+    const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `MSC_PRPCEM_Users_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `msc_users_export_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
-  const startRecord = pagination.total === 0 ? 0 : (page - 1) * limit + 1;
+  const startRecord = (page - 1) * limit + (users.length > 0 ? 1 : 0);
   const endRecord = Math.min(page * limit, pagination.total);
 
   return (
-    <AdminLayout>
-      <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6 font-segoe text-slate-800 text-left">
+    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6 font-segoe text-slate-800 text-left">
         
         {/* Toast Alert Banner */}
         {alertMsg && (
@@ -745,6 +749,5 @@ export default function AdminUsers() {
         )}
 
       </div>
-    </AdminLayout>
   );
 }
