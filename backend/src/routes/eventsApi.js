@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const multer = require('multer');
 const { Event, Quiz, Question, Participant, QuizAttempt, ScheduledOccurrence, User, EventRegistration } = require('../models');
+const { ensureEventsTableSchema } = require('../services/schemaMigration');
 const { sendCustomBroadcastEmail } = require('../services/emailService');
 const { uploadImageToAzureBlob } = require('../services/azureBlobService');
 const { Op } = require('sequelize');
@@ -139,6 +140,9 @@ router.get('/', async (req, res) => {
       const isEventDateEnded = ev.end_date 
         ? new Date(ev.end_date) < now 
         : (ev.start_date ? new Date(ev.start_date) < now : false);
+
+      const isRegNotStartedYet = ev.registration_start_date ? new Date(ev.registration_start_date) > now : false;
+      const isCapacityFull = maxRegs !== null && maxRegs !== undefined && regCount >= maxRegs;
 
       const computedStatus = (ev.status === 'completed' || ev.status === 'past' || isEventDateEnded)
         ? 'completed'
@@ -328,6 +332,9 @@ router.get('/details/:idOrSlug', async (req, res) => {
       ? new Date(event.end_date) < now 
       : (event.start_date ? new Date(event.start_date) < now : false);
 
+    const isRegNotStartedYet = event.registration_start_date ? new Date(event.registration_start_date) > now : false;
+    const isCapacityFull = maxRegs !== null && maxRegs !== undefined && regCount >= maxRegs;
+
     const computedStatus = (event.status === 'completed' || event.status === 'past' || isEventDateEnded)
       ? 'completed'
       : (event.status || 'upcoming');
@@ -472,24 +479,52 @@ router.post('/', adminAuth, async (req, res) => {
       return res.status(400).json({ error: 'Event End Date & Time cannot be earlier than Event Start Date & Time.' });
     }
 
-    const newEvent = await Event.create({
-      name: cleanName,
-      slug: cleanSlug,
-      description: description ? description.trim() : `Official technical event and challenges for ${cleanName}.`,
-      poster_url: finalPoster,
-      category: category || 'Innovation Challenge',
-      mode: mode || 'Hybrid',
-      venue: venue || 'PRPCEM Campus & Virtual',
-      start_date: parsedStartDate,
-      end_date: parsedEndDate,
-      registration_start_date: parsedRegStartDate,
-      registration_end_date: parsedRegEndDate,
-      max_registrations: parsedMaxRegs,
-      fee: fee || 'Free',
-      is_registration_open: is_registration_open !== false,
-      rewards: rewards || 'Certificates & Swags',
-      status: status || 'upcoming'
-    });
+    let newEvent;
+    try {
+      newEvent = await Event.create({
+        name: cleanName,
+        slug: cleanSlug,
+        description: description ? description.trim() : `Official technical event and challenges for ${cleanName}.`,
+        poster_url: finalPoster,
+        category: category || 'Innovation Challenge',
+        mode: mode || 'Hybrid',
+        venue: venue || 'PRPCEM Campus & Virtual',
+        start_date: parsedStartDate,
+        end_date: parsedEndDate,
+        registration_start_date: parsedRegStartDate,
+        registration_end_date: parsedRegEndDate,
+        max_registrations: parsedMaxRegs,
+        fee: fee || 'Free',
+        is_registration_open: is_registration_open !== false,
+        rewards: rewards || 'Certificates & Swags',
+        status: status || 'upcoming'
+      });
+    } catch (createErr) {
+      if (createErr.message && (/is_registration_open/i.test(createErr.message) || /column.*does not exist/i.test(createErr.message) || /no such column/i.test(createErr.message))) {
+        console.warn('⚠️ Missing column detected in Events table. Running on-the-fly schema repair...');
+        await ensureEventsTableSchema(Event.sequelize);
+        newEvent = await Event.create({
+          name: cleanName,
+          slug: cleanSlug,
+          description: description ? description.trim() : `Official technical event and challenges for ${cleanName}.`,
+          poster_url: finalPoster,
+          category: category || 'Innovation Challenge',
+          mode: mode || 'Hybrid',
+          venue: venue || 'PRPCEM Campus & Virtual',
+          start_date: parsedStartDate,
+          end_date: parsedEndDate,
+          registration_start_date: parsedRegStartDate,
+          registration_end_date: parsedRegEndDate,
+          max_registrations: parsedMaxRegs,
+          fee: fee || 'Free',
+          is_registration_open: is_registration_open !== false,
+          rewards: rewards || 'Certificates & Swags',
+          status: status || 'upcoming'
+        });
+      } else {
+        throw createErr;
+      }
+    }
 
     res.json({
       success: true,
@@ -523,18 +558,38 @@ router.put('/:id', adminAuth, async (req, res) => {
     if (!event) {
       const staticMatch = staticEvents.find(s => s.id === id || (s.title && s.title.toLowerCase() === id.toLowerCase()));
       if (staticMatch) {
-        event = await Event.create({
-          name: staticMatch.title,
-          slug: staticMatch.id,
-          description: staticMatch.description,
-          poster_url: resolveEventPoster(staticMatch.poster, staticMatch.title),
-          category: staticMatch.category || 'Technical Workshop',
-          mode: staticMatch.mode || 'Offline',
-          venue: staticMatch.venue || 'PRPCEM Campus',
-          start_date: staticMatch.startDate ? new Date(staticMatch.startDate) : new Date(),
-          rewards: staticMatch.rewards || 'Certificates & Swags',
-          status: staticMatch.status || 'past'
-        });
+        try {
+          event = await Event.create({
+            name: staticMatch.title,
+            slug: staticMatch.id,
+            description: staticMatch.description,
+            poster_url: resolveEventPoster(staticMatch.poster, staticMatch.title),
+            category: staticMatch.category || 'Technical Workshop',
+            mode: staticMatch.mode || 'Offline',
+            venue: staticMatch.venue || 'PRPCEM Campus',
+            start_date: staticMatch.startDate ? new Date(staticMatch.startDate) : new Date(),
+            rewards: staticMatch.rewards || 'Certificates & Swags',
+            status: staticMatch.status || 'past'
+          });
+        } catch (staticCreateErr) {
+          if (staticCreateErr.message && (/is_registration_open/i.test(staticCreateErr.message) || /column.*does not exist/i.test(staticCreateErr.message) || /no such column/i.test(staticCreateErr.message))) {
+            await ensureEventsTableSchema(Event.sequelize);
+            event = await Event.create({
+              name: staticMatch.title,
+              slug: staticMatch.id,
+              description: staticMatch.description,
+              poster_url: resolveEventPoster(staticMatch.poster, staticMatch.title),
+              category: staticMatch.category || 'Technical Workshop',
+              mode: staticMatch.mode || 'Offline',
+              venue: staticMatch.venue || 'PRPCEM Campus',
+              start_date: staticMatch.startDate ? new Date(staticMatch.startDate) : new Date(),
+              rewards: staticMatch.rewards || 'Certificates & Swags',
+              status: staticMatch.status || 'past'
+            });
+          } else {
+            throw staticCreateErr;
+          }
+        }
       } else {
         return res.status(404).json({ error: 'Event not found.' });
       }
@@ -590,7 +645,17 @@ router.put('/:id', adminAuth, async (req, res) => {
       return res.status(400).json({ error: 'Event End Date & Time cannot be earlier than Event Start Date & Time.' });
     }
 
-    await event.save();
+    try {
+      await event.save();
+    } catch (saveErr) {
+      if (saveErr.message && (/is_registration_open/i.test(saveErr.message) || /column.*does not exist/i.test(saveErr.message) || /no such column/i.test(saveErr.message))) {
+        console.warn('⚠️ Missing column detected on event save. Running on-the-fly schema repair...');
+        await ensureEventsTableSchema(Event.sequelize);
+        await event.save();
+      } else {
+        throw saveErr;
+      }
+    }
 
     res.json({
       success: true,
