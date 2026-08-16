@@ -523,6 +523,14 @@ router.delete('/registrations/:regId', adminAuth, async (req, res) => {
   }
 });
 
+// Helper: Sanitize event status to prevent PostgreSQL enum mismatch
+const sanitizeEventStatus = (statusVal) => {
+  if (!statusVal) return 'upcoming';
+  const clean = String(statusVal).toLowerCase().trim();
+  if (clean === 'past') return 'completed';
+  return clean;
+};
+
 // ----------------------------------------------------
 // POST /api/events (Create a New Event in Admin Panel)
 // ----------------------------------------------------
@@ -573,6 +581,8 @@ router.post('/', adminAuth, async (req, res) => {
       return res.status(400).json({ error: 'Event End Date & Time cannot be earlier than Event Start Date & Time.' });
     }
 
+    const cleanStatus = sanitizeEventStatus(status);
+
     let newEvent;
     try {
       newEvent = await Event.create({
@@ -592,11 +602,11 @@ router.post('/', adminAuth, async (req, res) => {
         fee: fee || 'Free',
         is_registration_open: is_registration_open !== false,
         rewards: rewards || 'Certificates & Swags',
-        status: status || 'upcoming'
+        status: cleanStatus
       });
     } catch (createErr) {
-      if (createErr.message && (/is_registration_open/i.test(createErr.message) || /initial_registration_count/i.test(createErr.message) || /column.*does not exist/i.test(createErr.message) || /no such column/i.test(createErr.message))) {
-        console.warn('⚠️ Missing column detected in Events table. Running on-the-fly schema repair...');
+      if (createErr.message && (/enum_Events_status/i.test(createErr.message) || /is_registration_open/i.test(createErr.message) || /initial_registration_count/i.test(createErr.message) || /column.*does not exist/i.test(createErr.message) || /no such column/i.test(createErr.message))) {
+        console.warn('⚠️ Missing column or enum constraint detected in Events table. Running on-the-fly schema repair...');
         await ensureEventsTableSchema(Event.sequelize);
         newEvent = await Event.create({
           name: cleanName,
@@ -615,7 +625,7 @@ router.post('/', adminAuth, async (req, res) => {
           fee: fee || 'Free',
           is_registration_open: is_registration_open !== false,
           rewards: rewards || 'Certificates & Swags',
-          status: status || 'upcoming'
+          status: cleanStatus === 'past' ? 'completed' : cleanStatus
         });
       } else {
         throw createErr;
@@ -652,35 +662,45 @@ router.put('/:id', adminAuth, async (req, res) => {
     
     // If updating a static event that was in JSON, migrate it into DB
     if (!event) {
-      const staticMatch = staticEvents.find(s => s.id === id || (s.title && s.title.toLowerCase() === id.toLowerCase()));
+      const staticMatch = staticEvents.find(s => s.id === id || (s.title && s.title.toLowerCase() === id.toLowerCase()) || (s.id && s.id.toLowerCase() === id.toLowerCase()));
       if (staticMatch) {
+        const initialDate = staticMatch.startDate
+          ? new Date(staticMatch.startDate)
+          : (staticMatch.date && !isNaN(new Date(staticMatch.date).getTime()) ? new Date(staticMatch.date) : new Date());
+        const initialEndDate = staticMatch.endDate
+          ? new Date(staticMatch.endDate)
+          : null;
+        const initialStatus = sanitizeEventStatus(staticMatch.status);
+
         try {
           event = await Event.create({
-            name: staticMatch.title,
+            name: staticMatch.title || staticMatch.name,
             slug: staticMatch.id,
             description: staticMatch.description,
             poster_url: resolveEventPoster(staticMatch.poster, staticMatch.title),
             category: staticMatch.category || 'Technical Workshop',
             mode: staticMatch.mode || 'Offline',
             venue: staticMatch.venue || 'PRPCEM Campus',
-            start_date: staticMatch.startDate ? new Date(staticMatch.startDate) : new Date(),
+            start_date: initialDate,
+            end_date: initialEndDate,
             rewards: staticMatch.rewards || 'Certificates & Swags',
-            status: staticMatch.status || 'past'
+            status: initialStatus
           });
         } catch (staticCreateErr) {
-          if (staticCreateErr.message && (/is_registration_open/i.test(staticCreateErr.message) || /column.*does not exist/i.test(staticCreateErr.message) || /no such column/i.test(staticCreateErr.message))) {
+          if (staticCreateErr.message && (/enum_Events_status/i.test(staticCreateErr.message) || /is_registration_open/i.test(staticCreateErr.message) || /column.*does not exist/i.test(staticCreateErr.message) || /no such column/i.test(staticCreateErr.message))) {
             await ensureEventsTableSchema(Event.sequelize);
             event = await Event.create({
-              name: staticMatch.title,
+              name: staticMatch.title || staticMatch.name,
               slug: staticMatch.id,
               description: staticMatch.description,
               poster_url: resolveEventPoster(staticMatch.poster, staticMatch.title),
               category: staticMatch.category || 'Technical Workshop',
               mode: staticMatch.mode || 'Offline',
               venue: staticMatch.venue || 'PRPCEM Campus',
-              start_date: staticMatch.startDate ? new Date(staticMatch.startDate) : new Date(),
+              start_date: initialDate,
+              end_date: initialEndDate,
               rewards: staticMatch.rewards || 'Certificates & Swags',
-              status: staticMatch.status || 'past'
+              status: initialStatus === 'past' ? 'completed' : initialStatus
             });
           } else {
             throw staticCreateErr;
@@ -726,10 +746,42 @@ router.put('/:id', adminAuth, async (req, res) => {
     if (category !== undefined) event.category = category;
     if (mode !== undefined) event.mode = mode;
     if (venue !== undefined) event.venue = venue;
-    if (start_date !== undefined) event.start_date = start_date ? new Date(start_date) : null;
-    if (end_date !== undefined) event.end_date = end_date ? new Date(end_date) : null;
-    if (registration_start_date !== undefined) event.registration_start_date = registration_start_date ? new Date(registration_start_date) : null;
-    if (registration_end_date !== undefined) event.registration_end_date = registration_end_date ? new Date(registration_end_date) : null;
+    
+    // Preserve existing dates if empty or not provided
+    if (start_date !== undefined && start_date !== null && String(start_date).trim() !== '') {
+      const parsed = new Date(start_date);
+      if (!isNaN(parsed.getTime())) {
+        event.start_date = parsed;
+      }
+    } else if (!event.start_date && (req.body.date || req.body.startDate)) {
+      const fallbackDate = new Date(req.body.startDate || req.body.date);
+      if (!isNaN(fallbackDate.getTime())) {
+        event.start_date = fallbackDate;
+      }
+    }
+
+    if (end_date !== undefined && end_date !== null && String(end_date).trim() !== '') {
+      const parsed = new Date(end_date);
+      if (!isNaN(parsed.getTime())) {
+        event.end_date = parsed;
+      }
+    } else if (!event.end_date && req.body.endDate) {
+      const fallbackEnd = new Date(req.body.endDate);
+      if (!isNaN(fallbackEnd.getTime())) {
+        event.end_date = fallbackEnd;
+      }
+    }
+
+    if (registration_start_date !== undefined && registration_start_date !== null && String(registration_start_date).trim() !== '') {
+      const parsed = new Date(registration_start_date);
+      if (!isNaN(parsed.getTime())) event.registration_start_date = parsed;
+    }
+
+    if (registration_end_date !== undefined && registration_end_date !== null && String(registration_end_date).trim() !== '') {
+      const parsed = new Date(registration_end_date);
+      if (!isNaN(parsed.getTime())) event.registration_end_date = parsed;
+    }
+
     if (max_registrations !== undefined) {
       event.max_registrations = max_registrations !== '' && max_registrations !== null ? parseInt(max_registrations, 10) : null;
     }
@@ -739,7 +791,9 @@ router.put('/:id', adminAuth, async (req, res) => {
     if (fee !== undefined) event.fee = fee || 'Free';
     if (is_registration_open !== undefined) event.is_registration_open = Boolean(is_registration_open);
     if (rewards !== undefined) event.rewards = rewards;
-    if (status !== undefined) event.status = status;
+    if (status !== undefined) {
+      event.status = sanitizeEventStatus(status);
+    }
 
     if (event.start_date && event.end_date && new Date(event.end_date) < new Date(event.start_date)) {
       return res.status(400).json({ error: 'Event End Date & Time cannot be earlier than Event Start Date & Time.' });
@@ -748,9 +802,10 @@ router.put('/:id', adminAuth, async (req, res) => {
     try {
       await event.save();
     } catch (saveErr) {
-      if (saveErr.message && (/is_registration_open/i.test(saveErr.message) || /initial_registration_count/i.test(saveErr.message) || /column.*does not exist/i.test(saveErr.message) || /no such column/i.test(saveErr.message))) {
-        console.warn('⚠️ Missing column detected on event save. Running on-the-fly schema repair...');
+      if (saveErr.message && (/enum_Events_status/i.test(saveErr.message) || /is_registration_open/i.test(saveErr.message) || /initial_registration_count/i.test(saveErr.message) || /column.*does not exist/i.test(saveErr.message) || /no such column/i.test(saveErr.message))) {
+        console.warn('⚠️ Missing column or enum constraint on event save. Running on-the-fly schema repair...');
         await ensureEventsTableSchema(Event.sequelize);
+        event.status = sanitizeEventStatus(event.status);
         await event.save();
       } else {
         throw saveErr;

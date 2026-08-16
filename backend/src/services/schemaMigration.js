@@ -111,6 +111,22 @@ async function runAutoMigrations(sequelize) {
     `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}rewards${quote} VARCHAR(255) DEFAULT 'Certificates & Swags';`,
     `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}status${quote} VARCHAR(255) DEFAULT 'upcoming';`,
 
+    // PostgreSQL Enum Self-Healing for enum_Events_status
+    ...(isPostgres ? [
+      `ALTER TYPE "enum_Events_status" ADD VALUE IF NOT EXISTS 'past';`,
+      `ALTER TYPE "enum_Events_status" ADD VALUE IF NOT EXISTS 'completed';`,
+      `ALTER TYPE "enum_Events_status" ADD VALUE IF NOT EXISTS 'upcoming';`,
+      `ALTER TYPE "enum_Events_status" ADD VALUE IF NOT EXISTS 'live';`,
+      `ALTER TYPE "enum_Events_status" ADD VALUE IF NOT EXISTS 'active';`,
+      `ALTER TYPE enum_events_status ADD VALUE IF NOT EXISTS 'past';`,
+      `ALTER TYPE enum_events_status ADD VALUE IF NOT EXISTS 'completed';`,
+      `ALTER TYPE enum_events_status ADD VALUE IF NOT EXISTS 'upcoming';`,
+      `ALTER TYPE enum_events_status ADD VALUE IF NOT EXISTS 'live';`,
+      `ALTER TYPE enum_events_status ADD VALUE IF NOT EXISTS 'active';`,
+      `ALTER TABLE "Events" ALTER COLUMN "status" TYPE VARCHAR(255) USING "status"::VARCHAR(255);`,
+      `ALTER TABLE IF EXISTS events ALTER COLUMN status TYPE VARCHAR(255) USING status::VARCHAR(255);`
+    ] : []),
+
     // ═══════════════════════════════════════════
     // 6. EventRegistrations Table
     // ═══════════════════════════════════════════
@@ -235,6 +251,18 @@ async function ensureEventsTableSchema(sequelize) {
     `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}rewards${quote} VARCHAR(255) DEFAULT 'Certificates & Swags';`,
     `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}status${quote} VARCHAR(255) DEFAULT 'upcoming';`,
     ...(isPostgres ? [
+      `ALTER TYPE "enum_Events_status" ADD VALUE IF NOT EXISTS 'past';`,
+      `ALTER TYPE "enum_Events_status" ADD VALUE IF NOT EXISTS 'completed';`,
+      `ALTER TYPE "enum_Events_status" ADD VALUE IF NOT EXISTS 'upcoming';`,
+      `ALTER TYPE "enum_Events_status" ADD VALUE IF NOT EXISTS 'live';`,
+      `ALTER TYPE "enum_Events_status" ADD VALUE IF NOT EXISTS 'active';`,
+      `ALTER TYPE enum_events_status ADD VALUE IF NOT EXISTS 'past';`,
+      `ALTER TYPE enum_events_status ADD VALUE IF NOT EXISTS 'completed';`,
+      `ALTER TYPE enum_events_status ADD VALUE IF NOT EXISTS 'upcoming';`,
+      `ALTER TYPE enum_events_status ADD VALUE IF NOT EXISTS 'live';`,
+      `ALTER TYPE enum_events_status ADD VALUE IF NOT EXISTS 'active';`,
+      `ALTER TABLE "Events" ALTER COLUMN "status" TYPE VARCHAR(255) USING "status"::VARCHAR(255);`,
+      `ALTER TABLE IF EXISTS events ALTER COLUMN status TYPE VARCHAR(255) USING status::VARCHAR(255);`,
       `ALTER TABLE IF EXISTS events ADD COLUMN IF NOT EXISTS is_registration_open BOOLEAN DEFAULT TRUE;`,
       `ALTER TABLE IF EXISTS events ADD COLUMN IF NOT EXISTS max_registrations INTEGER;`,
       `ALTER TABLE IF EXISTS events ADD COLUMN IF NOT EXISTS initial_registration_count INTEGER DEFAULT 0;`,

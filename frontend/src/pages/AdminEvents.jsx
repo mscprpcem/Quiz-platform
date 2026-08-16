@@ -58,9 +58,13 @@ const formatToDateTimeLocal = (dateVal) => {
   const year = d.getFullYear();
   const month = pad(d.getMonth() + 1);
   const day = pad(d.getDate());
-  const hours = pad(d.getHours());
-  const minutes = pad(d.getMinutes());
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
+  let hours = d.getHours();
+  let minutes = d.getMinutes();
+  if (hours === 0 && minutes === 0 && typeof dateVal === 'string' && !dateVal.includes(':')) {
+    hours = 10;
+    minutes = 0;
+  }
+  return `${year}-${month}-${day}T${pad(hours)}:${pad(minutes)}`;
 };
 
 // Helper: Format readable date time string
@@ -118,10 +122,10 @@ export default function AdminEvents() {
   const [loadingRegs, setLoadingRegs] = useState(false);
   const [regsSearch, setRegsSearch] = useState('');
   const [regsPage, setRegsPage] = useState(1);
-  const [regsLimit, setRegsLimit] = useState(10);
+  const [regsLimit, setRegsLimit] = useState(25);
   const [copyFeedback, setCopyFeedback] = useState(null);
 
-  // Events Grid Pagination (9 events per page)
+  // Pagination for Events List (9 items per page)
   const [eventsPage, setEventsPage] = useState(1);
   const [eventsLimit, setEventsLimit] = useState(9);
 
@@ -259,24 +263,29 @@ export default function AdminEvents() {
 
   const openEditModal = (ev) => {
     setEditingEvent(ev);
+    const resolvedStartDate = ev.start_date || ev.startDate || ev.date || (ev.source === 'json' ? ev.startDate : null);
+    const resolvedEndDate = ev.end_date || ev.endDate || null;
+    const resolvedRegStart = ev.registration_start_date || null;
+    const resolvedRegEnd = ev.registration_end_date || null;
+
     setFormData({
-      name: ev.name || '',
-      slug: ev.slug || (ev.name ? ev.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : ''),
+      name: ev.name || ev.title || '',
+      slug: ev.slug || ev.id || (ev.name ? ev.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : ''),
       category: ev.category || 'Technical Workshop',
       mode: ev.mode || 'Offline',
       venue: ev.venue || 'PRPCEM Amravati',
-      poster_url: ev.poster_url || POSTER_GALLERY[0].url,
+      poster_url: ev.poster_url || ev.poster || POSTER_GALLERY[0].url,
       description: ev.description || '',
-      start_date: formatToDateTimeLocal(ev.start_date),
-      end_date: formatToDateTimeLocal(ev.end_date),
-      registration_start_date: formatToDateTimeLocal(ev.registration_start_date),
-      registration_end_date: formatToDateTimeLocal(ev.registration_end_date),
+      start_date: formatToDateTimeLocal(resolvedStartDate),
+      end_date: formatToDateTimeLocal(resolvedEndDate),
+      registration_start_date: formatToDateTimeLocal(resolvedRegStart),
+      registration_end_date: formatToDateTimeLocal(resolvedRegEnd),
       max_registrations: ev.max_registrations !== null && ev.max_registrations !== undefined ? String(ev.max_registrations) : '',
       initial_registration_count: ev.initial_registration_count !== undefined && ev.initial_registration_count !== null ? String(ev.initial_registration_count) : '0',
       fee: ev.fee || 'Free',
       is_registration_open: ev.is_registration_open !== false,
       rewards: ev.rewards || 'Certificates & Swags',
-      status: ev.status || 'upcoming'
+      status: (ev.status === 'past' || ev.status === 'completed') ? 'completed' : (ev.status || 'upcoming')
     });
     setErrorMsg('');
     setModalOpen(true);
@@ -364,14 +373,35 @@ export default function AdminEvents() {
       setSubmitting(true);
       setErrorMsg('');
 
+      const resolvedStartIso = formData.start_date
+        ? new Date(formData.start_date).toISOString()
+        : (editingEvent?.start_date || editingEvent?.startDate ? new Date(editingEvent.start_date || editingEvent.startDate).toISOString() : null);
+
+      const resolvedEndIso = formData.end_date
+        ? new Date(formData.end_date).toISOString()
+        : (editingEvent?.end_date || editingEvent?.endDate ? new Date(editingEvent.end_date || editingEvent.endDate).toISOString() : null);
+
+      const resolvedRegStartIso = formData.registration_start_date
+        ? new Date(formData.registration_start_date).toISOString()
+        : (editingEvent?.registration_start_date ? new Date(editingEvent.registration_start_date).toISOString() : null);
+
+      const resolvedRegEndIso = formData.registration_end_date
+        ? new Date(formData.registration_end_date).toISOString()
+        : (editingEvent?.registration_end_date ? new Date(editingEvent.registration_end_date).toISOString() : null);
+
+      const cleanStatus = (formData.status === 'past' || formData.status === 'completed')
+        ? 'completed'
+        : (formData.status || 'upcoming');
+
       const payload = {
         ...formData,
-        start_date: formData.start_date ? new Date(formData.start_date).toISOString() : null,
-        end_date: formData.end_date ? new Date(formData.end_date).toISOString() : null,
-        registration_start_date: formData.registration_start_date ? new Date(formData.registration_start_date).toISOString() : null,
-        registration_end_date: formData.registration_end_date ? new Date(formData.registration_end_date).toISOString() : null,
-        max_registrations: formData.max_registrations ? parseInt(formData.max_registrations, 10) : null,
-        initial_registration_count: formData.initial_registration_count !== '' ? parseInt(formData.initial_registration_count, 10) : 0
+        start_date: resolvedStartIso,
+        end_date: resolvedEndIso,
+        registration_start_date: resolvedRegStartIso,
+        registration_end_date: resolvedRegEndIso,
+        max_registrations: formData.max_registrations !== '' && formData.max_registrations !== null ? parseInt(formData.max_registrations, 10) : null,
+        initial_registration_count: formData.initial_registration_count !== '' && formData.initial_registration_count !== null ? parseInt(formData.initial_registration_count, 10) : 0,
+        status: cleanStatus
       };
 
       if (editingEvent && !editingEvent.id.startsWith('auto-')) {
