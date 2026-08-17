@@ -252,7 +252,7 @@ const sendOtpEmail = async ({ to, name, otp, type = 'registration' }) => {
     title: heading,
     preheader: `Your verification code is ${otp}. Valid for 15 minutes.`,
     content: `
-      <p style="margin-top: 0;">Dear <strong>${userName}</strong>,</p>
+      <p style="margin-top: 0;">Hello <strong>${userName}</strong>,</p>
       <p>${description}</p>
       
       <!-- OTP Box -->
@@ -275,7 +275,7 @@ const sendOtpEmail = async ({ to, name, otp, type = 'registration' }) => {
     `
   });
 
-  const plainText = `Dear ${userName},\n\nYour 6-digit verification code is: ${otp}\n\nThis code is valid for 15 minutes.\nIf you did not request this code, please ignore this email.\n\n—\nMicrosoft Student Club\nP.R. Pote Patil College of Engineering & Management, Amravati\nSupport: ${replyToAddr}`;
+  const plainText = `Hello ${userName},\n\nYour 6-digit verification code is: ${otp}\n\nThis code is valid for 15 minutes.\nIf you did not request this code, please ignore this email.\n\n—\nMicrosoft Student Club\nP.R. Pote Patil College of Engineering & Management, Amravati\nSupport: ${replyToAddr}`;
 
   return transport.sendMail({
     from: fromAddr,
@@ -308,7 +308,7 @@ const sendQuizReminderEmail = async ({ to, name, quizTitle, eventName, startTime
     title: 'Upcoming Quiz Reminder',
     preheader: `Reminder: ${quizTitle} is scheduled for ${dateStr}.`,
     content: `
-      <p style="margin-top: 0;">Dear <strong>${userName}</strong>,</p>
+      <p style="margin-top: 0;">Hello <strong>${userName}</strong>,</p>
       <p>Get ready! The scheduled challenge <strong>${quizTitle}</strong> (${eventName || 'MSC Tech Challenge'}) is starting soon.</p>
       
       <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
@@ -336,7 +336,7 @@ const sendQuizReminderEmail = async ({ to, name, quizTitle, eventName, startTime
     `
   });
 
-  const plainText = `Dear ${userName},\n\nYour quiz "${quizTitle}" is starting at ${dateStr} (IST).\nJoin Code: ${joinCode || 'LIVE'}\nDirect Link: ${directUrl}\n\nGood luck!\n\n—\nMicrosoft Student Club\nP.R. Pote Patil College of Engineering & Management, Amravati`;
+  const plainText = `Hello ${userName},\n\nYour quiz "${quizTitle}" is starting at ${dateStr} (IST).\nJoin Code: ${joinCode || 'LIVE'}\nDirect Link: ${directUrl}\n\nGood luck!\n\n—\nMicrosoft Student Club\nP.R. Pote Patil College of Engineering & Management, Amravati`;
 
   return transport.sendMail({
     from: fromAddr,
@@ -380,11 +380,29 @@ const sendCustomBroadcastEmail = async ({ to, recipientName, subject, heading, m
     `;
   }
 
+  // Check if messageHtml already contains an opening greeting (e.g. "Hello John,", "Dear John,", "Hi John,")
+  // to avoid displaying duplicate greetings.
+  const cleanContent = (messageHtml || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&[a-z0-9#]+;/gi, ' ')
+    .trim();
+
+  const hasLeadingGreeting = /^(hello|dear|hi|hey|greetings|welcome)\b/i.test(cleanContent);
+
+  const greetingHtml = hasLeadingGreeting
+    ? ''
+    : `<p style="margin-top: 0;">Hello <strong>${userName}</strong>,</p>`;
+
+  const greetingPlainText = hasLeadingGreeting
+    ? ''
+    : `Hello ${userName},\n\n`;
+
   const html = renderHtmlWrapper({
     title: heading || subject || 'MSC PRPCEM Announcement',
     preheader: subject,
     content: `
-      <p style="margin-top: 0;">Dear <strong>${userName}</strong>,</p>
+      ${greetingHtml}
       <div style="font-size: 15px; color: #334155; line-height: 1.7; margin: 16px 0;">
         ${messageHtml}
       </div>
@@ -392,7 +410,7 @@ const sendCustomBroadcastEmail = async ({ to, recipientName, subject, heading, m
     `
   });
 
-  const plainText = `Dear ${userName},\n\n${messageHtml.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ')}\n\n${ctaText && ctaUrl ? `${ctaText}: ${ctaUrl}\n\n` : ''}—\nMicrosoft Student Club\nP.R. Pote Patil College of Engineering & Management, Amravati\nSupport: ${replyToAddr}`;
+  const plainText = `${greetingPlainText}${messageHtml.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim()}\n\n${ctaText && ctaUrl ? `${ctaText}: ${ctaUrl}\n\n` : ''}—\nMicrosoft Student Club\nP.R. Pote Patil College of Engineering & Management, Amravati\nSupport: ${replyToAddr}`;
 
   return transport.sendMail({
     from: fromAddr,

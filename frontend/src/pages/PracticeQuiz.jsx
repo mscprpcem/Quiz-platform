@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Trophy, HelpCircle, Clock, ShieldAlert, Award, ChevronLeft, ChevronRight, RotateCcw, Home, Flag, CheckCircle, AlertCircle, BookOpen, Layers, ShieldCheck, ExternalLink, ArrowRight, Check } from 'lucide-react';
+import { Trophy, HelpCircle, Clock, ShieldAlert, Award, ChevronLeft, ChevronRight, RotateCcw, Home, Flag, CheckCircle, AlertCircle, BookOpen, Layers, ShieldCheck, ExternalLink, ArrowRight, Check, CheckSquare, XCircle, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 // Built-in Questions database
@@ -662,32 +662,127 @@ export default function PracticeQuiz() {
         </div>
 
         {showSubmitModal && (
-          <div className="fixed inset-0 bg-zinc-950/70 z-50 flex items-center justify-center p-4">
-            <div className="bg-white max-w-sm w-full rounded-2xl p-6 shadow-2xl border border-zinc-100 text-center space-y-6 animate-fade-in animate-scale-up">
+          <div className="fixed inset-0 bg-slate-950/70 z-50 flex items-center justify-center p-4 backdrop-blur-md animate-fade-in">
+            <div className="bg-white max-w-lg w-full rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-200 text-left space-y-6 animate-scale-up relative overflow-hidden">
               
-              <div className="w-12 h-12 bg-red-50 text-red-600 rounded-full flex items-center justify-center mx-auto">
-                <ShieldAlert size={26} />
-              </div>
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-500" />
 
-              <div className="space-y-2">
-                <h3 className="text-lg font-bold text-zinc-850">Submit Quiz Paper?</h3>
-                <p className="text-xs text-brand-textMuted">
-                  You have answered {Object.keys(answers).length} out of {totalQ} questions.
-                </p>
-              </div>
-
-              <div className="flex space-x-3 pt-2">
+              {/* Header */}
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold shrink-0 border border-purple-100 shadow-inner">
+                    <CheckSquare size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-slate-900">Submit Practice Test?</h3>
+                    <p className="text-xs text-slate-500 font-semibold">
+                      Review your question completion before evaluating your score.
+                    </p>
+                  </div>
+                </div>
                 <button
+                  type="button"
                   onClick={() => setShowSubmitModal(false)}
-                  className="flex-grow border border-brand-border hover:bg-brand-bgLight text-brand-textMuted font-semibold py-2.5 rounded-lg text-xs transition-all cursor-pointer"
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors cursor-pointer shrink-0"
                 >
-                  Cancel & Review
+                  <XCircle size={18} />
+                </button>
+              </div>
+
+              {/* KPI Summary Grid */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl text-center space-y-0.5">
+                  <div className="text-xl sm:text-2xl font-black text-emerald-700">{Object.keys(answers).length}</div>
+                  <div className="text-[10px] font-black text-emerald-600 uppercase tracking-wider">Answered</div>
+                </div>
+
+                <div className={`p-3.5 rounded-2xl text-center space-y-0.5 border ${
+                  totalQ - Object.keys(answers).length > 0 
+                    ? 'bg-amber-50/70 border-amber-200 text-amber-700' 
+                    : 'bg-slate-50 border-slate-200 text-slate-500'
+                }`}>
+                  <div className="text-xl sm:text-2xl font-black">{Math.max(0, totalQ - Object.keys(answers).length)}</div>
+                  <div className="text-[10px] font-black uppercase tracking-wider">Unanswered</div>
+                </div>
+
+                <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-2xl text-center space-y-0.5">
+                  <div className="text-xl sm:text-2xl font-black text-blue-700 font-mono">
+                    {Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}
+                  </div>
+                  <div className="text-[10px] font-black text-blue-600 uppercase tracking-wider">Time Left</div>
+                </div>
+              </div>
+
+              {/* Questions Quick Navigator Matrix */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-600">
+                  <span>Questions Status (Click to Review):</span>
+                  <span className="text-slate-400 font-medium">Green = Answered</span>
+                </div>
+                <div className="grid grid-cols-5 sm:grid-cols-8 gap-1.5 max-h-32 overflow-y-auto p-2 bg-slate-50 rounded-2xl border border-slate-200">
+                  {questions.map((_, idx) => {
+                    const isAns = answers[idx] !== undefined;
+                    const isFlag = flags[idx];
+                    const isCurr = currentIdx === idx;
+                    return (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setCurrentIdx(idx);
+                          setShowSubmitModal(false);
+                        }}
+                        className={`aspect-square rounded-xl text-xs font-black flex items-center justify-center transition-all cursor-pointer ${
+                          isCurr
+                            ? 'bg-zinc-900 text-white ring-2 ring-purple-500 ring-offset-1'
+                            : isFlag
+                              ? 'bg-amber-500 text-white'
+                              : isAns
+                                ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                : 'bg-white text-slate-600 border border-slate-300 hover:bg-slate-100'
+                        }`}
+                        title={`Question ${idx + 1}`}
+                      >
+                        {idx + 1}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Context Warning / Notice */}
+              {totalQ - Object.keys(answers).length > 0 ? (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 font-semibold flex items-start space-x-2.5">
+                  <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                  <div className="leading-relaxed">
+                    You have <strong>{totalQ - Object.keys(answers).length} unanswered question(s)</strong>. You can return and complete them before submitting.
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-800 font-semibold flex items-center space-x-2.5">
+                  <CheckCircle size={18} className="text-emerald-600 shrink-0" />
+                  <div className="leading-relaxed">
+                    All <strong>{totalQ} questions</strong> answered! Click submit to generate your scorecard and digital credential.
+                  </div>
+                </div>
+              )}
+
+              {/* Action Buttons */}
+              <div className="flex flex-col-reverse sm:flex-row gap-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowSubmitModal(false)}
+                  className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold rounded-2xl text-xs transition-colors cursor-pointer text-center"
+                >
+                  Return to Test
                 </button>
                 <button
+                  type="button"
                   onClick={handleSubmitTest}
-                  className="flex-grow bg-zinc-900 hover:bg-zinc-800 text-white font-semibold py-2.5 rounded-lg text-xs transition-all cursor-pointer shadow-md"
+                  className="flex-1 py-3.5 bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-2xl text-xs shadow-md transition-all cursor-pointer flex items-center justify-center space-x-2 active:scale-98"
                 >
-                  Yes, Submit Quiz
+                  <span>Submit Practice Test</span>
+                  <ArrowRight size={14} />
                 </button>
               </div>
 

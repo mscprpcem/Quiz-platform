@@ -379,7 +379,7 @@ router.post('/oauth/exchange', async (req, res) => {
       code,
       clientId,
       codeVerifier: code_verifier,
-      redirectUri
+      redirectUri: redirect_uri
     });
 
     const ssoUser = tokenResponse.user;

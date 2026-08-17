@@ -311,7 +311,7 @@ export default function AdminEmailDispatch() {
       setSubject(`🎉 Congratulations on Completing ${evName}!`);
       setHeading(`Outstanding Achievement!`);
       setMessageBody(
-        `Dear {name},\n\nCongratulations on successfully participating in "${evName}" organized by the Microsoft Student Club PRPCEM!\n\nYour verified digital credential is now ready to claim and showcase on your LinkedIn profile.\n\nKeep learning and building!`
+        `Hello {name},\n\nCongratulations on successfully participating in "${evName}" organized by the Microsoft Student Club PRPCEM!\n\nYour verified digital credential is now ready to claim and showcase on your LinkedIn profile.\n\nKeep learning and building!`
       );
       setCtaText('Claim Digital Badge & Certificate');
       setCtaUrl(window.location.origin + '/student/profile');

@@ -361,6 +361,18 @@ export default function AdminEvents() {
     }
   };
 
+  const handleDeleteReg = async (regId, fullName) => {
+    if (!window.confirm(`Are you sure you want to delete the registration for "${fullName || 'this participant'}"?`)) {
+      return;
+    }
+    try {
+      await api.delete(`/api/events/registrations/${regId}`);
+      setRegistrations(prev => prev.filter(r => r.id !== regId));
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to delete registration.');
+    }
+  };
+
   const handleCopyLink = (slugOrId) => {
     const url = `https://www.mscprpcem.tech/register/${slugOrId}`;
     navigator.clipboard.writeText(url);

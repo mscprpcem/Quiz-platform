@@ -454,8 +454,8 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
                     {/* Username Handle */}
                     <div className="space-y-1 animate-fade-in">
                       <div className="flex items-center justify-between">
-                        <label className="block text-xs font-semibold text-slate-700">Username Handle</label>
-                        <span className="text-[10px] text-slate-400 font-mono">unique handle</span>
+                        <label className="block text-xs font-semibold text-slate-700">Username </label>
+                        <span className="text-[10px] text-slate-400 font-mono">for profile URL</span>
                       </div>
                       <div className="relative flex items-center">
                         <span className="absolute left-3 text-xs font-black text-slate-400 select-none">@</span>

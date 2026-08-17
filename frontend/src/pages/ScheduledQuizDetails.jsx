@@ -170,7 +170,7 @@ export default function ScheduledQuizDetails() {
       a.click();
     };
 
-    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgData)));
+    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData);
   };
 
   if (loading) {

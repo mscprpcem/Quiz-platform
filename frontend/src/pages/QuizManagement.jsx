@@ -92,6 +92,7 @@ export default function QuizManagement() {
     badge_title: 'Certified Specialist'
   });
   const [availableBadges, setAvailableBadges] = useState([]);
+  const [isSlugCustomized, setIsSlugCustomized] = useState(false);
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadErrors, setUploadErrors] = useState([]);
   const [uploadSuccess, setUploadSuccess] = useState('');

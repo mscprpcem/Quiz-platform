@@ -1005,7 +1005,7 @@ router.post('/occurrences/:occurrenceId/start', async (req, res) => {
       order: [['attempt_number', 'DESC']]
     });
 
-    // Resume existing in_progress attempt if any
+    // Resume existing in_progress attempt if any (Session Recovery)
     const activeAttempt = existingAttempts.find(a => a.status === 'in_progress');
     if (activeAttempt) {
       const expireTime = new Date(activeAttempt.expires_at);
@@ -1015,9 +1015,70 @@ router.post('/occurrences/:occurrenceId/start', async (req, res) => {
         return res.status(403).json({ error: 'Your quiz time has ended.' });
       } else {
         const answers = await AttemptAnswer.findAll({ where: { attempt_id: activeAttempt.id } });
+
+        // Restore questions and their preserved order & option mapping
+        let parsedQuestionOrder = [];
+        try {
+          parsedQuestionOrder = typeof activeAttempt.question_order === 'string'
+            ? JSON.parse(activeAttempt.question_order)
+            : (activeAttempt.question_order || []);
+        } catch (e) {}
+
+        let parsedOptionOrders = {};
+        try {
+          parsedOptionOrders = typeof activeAttempt.option_orders === 'string'
+            ? JSON.parse(activeAttempt.option_orders)
+            : (activeAttempt.option_orders || {});
+        } catch (e) {}
+
+        let restoredQuestions = [];
+        if (Array.isArray(parsedQuestionOrder) && parsedQuestionOrder.length > 0) {
+          const dbQuestions = await Question.findAll({
+            where: { id: parsedQuestionOrder }
+          });
+          const dbQuestionsMap = new Map(dbQuestions.map(q => [q.id, q]));
+
+          restoredQuestions = parsedQuestionOrder.map(qId => {
+            const q = dbQuestionsMap.get(qId);
+            if (!q) return null;
+            const options = parsedOptionOrders && parsedOptionOrders[qId] ? parsedOptionOrders[qId] : [
+              { key: 'A', text: q.option_a },
+              { key: 'B', text: q.option_b },
+              { key: 'C', text: q.option_c },
+              { key: 'D', text: q.option_d }
+            ];
+            return {
+              id: q.id,
+              question: q.question,
+              options,
+              marks: q.marks
+            };
+          }).filter(Boolean);
+        }
+
+        // Fallback: If no question order was recorded, load standard quiz questions
+        if (restoredQuestions.length === 0) {
+          const allDbQuestions = await Question.findAll({
+            where: { quiz_id: targetQuiz.id },
+            order: [['order_index', 'ASC']]
+          });
+          restoredQuestions = allDbQuestions.map(q => ({
+            id: q.id,
+            question: q.question,
+            options: [
+              { key: 'A', text: q.option_a },
+              { key: 'B', text: q.option_b },
+              { key: 'C', text: q.option_c },
+              { key: 'D', text: q.option_d }
+            ],
+            marks: q.marks
+          }));
+        }
+
         return res.json({
           message: 'Resuming quiz attempt.',
           attempt: activeAttempt,
+          questions: restoredQuestions,
           restoredAnswers: answers,
           isResume: true
         });

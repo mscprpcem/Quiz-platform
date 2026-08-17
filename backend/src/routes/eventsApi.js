@@ -959,6 +959,24 @@ router.delete('/:id', adminAuth, async (req, res) => {
 });
 
 // ----------------------------------------------------
+// DELETE /api/events/registrations/:regId (Delete Registration)
+// ----------------------------------------------------
+router.delete('/registrations/:regId', adminAuth, async (req, res) => {
+  try {
+    const { regId } = req.params;
+    const reg = await EventRegistration.findByPk(regId);
+    if (!reg) {
+      return res.status(404).json({ error: 'Registration record not found.' });
+    }
+    await reg.destroy();
+    res.json({ success: true, message: 'Registration deleted successfully.' });
+  } catch (err) {
+    console.error('Error deleting registration:', err);
+    res.status(500).json({ error: err.message || 'Failed to delete registration.' });
+  }
+});
+
+// ----------------------------------------------------
 // GET /api/events/public
 // Public events feed for mscprpcem-website
 // ----------------------------------------------------

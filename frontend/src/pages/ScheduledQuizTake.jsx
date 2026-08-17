@@ -13,7 +13,7 @@ export default function ScheduledQuizTake() {
   const targetIdentifier = slug || occurrenceId || identifier;
   const navigate = useNavigate();
   const location = useLocation();
-  const { studentAccount, user, studentLogin, studentLogout } = useAuth();
+  const { studentAccount, user, studentLogin, studentLogout, studentRegister } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [occData, setOccData] = useState(null);
@@ -39,6 +39,8 @@ export default function ScheduledQuizTake() {
   const [resultData, setResultData] = useState(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [showFullscreenModal, setShowFullscreenModal] = useState(false);
+  const [showSubmitModal, setShowSubmitModal] = useState(false);
+  const [submittingQuiz, setSubmittingQuiz] = useState(false);
   const [leaderboardList, setLeaderboardList] = useState([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
 
@@ -380,14 +382,26 @@ export default function ScheduledQuizTake() {
         setQuestions(res.data.questions);
       }
 
-      // Restore previously saved answers if resuming
-      if (res.data.restoredAnswers) {
-        const restoredMap = {};
+      // Restore previously saved answers if resuming (Session Recovery)
+      let restoredMap = {};
+      if (res.data.restoredAnswers && Array.isArray(res.data.restoredAnswers)) {
         res.data.restoredAnswers.forEach(a => {
           restoredMap[a.question_id] = a.selected_option;
         });
-        setSelectedAnswers(restoredMap);
       }
+
+      // Merge with locally cached answers for resilience
+      if (res.data.attempt?.id) {
+        try {
+          const cached = localStorage.getItem(`msc_attempt_${res.data.attempt.id}_answers`);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            restoredMap = { ...restoredMap, ...parsed };
+          }
+        } catch (e) {}
+      }
+
+      setSelectedAnswers(restoredMap);
     } catch (err) {
       setStartError(err.response?.data?.error || 'Failed to start quiz attempt.');
     } finally {
@@ -396,7 +410,15 @@ export default function ScheduledQuizTake() {
   };
 
   const handleSelectOption = async (questionId, optionKey) => {
-    setSelectedAnswers(prev => ({ ...prev, [questionId]: optionKey }));
+    setSelectedAnswers(prev => {
+      const updated = { ...prev, [questionId]: optionKey };
+      if (attempt?.id) {
+        try {
+          localStorage.setItem(`msc_attempt_${attempt.id}_answers`, JSON.stringify(updated));
+        } catch (e) {}
+      }
+      return updated;
+    });
 
     // Continuous Answer Saving to Backend
     try {
@@ -411,11 +433,23 @@ export default function ScheduledQuizTake() {
 
   const handleFinalSubmit = async (isAuto = false) => {
     if (!attempt || quizSubmitted || submittingRef.current) return;
-    if (!isAuto && !window.confirm('Are you sure you want to submit your quiz?')) return;
+    
+    // Non-automated submissions open the polished confirmation modal
+    if (!isAuto) {
+      setShowSubmitModal(true);
+      return;
+    }
+
+    await executeSubmit();
+  };
+
+  const executeSubmit = async () => {
+    if (!attempt || quizSubmitted || submittingRef.current) return;
 
     try {
       submittingRef.current = true;
-      setLoading(true);
+      setSubmittingQuiz(true);
+      setShowSubmitModal(false);
 
       if (document.fullscreenElement) {
         document.exitFullscreen().catch(() => {});
@@ -425,6 +459,13 @@ export default function ScheduledQuizTake() {
       setResultData(res.data || {});
       setQuizSubmitted(true);
 
+      // Clean local cache on submit
+      if (attempt?.id) {
+        try {
+          localStorage.removeItem(`msc_attempt_${attempt.id}_answers`);
+        } catch (e) {}
+      }
+
       // Cleanly exit fullscreen on finish
       if (document.fullscreenElement) {
         try {
@@ -433,10 +474,10 @@ export default function ScheduledQuizTake() {
       }
     } catch (err) {
       console.error('Submit error:', err);
-      alert('Failed to submit quiz attempt.');
+      alert(err.response?.data?.error || 'Failed to submit quiz attempt.');
       submittingRef.current = false;
     } finally {
-      setLoading(false);
+      setSubmittingQuiz(false);
     }
   };
 
@@ -1106,16 +1147,28 @@ export default function ScheduledQuizTake() {
                     </div>
                   </div>
 
-                  <div className="text-[10px] text-slate-400 font-semibold bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex items-center space-x-1.5">
-                    <ShieldCheck size={13} className="text-emerald-600 flex-shrink-0" />
-                    <span>Your attempt and official certificate will be linked to your student account.</span>
-                  </div>
+                  {occData?.userAttempt?.status === 'in_progress' ? (
+                    <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-2xl space-y-1.5 animate-pulse">
+                      <div className="flex items-center space-x-2 text-xs font-black text-blue-900">
+                        <Sparkles size={15} className="text-blue-600" />
+                        <span>Active Session In Progress (Session Recovery)</span>
+                      </div>
+                      <p className="text-[11px] text-blue-700 font-medium">
+                        You have an unfinished attempt for this assessment. All previously answered questions will be automatically restored.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-[10px] text-slate-400 font-semibold bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex items-center space-x-1.5">
+                      <ShieldCheck size={13} className="text-emerald-600 flex-shrink-0" />
+                      <span>Your attempt and official certificate will be linked to your student account.</span>
+                    </div>
+                  )}
 
                   <button
                     onClick={handleStartAttempt}
                     className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all active:scale-98"
                   >
-                    <span>Start Quiz Attempt</span>
+                    <span>{occData?.userAttempt?.status === 'in_progress' ? 'Resume Quiz Attempt' : 'Start Quiz Attempt'}</span>
                     <ArrowRight size={16} />
                   </button>
                 </div>
@@ -1150,6 +1203,8 @@ export default function ScheduledQuizTake() {
 
   // ════════ RENDER ACTIVE ATTEMPT INTERFACE ════════
   const currentQ = questions[currentQIndex];
+  const answeredCount = questions.filter(q => selectedAnswers[q.id] !== undefined && selectedAnswers[q.id] !== null).length;
+  const unansweredCount = Math.max(0, questions.length - answeredCount);
 
   return (
     <div className="max-w-3xl mx-auto py-8 px-4 font-segoe text-left space-y-6">
@@ -1198,14 +1253,28 @@ export default function ScheduledQuizTake() {
         </div>
       )}
 
-      {/* Top Bar with Server Timer & Fullscreen Status */}
+      {/* Top Bar with Server Timer & Quick Submit Trigger */}
       <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 flex items-center justify-between gap-2 shadow-2xs">
         <div className="min-w-0">
           <h3 className="text-xs sm:text-sm font-black text-slate-900 truncate max-w-[180px] sm:max-w-xs">{occData?.quiz?.title}</h3>
-          <span className="text-[10px] font-bold text-slate-400">Question {currentQIndex + 1} of {questions.length}</span>
+          <div className="flex items-center space-x-2 text-[10px] font-bold text-slate-400">
+            <span>Question {currentQIndex + 1} of {questions.length}</span>
+            <span>•</span>
+            <span className="text-emerald-600 font-extrabold">{answeredCount} Answered</span>
+          </div>
         </div>
 
         <div className="flex items-center space-x-2 shrink-0">
+          {/* Quick Submit Assessment Button */}
+          <button
+            onClick={() => setShowSubmitModal(true)}
+            className="px-2.5 sm:px-3.5 py-1.5 sm:py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-300 rounded-xl text-[11px] font-extrabold flex items-center space-x-1 cursor-pointer transition-all shadow-2xs"
+            title="Review questions and submit"
+          >
+            <CheckSquare size={13} className="text-emerald-600" />
+            <span>Submit Quiz</span>
+          </button>
+
           {requireFullscreen && (
             <button
               onClick={enterFullscreen}
@@ -1230,6 +1299,38 @@ export default function ScheduledQuizTake() {
           </div>
         </div>
       </div>
+
+      {/* Question Jump Palette Ribbon */}
+      {questions.length > 1 && (
+        <div className="bg-white border border-slate-200 rounded-2xl p-3 sm:p-4 shadow-2xs space-y-2">
+          <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-600">
+            <span>Questions Navigator:</span>
+            <span className="text-slate-400 font-semibold">{answeredCount} of {questions.length} completed</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+            {questions.map((q, idx) => {
+              const isAnswered = selectedAnswers[q.id] !== undefined && selectedAnswers[q.id] !== null;
+              const isCurrent = currentQIndex === idx;
+              return (
+                <button
+                  key={q.id || idx}
+                  onClick={() => setCurrentQIndex(idx)}
+                  className={`w-7 h-7 sm:w-8 sm:h-8 rounded-lg text-xs font-black flex items-center justify-center transition-all cursor-pointer ${
+                    isCurrent
+                      ? 'bg-blue-600 text-white shadow-xs ring-2 ring-blue-500/30'
+                      : isAnswered
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200'
+                  }`}
+                  title={`Question ${idx + 1} (${isAnswered ? 'Answered' : 'Unanswered'})`}
+                >
+                  {idx + 1}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Violation Banner if triggered */}
       {violationsCount > 0 && (
@@ -1286,21 +1387,166 @@ export default function ScheduledQuizTake() {
               Previous
             </button>
 
-            {currentQIndex < questions.length - 1 ? (
+            <div className="flex items-center space-x-2">
               <button
-                onClick={() => setCurrentQIndex(prev => Math.min(questions.length - 1, prev + 1))}
-                className="px-5 py-2.5 bg-blue-600 text-white font-extrabold rounded-xl text-xs cursor-pointer hover:bg-blue-700 min-h-[44px] shadow-sm active:scale-98"
+                onClick={() => setShowSubmitModal(true)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold rounded-xl text-xs cursor-pointer min-h-[44px] border border-slate-200"
               >
-                Next Question
+                Submit...
               </button>
+
+              {currentQIndex < questions.length - 1 ? (
+                <button
+                  onClick={() => setCurrentQIndex(prev => Math.min(questions.length - 1, prev + 1))}
+                  className="px-5 py-2.5 bg-blue-600 text-white font-extrabold rounded-xl text-xs cursor-pointer hover:bg-blue-700 min-h-[44px] shadow-sm active:scale-98"
+                >
+                  Next Question
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowSubmitModal(true)}
+                  className="px-6 py-2.5 bg-emerald-600 text-white font-extrabold rounded-xl text-xs shadow-md cursor-pointer hover:bg-emerald-700 min-h-[44px] active:scale-98"
+                >
+                  Submit Quiz
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ════════ SUBMISSION CONFIRMATION MODAL ════════ */}
+      {showSubmitModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl space-y-6 text-left relative overflow-hidden animate-scale-up">
+            
+            {/* Top decorative gradient bar */}
+            <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-blue-600 via-indigo-600 to-emerald-500" />
+
+            {/* Header */}
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shrink-0 border border-blue-100 shadow-inner">
+                  <CheckSquare size={24} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">Submit Assessment?</h3>
+                  <p className="text-xs text-slate-500 font-semibold">
+                    Review your answered questions summary before final submission.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSubmitModal(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors cursor-pointer shrink-0"
+              >
+                <XCircle size={18} />
+              </button>
+            </div>
+
+            {/* Summary KPI Grid */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-2xl text-center space-y-0.5">
+                <div className="text-xl sm:text-2xl font-black text-emerald-700">{answeredCount}</div>
+                <div className="text-[10px] font-black text-emerald-600 uppercase tracking-wider">Answered</div>
+              </div>
+
+              <div className={`p-3.5 rounded-2xl text-center space-y-0.5 border ${
+                unansweredCount > 0 
+                  ? 'bg-amber-50/70 border-amber-200 text-amber-700' 
+                  : 'bg-slate-50 border-slate-200 text-slate-500'
+              }`}>
+                <div className="text-xl sm:text-2xl font-black">{unansweredCount}</div>
+                <div className="text-[10px] font-black uppercase tracking-wider">Unanswered</div>
+              </div>
+
+              <div className="p-3.5 bg-blue-50/70 border border-blue-200 rounded-2xl text-center space-y-0.5">
+                <div className="text-xl sm:text-2xl font-black text-blue-700 font-mono">{formatTime(timeLeftSeconds)}</div>
+                <div className="text-[10px] font-black text-blue-600 uppercase tracking-wider">Time Left</div>
+              </div>
+            </div>
+
+            {/* Questions Jump Matrix */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-600">
+                <span>Questions Overview (Click to Jump):</span>
+                <span className="text-slate-400 font-medium">Green = Answered</span>
+              </div>
+
+              <div className="grid grid-cols-6 sm:grid-cols-10 gap-1.5 max-h-36 overflow-y-auto p-2 bg-slate-50 rounded-2xl border border-slate-200">
+                {questions.map((q, idx) => {
+                  const isAnswered = selectedAnswers[q.id] !== undefined && selectedAnswers[q.id] !== null;
+                  const isCurrent = currentQIndex === idx;
+                  return (
+                    <button
+                      key={q.id || idx}
+                      type="button"
+                      onClick={() => {
+                        setCurrentQIndex(idx);
+                        setShowSubmitModal(false);
+                      }}
+                      className={`aspect-square rounded-xl text-xs font-black flex items-center justify-center transition-all cursor-pointer ${
+                        isAnswered
+                          ? 'bg-emerald-600 text-white shadow-xs hover:bg-emerald-700'
+                          : 'bg-white text-slate-600 border border-slate-300 hover:bg-amber-100 hover:text-amber-800'
+                      } ${isCurrent ? 'ring-2 ring-blue-500 ring-offset-1' : ''}`}
+                      title={`Question ${idx + 1}: ${isAnswered ? 'Answered' : 'Not Answered'}`}
+                    >
+                      {idx + 1}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Context Warning / Assurance */}
+            {unansweredCount > 0 ? (
+              <div className="p-3 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800 font-semibold flex items-start space-x-2.5">
+                <AlertTriangle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                <div className="leading-relaxed">
+                  You have <strong>{unansweredCount} unanswered question(s)</strong>. Unanswered questions will receive 0 marks. You can still return and answer them before submitting.
+                </div>
+              </div>
             ) : (
-              <button
-                onClick={() => handleFinalSubmit(false)}
-                className="px-6 py-2.5 bg-emerald-600 text-white font-extrabold rounded-xl text-xs shadow-md cursor-pointer hover:bg-emerald-700 min-h-[44px] active:scale-98"
-              >
-                Submit Quiz
-              </button>
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs text-emerald-800 font-semibold flex items-center space-x-2.5">
+                <CheckCircle size={18} className="text-emerald-600 shrink-0" />
+                <div className="leading-relaxed">
+                  All <strong>{questions.length} questions</strong> have been answered! Your score and leaderboard ranking will be calculated immediately upon submission.
+                </div>
+              </div>
             )}
+
+            {/* Action Buttons */}
+            <div className="flex flex-col-reverse sm:flex-row gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowSubmitModal(false)}
+                className="flex-1 py-3.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold rounded-2xl text-xs transition-colors cursor-pointer text-center"
+              >
+                Return to Assessment
+              </button>
+              
+              <button
+                type="button"
+                disabled={submittingQuiz}
+                onClick={executeSubmit}
+                className="flex-1 py-3.5 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-2xl text-xs shadow-md transition-all cursor-pointer flex items-center justify-center space-x-2 active:scale-98 disabled:opacity-50"
+              >
+                {submittingQuiz ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" />
+                    <span>Submitting Answers...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Confirm & Submit</span>
+                    <ArrowRight size={14} />
+                  </>
+                )}
+              </button>
+            </div>
+
           </div>
         </div>
       )}
