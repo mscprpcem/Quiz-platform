@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
+import { ToastProvider } from './context/ToastContext';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import AdminLayout from './components/AdminLayout';
@@ -112,9 +113,10 @@ const AdminRoute = ({ children }) => {
 export default function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <SocketProvider>
-          <Router>
+      <ToastProvider>
+        <AuthProvider>
+          <SocketProvider>
+            <Router>
             <div className="min-h-screen flex flex-col bg-slate-50 text-slate-800 font-segoe">
               <Navbar />
 
@@ -292,6 +294,7 @@ export default function App() {
         </Router>
       </SocketProvider>
     </AuthProvider>
-  </ErrorBoundary>
-  );
+  </ToastProvider>
+</ErrorBoundary>
+);
 }

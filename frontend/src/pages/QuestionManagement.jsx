@@ -18,11 +18,13 @@ import {
   Upload
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { useToast } from '../context/ToastContext';
 
-/* â”€â”€ Correct answer option key â†’ label â”€â”€ */
+/* ── Correct answer option key → label ── */
 const OPTION_LABELS = { A: 'Option A', B: 'Option B', C: 'Option C', D: 'Option D' };
 
 export default function QuestionManagement() {
+  const { toast } = useToast();
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -45,10 +47,11 @@ export default function QuestionManagement() {
     try {
       setBulkTimerSaving(true);
       await api.put(`/api/quizzes/${id}/questions/timer`, { timer: bulkTimerVal });
+      toast.success(`Default timer set to ${bulkTimerVal} seconds for all questions.`);
       setShowBulkTimerModal(false);
       loadQuizDetails();
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to update bulk timer.');
+      toast.error(err.response?.data?.error || 'Failed to update bulk timer.');
     } finally {
       setBulkTimerSaving(false);
     }
@@ -167,19 +170,21 @@ export default function QuestionManagement() {
     }
   };
 
-  const handleExcelUpload = async (e) => {
+  const handleExcelUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
     const reader = new FileReader();
     reader.onload = async (evt) => {
       try {
         const bstr = evt.target.result;
         const wb = XLSX.read(bstr, { type: 'binary' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const rawData = XLSX.utils.sheet_to_json(ws, { defval: '' });
+        const wsName = wb.SheetNames[0];
+        const ws = wb.Sheets[wsName];
+        const rawData = XLSX.utils.sheet_to_json(ws);
 
         if (!rawData || rawData.length === 0) {
-          alert('No question rows found in uploaded file.');
+          toast.warning('No question rows found in uploaded file.', 'Empty File');
           return;
         }
 
@@ -203,11 +208,11 @@ export default function QuestionManagement() {
             console.error('Failed to add question:', q.question, err);
           }
         }
-        alert(`Successfully imported ${successCount} of ${parsed.length} questions!`);
+        toast.success(`Successfully imported ${successCount} of ${parsed.length} questions!`, 'Import Complete');
         loadQuizDetails();
       } catch (err) {
         console.error('Excel parse error:', err);
-        alert('Failed to parse spreadsheet. Please use the template format.');
+        toast.error('Failed to parse spreadsheet. Please use the template format.', 'Import Error');
       }
     };
     reader.readAsBinaryString(file);

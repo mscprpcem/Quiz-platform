@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import api from '../services/api';
 import StudentAuthModal from '../components/StudentAuthModal';
 import {
@@ -9,6 +10,7 @@ import {
 } from 'lucide-react';
 
 export default function ScheduledQuizTake() {
+  const { toast } = useToast();
   const { occurrenceId, slug, identifier } = useParams();
   const targetIdentifier = slug || occurrenceId || identifier;
   const navigate = useNavigate();
@@ -349,7 +351,7 @@ export default function ScheduledQuizTake() {
       });
       setViolationsCount(res.data.violationCount);
       if (res.data.autoSubmit && !submittingRef.current) {
-        alert('Anti-cheat limit exceeded. Your quiz is being automatically submitted.');
+        toast.warning('Anti-cheat limit exceeded. Your quiz is being automatically submitted.', 'Anti-Cheat Notice');
         handleFinalSubmit(true);
       }
     } catch (err) {
@@ -474,7 +476,7 @@ export default function ScheduledQuizTake() {
       }
     } catch (err) {
       console.error('Submit error:', err);
-      alert(err.response?.data?.error || 'Failed to submit quiz attempt.');
+      toast.error(err.response?.data?.error || 'Failed to submit quiz attempt.', 'Submission Error');
       submittingRef.current = false;
     } finally {
       setSubmittingQuiz(false);

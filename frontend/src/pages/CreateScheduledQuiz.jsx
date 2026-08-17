@@ -4,12 +4,14 @@ import * as XLSX from 'xlsx';
 import { QRCodeSVG } from 'qrcode.react';
 import api from '../services/api';
 import EventSelector from '../components/EventSelector';
+import { useToast } from '../context/ToastContext';
 import {
   Calendar, ArrowLeft, ArrowRight, Plus, Trash2, Upload, FileSpreadsheet, FileText,
   CheckCircle, AlertTriangle, Clock, ShieldCheck, HelpCircle, Layers, CheckSquare, Sparkles, RefreshCw, QrCode, Mail, Award, ExternalLink, Download, Search, ChevronDown, Check
 } from 'lucide-react';
 
 export default function CreateScheduledQuiz() {
+  const { toast } = useToast();
   const navigate = useNavigate();
   const { id } = useParams(); // If present, mode is EDIT
   const [searchParams] = useSearchParams();
@@ -414,9 +416,8 @@ export default function CreateScheduledQuiz() {
         const wsname = wb.SheetNames[0];
         const ws = wb.Sheets[wsname];
         const rawData = XLSX.utils.sheet_to_json(ws, { defval: '' });
-
         if (!rawData || rawData.length === 0) {
-          alert('No question rows found in uploaded file.');
+          toast.warning('No question rows found in uploaded file.', 'Empty File');
           return;
         }
 
@@ -426,14 +427,17 @@ export default function CreateScheduledQuiz() {
         const parsedQuestions = rawData.map((row, idx) => {
           // Normalize column names flexibly
           const qText = row.Question || row.question || row.QuestionText || row.Prompt || row.prompt || row.Title || '';
-          const optA = row['Option A'] || row.option_a || row.OptionA || row.A || row['Option 1'] || '';
-          const optB = row['Option B'] || row.option_b || row.OptionB || row.B || row['Option 2'] || '';
-          const optC = row['Option C'] || row.option_c || row.OptionC || row.C || row['Option 3'] || '';
-          const optD = row['Option D'] || row.option_d || row.OptionD || row.D || row['Option 4'] || '';
-          const correct = (row['Correct Answer'] || row.correct_answer || row.Correct || row.Answer || row.answer || 'A').toString().trim().toUpperCase();
+          if (!qText || String(qText).trim() === '') return null;
+
+          const optA = row['Option A'] || row['option a'] || row.option_a || row.OptionA || row.A || row.a || '';
+          const optB = row['Option B'] || row['option b'] || row.option_b || row.OptionB || row.B || row.b || '';
+          const optC = row['Option C'] || row['option c'] || row.option_c || row.OptionC || row.C || row.c || '';
+          const optD = row['Option D'] || row['option d'] || row.option_d || row.OptionD || row.D || row.d || '';
+          const rawAnswer = (row['Correct Answer'] || row['correct answer'] || row.correct_answer || row.Correct || row.Answer || row.answer || 'A').toString().trim().toUpperCase();
+          const validAnswer = ['A', 'B', 'C', 'D'].includes(rawAnswer) ? rawAnswer : 'A';
           const explanation = row.Explanation || row.explanation || row.Rationale || row.solution || '';
 
-          let secNum = activeSectionFilter > 0 ? activeSectionFilter : 1;
+          let secNum = 1;
           const rawSec = row.Section || row.section || row.Occurrence || row.occurrence || row.Round || row.round || row.Week || row.week || row.Day || row.day || row.Session || row.session;
           if (rawSec !== undefined && rawSec !== '') {
             const parsedNum = parseInt(String(rawSec).replace(/[^0-9]/g, ''), 10);
@@ -455,18 +459,26 @@ export default function CreateScheduledQuiz() {
           const secDesc = extractedSections[secNum]?.description || customSections[secNum]?.description || secInfo?.description || '';
 
           return {
-            question: qText,
-            option_a: optA,
-            option_b: optB,
-            option_c: optC,
-            option_d: optD,
-            correct_answer: ['A', 'B', 'C', 'D'].includes(correct) ? correct : 'A',
-            explanation,
+            id: `imported-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`,
+            question: String(qText).trim(),
+            option_a: String(optA).trim() || 'Option A',
+            option_b: String(optB).trim() || 'Option B',
+            option_c: String(optC).trim() || 'Option C',
+            option_d: String(optD).trim() || 'Option D',
+            correct_answer: validAnswer,
+            explanation: String(explanation).trim(),
+            timer: parseInt(row.Timer || row.timer || row['Time Limit'] || '30', 10) || 30,
+            marks: parseInt(row.Marks || row.marks || row.Points || row.points || '1', 10) || 1,
             occurrence_number: secNum,
             section_name: secName,
             section_description: secDesc
           };
-        }).filter(q => q.question);
+        }).filter(Boolean);
+
+        if (parsedQuestions.length === 0) {
+          toast.error('No valid questions found in uploaded file.', 'Import Failed');
+          return;
+        }
 
         if (Object.keys(extractedSections).length > 0) {
           setCustomSections(extractedSections);
@@ -477,10 +489,10 @@ export default function CreateScheduledQuiz() {
           questions: [...prev.questions, ...parsedQuestions]
         }));
 
-        alert(`Successfully imported ${parsedQuestions.length} questions across sections from ${file.name}!`);
+        toast.success(`Successfully imported ${parsedQuestions.length} questions across sections from ${file.name}!`, 'Import Complete');
       } catch (err) {
         console.error('CSV/Excel parse error:', err);
-        alert('Failed to parse spreadsheet. Please ensure standard column headers: Section, Section Name, Question, Option A, Option B, Option C, Option D, Correct Answer.');
+        toast.error('Failed to parse spreadsheet. Please ensure standard column headers: Section, Section Name, Question, Option A, Option B, Option C, Option D, Correct Answer.', 'Import Error');
       }
     };
     reader.readAsBinaryString(file);
@@ -840,14 +852,14 @@ export default function CreateScheduledQuiz() {
       setSaving(true);
       if (isEditMode) {
         await api.put(`/api/scheduled-quizzes/${id}`, payload);
-        alert('Scheduled Quiz updated successfully!');
+        toast.success('Scheduled Quiz updated successfully!', 'Saved');
       } else {
         await api.post('/api/scheduled-quizzes', payload);
-        alert('Scheduled Quiz published successfully!');
+        toast.success('Scheduled Quiz published successfully!', 'Published');
       }
       navigate('/admin/scheduled-quizzes');
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to save scheduled quiz.');
+      toast.error(err.response?.data?.error || 'Failed to save scheduled quiz.', 'Save Failed');
     } finally {
       setSaving(false);
     }

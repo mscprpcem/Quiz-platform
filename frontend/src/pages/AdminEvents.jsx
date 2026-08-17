@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { useToast } from '../context/ToastContext';
 import {
   Sparkles, Plus, Search, Calendar, MapPin, Globe, Users,
   Trash2, Edit3, ExternalLink, Mail, ArrowRight, ShieldCheck,
@@ -84,6 +85,7 @@ const formatDisplayDateTime = (dateVal, includeTime = true) => {
 };
 
 export default function AdminEvents() {
+  const { toast } = useToast();
   const navigate = useNavigate();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -148,12 +150,12 @@ export default function AdminEvents() {
     if (!file) return;
 
     if (!file.type.startsWith('image/')) {
-      alert('Please select a valid image file (PNG, JPG, JPEG, WEBP, GIF, SVG).');
+      toast.warning('Please select a valid image file (PNG, JPG, JPEG, WEBP, GIF, SVG).', 'Invalid Image');
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      alert('Image file size must be under 10MB.');
+      toast.warning('Image file size must be under 10MB.', 'File Too Large');
       return;
     }
 
@@ -175,11 +177,12 @@ export default function AdminEvents() {
           poster_url: res.data.url
         }));
         setPosterUploadSuccess(true);
+        toast.success('Event poster uploaded successfully!', 'Upload Complete');
         setTimeout(() => setPosterUploadSuccess(false), 4000);
       }
     } catch (err) {
       console.error('Poster upload failed:', err);
-      alert(err.response?.data?.error || 'Failed to upload poster image to Azure Blob Storage.');
+      toast.error(err.response?.data?.error || 'Failed to upload poster image to Azure Blob Storage.', 'Upload Failed');
     } finally {
       setUploadingPoster(false);
     }
@@ -321,7 +324,7 @@ export default function AdminEvents() {
 
   const exportRegistrationsCSV = () => {
     if (!registrations || registrations.length === 0) {
-      alert('No registrations available to export.');
+      toast.warning('No registrations available to export.', 'Export Warning');
       return;
     }
 
@@ -347,6 +350,7 @@ export default function AdminEvents() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    toast.success('Registration list downloaded as CSV!', 'Export Complete');
   };
 
   const handleDeleteEvent = async (id, name) => {
@@ -356,8 +360,9 @@ export default function AdminEvents() {
     try {
       await api.delete(`/api/events/${id}`);
       setEvents(prev => prev.filter(e => e.id !== id));
+      toast.success(`Event "${name}" deleted successfully.`);
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to delete event');
+      toast.error(err.response?.data?.error || 'Failed to delete event');
     }
   };
 
@@ -368,8 +373,9 @@ export default function AdminEvents() {
     try {
       await api.delete(`/api/events/registrations/${regId}`);
       setRegistrations(prev => prev.filter(r => r.id !== regId));
+      toast.success('Registration deleted successfully.');
     } catch (err) {
-      alert(err.response?.data?.error || 'Failed to delete registration.');
+      toast.error(err.response?.data?.error || 'Failed to delete registration.');
     }
   };
 
