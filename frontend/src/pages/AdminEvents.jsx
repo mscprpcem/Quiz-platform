@@ -60,11 +60,13 @@ const formatToDateTimeLocal = (dateVal) => {
   const day = pad(d.getDate());
   let hours = d.getHours();
   let minutes = d.getMinutes();
-  if (hours === 0 && minutes === 0 && typeof dateVal === 'string' && !dateVal.includes(':')) {
-    hours = 10;
-    minutes = 0;
-  }
   return `${year}-${month}-${day}T${pad(hours)}:${pad(minutes)}`;
+};
+
+const toSafeIso = (val) => {
+  if (!val || String(val).trim() === '') return null;
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? null : d.toISOString();
 };
 
 // Helper: Format readable date time string
@@ -183,8 +185,8 @@ export default function AdminEvents() {
     }
   };
 
-  const handleDeleteReg = async (regId, studentName) => {
-    if (!window.confirm(`Are you sure you want to delete the registration for "${studentName}"?`)) {
+  const handleDeleteRegistration = async (regId) => {
+    if (!window.confirm('Are you sure you want to remove this attendee registration?')) {
       return;
     }
     try {
@@ -262,31 +264,39 @@ export default function AdminEvents() {
   };
 
   const openEditModal = (ev) => {
+    if (!ev) return;
     setEditingEvent(ev);
-    const resolvedStartDate = ev.start_date || ev.startDate || ev.date || (ev.source === 'json' ? ev.startDate : null);
-    const resolvedEndDate = ev.end_date || ev.endDate || null;
-    const resolvedRegStart = ev.registration_start_date || null;
-    const resolvedRegEnd = ev.registration_end_date || null;
-    const isFuture = resolvedStartDate && !isNaN(new Date(resolvedStartDate).getTime()) && new Date(resolvedStartDate) > new Date();
+
+    const resolvedStartDate = ev.start_date || ev.startDate || ev.start_time || ev.date || (ev.source === 'json' ? ev.startDate : null);
+    const resolvedEndDate = ev.end_date || ev.endDate || ev.end_time || null;
+    const resolvedRegStart = ev.registration_start_date || ev.registrationStartDate || null;
+    const resolvedRegEnd = ev.registration_end_date || ev.registrationEndDate || null;
+
+    const startDateObj = resolvedStartDate ? new Date(resolvedStartDate) : null;
+    const isFuture = Boolean(startDateObj && !isNaN(startDateObj.getTime()) && startDateObj > new Date());
 
     setFormData({
-      name: ev.name || ev.title || '',
-      slug: ev.slug || ev.id || (ev.name ? ev.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : ''),
+      name: ev.name || ev.title || ev.event_name || '',
+      slug: ev.slug || (ev.name ? ev.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : ''),
       category: ev.category || 'Technical Workshop',
       mode: ev.mode || 'Offline',
       venue: ev.venue || 'PRPCEM Amravati',
-      poster_url: ev.poster_url || ev.poster || POSTER_GALLERY[0].url,
+      poster_url: ev.poster_url || ev.poster || ev.banner || ev.image || POSTER_GALLERY[0].url,
       description: ev.description || '',
       start_date: formatToDateTimeLocal(resolvedStartDate),
       end_date: formatToDateTimeLocal(resolvedEndDate),
       registration_start_date: formatToDateTimeLocal(resolvedRegStart),
       registration_end_date: formatToDateTimeLocal(resolvedRegEnd),
-      max_registrations: ev.max_registrations !== null && ev.max_registrations !== undefined ? String(ev.max_registrations) : '',
-      initial_registration_count: ev.initial_registration_count !== undefined && ev.initial_registration_count !== null ? String(ev.initial_registration_count) : '0',
-      fee: ev.fee || 'Free',
-      is_registration_open: ev.is_registration_open !== false,
-      rewards: ev.rewards || 'Certificates & Swags',
-      status: isFuture ? 'upcoming' : ((ev.status === 'past' || ev.status === 'completed') ? 'completed' : (ev.status || 'upcoming'))
+      max_registrations: (ev.max_registrations !== null && ev.max_registrations !== undefined && ev.max_registrations !== '')
+        ? String(ev.max_registrations)
+        : (ev.maxRegistrations !== null && ev.maxRegistrations !== undefined ? String(ev.maxRegistrations) : ''),
+      initial_registration_count: (ev.initial_registration_count !== undefined && ev.initial_registration_count !== null && ev.initial_registration_count !== '')
+        ? String(ev.initial_registration_count)
+        : (ev.initialRegistrationCount !== undefined ? String(ev.initialRegistrationCount) : '0'),
+      fee: ev.fee || ev.price || 'Free',
+      is_registration_open: ev.is_registration_open !== false && ev.isRegistrationOpen !== false,
+      rewards: ev.rewards || ev.prizes || 'Certificates & Swags',
+      status: isFuture ? 'upcoming' : ((ev.status === 'past' || ev.status === 'completed' || ev.event_status === 'completed') ? 'completed' : (ev.status || ev.event_status || 'upcoming'))
     });
     setErrorMsg('');
     setModalOpen(true);
@@ -365,7 +375,12 @@ export default function AdminEvents() {
       return;
     }
 
-    if (formData.start_date && formData.end_date && new Date(formData.end_date) < new Date(formData.start_date)) {
+    const resolvedStartIso = toSafeIso(formData.start_date);
+    const resolvedEndIso = toSafeIso(formData.end_date);
+    const resolvedRegStartIso = toSafeIso(formData.registration_start_date);
+    const resolvedRegEndIso = toSafeIso(formData.registration_end_date);
+
+    if (resolvedStartIso && resolvedEndIso && new Date(resolvedEndIso) < new Date(resolvedStartIso)) {
       setErrorMsg('Event End Date & Time cannot be earlier than Start Date & Time.');
       return;
     }
@@ -374,48 +389,41 @@ export default function AdminEvents() {
       setSubmitting(true);
       setErrorMsg('');
 
-      const resolvedStartIso = formData.start_date
-        ? new Date(formData.start_date).toISOString()
-        : (editingEvent?.start_date || editingEvent?.startDate ? new Date(editingEvent.start_date || editingEvent.startDate).toISOString() : null);
-
-      const resolvedEndIso = formData.end_date
-        ? new Date(formData.end_date).toISOString()
-        : (editingEvent?.end_date || editingEvent?.endDate ? new Date(editingEvent.end_date || editingEvent.endDate).toISOString() : null);
-
-      const resolvedRegStartIso = formData.registration_start_date
-        ? new Date(formData.registration_start_date).toISOString()
-        : (editingEvent?.registration_start_date ? new Date(editingEvent.registration_start_date).toISOString() : null);
-
-      const resolvedRegEndIso = formData.registration_end_date
-        ? new Date(formData.registration_end_date).toISOString()
-        : (editingEvent?.registration_end_date ? new Date(editingEvent.registration_end_date).toISOString() : null);
-
       const isFuture = resolvedStartIso && new Date(resolvedStartIso) > new Date();
       const cleanStatus = isFuture && (formData.status === 'past' || formData.status === 'completed')
         ? 'upcoming'
         : ((formData.status === 'past' || formData.status === 'completed') ? 'completed' : (formData.status || 'upcoming'));
 
       const payload = {
-        ...formData,
+        name: formData.name.trim(),
+        slug: formData.slug.trim(),
+        category: formData.category,
+        mode: formData.mode,
+        venue: formData.venue,
+        poster_url: formData.poster_url,
+        description: formData.description,
         start_date: resolvedStartIso,
         end_date: resolvedEndIso,
         registration_start_date: resolvedRegStartIso,
         registration_end_date: resolvedRegEndIso,
         max_registrations: formData.max_registrations !== '' && formData.max_registrations !== null ? parseInt(formData.max_registrations, 10) : null,
         initial_registration_count: formData.initial_registration_count !== '' && formData.initial_registration_count !== null ? parseInt(formData.initial_registration_count, 10) : 0,
+        fee: formData.fee || 'Free',
+        is_registration_open: Boolean(formData.is_registration_open),
+        rewards: formData.rewards,
         status: cleanStatus
       };
 
-      if (editingEvent && !editingEvent.id.startsWith('auto-')) {
+      if (editingEvent && !String(editingEvent.id).startsWith('auto-') && !String(editingEvent.id).startsWith('event-')) {
         const res = await api.put(`/api/events/${editingEvent.id}`, payload);
         if (res.data?.success) {
-          fetchEvents();
+          await fetchEvents();
           setModalOpen(false);
         }
       } else {
         const res = await api.post('/api/events', payload);
         if (res.data?.success) {
-          fetchEvents();
+          await fetchEvents();
           setModalOpen(false);
         }
       }
@@ -1361,7 +1369,7 @@ export default function AdminEvents() {
                         ) : (
                           <>
                             <Upload size={12} />
-                            <span>Upload Image to Azure Blob</span>
+                            <span>Upload Image</span>
                           </>
                         )}
                         <input

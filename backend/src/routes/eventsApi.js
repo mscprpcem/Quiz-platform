@@ -285,27 +285,27 @@ router.get('/', async (req, res) => {
         id: ev.id,
         name: ev.name,
         slug: ev.slug || ev.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-        description: ev.description || `Official challenges and sessions for ${ev.name}.`,
+        description: ev.description || '',
         poster_url: resolveEventPoster(ev.poster_url, ev.name),
         category: ev.category || 'Innovation Challenge',
         mode: ev.mode || 'Hybrid',
-        venue: ev.venue || 'PRPCEM Amravati',
+        venue: ev.venue || 'PRPCEM Campus & Virtual',
         start_date: ev.start_date,
         end_date: ev.end_date,
         registration_start_date: ev.registration_start_date,
         registration_end_date: ev.registration_end_date,
-        max_registrations: statusObj.maxRegs,
+        max_registrations: ev.max_registrations !== undefined && ev.max_registrations !== null ? ev.max_registrations : statusObj.maxRegs,
         initial_registration_count: initialRegCount,
         actual_registration_count: actualRegCount,
         fee: ev.fee || 'Free',
-        is_registration_open: statusObj.isRegActive,
+        is_registration_open: ev.is_registration_open !== false,
         isRegistrationOpen: statusObj.isRegActive,
         is_registration_ended: statusObj.isRegEnded,
         isRegistrationEnded: statusObj.isRegEnded,
         is_registration_pending: statusObj.isRegPending,
         is_capacity_full: statusObj.isCapacityFull,
         rewards: ev.rewards || 'Certificates & Swags',
-        status: statusObj.eventStatus,
+        status: ev.status || statusObj.eventStatus,
         event_status: statusObj.eventStatus,
         registration_status: statusObj.regStatus,
         source: 'database',
@@ -669,10 +669,18 @@ router.post('/', adminAuth, async (req, res) => {
       : cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const finalPoster = resolveEventPoster(poster_url, cleanName);
 
-    const parsedStartDate = start_date ? new Date(start_date) : new Date();
-    const parsedEndDate = end_date ? new Date(end_date) : null;
-    const parsedRegStartDate = registration_start_date ? new Date(registration_start_date) : null;
-    const parsedRegEndDate = registration_end_date ? new Date(registration_end_date) : null;
+    const parsedStartDate = start_date && String(start_date).trim() !== '' && !isNaN(new Date(start_date).getTime())
+      ? new Date(start_date)
+      : null;
+    const parsedEndDate = end_date && String(end_date).trim() !== '' && !isNaN(new Date(end_date).getTime())
+      ? new Date(end_date)
+      : null;
+    const parsedRegStartDate = registration_start_date && String(registration_start_date).trim() !== '' && !isNaN(new Date(registration_start_date).getTime())
+      ? new Date(registration_start_date)
+      : null;
+    const parsedRegEndDate = registration_end_date && String(registration_end_date).trim() !== '' && !isNaN(new Date(registration_end_date).getTime())
+      ? new Date(registration_end_date)
+      : null;
     const parsedMaxRegs = max_registrations !== undefined && max_registrations !== '' && max_registrations !== null
       ? parseInt(max_registrations, 10)
       : null;
@@ -691,7 +699,7 @@ router.post('/', adminAuth, async (req, res) => {
       newEvent = await Event.create({
         name: cleanName,
         slug: cleanSlug,
-        description: description ? description.trim() : `Official technical event and challenges for ${cleanName}.`,
+        description: description ? description.trim() : '',
         poster_url: finalPoster,
         category: category || 'Innovation Challenge',
         mode: mode || 'Hybrid',
@@ -850,39 +858,41 @@ router.put('/:id', adminAuth, async (req, res) => {
     if (mode !== undefined) event.mode = mode;
     if (venue !== undefined) event.venue = venue;
     
-    // Preserve existing dates if empty or not provided
-    if (start_date !== undefined && start_date !== null && String(start_date).trim() !== '') {
-      const parsed = new Date(start_date);
-      if (!isNaN(parsed.getTime())) {
-        event.start_date = parsed;
-      }
-    } else if (!event.start_date && (req.body.date || req.body.startDate)) {
-      const fallbackDate = new Date(req.body.startDate || req.body.date);
-      if (!isNaN(fallbackDate.getTime())) {
-        event.start_date = fallbackDate;
+    // Update dates accurately
+    if (start_date !== undefined) {
+      if (start_date !== null && String(start_date).trim() !== '') {
+        const parsed = new Date(start_date);
+        if (!isNaN(parsed.getTime())) event.start_date = parsed;
+      } else {
+        event.start_date = null;
       }
     }
 
-    if (end_date !== undefined && end_date !== null && String(end_date).trim() !== '') {
-      const parsed = new Date(end_date);
-      if (!isNaN(parsed.getTime())) {
-        event.end_date = parsed;
-      }
-    } else if (!event.end_date && req.body.endDate) {
-      const fallbackEnd = new Date(req.body.endDate);
-      if (!isNaN(fallbackEnd.getTime())) {
-        event.end_date = fallbackEnd;
+    if (end_date !== undefined) {
+      if (end_date !== null && String(end_date).trim() !== '') {
+        const parsed = new Date(end_date);
+        if (!isNaN(parsed.getTime())) event.end_date = parsed;
+      } else {
+        event.end_date = null;
       }
     }
 
-    if (registration_start_date !== undefined && registration_start_date !== null && String(registration_start_date).trim() !== '') {
-      const parsed = new Date(registration_start_date);
-      if (!isNaN(parsed.getTime())) event.registration_start_date = parsed;
+    if (registration_start_date !== undefined) {
+      if (registration_start_date !== null && String(registration_start_date).trim() !== '') {
+        const parsed = new Date(registration_start_date);
+        if (!isNaN(parsed.getTime())) event.registration_start_date = parsed;
+      } else {
+        event.registration_start_date = null;
+      }
     }
 
-    if (registration_end_date !== undefined && registration_end_date !== null && String(registration_end_date).trim() !== '') {
-      const parsed = new Date(registration_end_date);
-      if (!isNaN(parsed.getTime())) event.registration_end_date = parsed;
+    if (registration_end_date !== undefined) {
+      if (registration_end_date !== null && String(registration_end_date).trim() !== '') {
+        const parsed = new Date(registration_end_date);
+        if (!isNaN(parsed.getTime())) event.registration_end_date = parsed;
+      } else {
+        event.registration_end_date = null;
+      }
     }
 
     if (max_registrations !== undefined) {
