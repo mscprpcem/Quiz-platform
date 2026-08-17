@@ -76,6 +76,11 @@ const getQuizPlatformBaseUrl = () => {
   return (process.env.PUBLIC_QUIZ_URL || process.env.FRONTEND_URL || 'https://quiz.mscprpcem.tech').replace(/\/+$/, '');
 };
 
+// Main Club Website base URL for public event registrations
+const getMainWebsiteBaseUrl = () => {
+  return (process.env.MAIN_WEBSITE_URL || 'https://www.mscprpcem.tech').replace(/\/+$/, '');
+};
+
 const POSTER_PRESETS = [
   { match: 'vision', url: 'https://mscprpcem.blob.core.windows.net/events/VisionX.png' },
   { match: 'spark', url: 'https://mscprpcem.blob.core.windows.net/events/clean_529287766.png' },
@@ -187,10 +192,14 @@ function computeEventAndRegStatus(ev, now = new Date(), isLiveNow = false, total
   const isCapacityFull = maxRegs !== null && maxRegs !== undefined && totalRegCount >= maxRegs;
 
   const rawStatus = (ev.status || 'upcoming').toLowerCase().trim();
-  const isExplicitlyCompleted = rawStatus === 'completed' || rawStatus === 'past' || rawStatus === 'concluded' || rawStatus === 'cancelled';
-  const isEndDatePassed = ev.end_date ? new Date(ev.end_date) < now : false;
-  
-  const isEventCompleted = isExplicitlyCompleted || (isEndDatePassed && rawStatus !== 'upcoming' && rawStatus !== 'live');
+  const startDate = ev.start_date ? new Date(ev.start_date) : (ev.startDate ? new Date(ev.startDate) : null);
+  const endDate = ev.end_date ? new Date(ev.end_date) : (ev.endDate ? new Date(ev.endDate) : null);
+
+  const isFutureEvent = Boolean(startDate && !isNaN(startDate.getTime()) && startDate > now);
+  const isEndDatePassed = Boolean(endDate && !isNaN(endDate.getTime()) ? endDate < now : (startDate && !isNaN(startDate.getTime()) ? startDate < now : false));
+  const isExplicitlyCompleted = Boolean((rawStatus === 'completed' || rawStatus === 'past' || rawStatus === 'concluded' || rawStatus === 'cancelled') && !isFutureEvent);
+
+  const isEventCompleted = !isFutureEvent && (isExplicitlyCompleted || (isEndDatePassed && rawStatus !== 'upcoming' && rawStatus !== 'live'));
 
   // Event Lifecycle Status: 'completed' | 'live' | 'upcoming'
   let eventStatus = 'upcoming';
@@ -1037,8 +1046,9 @@ router.get('/public', async (req, res) => {
       const statusObj = computeEventAndRegStatus(dev, now, isLiveNow, totalRegCount);
       const formattedDate = formatEventDateString(dev.start_date);
       const computedDuration = formatEventDuration(dev.start_date, dev.end_date, dev.duration);
+      const mainWebsiteUrl = getMainWebsiteBaseUrl();
       const regUrlRelative = `/register/${dev.slug || dev.id}`;
-      const regUrlAbsolute = `${baseUrl}/register/${dev.slug || dev.id}`;
+      const regUrlAbsolute = `${mainWebsiteUrl}/register/${dev.slug || dev.id}`;
 
       eventsList.push({
         id: dev.id,
@@ -1125,8 +1135,9 @@ router.get('/public', async (req, res) => {
         const sePoster = resolveEventPoster(se.poster, seTitle);
         const seFormattedDate = se.date || (se.startDate ? formatEventDateString(se.startDate) : 'Past Event');
         const seDuration = se.duration || '1 Day';
+        const mainWebsiteUrl = getMainWebsiteBaseUrl();
         const regUrlRelative = `/register/${se.id}`;
-        const regUrlAbsolute = `${baseUrl}/register/${se.id}`;
+        const regUrlAbsolute = `${mainWebsiteUrl}/register/${se.id}`;
 
         eventsList.push({
           id: se.id,

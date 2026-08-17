@@ -267,6 +267,7 @@ export default function AdminEvents() {
     const resolvedEndDate = ev.end_date || ev.endDate || null;
     const resolvedRegStart = ev.registration_start_date || null;
     const resolvedRegEnd = ev.registration_end_date || null;
+    const isFuture = resolvedStartDate && !isNaN(new Date(resolvedStartDate).getTime()) && new Date(resolvedStartDate) > new Date();
 
     setFormData({
       name: ev.name || ev.title || '',
@@ -285,7 +286,7 @@ export default function AdminEvents() {
       fee: ev.fee || 'Free',
       is_registration_open: ev.is_registration_open !== false,
       rewards: ev.rewards || 'Certificates & Swags',
-      status: (ev.status === 'past' || ev.status === 'completed') ? 'completed' : (ev.status || 'upcoming')
+      status: isFuture ? 'upcoming' : ((ev.status === 'past' || ev.status === 'completed') ? 'completed' : (ev.status || 'upcoming'))
     });
     setErrorMsg('');
     setModalOpen(true);
@@ -351,7 +352,7 @@ export default function AdminEvents() {
   };
 
   const handleCopyLink = (slugOrId) => {
-    const url = `https://mscprpcem.tech/register/${slugOrId}`;
+    const url = `https://www.mscprpcem.tech/register/${slugOrId}`;
     navigator.clipboard.writeText(url);
     setCopyFeedback(slugOrId);
     setTimeout(() => setCopyFeedback(null), 2500);
@@ -389,9 +390,10 @@ export default function AdminEvents() {
         ? new Date(formData.registration_end_date).toISOString()
         : (editingEvent?.registration_end_date ? new Date(editingEvent.registration_end_date).toISOString() : null);
 
-      const cleanStatus = (formData.status === 'past' || formData.status === 'completed')
-        ? 'completed'
-        : (formData.status || 'upcoming');
+      const isFuture = resolvedStartIso && new Date(resolvedStartIso) > new Date();
+      const cleanStatus = isFuture && (formData.status === 'past' || formData.status === 'completed')
+        ? 'upcoming'
+        : ((formData.status === 'past' || formData.status === 'completed') ? 'completed' : (formData.status || 'upcoming'));
 
       const payload = {
         ...formData,
@@ -435,16 +437,19 @@ export default function AdminEvents() {
     
     const status = (e.status || '').toUpperCase();
     const now = new Date();
-    const isEventEnded = e.end_date 
-      ? new Date(e.end_date) < now 
-      : (e.start_date ? new Date(e.start_date) < now : false);
-    const isCompleted = status === 'COMPLETED' || status === 'PAST' || status === 'CONCLUDED' || isEventEnded;
+    const startDate = e.start_date ? new Date(e.start_date) : (e.startDate ? new Date(e.startDate) : null);
+    const endDate = e.end_date ? new Date(e.end_date) : (e.endDate ? new Date(e.endDate) : null);
+    const isFutureEvent = Boolean(startDate && !isNaN(startDate.getTime()) && startDate > now);
+    const isEventEnded = Boolean(endDate && !isNaN(endDate.getTime())
+      ? endDate < now 
+      : (startDate && !isNaN(startDate.getTime()) ? startDate < now : false));
+    const isCompleted = !isFutureEvent && (status === 'COMPLETED' || status === 'PAST' || status === 'CONCLUDED' || isEventEnded);
 
     if (selectedFilter === 'COMPLETED') {
       return isCompleted;
     }
     if (selectedFilter === 'UPCOMING') {
-      return !isCompleted && (status === 'UPCOMING' || status === 'OPEN' || status === 'ACTIVE');
+      return isFutureEvent || (!isCompleted && (status === 'UPCOMING' || status === 'OPEN' || status === 'ACTIVE'));
     }
     if (selectedFilter === 'LIVE') {
       return (status === 'LIVE' || e.is_live) && !isEventEnded;
@@ -478,6 +483,13 @@ export default function AdminEvents() {
     const hasDates = Boolean(ev.start_date);
     const isRegClosed = !ev.is_registration_open || ev.is_registration_ended;
 
+    const startDateObj = ev.start_date ? new Date(ev.start_date) : (ev.startDate ? new Date(ev.startDate) : null);
+    const isFutureEv = Boolean(startDateObj && !isNaN(startDateObj.getTime()) && startDateObj > new Date());
+    const rawStatus = (ev.status || '').toLowerCase();
+    const isLive = rawStatus === 'live' || ev.is_live;
+    const isCompleted = !isFutureEv && (rawStatus === 'completed' || rawStatus === 'past');
+    const badgeLabel = isLive ? 'Live' : (isCompleted ? 'Completed' : 'Upcoming');
+
     return (
       <div
         key={ev.id}
@@ -500,13 +512,13 @@ export default function AdminEvents() {
             {/* Status & Fee Badges */}
             <div className="absolute top-3 left-3 flex items-center gap-1.5">
               <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider shadow-sm ${
-                (ev.status || '').toLowerCase() === 'live' || ev.is_live
+                isLive
                   ? 'bg-emerald-500 text-white animate-pulse'
-                  : (ev.status || '').toLowerCase() === 'completed' || (ev.status || '').toLowerCase() === 'past'
+                  : isCompleted
                   ? 'bg-slate-600/90 text-white backdrop-blur-xs'
                   : 'bg-purple-600 text-white'
               }`}>
-                {ev.status || 'Upcoming'}
+                {badgeLabel}
               </span>
               {ev.fee && (
                 <span className="px-2 py-1 rounded-full text-[10px] font-extrabold bg-black/60 text-white backdrop-blur-xs border border-white/20">
@@ -610,7 +622,7 @@ export default function AdminEvents() {
                   <span>{isCopied ? 'Copied' : 'Copy'}</span>
                 </button>
                 <a
-                  href={`https://mscprpcem.tech/register/${currentSlug}`}
+                  href={`https://www.mscprpcem.tech/register/${currentSlug}`}
                   target="_blank"
                   rel="noreferrer"
                   className="p-1 text-purple-600 hover:text-purple-800 hover:bg-white rounded-md cursor-pointer"
@@ -1096,7 +1108,7 @@ export default function AdminEvents() {
                 </label>
                 <div className="flex items-center">
                   <span className="px-3 py-2.5 bg-slate-100 border border-r-0 border-slate-200 rounded-l-xl text-slate-500 font-mono text-[11px] select-none">
-                    mscprpcem.tech/register/
+                    www.mscprpcem.tech/register/
                   </span>
                   <input
                     type="text"
@@ -1108,7 +1120,7 @@ export default function AdminEvents() {
                   />
                 </div>
                 <p className="text-[10px] text-slate-400 mt-1">
-                  Students can open <code className="text-purple-600 font-bold">https://mscprpcem.tech/register/{formData.slug || 'event-slug'}</code> directly to register.
+                  Students can open <code className="text-purple-600 font-bold">https://www.mscprpcem.tech/register/{formData.slug || 'event-slug'}</code> directly to register.
                 </p>
               </div>
 
