@@ -226,17 +226,20 @@ export const drawBrandedQRCard = (ctx, qrImage, quizData, brandData, logoImg) =>
   // 13. Direct URL / Join Link
   ctx.fillStyle = '#64748B';
   ctx.font = '600 11px Inter, "Segoe UI", system-ui, sans-serif';
-  ctx.fillText('Scan with camera or visit:', 200, 455);
+  const scanLabel = quizData?.scan_label || (quizData?.isEvent ? 'Scan with camera to register:' : 'Scan with camera or visit:');
+  ctx.fillText(scanLabel, 200, 455);
 
   ctx.fillStyle = primaryColor;
   ctx.font = 'bold 12px Inter, "Segoe UI", monospace, sans-serif';
   const hostOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://quiz.mscprpcem.tech';
   const joinCode = quizData?.join_code || quizData?.custom_slug || '';
-  const joinUrl = quizData?.join_url || (joinCode ? `${hostOrigin}/join/${joinCode}` : `${hostOrigin}/q/quiz`);
+  const joinUrl = quizData?.join_url || (quizData?.isEvent 
+    ? `${hostOrigin}/register/${quizData?.custom_slug || 'event'}`
+    : (joinCode ? `${hostOrigin}/join/${joinCode}` : `${hostOrigin}/q/quiz`));
   const urlDisplay = joinUrl.length > 44 ? joinUrl.slice(0, 44) + '...' : joinUrl;
   ctx.fillText(urlDisplay, 200, 478);
 
-  // 14. Unique Join Code Box
+  // 14. Unique Join Code / Event Slug Box
   ctx.fillStyle = '#F1F5F9';
   ctx.fillRect(80, 505, 240, 70);
   ctx.strokeStyle = '#E2E8F0';
@@ -244,7 +247,8 @@ export const drawBrandedQRCard = (ctx, qrImage, quizData, brandData, logoImg) =>
 
   ctx.fillStyle = '#64748B';
   ctx.font = 'bold 9px Inter, "Segoe UI", sans-serif';
-  ctx.fillText('UNIQUE JOIN CODE', 200, 525);
+  const codeLabel = quizData?.code_label || (quizData?.isEvent ? 'EVENT REGISTRATION SLUG' : 'UNIQUE JOIN CODE');
+  ctx.fillText(codeLabel, 200, 525);
 
   const codeVal = String(quizData?.join_code || quizData?.custom_slug || 'JOIN').toUpperCase();
   
@@ -304,8 +308,9 @@ export const downloadBrandedQRCard = async ({
         drawBrandedQRCard(ctx, qrImage, quizData, branding, logoImg);
 
         const pngUrl = canvas.toDataURL('image/png');
-        const slugOrCode = quizData?.custom_slug || quizData?.join_code || 'quiz';
-        const defaultName = fileName || `msc-quiz-${slugOrCode}-card.png`;
+        const slugOrCode = quizData?.custom_slug || quizData?.join_code || 'item';
+        const defaultPrefix = quizData?.isEvent ? 'msc-event' : 'quiz';
+        const defaultName = fileName || `${defaultPrefix}-${slugOrCode}.png`;
 
         const downloadLink = document.createElement('a');
         downloadLink.href = pngUrl;

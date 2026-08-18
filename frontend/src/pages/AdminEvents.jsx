@@ -8,8 +8,14 @@ import {
   Trash2, Edit3, ExternalLink, Mail, ArrowRight, ShieldCheck,
   AlertCircle, RefreshCw, X, Radio, BookOpen, Image, Check, Download, FileText,
   Copy, Link as LinkIcon, Upload, CloudUpload, CheckCircle2, Clock, Timer,
-  Lock, Unlock, Tag, AlertTriangle
+  Lock, Unlock, Tag, AlertTriangle, QrCode
 } from 'lucide-react';
+import { QRCodeSVG } from 'qrcode.react';
+import {
+  downloadBrandedQRCard,
+  fetchBrandingConfig,
+  getLogoUrl
+} from '../utils/qrCardGenerator';
 
 const POSTER_GALLERY = [
   {
@@ -106,9 +112,44 @@ export default function AdminEvents() {
   const [eventsPage, setEventsPage] = useState(1);
   const [eventsLimit, setEventsLimit] = useState(9);
 
+  // Quick Event QR Modal State
+  const [qrModalEvent, setQrModalEvent] = useState(null);
+  const [qrCopied, setQrCopied] = useState(false);
+  const [branding, setBranding] = useState(null);
+
+  useEffect(() => {
+    fetchBrandingConfig().then(b => setBranding(b)).catch(err => console.error(err));
+  }, []);
+
+  const handleDownloadEventQR = async (ev) => {
+    if (!ev) return;
+    const slug = ev.slug || ev.id;
+    const regUrl = `${window.location.origin}/register/${slug}`;
+    await downloadBrandedQRCard({
+      svgElementId: 'admin-event-qr-svg',
+      quizData: {
+        title: ev.name,
+        subtitle: `${ev.category || 'FLAGSHIP EVENT'} • ${ev.mode || 'HYBRID'}`,
+        custom_slug: slug,
+        join_code: slug,
+        code_label: 'EVENT REGISTRATION SLUG',
+        join_url: regUrl,
+        isEvent: true
+      },
+      brandData: branding,
+      fileName: `msc-event-${slug}-card.png`
+    });
+  };
+
+  const handleCopyEventQrLink = (url) => {
+    navigator.clipboard.writeText(url);
+    setQrCopied(true);
+    setTimeout(() => setQrCopied(false), 2000);
+  };
+
   // Lock body scroll when either modal is open
   useEffect(() => {
-    if (modalOpen || regsModalOpen) {
+    if (modalOpen || regsModalOpen || qrModalEvent) {
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
@@ -116,7 +157,7 @@ export default function AdminEvents() {
     return () => {
       document.body.style.overflow = '';
     };
-  }, [modalOpen, regsModalOpen]);
+  }, [modalOpen, regsModalOpen, qrModalEvent]);
 
   const handlePosterUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -529,8 +570,15 @@ export default function AdminEvents() {
             {/* Top Action Icons */}
             <div className="absolute top-3 right-3 flex items-center gap-1.5">
               <button
+                onClick={() => setQrModalEvent(ev)}
+                className="p-1.5 bg-white/80 hover:bg-white text-purple-700 rounded-xl backdrop-blur-xs transition-colors cursor-pointer shadow-xs"
+                title="View & Download Event QR Card"
+              >
+                <QrCode size={13} />
+              </button>
+              <button
                 onClick={() => openEditModal(ev)}
-                className="p-1.5 bg-white/80 hover:bg-white text-slate-700 rounded-xl backdrop-blur-xs transition-colors cursor-pointer"
+                className="p-1.5 bg-white/80 hover:bg-white text-slate-700 rounded-xl backdrop-blur-xs transition-colors cursor-pointer shadow-xs"
                 title="Edit event"
               >
                 <Edit3 size={13} />
@@ -538,7 +586,7 @@ export default function AdminEvents() {
               {ev.source === 'database' && (
                 <button
                   onClick={() => handleDeleteEvent(ev.id, ev.name)}
-                  className="p-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-xl backdrop-blur-xs transition-colors cursor-pointer"
+                  className="p-1.5 bg-red-600/80 hover:bg-red-600 text-white rounded-xl backdrop-blur-xs transition-colors cursor-pointer shadow-xs"
                   title="Delete event"
                 >
                   <Trash2 size={13} />
@@ -608,6 +656,13 @@ export default function AdminEvents() {
                 </span>
               </div>
               <div className="flex items-center gap-1 shrink-0">
+                <button
+                  onClick={() => setQrModalEvent(ev)}
+                  className="p-1 text-purple-600 hover:text-purple-800 hover:bg-white rounded-md cursor-pointer transition-colors"
+                  title="View Event QR Card"
+                >
+                  <QrCode size={12} />
+                </button>
                 <button
                   onClick={() => handleCopyLink(currentSlug)}
                   className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1 ${
@@ -689,21 +744,32 @@ export default function AdminEvents() {
         </div>
 
         {/* Footer Action Buttons */}
-        <div className="p-5 pt-0 grid grid-cols-2 gap-2 text-xs font-bold mt-2">
+        <div className="p-5 pt-0 grid grid-cols-3 gap-2 text-xs font-bold mt-2">
           <button
             onClick={() => navigate(`/admin/scheduled-quizzes/create?event=${encodeURIComponent(ev.name)}`)}
-            className="py-2 px-3 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
+            className="py-2 px-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
+            title="Attach Quiz Track"
           >
             <Plus size={13} />
-            <span>Attach Quiz</span>
+            <span className="truncate">Quiz</span>
           </button>
 
           <button
             onClick={() => navigate(`/admin/email-dispatch?eventId=${encodeURIComponent(ev.id)}&event=${encodeURIComponent(ev.name)}`)}
-            className="py-2 px-3 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
+            className="py-2 px-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-xl text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
+            title="Dispatch Email"
           >
             <Mail size={13} />
-            <span>Dispatch Email</span>
+            <span className="truncate">Email</span>
+          </button>
+
+          <button
+            onClick={() => setQrModalEvent(ev)}
+            className="py-2 px-2 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
+            title="View & Download Event QR Card"
+          >
+            <QrCode size={13} />
+            <span className="truncate">QR Card</span>
           </button>
         </div>
       </div>
@@ -722,7 +788,7 @@ export default function AdminEvents() {
             <div>
               <h1 className="text-2xl font-black text-slate-900 tracking-tight">Event Management</h1>
               <p className="text-xs text-slate-500 font-medium">
-                Configure event dates, registration deadlines, capacity limits, and custom <code>/register/:slug</code> URLs.
+                Configure event dates, registration deadlines, capacity limits, and custom URLs.
               </p>
             </div>
           </div>
@@ -752,7 +818,7 @@ export default function AdminEvents() {
           <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
-            placeholder="Search by event name, slug, venue..."
+            placeholder="Search by event name"
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -1528,6 +1594,105 @@ export default function AdminEvents() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Quick Event QR Modal */}
+      {qrModalEvent && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-200 space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shadow-xs">
+                  <QrCode size={16} />
+                </div>
+                <div>
+                  <h3 className="text-sm font-black text-slate-900">Event QR Card</h3>
+                  <p className="text-[11px] text-slate-400 font-bold">MSC-PRPCEM Chapter</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setQrModalEvent(null)}
+                className="w-7 h-7 rounded-full hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-slate-600 cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="space-y-1 text-center">
+              <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-purple-50 text-purple-700 border border-purple-100 rounded-full text-[10px] font-black uppercase">
+                <Sparkles size={12} />
+                <span>{qrModalEvent.category || 'Flagship Event'}</span>
+              </div>
+              <h3 className="text-base font-black text-slate-900 line-clamp-1">{qrModalEvent.name}</h3>
+              <p className="text-xs text-slate-500 font-medium">Scan to open event registration & details</p>
+            </div>
+
+            {/* QR Card Container */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-3">
+              {(() => {
+                const slug = qrModalEvent.slug || qrModalEvent.id;
+                const fullUrl = `${window.location.origin}/register/${slug}`;
+                return (
+                  <>
+                    <div className="bg-white p-3 rounded-xl shadow-xs border border-slate-100">
+                      <QRCodeSVG
+                        id="admin-event-qr-svg"
+                        value={fullUrl}
+                        size={150}
+                        bgColor="#FFFFFF"
+                        fgColor="#0F172A"
+                        level="H"
+                        imageSettings={{
+                          src: getLogoUrl(branding?.logo_path),
+                          x: undefined,
+                          y: undefined,
+                          height: branding?.qr_logo_size || 28,
+                          width: branding?.qr_logo_size || 28,
+                          excavate: true,
+                        }}
+                      />
+                    </div>
+
+                    <div className="w-full flex items-center space-x-1.5">
+                      <input
+                        type="text"
+                        readOnly
+                        value={fullUrl}
+                        className="bg-white border border-slate-200 text-purple-700 font-mono font-bold text-[11px] px-2.5 py-1.5 rounded-lg w-full"
+                      />
+                      <button
+                        onClick={() => handleCopyEventQrLink(fullUrl)}
+                        className="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-lg flex items-center space-x-1 cursor-pointer whitespace-nowrap"
+                        title="Copy registration link"
+                      >
+                        {qrCopied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                        <span>{qrCopied ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => handleDownloadEventQR(qrModalEvent)}
+                className="flex-1 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md transition-all cursor-pointer"
+              >
+                <Download size={14} />
+                <span>Download Event Card</span>
+              </button>
+              <button
+                onClick={() => setQrModalEvent(null)}
+                className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>,
         document.body
