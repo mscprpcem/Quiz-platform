@@ -74,8 +74,19 @@ export const drawBrandedQRCard = (ctx, qrImage, quizData, brandData, logoImg) =>
 
   const branding = { ...DEFAULT_BRANDING, ...(brandData || {}) };
   const primaryColor = getValidColor(branding.primary_color, '#0078d4');
-  const clubName = (branding.club_name || 'Microsoft Student Club').toUpperCase();
-  const chapterName = (branding.chapter_name || 'MSC-PRPCEM Chapter').toUpperCase();
+  
+  // Format Header Lines: Avoid repeating duplicate "PRPCEM" text twice
+  let rawClubName = (branding.club_name || 'Microsoft Student Club').toUpperCase().trim();
+  let rawChapterName = (branding.chapter_name || 'MSC-PRPCEM Chapter').toUpperCase().trim();
+
+  let clubName = rawClubName;
+  let chapterName = rawChapterName;
+
+  if (clubName === chapterName || (clubName.includes('PRPCEM') && chapterName.includes('PRPCEM'))) {
+    clubName = 'MICROSOFT STUDENT CLUB';
+    chapterName = 'MSC-PRPCEM CHAPTER';
+  }
+
   const footerText = branding.footer_text || 'Powered by Microsoft Student Club Quiz Platform';
 
   // 1. Clean White Background
@@ -219,31 +230,32 @@ export const drawBrandedQRCard = (ctx, qrImage, quizData, brandData, logoImg) =>
 
   ctx.fillStyle = primaryColor;
   ctx.font = 'bold 12px Inter, "Segoe UI", monospace, sans-serif';
-  const joinUrl = quizData?.join_url || `${typeof window !== 'undefined' ? window.location.origin : 'https://quiz.mscprpcem.tech'}/q/${quizData?.custom_slug || quizData?.join_code || 'preview'}`;
+  const hostOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://quiz.mscprpcem.tech';
+  const joinCode = quizData?.join_code || quizData?.custom_slug || '';
+  const joinUrl = quizData?.join_url || (joinCode ? `${hostOrigin}/join/${joinCode}` : `${hostOrigin}/q/quiz`);
   const urlDisplay = joinUrl.length > 44 ? joinUrl.slice(0, 44) + '...' : joinUrl;
   ctx.fillText(urlDisplay, 200, 478);
 
-  // 14. Unique Code / Direct Access Slug Box
+  // 14. Unique Join Code Box
   ctx.fillStyle = '#F1F5F9';
   ctx.fillRect(80, 505, 240, 70);
   ctx.strokeStyle = '#E2E8F0';
   ctx.strokeRect(80, 505, 240, 70);
 
   ctx.fillStyle = '#64748B';
-  ctx.font = 'bold 9px Inter, "Segoe UI", system-ui, sans-serif';
-  const codeLabel = quizData?.code_label || (quizData?.custom_slug ? 'DIRECT ACCESS SLUG' : 'UNIQUE JOIN CODE');
-  ctx.fillText(codeLabel, 200, 525);
+  ctx.font = 'bold 9px Inter, "Segoe UI", sans-serif';
+  ctx.fillText('UNIQUE JOIN CODE', 200, 525);
 
-  const codeVal = String(quizData?.custom_slug || quizData?.join_code || quizData?.id || 'JOIN').toUpperCase();
+  const codeVal = String(quizData?.join_code || quizData?.custom_slug || 'JOIN').toUpperCase();
   
-  // Dynamic font sizing for long slugs so text never clips
+  // Dynamic font sizing for long codes so text never clips
   let fontSize = 28;
-  if (codeVal.length > 12) fontSize = 20;
-  if (codeVal.length > 18) fontSize = 15;
-  if (codeVal.length > 24) fontSize = 12;
+  if (codeVal.length > 10) fontSize = 22;
+  if (codeVal.length > 16) fontSize = 16;
+  if (codeVal.length > 22) fontSize = 13;
 
   ctx.fillStyle = primaryColor;
-  ctx.font = `900 ${fontSize}px Inter, "Segoe UI", monospace, sans-serif`;
+  ctx.font = `900 ${fontSize}px Inter, "Segoe UI", sans-serif`;
   ctx.fillText(codeVal, 200, 560);
 
   // 15. Footer Text

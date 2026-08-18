@@ -91,6 +91,7 @@ export default function ScheduledQuizDetails() {
 
   const handleDownloadQR = async () => {
     if (!quiz) return;
+    const code = quiz.join_code || quiz.custom_slug || id;
     await downloadBrandedQRCard({
       svgElementId: 'scheduled-quiz-qr-svg',
       quizData: {
@@ -98,10 +99,10 @@ export default function ScheduledQuizDetails() {
         subtitle: quiz.category || (quiz.schedule_type ? `${quiz.schedule_type} ASSESSMENT` : 'SCHEDULED ASSESSMENT'),
         custom_slug: quiz.custom_slug,
         join_code: quiz.join_code,
-        join_url: vanityUrl
+        join_url: `${hostOrigin}/join/${quiz.join_code || slugOrCode}`
       },
       brandData: branding,
-      fileName: `msc-scheduled-quiz-${slugOrCode}.png`
+      fileName: `quiz-${code}.png`
     });
   };
 

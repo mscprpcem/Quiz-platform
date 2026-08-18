@@ -304,16 +304,18 @@ export default function CreateScheduledQuiz() {
   };
 
   const handleDownloadPreviewQR = async () => {
+    const code = formData.join_code || formData.custom_slug || 'PREVIEW';
     await downloadBrandedQRCard({
       svgElementId: 'create-scheduled-quiz-qr-svg',
       quizData: {
         title: formData.title || 'Scheduled Assessment',
         subtitle: formData.category || (formData.schedule_type ? `${formData.schedule_type} ASSESSMENT` : 'SCHEDULED ASSESSMENT'),
         custom_slug: formData.custom_slug,
-        join_url: `${typeof window !== 'undefined' ? window.location.origin : 'https://quiz.mscprpcem.tech'}/q/${formData.custom_slug || 'preview'}`
+        join_code: formData.join_code,
+        join_url: `${typeof window !== 'undefined' ? window.location.origin : 'https://quiz.mscprpcem.tech'}/join/${code}`
       },
       brandData: branding,
-      fileName: `msc-quiz-${formData.custom_slug || 'preview'}-join-card.png`
+      fileName: `quiz-${code}.png`
     });
   };
 

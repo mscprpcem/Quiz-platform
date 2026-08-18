@@ -54,19 +54,20 @@ export default function AdminScheduledQuizzes() {
 
   const handleDownloadModalQR = async (quiz) => {
     if (!quiz) return;
+    const code = quiz.join_code || quiz.custom_slug || 'QUIZ';
     const slug = quiz.custom_slug || (quiz.title ? quiz.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : quiz.join_code);
-    const joinUrl = `${window.location.origin}/q/${slug}`;
+    const joinUrl = `${window.location.origin}/join/${quiz.join_code || slug}`;
     await downloadBrandedQRCard({
       svgElementId: 'admin-scheduled-quiz-qr-svg',
       quizData: {
         title: quiz.title,
         subtitle: quiz.category || (quiz.schedule_type ? `${quiz.schedule_type} ASSESSMENT` : 'SCHEDULED ASSESSMENT'),
-        custom_slug: slug,
+        custom_slug: quiz.custom_slug,
         join_code: quiz.join_code,
         join_url: joinUrl
       },
       brandData: branding,
-      fileName: `msc-scheduled-quiz-${slug}.png`
+      fileName: `quiz-${code}.png`
     });
   };
 
