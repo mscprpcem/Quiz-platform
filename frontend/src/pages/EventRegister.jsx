@@ -38,7 +38,7 @@ export default function EventRegister() {
   const handleDownloadEventQR = async () => {
     if (!event) return;
     const currentSlug = event.slug || slug;
-    const regUrl = `${window.location.origin}/register/${currentSlug}`;
+    const regUrl = `https://www.mscprpcem.tech/register/${currentSlug}`;
     await downloadBrandedQRCard({
       svgElementId: 'event-register-qr-svg',
       quizData: {
@@ -674,7 +674,7 @@ export default function EventRegister() {
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-3">
               {(() => {
                 const currentSlug = event?.slug || slug;
-                const fullUrl = `${window.location.origin}/register/${currentSlug}`;
+                const fullUrl = `https://www.mscprpcem.tech/register/${currentSlug}`;
                 return (
                   <>
                     <div className="bg-white p-3 rounded-xl shadow-xs border border-slate-100">

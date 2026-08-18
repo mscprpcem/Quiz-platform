@@ -124,7 +124,7 @@ export default function AdminEvents() {
   const handleDownloadEventQR = async (ev) => {
     if (!ev) return;
     const slug = ev.slug || ev.id;
-    const regUrl = `${window.location.origin}/register/${slug}`;
+    const regUrl = `https://www.mscprpcem.tech/register/${slug}`;
     await downloadBrandedQRCard({
       svgElementId: 'admin-event-qr-svg',
       quizData: {
@@ -1634,7 +1634,7 @@ export default function AdminEvents() {
             <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-3">
               {(() => {
                 const slug = qrModalEvent.slug || qrModalEvent.id;
-                const fullUrl = `${window.location.origin}/register/${slug}`;
+                const fullUrl = `https://www.mscprpcem.tech/register/${slug}`;
                 return (
                   <>
                     <div className="bg-white p-3 rounded-xl shadow-xs border border-slate-100">

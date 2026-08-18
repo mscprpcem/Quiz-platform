@@ -232,9 +232,10 @@ export const drawBrandedQRCard = (ctx, qrImage, quizData, brandData, logoImg) =>
   ctx.fillStyle = primaryColor;
   ctx.font = 'bold 12px Inter, "Segoe UI", monospace, sans-serif';
   const hostOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://quiz.mscprpcem.tech';
+  const eventHost = 'https://www.mscprpcem.tech';
   const joinCode = quizData?.join_code || quizData?.custom_slug || '';
   const joinUrl = quizData?.join_url || (quizData?.isEvent 
-    ? `${hostOrigin}/register/${quizData?.custom_slug || 'event'}`
+    ? `${eventHost}/register/${quizData?.custom_slug || 'event'}`
     : (joinCode ? `${hostOrigin}/join/${joinCode}` : `${hostOrigin}/q/quiz`));
   const urlDisplay = joinUrl.length > 44 ? joinUrl.slice(0, 44) + '...' : joinUrl;
   ctx.fillText(urlDisplay, 200, 478);
