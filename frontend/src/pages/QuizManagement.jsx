@@ -312,17 +312,25 @@ export default function QuizManagement() {
     };
 
     const primaryColor = getValidColor(branding?.primary_color);
-    let rawClubName = (branding?.club_name || 'Microsoft Student Club').toUpperCase().trim();
-    let rawChapterName = (branding?.chapter_name || 'MSC-PRPCEM Chapter').toUpperCase().trim();
+    const rawClub = (branding?.club_name || 'Microsoft Student Club').trim();
+    const rawChap = (branding?.chapter_name || 'PRPCEM Chapter').trim();
 
-    let clubName = rawClubName;
-    let chapterName = rawChapterName;
+    let clubName = rawClub.replace(/\s+PRPCEM$/i, '').trim();
+    if (!clubName) clubName = 'Microsoft Student Club';
 
-    if (clubName === chapterName || (clubName.includes('PRPCEM') && chapterName.includes('PRPCEM'))) {
-      clubName = 'MICROSOFT STUDENT CLUB';
-      chapterName = 'MSC-PRPCEM CHAPTER';
+    let chapterName = rawChap
+      .replace(/^Microsoft\s+Student\s+Club\s*/i, '')
+      .replace(/^MSC[-\s]*/i, '')
+      .trim();
+
+    if (!chapterName) chapterName = 'PRPCEM';
+    if (!chapterName.toLowerCase().includes('chapter')) {
+      chapterName = `${chapterName} CHAPTER`;
     }
-    const footerText = branding?.footer_text || 'Powered by Microsoft Student Club Quiz Platform';
+
+    clubName = clubName.toUpperCase();
+    chapterName = chapterName.toUpperCase();
+    const footerText = branding?.footer_text || 'Powered by Microsoft Student Club PRPCEM Quiz Platform';
     const logoSrc = branding?.logo_path ? (branding.logo_path.startsWith('http') ? branding.logo_path : `/${branding.logo_path}`) : null;
 
     const image = new Image();

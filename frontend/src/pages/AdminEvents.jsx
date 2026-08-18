@@ -1610,7 +1610,7 @@ export default function AdminEvents() {
                 </div>
                 <div>
                   <h3 className="text-sm font-black text-slate-900">Event QR Card</h3>
-                  <p className="text-[11px] text-slate-400 font-bold">MSC-PRPCEM Chapter</p>
+                  <p className="text-[11px] text-slate-400 font-bold">PRPCEM Chapter</p>
                 </div>
               </div>
               <button

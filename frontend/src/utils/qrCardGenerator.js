@@ -27,10 +27,10 @@ export const colorToRgba = (hex, alpha = 1, fallback = '#0078d4') => {
  */
 export const DEFAULT_BRANDING = {
   club_name: 'Microsoft Student Club',
-  chapter_name: 'MSC-PRPCEM Chapter',
+  chapter_name: 'PRPCEM Chapter',
   logo_path: 'logo.png',
   primary_color: '#0078d4',
-  footer_text: 'Powered by Microsoft Student Club Quiz Platform',
+  footer_text: 'Powered by Microsoft Student Club PRPCEM Quiz Platform',
   qr_logo_size: 28
 };
 
@@ -66,6 +66,34 @@ export const getLogoUrl = (logoPath) => {
 };
 
 /**
+ * Normalizes club name and chapter name to avoid duplicate prefixes or repetitive MSC text
+ */
+export const formatClubAndChapter = (branding) => {
+  const rawClub = (branding?.club_name || 'Microsoft Student Club').trim();
+  const rawChapter = (branding?.chapter_name || 'PRPCEM Chapter').trim();
+
+  // Normalize club name: strip redundant trailing chapter names (e.g. "Microsoft Student Club PRPCEM")
+  let clubName = rawClub.replace(/\s+PRPCEM$/i, '').trim();
+  if (!clubName) clubName = 'Microsoft Student Club';
+
+  // Normalize chapter name: remove redundant "Microsoft Student Club", "MSC-", "MSC ", etc.
+  let chapterName = rawChapter
+    .replace(/^Microsoft\s+Student\s+Club\s*/i, '')
+    .replace(/^MSC[-\s]*/i, '')
+    .trim();
+
+  if (!chapterName) chapterName = 'PRPCEM';
+  if (!chapterName.toLowerCase().includes('chapter')) {
+    chapterName = `${chapterName} CHAPTER`;
+  }
+
+  return {
+    clubName: clubName.toUpperCase(),
+    chapterName: chapterName.toUpperCase()
+  };
+};
+
+/**
  * Draws the official Microsoft Student Club branded QR card onto a canvas context.
  */
 export const drawBrandedQRCard = (ctx, qrImage, quizData, brandData, logoImg) => {
@@ -75,19 +103,10 @@ export const drawBrandedQRCard = (ctx, qrImage, quizData, brandData, logoImg) =>
   const branding = { ...DEFAULT_BRANDING, ...(brandData || {}) };
   const primaryColor = getValidColor(branding.primary_color, '#0078d4');
   
-  // Format Header Lines: Avoid repeating duplicate "PRPCEM" text twice
-  let rawClubName = (branding.club_name || 'Microsoft Student Club').toUpperCase().trim();
-  let rawChapterName = (branding.chapter_name || 'MSC-PRPCEM Chapter').toUpperCase().trim();
+  // Format Header Lines cleanly without repetitive club/chapter strings
+  const { clubName, chapterName } = formatClubAndChapter(branding);
 
-  let clubName = rawClubName;
-  let chapterName = rawChapterName;
-
-  if (clubName === chapterName || (clubName.includes('PRPCEM') && chapterName.includes('PRPCEM'))) {
-    clubName = 'MICROSOFT STUDENT CLUB';
-    chapterName = 'MSC-PRPCEM CHAPTER';
-  }
-
-  const footerText = branding.footer_text || 'Powered by Microsoft Student Club Quiz Platform';
+  const footerText = branding.footer_text || 'Powered by Microsoft Student Club PRPCEM Quiz Platform';
 
   // 1. Clean White Background
   ctx.fillStyle = '#FFFFFF';
@@ -179,7 +198,7 @@ export const drawBrandedQRCard = (ctx, qrImage, quizData, brandData, logoImg) =>
   ctx.lineTo(360, 115);
   ctx.stroke();
 
-  // 9. Quiz Title & Subtitle/Category
+  // 9. Quiz / Event Title & Subtitle/Category
   ctx.fillStyle = '#0F172A';
   ctx.font = 'bold 16px Inter, "Segoe UI", system-ui, sans-serif';
   const rawTitle = (quizData?.title || 'Quiz Session').toUpperCase();
@@ -204,7 +223,7 @@ export const drawBrandedQRCard = (ctx, qrImage, quizData, brandData, logoImg) =>
     ctx.drawImage(qrImage, 90, 195, 220, 220);
   }
 
-  // 12. MSC-PRPCEM Logo in the CENTER of the QR Code
+  // 12. Center MSC Logo inside the QR Code
   if (logoImg) {
     const logoSize = branding.qr_logo_size !== undefined ? branding.qr_logo_size : 28;
     const L = Math.round(logoSize * 1.375); // ~38px
@@ -223,50 +242,124 @@ export const drawBrandedQRCard = (ctx, qrImage, quizData, brandData, logoImg) =>
     ctx.drawImage(logoImg, 200 - Math.round(L / 2), 305 - Math.round(L / 2), L, L);
   }
 
-  // 13. Direct URL / Join Link
-  ctx.fillStyle = '#64748B';
-  ctx.font = '600 11px Inter, "Segoe UI", system-ui, sans-serif';
-  const scanLabel = quizData?.scan_label || (quizData?.isEvent ? 'Scan with camera to register:' : 'Scan with camera or visit:');
-  ctx.fillText(scanLabel, 200, 455);
+  // 13 & 14. Event vs Quiz Layout Differentiation
+  const isEvent = Boolean(quizData?.isEvent || quizData?.is_event);
 
-  ctx.fillStyle = primaryColor;
-  ctx.font = 'bold 12px Inter, "Segoe UI", monospace, sans-serif';
-  const hostOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://quiz.mscprpcem.tech';
-  const eventHost = 'https://www.mscprpcem.tech';
-  const joinCode = quizData?.join_code || quizData?.custom_slug || '';
-  const joinUrl = quizData?.join_url || (quizData?.isEvent 
-    ? `${eventHost}/register/${quizData?.custom_slug || 'event'}`
-    : (joinCode ? `${hostOrigin}/join/${joinCode}` : `${hostOrigin}/q/quiz`));
-  const urlDisplay = joinUrl.length > 44 ? joinUrl.slice(0, 44) + '...' : joinUrl;
-  ctx.fillText(urlDisplay, 200, 478);
+  if (isEvent) {
+    // === EVENT REGISTRATION CARD ===
+    // 13. Call-to-action prompt
+    ctx.fillStyle = '#64748B';
+    ctx.font = '600 11px Inter, "Segoe UI", system-ui, sans-serif';
+    ctx.fillText('Scan with camera to register, or visit link:', 200, 452);
 
-  // 14. Unique Join Code / Event Slug Box
-  ctx.fillStyle = '#F1F5F9';
-  ctx.fillRect(80, 505, 240, 70);
-  ctx.strokeStyle = '#E2E8F0';
-  ctx.strokeRect(80, 505, 240, 70);
+    // 14. Prominent Full Registration Link Box (replaces slug box with complete link)
+    const boxX = 35;
+    const boxY = 468;
+    const boxW = 330;
+    const boxH = 100;
+    const boxR = 12;
 
-  ctx.fillStyle = '#64748B';
-  ctx.font = 'bold 9px Inter, "Segoe UI", sans-serif';
-  const codeLabel = quizData?.code_label || (quizData?.isEvent ? 'EVENT REGISTRATION SLUG' : 'UNIQUE JOIN CODE');
-  ctx.fillText(codeLabel, 200, 525);
+    ctx.fillStyle = '#F8FAFC';
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(boxX, boxY, boxW, boxH, boxR);
+    } else {
+      ctx.rect(boxX, boxY, boxW, boxH);
+    }
+    ctx.fill();
+    ctx.strokeStyle = '#E2E8F0';
+    ctx.lineWidth = 1;
+    ctx.stroke();
 
-  const codeVal = String(quizData?.join_code || quizData?.custom_slug || 'JOIN').toUpperCase();
-  
-  // Dynamic font sizing for long codes so text never clips
-  let fontSize = 28;
-  if (codeVal.length > 10) fontSize = 22;
-  if (codeVal.length > 16) fontSize = 16;
-  if (codeVal.length > 22) fontSize = 13;
+    // Box Header Label
+    ctx.fillStyle = '#64748B';
+    ctx.font = 'bold 9px Inter, "Segoe UI", sans-serif';
+    ctx.fillText('DIRECT REGISTRATION LINK', 200, boxY + 20);
 
-  ctx.fillStyle = primaryColor;
-  ctx.font = `900 ${fontSize}px Inter, "Segoe UI", sans-serif`;
-  ctx.fillText(codeVal, 200, 560);
+    // Full Registration Link URL
+    const eventHost = 'https://www.mscprpcem.tech';
+    const slug = quizData?.custom_slug || quizData?.join_code || '';
+    const fullUrl = quizData?.join_url || `${eventHost}/register/${slug}`;
+
+    ctx.fillStyle = primaryColor;
+    ctx.font = 'bold 12px Inter, "Segoe UI", monospace, sans-serif';
+
+    const textMetrics = ctx.measureText(fullUrl);
+    if (textMetrics.width <= 300) {
+      ctx.fillText(fullUrl, 200, boxY + 56);
+    } else {
+      // Split cleanly across 2 lines so the link is never truncated
+      let line1 = '';
+      let line2 = '';
+
+      if (fullUrl.includes('/register/')) {
+        const parts = fullUrl.split('/register/');
+        line1 = `${parts[0]}/register/`;
+        line2 = parts[1] || '';
+      } else {
+        const mid = Math.floor(fullUrl.length / 2);
+        const slashIdx = fullUrl.lastIndexOf('/', mid + 10);
+        if (slashIdx > 15) {
+          line1 = fullUrl.substring(0, slashIdx + 1);
+          line2 = fullUrl.substring(slashIdx + 1);
+        } else {
+          line1 = fullUrl.substring(0, mid);
+          line2 = fullUrl.substring(mid);
+        }
+      }
+
+      ctx.font = 'bold 12px Inter, "Segoe UI", monospace, sans-serif';
+      ctx.fillText(line1, 200, boxY + 48);
+      ctx.font = 'bold 13px Inter, "Segoe UI", monospace, sans-serif';
+      ctx.fillText(line2, 200, boxY + 70);
+    }
+  } else {
+    // === QUIZ SESSION CARD ===
+    // 13. Direct URL / Join Link
+    ctx.fillStyle = '#64748B';
+    ctx.font = '600 11px Inter, "Segoe UI", system-ui, sans-serif';
+    const scanLabel = quizData?.scan_label || 'Scan with camera or visit:';
+    ctx.fillText(scanLabel, 200, 455);
+
+    const hostOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://quiz.mscprpcem.tech';
+    const joinCode = quizData?.join_code || quizData?.custom_slug || '';
+    const joinUrl = quizData?.join_url || (joinCode ? `${hostOrigin}/join/${joinCode}` : `${hostOrigin}/q/quiz`);
+    
+    let urlFont = 12;
+    if (joinUrl.length > 40) urlFont = 11;
+    if (joinUrl.length > 48) urlFont = 10;
+    ctx.fillStyle = primaryColor;
+    ctx.font = `bold ${urlFont}px Inter, "Segoe UI", monospace, sans-serif`;
+    ctx.fillText(joinUrl, 200, 478);
+
+    // 14. Unique Join Code Box
+    ctx.fillStyle = '#F1F5F9';
+    ctx.fillRect(80, 505, 240, 70);
+    ctx.strokeStyle = '#E2E8F0';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(80, 505, 240, 70);
+
+    ctx.fillStyle = '#64748B';
+    ctx.font = 'bold 9px Inter, "Segoe UI", sans-serif';
+    const codeLabel = quizData?.code_label || 'UNIQUE JOIN CODE';
+    ctx.fillText(codeLabel, 200, 525);
+
+    const codeVal = String(quizData?.join_code || quizData?.custom_slug || 'JOIN').toUpperCase();
+    
+    let fontSize = 28;
+    if (codeVal.length > 8) fontSize = 22;
+    if (codeVal.length > 14) fontSize = 16;
+    if (codeVal.length > 20) fontSize = 13;
+
+    ctx.fillStyle = primaryColor;
+    ctx.font = `900 ${fontSize}px Inter, "Segoe UI", sans-serif`;
+    ctx.fillText(codeVal, 200, 560);
+  }
 
   // 15. Footer Text
   ctx.fillStyle = '#94A3B8';
   ctx.font = 'bold 8px Inter, "Segoe UI", system-ui, sans-serif';
-  ctx.fillText(footerText, 200, 610);
+  ctx.fillText(footerText, 200, 612);
 
   // 16. Bottom Gradient Accent Bar
   ctx.fillStyle = grad;

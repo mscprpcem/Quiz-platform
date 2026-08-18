@@ -29,8 +29,8 @@ let cacheTime = 0;
 const CACHE_TTL = 60 * 1000; // 60 seconds cache
 
 const DEFAULT_BRANDING = {
-  club_name: 'Microsoft Student Club PRPCEM',
-  chapter_name: 'Microsoft Student Club PRPCEM',
+  club_name: 'Microsoft Student Club',
+  chapter_name: 'PRPCEM Chapter',
   signing_authority: 'Prof. S. R. Patil',
   domain_name: 'quiz.mscprpcem.tech',
   chapter_identifier: 'MSC-PRPCEM-4112',
