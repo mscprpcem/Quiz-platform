@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Mail, Lock, User, CheckCircle2, AlertCircle, Loader2, Eye, EyeOff, KeyRound, ArrowLeft, X } from 'lucide-react';
+import { Mail, Lock, User, CheckCircle2, AlertCircle, Loader2, Eye, EyeOff, KeyRound, ArrowLeft, X, Check } from 'lucide-react';
 
 export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTab = 'login' }) {
-  const { studentLogin, studentRegister, forgotPassword, verifyOtp, resetPassword } = useAuth();
+  const { studentLogin, studentRegister, forgotPassword, verifyOtp, resetPassword, checkUsername } = useAuth();
 
   const [activeTab, setActiveTab] = useState(initialTab); // 'login' | 'register' | 'forgot-password'
   
@@ -11,9 +11,39 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [isUsernameCustomized, setIsUsernameCustomized] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState({ checking: false, available: null, message: '', error: '' });
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+
+  // Debounced check username in modal
+  useEffect(() => {
+    if (activeTab !== 'register' || !username || username.length < 3) {
+      setUsernameStatus({ checking: false, available: null, message: '', error: '' });
+      return;
+    }
+
+    const clean = username.toLowerCase().trim().replace(/[^a-z0-9_-]/g, '');
+    setUsernameStatus(prev => ({ ...prev, checking: true, error: '' }));
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await checkUsername(clean);
+        if (res) {
+          setUsernameStatus({
+            checking: false,
+            available: res.available !== false,
+            message: res.available !== false ? '✓ Available on Verification Portal' : '',
+            error: res.available === false ? (res.error || 'Username is already taken') : ''
+          });
+        }
+      } catch (err) {
+        setUsernameStatus({ checking: false, available: true, message: '', error: '' });
+      }
+    }, 450);
+
+    return () => clearTimeout(timer);
+  }, [username, activeTab]);
   
   // Registration OTP State
   const [regStep, setRegStep] = useState(1);
@@ -468,8 +498,35 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
                             setIsUsernameCustomized(true);
                             setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''));
                           }}
-                          className="w-full border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs font-mono font-bold text-slate-800 bg-slate-50/50 focus:bg-white focus:border-blue-600 outline-none"
+                          className={`w-full border rounded-xl pl-8 pr-8 py-2 text-xs font-mono font-bold text-slate-800 transition-all outline-none ${
+                            usernameStatus.available === true
+                              ? 'border-emerald-400 bg-emerald-50/30 focus:border-emerald-600'
+                              : usernameStatus.available === false
+                              ? 'border-rose-400 bg-rose-50/30 focus:border-rose-600'
+                              : 'border-slate-200 bg-slate-50/50 focus:bg-white focus:border-blue-600'
+                          }`}
                         />
+                        <div className="absolute right-3 flex items-center">
+                          {usernameStatus.checking ? (
+                            <Loader2 size={13} className="animate-spin text-blue-500" />
+                          ) : usernameStatus.available === true ? (
+                            <Check size={14} className="text-emerald-600 stroke-[3]" />
+                          ) : usernameStatus.available === false ? (
+                            <X size={14} className="text-rose-600 stroke-[3]" />
+                          ) : null}
+                        </div>
+                      </div>
+                      {/* Real-time Status */}
+                      <div className="flex items-center justify-between text-[10px] px-0.5">
+                        {usernameStatus.checking ? (
+                          <span className="text-blue-500 font-medium">Checking Verification Portal...</span>
+                        ) : usernameStatus.available === true ? (
+                          <span className="text-emerald-600 font-bold">✓ Available on Verification Portal</span>
+                        ) : usernameStatus.available === false ? (
+                          <span className="text-rose-600 font-bold">{usernameStatus.error || 'Username already registered'}</span>
+                        ) : (
+                          <span className="text-slate-400 font-mono">verify.mscprpcem.tech/u/{username || 'username'}</span>
+                        )}
                       </div>
                     </div>
                   </>

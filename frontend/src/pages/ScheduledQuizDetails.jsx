@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import api from '../services/api';
+import { formatToISTDateTimeString } from '../utils/dateUtils';
 import {
   Calendar, Clock, CheckCircle, ArrowLeft, Users, Trophy, Pause, 
   Play, ExternalLink, ShieldCheck, HelpCircle, Layers, QrCode, Mail, Send, Copy, Check, Trash2, Download
@@ -296,8 +297,8 @@ export default function ScheduledQuizDetails() {
               {occurrences.map((occ) => (
                 <tr key={occ.id} className="hover:bg-slate-50">
                   <td className="py-3.5 px-4 font-bold text-slate-900">{occ.title || `Slot #${occ.occurrence_number}`}</td>
-                  <td className="py-3.5 px-4 text-slate-600">{new Date(occ.start_time).toLocaleString()}</td>
-                  <td className="py-3.5 px-4 text-slate-600">{new Date(occ.end_time).toLocaleString()}</td>
+                  <td className="py-3.5 px-4 text-slate-600">{formatToISTDateTimeString(occ.start_time)}</td>
+                  <td className="py-3.5 px-4 text-slate-600">{formatToISTDateTimeString(occ.end_time)}</td>
                   <td className="py-3.5 px-4">
                     <span className="px-2.5 py-0.5 rounded-full text-[9px] font-black uppercase bg-blue-50 text-blue-700">
                       {occ.status}

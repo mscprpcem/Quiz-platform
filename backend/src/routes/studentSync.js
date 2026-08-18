@@ -102,6 +102,71 @@ router.get('/check-username', async (req, res) => {
 });
 
 // =======================
+// Search Student Profile on Local DB & Verification Portal
+// =======================
+router.get('/search-profile', async (req, res) => {
+  try {
+    const rawQuery = req.query.q || req.query.query || req.query.username || '';
+    const clean = rawQuery.trim().replace(/^@+/, '');
+    if (!clean) {
+      return res.status(400).json({ error: 'Search query is required.' });
+    }
+
+    const verificationPortalUrl = getVerificationPortalUrl();
+    let localMatches = [];
+
+    if (User) {
+      const users = await User.findAll({
+        where: {
+          [Op.or]: [
+            { username: { [Op.like]: `%${clean}%` } },
+            { name: { [Op.like]: `%${clean}%` } },
+            { email: { [Op.like]: `%${clean}%` } }
+          ]
+        },
+        attributes: ['id', 'name', 'username', 'email', 'avatar', 'createdAt'],
+        limit: 10
+      });
+
+      localMatches = users.map(u => ({
+        name: u.name,
+        username: u.username || u.email.split('@')[0],
+        email: u.email,
+        profile_url: `${verificationPortalUrl}/u/${encodeURIComponent(u.username || u.email.split('@')[0])}`,
+        direct_url: `${verificationPortalUrl}/u/${encodeURIComponent(u.username || u.email.split('@')[0])}`
+      }));
+    }
+
+    // Try Verification portal search if available
+    let remoteMatches = [];
+    try {
+      if (axios && typeof axios.get === 'function') {
+        const remoteRes = await axios.get(`${verificationPortalUrl}/api/users/search?q=${encodeURIComponent(clean)}`, { timeout: 4000 });
+        if (remoteRes.data && Array.isArray(remoteRes.data.users)) {
+          remoteMatches = remoteRes.data.users;
+        } else if (Array.isArray(remoteRes.data)) {
+          remoteMatches = remoteRes.data;
+        }
+      }
+    } catch (e) {}
+
+    const directProfileUrl = `${verificationPortalUrl}/u/${encodeURIComponent(clean.toLowerCase())}`;
+
+    return res.json({
+      success: true,
+      query: clean,
+      direct_profile_url: directProfileUrl,
+      local_results: localMatches,
+      remote_results: remoteMatches,
+      results_count: localMatches.length + remoteMatches.length
+    });
+  } catch (err) {
+    console.error('Search profile error:', err);
+    return res.status(500).json({ error: 'Failed to search student profiles: ' + err.message });
+  }
+});
+
+// =======================
 // OTP Verification Routes (Local DB + Verification Portal)
 // =======================
 router.post('/send-otp', async (req, res) => {

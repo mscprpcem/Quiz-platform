@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import api from '../services/api';
 import EventSelector from '../components/EventSelector';
 import { useToast } from '../context/ToastContext';
+import { formatToISTDateString } from '../utils/dateUtils';
 import {
   Calendar, ArrowLeft, ArrowRight, Plus, Trash2, Upload, FileSpreadsheet, FileText,
   CheckCircle, AlertTriangle, Clock, ShieldCheck, HelpCircle, Layers, CheckSquare, Sparkles, RefreshCw, QrCode, Mail, Award, ExternalLink, Download, Search, ChevronDown, Check
@@ -519,7 +520,7 @@ export default function CreateScheduledQuiz() {
         list.push({
           number: 1,
           name: title,
-          dateLabel: start.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+          dateLabel: formatToISTDateString(start, { month: 'short', day: 'numeric', year: 'numeric' }),
           description: desc
         });
       } else if (formData.schedule_type === 'DAILY') {
@@ -529,7 +530,7 @@ export default function CreateScheduledQuiz() {
           list.push({
             number: count,
             name: title,
-            dateLabel: curr.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+            dateLabel: formatToISTDateString(curr, { month: 'short', day: 'numeric', year: 'numeric' }),
             description: desc
           });
           curr.setDate(curr.getDate() + 1);
@@ -548,7 +549,7 @@ export default function CreateScheduledQuiz() {
             list.push({
               number: count,
               name: title,
-              dateLabel: curr.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+              dateLabel: formatToISTDateString(curr, { month: 'short', day: 'numeric', year: 'numeric' }),
               description: desc
             });
             count++;
@@ -562,7 +563,7 @@ export default function CreateScheduledQuiz() {
           list.push({
             number: count,
             name: title,
-            dateLabel: curr.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+            dateLabel: formatToISTDateString(curr, { month: 'short', day: 'numeric', year: 'numeric' }),
             description: desc
           });
           curr.setDate(curr.getDate() + 14);
@@ -575,7 +576,7 @@ export default function CreateScheduledQuiz() {
           list.push({
             number: count,
             name: title,
-            dateLabel: curr.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+            dateLabel: formatToISTDateString(curr, { month: 'short', day: 'numeric', year: 'numeric' }),
             description: desc
           });
           curr.setMonth(curr.getMonth() + 1);
@@ -590,7 +591,7 @@ export default function CreateScheduledQuiz() {
           list.push({
             number: count,
             name: title,
-            dateLabel: curr.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }),
+            dateLabel: formatToISTDateString(curr, { month: 'short', day: 'numeric', year: 'numeric' }),
             description: desc
           });
           curr.setDate(curr.getDate() + step);
@@ -598,7 +599,7 @@ export default function CreateScheduledQuiz() {
         }
       }
 
-      return list.length > 0 ? list : [{ number: 1, name: 'Round 1', dateLabel: start.toLocaleDateString(), description: '' }];
+      return list.length > 0 ? list : [{ number: 1, name: 'Round 1', dateLabel: formatToISTDateString(start), description: '' }];
     } catch (e) {
       return [{ number: 1, name: 'Round 1', dateLabel: '', description: '' }];
     }

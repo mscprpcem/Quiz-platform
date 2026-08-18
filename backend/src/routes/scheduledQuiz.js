@@ -205,13 +205,15 @@ const shuffleArray = (array) => {
 const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, endDate, startTimeStr, endTimeStr, config = {}) => {
   const parseDateParts = (dateInput) => {
     if (!dateInput) return new Date();
-    if (dateInput instanceof Date) return new Date(dateInput);
-    const dateStr = String(dateInput).split('T')[0];
+    if (dateInput instanceof Date) return isNaN(dateInput.getTime()) ? new Date() : new Date(dateInput);
+    const str = String(dateInput).trim();
+    const dateStr = str.split('T')[0];
     const parts = dateStr.split('-').map(Number);
     if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
       return new Date(parts[0], parts[1] - 1, parts[2]);
     }
-    return new Date(dateInput);
+    const d = new Date(str);
+    return isNaN(d.getTime()) ? new Date() : d;
   };
 
   const start = parseDateParts(startDate);

@@ -3,13 +3,19 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
   Mail, Lock, User, CheckCircle2, ArrowRight,
-  AlertTriangle, Loader2, BookOpen, Eye, EyeOff, KeyRound, ArrowLeft, ShieldCheck
+  AlertTriangle, Loader2, BookOpen, Eye, EyeOff, KeyRound, ArrowLeft, ShieldCheck,
+  ExternalLink, Search, Sparkles, Check, X
 } from 'lucide-react';
 
 export default function StudentAuth() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { studentAccount, studentLogin, studentRegister, studentLogout, forgotPassword, verifyOtp, resetPassword } = useAuth();
+  const { 
+    studentAccount, studentLogin, studentRegister, studentLogout, 
+    forgotPassword, verifyOtp, resetPassword, checkUsername 
+  } = useAuth();
+
+  const verificationPortalUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_VERIFICATION_PORTAL_URL) || 'https://verify.mscprpcem.tech';
 
   // Mode: 'login' | 'register' | 'forgot-password'
   const isRegisterInitial = location.pathname.includes('register');
@@ -23,6 +29,45 @@ export default function StudentAuth() {
     confirmPassword: ''
   });
   const [isUsernameCustomized, setIsUsernameCustomized] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState({ checking: false, available: null, message: '', error: '' });
+  const [lookupHandle, setLookupHandle] = useState('');
+
+  // Debounced real-time username availability check against Verification Portal
+  useEffect(() => {
+    if (mode !== 'register' || !formData.username || formData.username.length < 3) {
+      setUsernameStatus({ checking: false, available: null, message: '', error: '' });
+      return;
+    }
+
+    const clean = formData.username.toLowerCase().trim().replace(/[^a-z0-9_-]/g, '');
+    setUsernameStatus(prev => ({ ...prev, checking: true, error: '' }));
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await checkUsername(clean);
+        if (res) {
+          setUsernameStatus({
+            checking: false,
+            available: res.available !== false,
+            message: res.available !== false ? '✓ Handle is available on Verification Portal!' : '',
+            error: res.available === false ? (res.error || 'Username handle is already registered') : ''
+          });
+        }
+      } catch (err) {
+        setUsernameStatus({ checking: false, available: true, message: '✓ Handle format is valid', error: '' });
+      }
+    }, 450);
+
+    return () => clearTimeout(timer);
+  }, [formData.username, mode]);
+
+  // Search & open verification portal profile
+  const handleProfileSearchSubmit = (e) => {
+    e.preventDefault();
+    const clean = (lookupHandle || '').trim().replace(/^@+/, '').toLowerCase();
+    if (!clean) return;
+    window.open(`${verificationPortalUrl}/u/${encodeURIComponent(clean)}`, '_blank', 'noopener,noreferrer');
+  };
 
   // Forgot Password / OTP State
   const [resetStep, setResetStep] = useState(1); // 1 = Enter Email, 2 = Enter OTP, 3 = Enter New Password
@@ -250,52 +295,105 @@ export default function StudentAuth() {
     }
   };
 
-  // If already logged in, show simple session card
+  // If already logged in, show student profile session card
   if (studentAccount) {
     const returnUrl = getReturnUrl();
+    const studentHandle = studentAccount.username || studentAccount.email.split('@')[0];
+    const profileUrl = `${verificationPortalUrl}/u/${studentHandle}`;
 
     return (
-      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-10 px-4 bg-slate-50 font-segoe">
-        <div className="max-w-md w-full animate-fade-in">
-          <div className="bg-white border border-slate-200/80 p-8 rounded-2xl shadow-sm space-y-6 text-center">
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-8 px-4 bg-slate-50 font-segoe">
+        <div className="max-w-md w-full animate-fade-in space-y-4">
+          
+          <div className="bg-white border border-slate-200/90 p-6 sm:p-8 rounded-3xl shadow-sm space-y-6 text-center">
             
-            <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto border border-emerald-100">
-              <ShieldCheck size={26} />
+            <div className="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center mx-auto shadow-md">
+              <span className="text-2xl font-black">{studentAccount.name ? studentAccount.name.charAt(0).toUpperCase() : 'S'}</span>
+              <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-emerald-500 text-white rounded-full flex items-center justify-center border-2 border-white shadow-xs" title="Verified Member">
+                <ShieldCheck size={13} />
+              </div>
             </div>
 
-            <div className="space-y-1">
-              <h2 className="text-xl font-bold text-slate-900">{studentAccount.name}</h2>
-              <p className="text-xs text-slate-500">{studentAccount.email}</p>
+            <div className="space-y-1.5">
+              <h2 className="text-xl font-black text-slate-900">{studentAccount.name}</h2>
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-full font-mono text-xs font-bold border border-blue-100">
+                <span>@{studentHandle}</span>
+              </div>
+              <p className="text-xs text-slate-500 font-medium">{studentAccount.email}</p>
             </div>
 
-            <div className="space-y-2.5 pt-2">
+            <div className="space-y-2.5 pt-1">
+              {/* Direct Verification Portal Profile Button */}
+              <a
+                href={profileUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full py-3 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer"
+              >
+                <ShieldCheck size={16} />
+                <span>Open Verification Profile</span>
+                <ExternalLink size={14} className="opacity-80" />
+              </a>
+
               {returnUrl && returnUrl !== '/courses' && (
                 <button
                   onClick={() => navigate(returnUrl, { replace: true })}
-                  className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer"
+                  className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-xs"
                 >
                   <span>Continue Back to Quiz</span>
-                  <ArrowRight size={15} />
+                  <ArrowRight size={14} />
                 </button>
               )}
 
               <button
                 onClick={() => navigate('/courses')}
-                className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer"
+                className="w-full py-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center justify-center space-x-2 transition-all cursor-pointer"
               >
-                <BookOpen size={15} />
+                <BookOpen size={15} className="text-blue-600" />
                 <span>Browse Quizzes & Courses</span>
               </button>
 
               <button
                 onClick={studentLogout}
-                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition-all cursor-pointer"
+                className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl text-xs transition-all cursor-pointer"
               >
                 Sign Out
               </button>
             </div>
 
           </div>
+
+          {/* Search any Profile on Verification Portal */}
+          <div className="bg-white border border-slate-200/90 p-5 rounded-2xl shadow-xs text-left space-y-2.5">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                <Search size={14} className="text-blue-600" />
+                <span>Search Verification Portal</span>
+              </span>
+              <span className="text-[10px] text-slate-400 font-mono">verify.mscprpcem.tech</span>
+            </div>
+
+            <form onSubmit={handleProfileSearchSubmit} className="flex gap-2">
+              <div className="relative flex-1 flex items-center">
+                <span className="absolute left-3 text-xs font-bold text-slate-400">@</span>
+                <input
+                  type="text"
+                  placeholder="Enter username handle"
+                  value={lookupHandle}
+                  onChange={(e) => setLookupHandle(e.target.value)}
+                  className="w-full border border-slate-200 rounded-xl pl-7 pr-3 py-2 text-xs font-mono font-bold bg-slate-50/50 focus:bg-white focus:border-blue-600 outline-none"
+                />
+              </div>
+              <button
+                type="submit"
+                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs flex items-center gap-1 cursor-pointer transition-all shadow-xs"
+              >
+                <span>View</span>
+                <ExternalLink size={12} />
+              </button>
+            </form>
+          </div>
+
         </div>
       </div>
     );
@@ -595,7 +693,7 @@ export default function StudentAuth() {
                       <div className="space-y-1 animate-fade-in">
                         <div className="flex items-center justify-between">
                           <label className="block text-xs font-semibold text-slate-700">Username Handle</label>
-                          <span className="text-[10px] text-slate-400 font-mono">unique handle</span>
+                          <span className="text-[10px] text-slate-400 font-mono">for verification URL</span>
                         </div>
                         <div className="relative flex items-center">
                           <span className="absolute left-3 text-xs font-black text-slate-400 select-none">@</span>
@@ -606,8 +704,36 @@ export default function StudentAuth() {
                             onChange={handleChange}
                             placeholder="amityadav"
                             required={mode === 'register'}
-                            className="w-full border border-slate-200 rounded-xl pl-8 pr-3 py-2 text-xs font-mono font-bold text-slate-800 bg-slate-50/50 focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-all outline-none"
+                            className={`w-full border rounded-xl pl-8 pr-8 py-2 text-xs font-mono font-bold text-slate-800 transition-all outline-none ${
+                              usernameStatus.available === true
+                                ? 'border-emerald-400 bg-emerald-50/30 focus:border-emerald-600 focus:ring-1 focus:ring-emerald-600'
+                                : usernameStatus.available === false
+                                ? 'border-rose-400 bg-rose-50/30 focus:border-rose-600 focus:ring-1 focus:ring-rose-600'
+                                : 'border-slate-200 bg-slate-50/50 focus:bg-white focus:border-blue-600 focus:ring-1 focus:ring-blue-600'
+                            }`}
                           />
+                          <div className="absolute right-3 flex items-center">
+                            {usernameStatus.checking ? (
+                              <Loader2 size={13} className="animate-spin text-blue-500" />
+                            ) : usernameStatus.available === true ? (
+                              <Check size={14} className="text-emerald-600 stroke-[3]" />
+                            ) : usernameStatus.available === false ? (
+                              <X size={14} className="text-rose-600 stroke-[3]" />
+                            ) : null}
+                          </div>
+                        </div>
+
+                        {/* Real-time Availability & Verification Portal URL Preview */}
+                        <div className="flex items-center justify-between text-[10px] px-1">
+                          {usernameStatus.checking ? (
+                            <span className="text-blue-500 font-medium">Checking Verification Portal...</span>
+                          ) : usernameStatus.available === true ? (
+                            <span className="text-emerald-600 font-bold">✓ Available on Verification Portal</span>
+                          ) : usernameStatus.available === false ? (
+                            <span className="text-rose-600 font-bold">{usernameStatus.error || 'Username is already registered'}</span>
+                          ) : (
+                            <span className="text-slate-400 font-mono">verify.mscprpcem.tech/u/{formData.username || 'username'}</span>
+                          )}
                         </div>
                       </div>
                     </>

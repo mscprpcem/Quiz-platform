@@ -107,19 +107,77 @@ function resolveEventPoster(posterUrl, eventName) {
   return 'https://mscprpcem.blob.core.windows.net/events/clean_529287766.png';
 }
 
+const IST_TIMEZONE = 'Asia/Kolkata';
+
 /**
- * Formats a date into human-readable event date string like 'Saturday, July 25, 2026'.
+ * Formats a date into human-readable event date string in IST like 'Sunday, August 23, 2026'.
  */
 function formatEventDateString(dateVal) {
   if (!dateVal) return 'Date Coming Soon';
-  const d = new Date(dateVal);
+  const d = (dateVal instanceof Date) ? dateVal : new Date(dateVal);
   if (isNaN(d.getTime())) return typeof dateVal === 'string' ? dateVal : 'Date Coming Soon';
   return d.toLocaleDateString('en-US', {
+    timeZone: IST_TIMEZONE,
     weekday: 'long',
     month: 'long',
     day: 'numeric',
     year: 'numeric'
   });
+}
+
+/**
+ * Returns YYYY-MM-DD in IST timezone (guarantees correct calendar date without UTC drift).
+ */
+function formatDateToIST_YYYYMMDD(dateVal) {
+  if (!dateVal) return null;
+  const d = (dateVal instanceof Date) ? dateVal : new Date(dateVal);
+  if (isNaN(d.getTime())) return null;
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: IST_TIMEZONE }).format(d);
+  } catch (e) {
+    const istOffset = 5.5 * 60 * 60 * 1000;
+    const istDate = new Date(d.getTime() + istOffset);
+    return istDate.toISOString().split('T')[0];
+  }
+}
+
+/**
+ * Formats time in IST like '12:00 AM' or '06:30 PM'.
+ */
+function formatEventTimeString(dateVal) {
+  if (!dateVal) return '';
+  const d = (dateVal instanceof Date) ? dateVal : new Date(dateVal);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString('en-US', {
+    timeZone: IST_TIMEZONE,
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true
+  });
+}
+
+/**
+ * Parses user input date defensively into an IST-aware JavaScript Date object.
+ */
+function parseISTDate(val) {
+  if (!val || String(val).trim() === '') return null;
+  if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
+  const str = String(val).trim();
+
+  // If format is YYYY-MM-DDTHH:mm or YYYY-MM-DDTHH:mm:ss without explicit timezone offset
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(str)) {
+    const parsed = new Date(`${str}:00`.slice(0, 19) + '+05:30');
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+
+  // If format is YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const parsed = new Date(`${str}T00:00:00+05:30`);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+
+  const d = new Date(str);
+  return isNaN(d.getTime()) ? null : d;
 }
 
 /**
@@ -538,6 +596,14 @@ router.get('/details/:idOrSlug', async (req, res) => {
         venue: event.venue,
         start_date: event.start_date,
         end_date: event.end_date,
+        startDate: formatDateToIST_YYYYMMDD(event.start_date),
+        endDate: formatDateToIST_YYYYMMDD(event.end_date),
+        formatted_date: formatEventDateString(event.start_date),
+        formatted_time: formatEventTimeString(event.start_date),
+        start_time_ist: formatEventTimeString(event.start_date),
+        end_time_ist: formatEventTimeString(event.end_date),
+        time_ist: formatEventTimeString(event.start_date),
+        time: formatEventTimeString(event.start_date),
         registration_start_date: event.registration_start_date,
         registration_end_date: event.registration_end_date,
         max_registrations: statusObj.maxRegs,
@@ -669,18 +735,10 @@ router.post('/', adminAuth, async (req, res) => {
       : cleanName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
     const finalPoster = resolveEventPoster(poster_url, cleanName);
 
-    const parsedStartDate = start_date && String(start_date).trim() !== '' && !isNaN(new Date(start_date).getTime())
-      ? new Date(start_date)
-      : null;
-    const parsedEndDate = end_date && String(end_date).trim() !== '' && !isNaN(new Date(end_date).getTime())
-      ? new Date(end_date)
-      : null;
-    const parsedRegStartDate = registration_start_date && String(registration_start_date).trim() !== '' && !isNaN(new Date(registration_start_date).getTime())
-      ? new Date(registration_start_date)
-      : null;
-    const parsedRegEndDate = registration_end_date && String(registration_end_date).trim() !== '' && !isNaN(new Date(registration_end_date).getTime())
-      ? new Date(registration_end_date)
-      : null;
+    const parsedStartDate = parseISTDate(start_date);
+    const parsedEndDate = parseISTDate(end_date);
+    const parsedRegStartDate = parseISTDate(registration_start_date);
+    const parsedRegEndDate = parseISTDate(registration_end_date);
     const parsedMaxRegs = max_registrations !== undefined && max_registrations !== '' && max_registrations !== null
       ? parseInt(max_registrations, 10)
       : null;
@@ -858,41 +916,21 @@ router.put('/:id', adminAuth, async (req, res) => {
     if (mode !== undefined) event.mode = mode;
     if (venue !== undefined) event.venue = venue;
     
-    // Update dates accurately
+    // Update dates accurately in IST
     if (start_date !== undefined) {
-      if (start_date !== null && String(start_date).trim() !== '') {
-        const parsed = new Date(start_date);
-        if (!isNaN(parsed.getTime())) event.start_date = parsed;
-      } else {
-        event.start_date = null;
-      }
+      event.start_date = parseISTDate(start_date);
     }
 
     if (end_date !== undefined) {
-      if (end_date !== null && String(end_date).trim() !== '') {
-        const parsed = new Date(end_date);
-        if (!isNaN(parsed.getTime())) event.end_date = parsed;
-      } else {
-        event.end_date = null;
-      }
+      event.end_date = parseISTDate(end_date);
     }
 
     if (registration_start_date !== undefined) {
-      if (registration_start_date !== null && String(registration_start_date).trim() !== '') {
-        const parsed = new Date(registration_start_date);
-        if (!isNaN(parsed.getTime())) event.registration_start_date = parsed;
-      } else {
-        event.registration_start_date = null;
-      }
+      event.registration_start_date = parseISTDate(registration_start_date);
     }
 
     if (registration_end_date !== undefined) {
-      if (registration_end_date !== null && String(registration_end_date).trim() !== '') {
-        const parsed = new Date(registration_end_date);
-        if (!isNaN(parsed.getTime())) event.registration_end_date = parsed;
-      } else {
-        event.registration_end_date = null;
-      }
+      event.registration_end_date = parseISTDate(registration_end_date);
     }
 
     if (max_registrations !== undefined) {
@@ -1090,12 +1128,17 @@ router.get('/public', async (req, res) => {
         banner: resolvedPoster,
         image: resolvedPoster,
         date: formattedDate,
-        startDate: dev.start_date ? new Date(dev.start_date).toISOString().split('T')[0] : null,
-        endDate: dev.end_date ? new Date(dev.end_date).toISOString().split('T')[0] : null,
+        startDate: formatDateToIST_YYYYMMDD(dev.start_date),
+        endDate: formatDateToIST_YYYYMMDD(dev.end_date),
         start_date: formattedDate,
         end_date: dev.end_date ? formatEventDateString(dev.end_date) : null,
         start_time: dev.start_date || dev.createdAt,
         end_time: dev.end_date,
+        start_time_ist: formatEventTimeString(dev.start_date),
+        end_time_ist: formatEventTimeString(dev.end_date),
+        time: formatEventTimeString(dev.start_date),
+        time_ist: formatEventTimeString(dev.start_date),
+        event_time: formatEventTimeString(dev.start_date),
         duration: computedDuration,
         category: dev.category || 'Innovation Challenge',
         mode: dev.mode || 'Hybrid',
@@ -1179,12 +1222,17 @@ router.get('/public', async (req, res) => {
           banner: sePoster,
           image: sePoster,
           date: seFormattedDate,
-          startDate: se.startDate || null,
-          endDate: se.endDate || null,
+          startDate: se.startDate ? formatDateToIST_YYYYMMDD(se.startDate) : null,
+          endDate: se.endDate ? formatDateToIST_YYYYMMDD(se.endDate) : null,
           start_date: seFormattedDate,
           end_date: se.endDate ? formatEventDateString(se.endDate) : null,
           start_time: se.startDate ? new Date(se.startDate) : new Date(2025, 0, 1),
           end_time: se.endDate ? new Date(se.endDate) : null,
+          start_time_ist: se.startDate ? formatEventTimeString(se.startDate) : '',
+          end_time_ist: se.endDate ? formatEventTimeString(se.endDate) : '',
+          time: se.startDate ? formatEventTimeString(se.startDate) : '',
+          time_ist: se.startDate ? formatEventTimeString(se.startDate) : '',
+          event_time: se.startDate ? formatEventTimeString(se.startDate) : '',
           duration: seDuration,
           category: se.category || 'Flagship Event',
           mode: se.mode || 'Offline',

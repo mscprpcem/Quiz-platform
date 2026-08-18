@@ -208,23 +208,23 @@
 }
 
 /* ============================================
-   RESPONSIVE MEDIA QUERIES FOR PHONES
+   RESPONSIVE MEDIA QUERIES FOR PHONES (< 640px & < 420px)
    ============================================ */
 @media (max-width: 640px) {
   .leaderboard-grid-wrapper {
-    padding: 1rem !important;
-    gap: 1rem !important;
+    padding: 0.875rem !important;
+    gap: 0.875rem !important;
     border-radius: 1.25rem !important;
   }
 
   .leaderboard-top3-container {
     grid-template-columns: 1fr !important;
-    gap: 0.75rem !important;
+    gap: 0.625rem !important;
   }
 
   .medalist-card {
-    padding: 1.25rem 1rem !important;
-    border-radius: 1.25rem !important;
+    padding: 1rem 0.875rem !important;
+    border-radius: 1rem !important;
   }
 
   .medalist-card-gold {
@@ -234,8 +234,13 @@
   }
 
   .leaderboard-runnerups-container {
-    padding: 0.875rem !important;
-    border-radius: 1.25rem !important;
+    padding: 0.75rem !important;
+    border-radius: 1rem !important;
+  }
+
+  .leaderboard-runnerup-row {
+    padding: 0.625rem 0.75rem !important;
+    gap: 0.5rem !important;
   }
 
   .recent-events-grid {
@@ -244,17 +249,20 @@
   }
 
   .recent-event-card {
-    padding: 1rem !important;
-    border-radius: 1.25rem !important;
+    padding: 0.875rem !important;
+    border-radius: 1rem !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 0.75rem !important;
   }
 
   .verify-cert-card {
-    padding: 1.25rem !important;
+    padding: 1rem !important;
     border-radius: 1.25rem !important;
   }
 
   .faq-question-btn {
-    padding: 1rem !important;
+    padding: 0.875rem 1rem !important;
   }
 
   .faq-question-text {
@@ -262,23 +270,32 @@
   }
 
   .faq-answer-panel {
-    padding: 0 1rem 1rem 1rem !important;
+    padding: 0 1rem 0.875rem 1rem !important;
     font-size: 0.75rem !important;
   }
 }
 
-@media (max-width: 480px) {
+@media (max-width: 420px) {
   .leaderboard-runnerup-row {
-    padding: 0.625rem 0.75rem !important;
+    padding: 0.5rem 0.625rem !important;
   }
 
   .recent-event-card {
-    padding: 0.875rem !important;
+    padding: 0.75rem !important;
   }
 
   .feature-card-glow {
-    padding: 1rem !important;
+    padding: 0.875rem !important;
     min-height: auto !important;
+  }
+
+  .home-hero-title {
+    font-size: 1.75rem !important;
+    line-height: 1.2 !important;
+  }
+
+  .home-hero-subtitle {
+    font-size: 0.8125rem !important;
   }
 }
 

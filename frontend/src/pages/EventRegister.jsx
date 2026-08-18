@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { formatToISTDateTimeString, formatToISTDateString } from '../utils/dateUtils';
 import {
   Calendar, Clock, MapPin, Users, Sparkles, CheckCircle2,
   AlertTriangle, ArrowRight, Share2, Tag, BookOpen, ShieldCheck,
@@ -269,9 +270,9 @@ export default function EventRegister() {
                   <div>
                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Event Schedule</div>
                     <div className="text-xs font-bold text-slate-900 mt-0.5">
-                      {event.start_date
-                        ? new Date(event.start_date).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-                        : 'Date Coming Soon'}
+                      {event.formatted_date
+                        ? `${event.formatted_date}${event.formatted_time ? ' • ' + event.formatted_time : ''}`
+                        : (event.start_date ? formatToISTDateTimeString(event.start_date) : 'Date Coming Soon')}
                     </div>
                   </div>
                 </div>
@@ -334,7 +335,7 @@ export default function EventRegister() {
                   <span>Registration Deadline</span>
                 </span>
                 <span className="text-[10px] sm:text-[11px] font-mono text-purple-300">
-                  {event.registration_end_date ? new Date(event.registration_end_date).toLocaleDateString() : 'Active'}
+                  {event.registration_end_date ? formatToISTDateTimeString(event.registration_end_date) : 'Active'}
                 </span>
               </div>
 

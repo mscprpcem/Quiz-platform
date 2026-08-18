@@ -50,39 +50,12 @@ const POSTER_GALLERY = [
   }
 ];
 
-// Helper: Convert Date or ISO string to format required by <input type="datetime-local" />
-const formatToDateTimeLocal = (dateVal) => {
-  if (!dateVal) return '';
-  const d = new Date(dateVal);
-  if (isNaN(d.getTime())) return '';
-  const pad = (n) => String(n).padStart(2, '0');
-  const year = d.getFullYear();
-  const month = pad(d.getMonth() + 1);
-  const day = pad(d.getDate());
-  let hours = d.getHours();
-  let minutes = d.getMinutes();
-  return `${year}-${month}-${day}T${pad(hours)}:${pad(minutes)}`;
-};
-
-const toSafeIso = (val) => {
-  if (!val || String(val).trim() === '') return null;
-  const d = new Date(val);
-  return isNaN(d.getTime()) ? null : d.toISOString();
-};
-
-// Helper: Format readable date time string
-const formatDisplayDateTime = (dateVal, includeTime = true) => {
-  if (!dateVal) return null;
-  const d = new Date(dateVal);
-  if (isNaN(d.getTime())) return null;
-  const options = {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    ...(includeTime ? { hour: '2-digit', minute: '2-digit' } : {})
-  };
-  return d.toLocaleString('en-US', options);
-};
+import {
+  formatToIST_DateTimeLocal as formatToDateTimeLocal,
+  parseDateTimeLocalToISTIso as toSafeIso,
+  formatToISTDateTimeString as formatDisplayDateTime,
+  formatToISTDateString
+} from '../utils/dateUtils';
 
 export default function AdminEvents() {
   const { toast } = useToast();

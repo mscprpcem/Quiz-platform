@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { formatToISTDateTimeString } from '../utils/dateUtils';
 import {
   Calendar, Plus, Search, Clock, Users, Eye, Play, Pause, Edit2, ExternalLink, Trash2
 } from 'lucide-react';
@@ -211,13 +212,13 @@ export default function AdminScheduledQuizzes() {
                   <div className="flex items-center justify-between">
                     <span className="text-slate-400 font-semibold">Start:</span>
                     <span className="font-extrabold text-slate-800">
-                      {quiz.scheduled_start ? new Date(quiz.scheduled_start).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+                      {quiz.scheduled_start ? formatToISTDateTimeString(quiz.scheduled_start) : 'N/A'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-slate-400 font-semibold">End:</span>
                     <span className="font-extrabold text-emerald-600">
-                      {quiz.scheduled_end ? new Date(quiz.scheduled_end).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'N/A'}
+                      {quiz.scheduled_end ? formatToISTDateTimeString(quiz.scheduled_end) : 'N/A'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between">

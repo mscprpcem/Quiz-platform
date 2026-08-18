@@ -112,16 +112,19 @@ export default function Navbar() {
               {/* Student Account Status / Sign Out vs Login */}
               {studentAccount ? (
                 <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => navTo('/login')}
-                    className="flex items-center space-x-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-xl text-xs cursor-pointer transition-all"
-                    title="View Student Profile"
+                  <a
+                    href={`https://verify.mscprpcem.tech/u/${encodeURIComponent(studentAccount.username || studentAccount.email.split('@')[0])}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center space-x-1.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-xl text-xs cursor-pointer transition-all group"
+                    title="Open Verification Profile on verify.mscprpcem.tech"
                   >
                     <ShieldCheck size={14} className="text-blue-600 flex-shrink-0" />
                     <span className="font-bold text-blue-900 truncate max-w-[130px]">
-                      {studentAccount.name || studentAccount.email.split('@')[0]}
+                      @{studentAccount.username || studentAccount.email.split('@')[0]}
                     </span>
-                  </button>
+                    <ExternalLink size={11} className="text-blue-400 group-hover:text-blue-600" />
+                  </a>
                   <button
                     onClick={() => {
                       studentLogout();
@@ -155,48 +158,43 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile Drawer with Backdrop */}
+        {/* Mobile Dropdown Menu Drawer */}
         {mobileOpen && (
-          <div className="md:hidden border-t border-brand-border bg-white/95 backdrop-blur-2xl shadow-xl animate-fade-in divide-y divide-slate-100">
-            <div className="px-4 py-3 space-y-1.5">
-              <button
+          <div className="md:hidden border-t border-brand-border bg-white shadow-xl animate-fade-in divide-y divide-slate-100 max-h-[calc(100vh-4rem)] overflow-y-auto">
+            <div className="p-3 space-y-1">
+              <MobileNavButton
                 onClick={() => navTo('/')}
-                className={`w-full text-left flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                  isActive('/') ? 'text-brand-blue bg-blue-50/80 shadow-2xs' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <Home size={17} className={isActive('/') ? 'text-brand-blue' : 'text-slate-400'} />
-                  <span>Home</span>
-                </div>
-                {isActive('/') && <div className="w-1.5 h-1.5 rounded-full bg-brand-blue"></div>}
-              </button>
-
-              <button
+                isActive={isActive('/')}
+                icon={Home}
+                label="Home"
+              />
+              <MobileNavButton
                 onClick={() => navTo('/courses')}
-                className={`w-full text-left flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                  isActive('/courses') ? 'text-brand-blue bg-blue-50/80 shadow-2xs' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <BookOpen size={17} className={isActive('/courses') ? 'text-brand-blue' : 'text-slate-400'} />
-                  <span>Courses & Tracks</span>
-                </div>
-                {isActive('/courses') && <div className="w-1.5 h-1.5 rounded-full bg-brand-blue"></div>}
-              </button>
-
-              <button
-                onClick={() => navTo('/join')}
-                className={`w-full text-left flex items-center justify-between px-3.5 py-3 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer ${
-                  isActive('/join') ? 'text-brand-blue bg-blue-50/80 shadow-2xs' : 'text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <Play size={17} className={isActive('/join') ? 'text-brand-blue' : 'text-slate-400'} />
-                  <span>Join Live Quiz</span>
-                </div>
-                {isActive('/join') && <div className="w-1.5 h-1.5 rounded-full bg-brand-blue"></div>}
-              </button>
+                isActive={isActive('/courses')}
+                icon={BookOpen}
+                label="All Quizzes"
+              />
+              <MobileNavButton
+                onClick={() => navTo('/leaderboard')}
+                isActive={isActive('/leaderboard')}
+                icon={Trophy}
+                label="Live Leaderboard"
+              />
+              
+              <div className="pt-2 border-t border-slate-100">
+                <a
+                  href="https://verify.mscprpcem.tech"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-700 hover:bg-slate-50 transition-all"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <ShieldCheck size={16} className="text-blue-600" />
+                    <span>Verification Portal</span>
+                  </div>
+                  <ExternalLink size={13} className="text-slate-400" />
+                </a>
+              </div>
             </div>
 
             {/* Student Auth / Profile Section */}
@@ -212,18 +210,23 @@ export default function Navbar() {
                         <div className="text-xs font-black text-slate-900 truncate">
                           {studentAccount.name || studentAccount.email.split('@')[0]}
                         </div>
-                        <div className="text-[10px] text-slate-500 font-medium truncate">{studentAccount.email}</div>
+                        <div className="text-[10px] text-blue-600 font-mono font-bold truncate">
+                          @{studentAccount.username || studentAccount.email.split('@')[0]}
+                        </div>
                       </div>
                     </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => navTo('/login')}
-                      className="py-2.5 px-3 bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all text-center cursor-pointer shadow-2xs"
+                    <a
+                      href={`https://verify.mscprpcem.tech/u/${encodeURIComponent(studentAccount.username || studentAccount.email.split('@')[0])}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="py-2.5 px-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
                     >
-                      Profile
-                    </button>
+                      <span>Profile</span>
+                      <ExternalLink size={12} />
+                    </a>
                     <button
                       onClick={() => {
                         studentLogout();

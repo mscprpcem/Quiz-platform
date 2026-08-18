@@ -26,6 +26,12 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 import QRScanner from '../components/QRScanner';
+import {
+  getISTDay,
+  getISTMonthShort,
+  formatToISTTimeString,
+  formatToISTDateString
+} from '../utils/dateUtils';
 import './Home.css';
 
 export default function Home() {
@@ -35,7 +41,10 @@ export default function Home() {
   const [joinTab, setJoinTab] = useState('code'); // 'code', 'qr', 'login'
   const [joinCode, setJoinCode] = useState('');
   const [joinError, setJoinError] = useState('');
+  const [homeLookupQuery, setHomeLookupQuery] = useState('');
   
+  const verificationPortalUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_VERIFICATION_PORTAL_URL) || 'https://verify.mscprpcem.tech';
+
   // Dynamic Data States (Fetched from backend)
   const [upcomingQuizzes, setUpcomingQuizzes] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
@@ -44,6 +53,21 @@ export default function Home() {
 
   // Section 10 States (FAQ Accordion)
   const [activeFaq, setActiveFaq] = useState(null);
+
+  const handleHomeLookupSubmit = (e) => {
+    e.preventDefault();
+    const clean = (homeLookupQuery || '').trim().replace(/^@+/, '');
+    if (!clean) {
+      window.open(verificationPortalUrl, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    // If credential ID format
+    if (clean.toUpperCase().startsWith('MSC-') || clean.length >= 10) {
+      window.open(`${verificationPortalUrl}/verify?id=${encodeURIComponent(clean)}`, '_blank', 'noopener,noreferrer');
+    } else {
+      window.open(`${verificationPortalUrl}/u/${encodeURIComponent(clean.toLowerCase())}`, '_blank', 'noopener,noreferrer');
+    }
+  };
 
   useEffect(() => {
     const fetchHomeData = async () => {
@@ -346,10 +370,10 @@ export default function Home() {
                 if (!q) return null;
                 const startDate = q.scheduled_start || q.startTime ? new Date(q.scheduled_start || q.startTime) : new Date(q.createdAt || Date.now());
                 const endDate = q.scheduled_end || q.endTime ? new Date(q.scheduled_end || q.endTime) : null;
-                const day = isNaN(startDate.getTime()) ? '15' : startDate.getDate();
-                const month = isNaN(startDate.getTime()) ? 'AUG' : startDate.toLocaleString('en-US', { month: 'short' }).toUpperCase();
-                const startTimeStr = isNaN(startDate.getTime()) ? '10:00 AM' : startDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                const endTimeStr = endDate && !isNaN(endDate.getTime()) ? endDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null;
+                const day = isNaN(startDate.getTime()) ? '15' : getISTDay(startDate);
+                const month = isNaN(startDate.getTime()) ? 'AUG' : getISTMonthShort(startDate);
+                const startTimeStr = isNaN(startDate.getTime()) ? '10:00 AM' : formatToISTTimeString(startDate);
+                const endTimeStr = endDate && !isNaN(endDate.getTime()) ? formatToISTTimeString(endDate) : null;
                 const qSlug = q.slug || (q.title ? q.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : q.join_code);
 
                 return (
@@ -643,8 +667,7 @@ export default function Home() {
             <div className="recent-events-grid">
               {recentEvents.map((event, idx) => {
                 if (!event) return null;
-                const eventDate = event.date ? new Date(event.date) : new Date();
-                const dateStr = isNaN(eventDate.getTime()) ? 'Recently Completed' : eventDate.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+                const dateStr = formatToISTDateString(event.date);
                 return (
                   <div key={idx} className="recent-event-card">
                     <div className="space-y-2">
@@ -663,6 +686,80 @@ export default function Home() {
               })}
             </div>
           )}
+        </div>
+
+        {/* ════════ 9. VERIFICATION PORTAL & PROFILE SEARCH ════════ */}
+        <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 sm:p-10 shadow-xl relative overflow-hidden text-left border border-slate-800">
+          <div className="absolute top-0 right-0 -mt-8 -mr-8 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+          <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            <div className="lg:col-span-7 space-y-4">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/20 text-blue-300 border border-blue-400/30 rounded-full text-[10px] font-black uppercase tracking-wider">
+                <ShieldCheck size={14} className="text-blue-400" />
+                <span>Official Verification Engine</span>
+              </div>
+
+              <h2 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight">
+                Verify Student Profiles & Digital Certificates
+              </h2>
+
+              <p className="text-xs sm:text-sm text-slate-300 max-w-xl leading-relaxed">
+                All MSC credentials, event completions, and student rank profiles are cryptographically verifiable on the MSC-PRPCEM Verification Portal.
+              </p>
+
+              <div className="flex flex-wrap gap-4 text-xs pt-1">
+                <div className="flex items-center gap-2 text-slate-300">
+                  <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-black text-[10px]">✓</div>
+                  <span>Instant Public Handle Search</span>
+                </div>
+                <div className="flex items-center gap-2 text-slate-300">
+                  <div className="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-[10px]">✓</div>
+                  <span>Tamper-proof SHA-256 Hashes</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="lg:col-span-5 bg-white/10 backdrop-blur-md border border-white/15 p-5 sm:p-6 rounded-2xl space-y-4 shadow-lg">
+              <div className="space-y-1">
+                <h3 className="text-sm font-extrabold text-white">Search Profile or Certificate</h3>
+                <p className="text-[11px] text-slate-300">Enter a student handle (e.g. <span className="text-blue-300 font-mono">@amityadav</span>) or Credential ID</p>
+              </div>
+
+              <form onSubmit={handleHomeLookupSubmit} className="space-y-3">
+                <div className="relative flex items-center">
+                  <span className="absolute left-3 text-xs font-bold text-slate-400">@</span>
+                  <input
+                    type="text"
+                    placeholder="amityadav or MSC-2026-XXXX"
+                    value={homeLookupQuery}
+                    onChange={(e) => setHomeLookupQuery(e.target.value)}
+                    className="w-full bg-slate-900/80 border border-white/20 rounded-xl pl-8 pr-3 py-2.5 text-xs text-white placeholder:text-slate-400 font-mono font-bold focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="submit"
+                    className="py-2.5 px-3 bg-blue-600 hover:bg-blue-500 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
+                  >
+                    <Search size={13} />
+                    <span>Search Profile</span>
+                  </button>
+
+                  <a
+                    href={verificationPortalUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="py-2.5 px-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all border border-white/20 active:scale-95 cursor-pointer"
+                  >
+                    <span>Open Portal</span>
+                    <ExternalLink size={13} />
+                  </a>
+                </div>
+              </form>
+            </div>
+          </div>
         </div>
 
         {/* ════════ 10. FAQ SECTION ════════ */}
