@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { QRCodeSVG } from 'qrcode.react';
 import api from '../services/api';
 import { formatToISTDateTimeString } from '../utils/dateUtils';
+import { downloadBrandedQRCard, fetchBrandingConfig, getLogoUrl } from '../utils/qrCardGenerator';
 import {
-  Calendar, Plus, Search, Clock, Users, Eye, Play, Pause, Edit2, ExternalLink, Trash2
+  Calendar, Plus, Search, Clock, Users, Eye, Play, Pause, Edit2, ExternalLink, Trash2,
+  QrCode, Copy, Check, X, Download
 } from 'lucide-react';
 
 export default function AdminScheduledQuizzes() {
@@ -13,6 +16,9 @@ export default function AdminScheduledQuizzes() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [qrModalQuiz, setQrModalQuiz] = useState(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [branding, setBranding] = useState(null);
 
   const fetchScheduledQuizzes = async () => {
     try {
@@ -26,9 +32,43 @@ export default function AdminScheduledQuizzes() {
     }
   };
 
+  const loadBranding = async () => {
+    try {
+      const brand = await fetchBrandingConfig();
+      setBranding(brand);
+    } catch (err) {
+      console.error('Failed to load branding in AdminScheduledQuizzes:', err);
+    }
+  };
+
   useEffect(() => {
     fetchScheduledQuizzes();
+    loadBranding();
   }, []);
+
+  const handleCopyLink = (url) => {
+    navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const handleDownloadModalQR = async (quiz) => {
+    if (!quiz) return;
+    const slug = quiz.custom_slug || (quiz.title ? quiz.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : quiz.join_code);
+    const joinUrl = `${window.location.origin}/q/${slug}`;
+    await downloadBrandedQRCard({
+      svgElementId: 'admin-scheduled-quiz-qr-svg',
+      quizData: {
+        title: quiz.title,
+        subtitle: quiz.category || (quiz.schedule_type ? `${quiz.schedule_type} ASSESSMENT` : 'SCHEDULED ASSESSMENT'),
+        custom_slug: slug,
+        join_code: quiz.join_code,
+        join_url: joinUrl
+      },
+      brandData: branding,
+      fileName: `msc-scheduled-quiz-${slug}.png`
+    });
+  };
 
   const handlePauseSchedule = async (quizId) => {
     try {
@@ -270,12 +310,20 @@ export default function AdminScheduledQuizzes() {
                 </button>
 
                 <button
+                  onClick={() => setQrModalQuiz(quiz)}
+                  className="p-2 border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs transition-colors cursor-pointer"
+                  title="View & Download Direct QR Card"
+                >
+                  <QrCode size={14} />
+                </button>
+
+                <button
                   onClick={() => {
                     const slug = quiz.custom_slug || (quiz.title ? quiz.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : quiz.join_code);
                     const url = `${window.location.origin}/q/${slug}`;
                     window.open(url, '_blank');
                   }}
-                  className="p-2 border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs transition-colors cursor-pointer"
+                  className="p-2 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-xs transition-colors cursor-pointer"
                   title="Open Quiz Link in New Page (/q/slug)"
                 >
                   <ExternalLink size={14} />
@@ -300,6 +348,93 @@ export default function AdminScheduledQuizzes() {
 
             </div>
           ))}
+        </div>
+      )}
+
+      {/* ════════ QUICK QR CODE & BRANDED CARD MODAL ════════ */}
+      {qrModalQuiz && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-5 border border-slate-100 text-center relative">
+            <button
+              onClick={() => setQrModalQuiz(null)}
+              className="absolute top-4 right-4 p-1.5 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
+            >
+              <X size={16} />
+            </button>
+
+            <div className="space-y-1 text-center">
+              <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-full text-[10px] font-black uppercase">
+                <QrCode size={12} />
+                <span>Scheduled Quiz QR Card</span>
+              </div>
+              <h3 className="text-base font-black text-slate-900 line-clamp-1">{qrModalQuiz.title}</h3>
+              <p className="text-xs text-slate-500 font-medium">Scan with camera or share short join link</p>
+            </div>
+
+            {/* QR Card Container */}
+            <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-3">
+              {(() => {
+                const slug = qrModalQuiz.custom_slug || (qrModalQuiz.title ? qrModalQuiz.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : qrModalQuiz.join_code);
+                const fullUrl = `${window.location.origin}/q/${slug}`;
+                return (
+                  <>
+                    <div className="bg-white p-3 rounded-xl shadow-xs border border-slate-100">
+                      <QRCodeSVG
+                        id="admin-scheduled-quiz-qr-svg"
+                        value={fullUrl}
+                        size={150}
+                        bgColor="#FFFFFF"
+                        fgColor="#0F172A"
+                        level="H"
+                        imageSettings={{
+                          src: getLogoUrl(branding?.logo_path),
+                          x: undefined,
+                          y: undefined,
+                          height: branding?.qr_logo_size || 28,
+                          width: branding?.qr_logo_size || 28,
+                          excavate: true,
+                        }}
+                      />
+                    </div>
+
+                    <div className="w-full flex items-center space-x-1.5">
+                      <input
+                        type="text"
+                        readOnly
+                        value={fullUrl}
+                        className="bg-white border border-slate-200 text-blue-700 font-mono font-bold text-[11px] px-2.5 py-1.5 rounded-lg w-full"
+                      />
+                      <button
+                        onClick={() => handleCopyLink(fullUrl)}
+                        className="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-lg flex items-center space-x-1 cursor-pointer whitespace-nowrap"
+                        title="Copy direct join link"
+                      >
+                        {copiedLink ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}
+                        <span>{copiedLink ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => handleDownloadModalQR(qrModalQuiz)}
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md transition-all cursor-pointer"
+              >
+                <Download size={14} />
+                <span>Download QR Card</span>
+              </button>
+              <button
+                onClick={() => setQrModalQuiz(null)}
+                className="px-4 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

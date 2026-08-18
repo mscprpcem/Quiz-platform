@@ -6,6 +6,7 @@ import api from '../services/api';
 import EventSelector from '../components/EventSelector';
 import { useToast } from '../context/ToastContext';
 import { formatToISTDateString } from '../utils/dateUtils';
+import { downloadBrandedQRCard, fetchBrandingConfig, getLogoUrl } from '../utils/qrCardGenerator';
 import {
   Calendar, ArrowLeft, ArrowRight, Plus, Trash2, Upload, FileSpreadsheet, FileText,
   CheckCircle, AlertTriangle, Clock, ShieldCheck, HelpCircle, Layers, CheckSquare, Sparkles, RefreshCw, QrCode, Mail, Award, ExternalLink, Download, Search, ChevronDown, Check
@@ -27,6 +28,7 @@ export default function CreateScheduledQuiz() {
   const [timeFormat12, setTimeFormat12] = useState(true);
   const [availableBadges, setAvailableBadges] = useState([]);
   const [loadingBadges, setLoadingBadges] = useState(false);
+  const [branding, setBranding] = useState(null);
 
   // Category Search & Create State
   const DEFAULT_CATEGORIES = [
@@ -73,7 +75,16 @@ export default function CreateScheduledQuiz() {
         // fallback
       }
     };
+    const loadBranding = async () => {
+      try {
+        const brand = await fetchBrandingConfig();
+        setBranding(brand);
+      } catch (e) {
+        console.error('Failed to load branding in CreateScheduledQuiz:', e);
+      }
+    };
     fetchExistingCategories();
+    loadBranding();
   }, []);
 
   const today = new Date().toISOString().split('T')[0];
@@ -292,90 +303,18 @@ export default function CreateScheduledQuiz() {
     return `${hStr}:${mStr}:${sStr}`;
   };
 
-  const handleDownloadPreviewQR = () => {
-    const svg = document.getElementById('create-scheduled-quiz-qr-svg');
-    if (!svg) return;
-    const svgData = new XMLSerializer().serializeToString(svg);
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    const img = new Image();
-    canvas.width = 600;
-    canvas.height = 700;
-
-    img.onload = () => {
-      const bgGrad = ctx.createLinearGradient(0, 0, 600, 700);
-      bgGrad.addColorStop(0, '#0F172A');
-      bgGrad.addColorStop(0.5, '#1E1B4B');
-      bgGrad.addColorStop(1, '#0F172A');
-      ctx.fillStyle = bgGrad;
-      if (ctx.roundRect) {
-        ctx.beginPath();
-        ctx.roundRect(0, 0, 600, 700, 32);
-        ctx.fill();
-      } else {
-        ctx.fillRect(0, 0, 600, 700);
-      }
-
-      ctx.fillStyle = '#F25022';
-      ctx.fillRect(40, 40, 130, 4);
-      ctx.fillStyle = '#7FBA00';
-      ctx.fillRect(170, 40, 130, 4);
-      ctx.fillStyle = '#00A4EF';
-      ctx.fillRect(300, 40, 130, 4);
-      ctx.fillStyle = '#FFB900';
-      ctx.fillRect(430, 40, 130, 4);
-
-      ctx.fillStyle = '#FBBF24';
-      ctx.font = 'bold 12px Segoe UI, system-ui, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('MICROSOFT STUDENT CLUB PRPCEM', 300, 75);
-
-      ctx.fillStyle = '#FFFFFF';
-      ctx.font = 'bold 22px Segoe UI, system-ui, sans-serif';
-      const titleText = formData.title || 'Scheduled Assessment';
-      ctx.fillText(titleText.length > 36 ? titleText.slice(0, 36) + '...' : titleText, 300, 115);
-
-      ctx.fillStyle = '#FFFFFF';
-      if (ctx.roundRect) {
-        ctx.beginPath();
-        ctx.roundRect(140, 150, 320, 320, 24);
-        ctx.fill();
-      } else {
-        ctx.fillRect(140, 150, 320, 320);
-      }
-
-      ctx.drawImage(img, 160, 170, 280, 280);
-
-      const vanityUrl = `${typeof window !== 'undefined' ? window.location.origin : 'https://quiz.mscprpcem.tech'}/q/${formData.custom_slug || 'preview'}`;
-      ctx.fillStyle = '#FDE68A';
-      ctx.font = 'bold 14px Segoe UI, monospace';
-      ctx.fillText(vanityUrl, 300, 520);
-
-      ctx.fillStyle = '#94A3B8';
-      ctx.font = '600 13px Segoe UI, sans-serif';
-      ctx.fillText('Scan QR or visit link to join quiz session directly', 300, 560);
-
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-      if (ctx.roundRect) {
-        ctx.beginPath();
-        ctx.roundRect(160, 600, 280, 40, 12);
-        ctx.fill();
-      } else {
-        ctx.fillRect(160, 600, 280, 40);
-      }
-
-      ctx.fillStyle = '#38BDF8';
-      ctx.font = 'bold 12px Segoe UI, sans-serif';
-      ctx.fillText('Official Assessment • MSC Platform', 300, 625);
-
-      const pngUrl = canvas.toDataURL('image/png');
-      const a = document.createElement('a');
-      a.href = pngUrl;
-      a.download = `msc-quiz-${formData.custom_slug || 'preview'}-join-card.png`;
-      a.click();
-    };
-
-    img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svgData);
+  const handleDownloadPreviewQR = async () => {
+    await downloadBrandedQRCard({
+      svgElementId: 'create-scheduled-quiz-qr-svg',
+      quizData: {
+        title: formData.title || 'Scheduled Assessment',
+        subtitle: formData.category || (formData.schedule_type ? `${formData.schedule_type} ASSESSMENT` : 'SCHEDULED ASSESSMENT'),
+        custom_slug: formData.custom_slug,
+        join_url: `${typeof window !== 'undefined' ? window.location.origin : 'https://quiz.mscprpcem.tech'}/q/${formData.custom_slug || 'preview'}`
+      },
+      brandData: branding,
+      fileName: `msc-quiz-${formData.custom_slug || 'preview'}-join-card.png`
+    });
   };
 
   // Step Validation Enforcer
@@ -1033,11 +972,19 @@ export default function CreateScheduledQuiz() {
                 <div className="bg-white p-3 border border-slate-200 rounded-2xl flex flex-col items-center justify-center space-y-2 shadow-2xs">
                   <QRCodeSVG
                     id="create-scheduled-quiz-qr-svg"
-                    value={`${typeof window !== 'undefined' ? window.location.origin : 'https://quiz.mscprpcem.tech'}/q/${formData.custom_slug || 'test'}`}
-                    size={84}
+                    value={`${typeof window !== 'undefined' ? window.location.origin : 'https://quiz.mscprpcem.tech'}/q/${formData.custom_slug || 'preview'}`}
+                    size={90}
                     bgColor="#FFFFFF"
                     fgColor="#0F172A"
-                    level="M"
+                    level="H"
+                    imageSettings={{
+                      src: getLogoUrl(branding?.logo_path),
+                      x: undefined,
+                      y: undefined,
+                      height: 22,
+                      width: 22,
+                      excavate: true,
+                    }}
                   />
                   <span className="text-[9px] font-black text-slate-400 uppercase tracking-wider">Scan to Join Direct</span>
                   <button
