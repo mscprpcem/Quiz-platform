@@ -1,7 +1,7 @@
 # System Architecture & Technical Design Document (Detailed Specification)
 
 **Project Name**: Microsoft Student Club (MSC PRPCEM) — Real-Time Live & Scheduled Quiz Assessment Platform  
-**System Version**: 2.2.0  
+**System Version**: 2.3.0  
 **Document Classification**: Engineering Architecture & Technical Design Specification  
 **Primary Maintainer**: Microsoft Student Club Technical Architecture Team  
 **Target Environments**: Node.js 18+ LTS, React 18+ (Vite), Sequelize ORM 6+, Socket.io 4+, Azure Blob Storage, SQLite 3 (Dev/Staging) & PostgreSQL 15+ (Production)
@@ -17,10 +17,14 @@
    - 5.1 [Real-Time Socket.io Live Quiz Engine](#51-real-time-socketio-live-quiz-engine)
    - 5.2 [Scheduled Self-Paced Exam & Assessment Engine](#52-scheduled-self-paced-exam--assessment-engine)
    - 5.3 [Anti-Cheating, Proctoring & Violation Detection Subsystem](#53-anti-cheating-proctoring--violation-detection-subsystem)
-   - 5.4 [Flagship Event Management & Dynamic Expiration Engine](#54-flagship-event-management--dynamic-expiration-engine)
-   - 5.5 [Targeted Email Dispatch & Broadcast Subsystem](#55-targeted-email-dispatch--broadcast-subsystem)
-   - 5.6 [Centralized SSO & OAuth 2.0 / OpenID Connect Provider](#56-centralized-sso--oauth-20--openid-connect-provider)
-   - 5.7 [Question Bank & Scoring Analytics Subsystem](#57-question-bank--scoring-analytics-subsystem)
+   - 5.4 [Branded QR Code Generation & Card Download Subsystem](#54-branded-qr-code-generation--card-download-subsystem)
+   - 5.5 [Digital Badge, Certificate & Credential Issuance Engine](#55-digital-badge-certificate--credential-issuance-engine)
+   - 5.6 [Vanity Slug & Intelligent Direct Routing Engine](#56-vanity-slug--intelligent-direct-routing-engine)
+   - 5.7 [Flagship Event Management & Dynamic Expiration Engine](#57-flagship-event-management--dynamic-expiration-engine)
+   - 5.8 [Targeted Email Dispatch & Broadcast Subsystem](#58-targeted-email-dispatch--broadcast-subsystem)
+   - 5.9 [Centralized SSO & OAuth 2.0 / OpenID Connect Provider](#59-centralized-sso--oauth-20--openid-connect-provider)
+   - 5.10 [Multi-Format Question Bank & Excel Ingestion Pipeline](#510-multi-format-question-bank--excel-ingestion-pipeline)
+   - 5.11 [Azure Blob Storage & Asset Management Pipeline](#511-azure-blob-storage--asset-management-pipeline)
 6. [Exhaustive Database Architecture & Data Dictionary](#6-exhaustive-database-architecture--data-dictionary)
    - 6.1 [Entity-Relationship Diagram (ERD)](#61-entity-relationship-diagram-erd)
    - 6.2 [Data Dictionary & Model Specifications](#62-data-dictionary--model-specifications)
@@ -39,21 +43,23 @@
 The **MSC PRPCEM Quiz & Assessment Platform** is an enterprise-grade testing and event operations ecosystem engineered to support:
 1. **High-concurrency live multiplayer quiz competitions** with sub-50ms WebSocket latency.
 2. **Formal scheduled proctored certifications** with automated timer evaluation and answer persistence.
-3. **Flagship event registration management** with deadline countdowns, seat capacity constraints, and automatic lifecycle archival.
-4. **Targeted email broadcasts** with dynamic placeholder merge tags and SMTP delivery.
-5. **Centralized Single Sign-On (SSO / OIDC)** bridging student authentication across all MSC web properties.
+3. **Official Microsoft Student Club branded QR card generation** with center logo excavation and dynamic vanity short-links.
+4. **Automated digital credentials & certificates** with verifiable serial keys and PDF/PNG downloads.
+5. **Flagship event registration management** with deadline countdowns, seat capacity constraints, and automatic lifecycle archival.
+6. **Targeted email broadcasts** with dynamic placeholder merge tags and SMTP delivery.
+7. **Centralized Single Sign-On (SSO / OIDC)** bridging student authentication across all MSC web properties.
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                              CORE ARCHITECTURAL TENETS                                  │
-├────────────────────┬────────────────────┬───────────────────────┬───────────────────────┤
-│ 1. Sub-50ms Sync   │ 2. Zero-Loss       │ 3. Automated          │ 4. Deterministic      │
-│    Live State      │    Proctoring      │    Event Lifecycle    │    Scoring Engine     │
-│ WebSocket rooms    │ Client blur, tab   │ Events automatically  │ Speed + accuracy      │
-│ broadcast timers   │ switches, and      │ archive to completed  │ formula calculates    │
-│ and answers with   │ fullscreen loss    │ when dates pass;      │ leaderboard rank      │
-│ sub-50ms latency   │ logged in real-t   │ capacity locks seats  │ in real time          │
-└────────────────────┴────────────────────┴───────────────────────┴───────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
+│                                       CORE ARCHITECTURAL TENETS                                        │
+├────────────────────┬────────────────────┬───────────────────────┬───────────────────┬──────────────────┤
+│ 1. Sub-50ms Sync   │ 2. Zero-Loss       │ 3. Automated          │ 4. Deterministic  │ 5. Unified Brand │
+│    Live State      │    Proctoring      │    Event Lifecycle    │    Scoring Engine │    Integrity     │
+│ WebSocket rooms    │ Client blur, tab   │ Events automatically  │ Speed + accuracy  │ High-DPI canvas  │
+│ broadcast timers   │ switches, and      │ archive to completed  │ formula calculates│ cards, center    │
+│ and answers with   │ fullscreen loss    │ when dates pass;      │ leaderboard rank  │ logos, & official│
+│ sub-50ms latency   │ logged in real-time│ capacity locks seats  │ in real time      │ chapter styling  │
+└────────────────────┴────────────────────┴───────────────────────┴───────────────────┴──────────────────┘
 ```
 
 ---
@@ -61,15 +67,16 @@ The **MSC PRPCEM Quiz & Assessment Platform** is an enterprise-grade testing and
 ## 2. System Context & Domain Model
 
 ### 2.1. System Actors
-1. **Contestant / Student**: Joins live quiz rooms via 6-digit PINs, registers for flagship technical events, participates in scheduled certification exams, tracks leaderboard rankings.
-2. **Quiz Master / Admin**: Authors questions, controls live quiz question advancement, manages technical events and attendee rosters, broadcasts targeted emails, schedules exam time windows.
-3. **Automated Proctor Agent**: Client-side monitoring hooks capturing tab switches, clipboard events, and window blur events.
+1. **Contestant / Student**: Joins live quiz rooms via 6-digit PINs, scans branded QR cards, attempts scheduled exams, registers for flagship technical events, tracks leaderboard rankings, and claims digital badges.
+2. **Quiz Master / Admin**: Authors questions, controls live quiz question advancement, manages technical events and attendee rosters, broadcasts targeted emails, schedules recurring/one-time exam time windows, and downloads marketing QR cards.
+3. **Automated Proctor Agent**: Client-side monitoring hooks capturing tab switches, clipboard attempts, window blur events, and fullscreen exits.
 4. **MSC Ecosystem Services**: External consumers of the platform's OpenID Connect SSO and public event feeds.
 
 ### 2.2. Operating Modes
 - **Mode A: Real-Time Live Quiz (Host-Driven)**: Synchronized lobby via PIN code; admin triggers question transitions; scoring incorporates speed decay bonuses.
 - **Mode B: Scheduled Self-Paced Exam (Candidate-Driven)**: Independent countdown timer within active window (`valid_from` to `valid_until`), randomized question order, answer persistence on selection.
 - **Mode C: Public Event Registration Gateway**: Public landing pages (`/register/:slug`) with capacity caps, registration deadlines, and instant confirmation dispatch.
+- **Mode D: Certificate & Digital Badge Verification**: Public validation endpoints checking candidate authenticity, score integrity, and chapter accreditation.
 
 ---
 
@@ -101,7 +108,7 @@ Quiz-platform/
 │   │   ├── routes/
 │   │   │   ├── analytics.js           # Quiz metrics, question difficulty, export
 │   │   │   ├── auth.js                # Admin authentication & token verification
-│   │   │   ├── branding.js            # Custom themes, club logos, color tokens
+│   │   │   ├── branding.js            # Dynamic chapter themes, club logos, color tokens
 │   │   │   ├── emailDispatch.js       # Targeted mass email broadcasting & templating
 │   │   │   ├── eventsApi.js           # Event lifecycle, schedule dates & registration
 │   │   │   ├── export.js              # CSV and Excel export generators
@@ -121,28 +128,39 @@ Quiz-platform/
 │   ├── src/
 │   │   ├── components/
 │   │   │   ├── AdminLayout.jsx        # Unified administrative sidebar & topbar
+│   │   │   ├── DigitalBadgeCard.jsx   # Credential certificate card with sharing & download
 │   │   │   ├── EventSelector.jsx      # Reusable event attachment dropdown
 │   │   │   ├── Navbar.jsx             # Responsive mobile drawer & student chip
 │   │   │   ├── Footer.jsx             # Legal links & 2-column mobile footer
+│   │   │   ├── QRScanner.jsx          # Camera-based HTML5 QR code reader
 │   │   │   └── Timer.jsx              # Circular SVG countdown timer
 │   │   ├── context/
 │   │   │   ├── AuthContext.jsx        # Centralized student & admin authentication
-│   │   │   └── SocketContext.jsx      # Centralized Socket.io client instance
+│   │   │   ├── SocketContext.jsx      # Centralized Socket.io client instance
+│   │   │   └── ToastContext.jsx       # Global notification toasts
 │   │   ├── pages/
 │   │   │   ├── AdminDashboard.jsx     # Master admin control center
 │   │   │   ├── AdminEmailDispatch.jsx # Mass email broadcaster interface
 │   │   │   ├── AdminEvents.jsx        # Flagship event CRUD & attendee tables
-│   │   │   ├── AdminScheduledQuizzes.jsx # Scheduled exams manager
+│   │   │   ├── AdminScheduledQuizzes.jsx # Scheduled exams manager with quick QR modal
 │   │   │   ├── AdminUsers.jsx         # User directory & role oversight
-│   │   │   ├── CreateScheduledQuiz.jsx# Scheduled quiz creation wizard
+│   │   │   ├── CreateScheduledQuiz.jsx# Scheduled quiz creation wizard with live preview
 │   │   │   ├── EventRegister.jsx      # Public event registration page with timer
-│   │   │   ├── Home.jsx               # Landing page with join code entry
+│   │   │   ├── Home.jsx               # Landing page with join code entry & catalog
+│   │   │   ├── JoinQuiz.jsx           # Student pin/slug entrance & authentication
 │   │   │   ├── LiveQuiz.jsx           # Real-time contestant gameplay screen
 │   │   │   ├── QuestionManagement.jsx # Question builder (Options, Points, Media)
 │   │   │   ├── QuizManagement.jsx     # Live Quiz catalog & host controls
 │   │   │   ├── Results.jsx            # Live podium & scorecard rankings
-│   │   │   ├── RunQuiz.jsx            # Admin live host control dashboard
-│   │   │   └── ScheduledQuizTake.jsx  # Candidate test-taking environment
+│   │   │   ├── RunQuiz.jsx            # Admin live host control dashboard & lobby QR
+│   │   │   ├── ScheduledQuizDetails.jsx # Scheduled quiz occurrences & candidate results
+│   │   │   ├── ScheduledQuizTake.jsx  # Candidate test-taking proctored environment
+│   │   │   ├── StudentAuth.jsx        # Student portal login & registration
+│   │   │   └── VanityRedirect.jsx     # Short vanity link resolver (/q/:slug)
+│   │   ├── utils/
+│   │   │   ├── dateUtils.js           # IST timezone normalization & date formatting
+│   │   │   ├── pkce.js                # Cryptographic PKCE challenge generator
+│   │   │   └── qrCardGenerator.js     # Unified Branded QR Card Canvas renderer & downloader
 │   │   ├── services/
 │   │   │   └── api.js                 # Axios client with JWT interceptors
 │   │   ├── App.jsx                    # Route switchboard & layout wrappers
@@ -165,6 +183,7 @@ graph TB
         ScheduledCandidate["Exam Candidate SPA (REST API Client)"]
         EventAttendee["Event Registration Portal (/register/:slug)"]
         AdminHost["Admin Portal (Events, Quizzes, Dispatch, Directory)"]
+        QRCardPipeline["Branded QR Canvas Pipeline (qrCardGenerator.js)"]
         ProctorHook["Client Proctoring Agent (Blur / Tab Listeners)"]
     end
 
@@ -180,8 +199,10 @@ graph TB
         TimerService["Server-Authoritative Clock & Countdown Timers"]
         ScoreEngine["Scoring Engine (Speed Decay + Accuracy)"]
         ExamManager["Scheduled Exam State Manager"]
+        BrandingEngine["Dynamic Chapter Branding Engine (/api/branding)"]
         EmailService["Nodemailer SMTP Broadcast & OTP Engine"]
         AzureBlob["Azure Blob Storage Service (Poster Assets)"]
+        BadgeEngine["Digital Credential & Certificate Engine"]
         SSOProvider["OAuth 2.0 / OIDC Authorization Server"]
     end
 
@@ -197,13 +218,16 @@ graph TB
     ScheduledCandidate ==>|HTTPS REST| ExpressGW
     EventAttendee ==>|HTTPS REST| ExpressGW
     ProctorHook -.->|Violation Telemetry| ExpressGW
+    QRCardPipeline -.->|Fetch Remote Branding| BrandingEngine
 
     SocketEngine <--> GameManager
     SocketEngine <--> TimerService
     SocketEngine <--> ScoreEngine
     ExpressGW --> ExamManager
+    ExpressGW --> BrandingEngine
     ExpressGW --> EmailService
     ExpressGW --> AzureBlob
+    ExpressGW --> BadgeEngine
     ExpressGW --> SSOProvider
 
     GameManager --> SequelizeORM
@@ -217,25 +241,86 @@ graph TB
 ## 5. Core Subsystems & Technical Workflow Specifications
 
 ### 5.1. Real-Time Socket.io Live Quiz Engine
-- Synchronized lobby via PIN code.
+- Synchronized lobby via 6-digit PIN code.
+- State-machine lifecycle: `LOBBY` → `QUESTION_ACTIVE` → `QUESTION_CLOSED` → `LEADERBOARD` → `COMPLETED`.
 - Admin triggers question transitions (`question_open`, `timer_tick`, `question_close`, `show_leaderboard`).
-- Scoring incorporates time-decay bonuses: `Score = BasePoints * (TimeRemaining / TotalTime)`.
+- Scoring incorporates time-decay bonuses:
+  $$\text{Score} = \text{BasePoints} \times \left( \frac{\text{TimeRemaining}}{\text{TotalTime}} \right) + \text{StreakBonus}$$
 
 ### 5.2. Scheduled Self-Paced Exam & Assessment Engine
 - Candidate takes an individual attempt within an active time window (`valid_from` to `valid_until`).
-- Independent countdown timer, randomized question order, answer persistence on every selection.
+- Independent countdown timer, randomized question order, answer persistence on every selection via `POST /api/scheduled-quizzes/attempts/:attemptId/answer`.
 - Automatic submission upon timer expiry with proctoring violation summary.
 
 ### 5.3. Anti-Cheating, Proctoring & Violation Detection Subsystem
-- Fullscreen lockdown, tab-switch listeners (`visibilitychange`), and window blur tracking.
+- Fullscreen lockdown (`document.fullscreenElement`), tab-switch listeners (`visibilitychange`), and window blur tracking (`window.onblur`).
+- Violation event logging persisted to `AttemptViolations` table with timestamps and contextual reason strings.
 - Configurable violation thresholds triggering automated disqualification or penalty deductions.
 
-### 5.4. Flagship Event Management & Dynamic Expiration Engine
+### 5.4. Branded QR Code Generation & Card Download Subsystem
+The platform features a unified, high-DPI canvas generator ([`qrCardGenerator.js`](file:///c:/Quiz-platform/frontend/src/utils/qrCardGenerator.js)) used across all quiz surfaces (Live Quizzes, Scheduled Quizzes, Admin Dashboard, and Creation Wizards):
+
+```
+┌────────────────────────────────────────────────────────┐
+│ [══════════════════ Primary Gradient Accent ══════════]│
+│                                                        │
+│                       (🛡️ Logo)                        │
+│                 MICROSOFT STUDENT CLUB                 │
+│                   MSC-PRPCEM CHAPTER                   │
+│ ────────────────────────────────────────────────────── │
+│                                                        │
+│             AZURE CLOUD & AI ASSESSMENT                │
+│          CLOUD & AZURE • WEEKLY ASSESSMENT             │
+│                                                        │
+│          ┌──────────────────────────────────┐          │
+│          │         ▄▄▄▄▄      ▄▄▄▄▄         │          │
+│          │         █ ▄ █  ██  █ ▄ █         │          │
+│          │         █   █  (🛡️) █   █         │          │
+│          │         █▄▄▄█  ██  █▄▄▄█         │          │
+│          └──────────────────────────────────┘          │
+│                                                        │
+│               Scan with camera or visit:               │
+│         https://quiz.mscprpcem.tech/join/582910        │
+│                                                        │
+│          ┌──────────────────────────────────┐          │
+│          │        UNIQUE JOIN CODE          │          │
+│          │             582910               │          │
+│          └──────────────────────────────────┘          │
+│                                                        │
+│     Powered by Microsoft Student Club Quiz Platform    │
+│ [══════════════════ Bottom Accent Line ═══════════════]│
+└────────────────────────────────────────────────────────┘
+```
+
+- **Canvas Dimensions**: 400 × 650 px (renderable at 2x high-resolution scale).
+- **Center Logo Excavation**: Uses `level="H"` Reed-Solomon error correction on `<QRCodeSVG>` with `excavate: true` to carve out space for the circular MSC-PRPCEM badge without compromising QR decodability.
+- **Dynamic De-Duplication**: Prevents repeated strings if `club_name` and `chapter_name` both contain chapter identifiers (e.g. formatting line 1 as `MICROSOFT STUDENT CLUB` and line 2 as `MSC-PRPCEM CHAPTER`).
+- **Dynamic Font Autoscaling**: Ensures long vanity codes or multi-word slugs cleanly fit the 240px wide access code box without text truncation.
+- **Universal Access URLs**: Encodes `https://quiz.mscprpcem.tech/join/{join_code}` which seamlessly routes both mobile scanners and desktop visitors into active sessions.
+
+### 5.5. Digital Badge, Certificate & Credential Issuance Engine
+- Evaluates candidate completion criteria upon test submission (e.g., score $\ge 70\%$, total time $\le$ limit, zero major proctoring disqualifications).
+- Generates cryptographically verifiable credential payloads with:
+  - Serialized Badge ID (e.g., `MSC-CERT-2026-XXXX`)
+  - Recipient Full Name & PRN Roll Number
+  - Chapter Accreditation Authority (`signing_authority`)
+  - Timestamp & Verification URL
+- Rendered on-client via [`DigitalBadgeCard.jsx`](file:///c:/Quiz-platform/frontend/src/components/DigitalBadgeCard.jsx) with 3D tilt effects, printable PDF export, and PNG image download.
+
+### 5.6. Vanity Slug & Intelligent Direct Routing Engine
+- Handles short URLs such as `/q/:slug`, `/quiz/:slug`, and `/join/:code`.
+- Implemented via [`VanityRedirect.jsx`](file:///c:/Quiz-platform/frontend/src/pages/VanityRedirect.jsx) and backend route `/api/scheduled-quizzes/slug/:slug`.
+- Resolves:
+  1. Active Scheduled Quiz Occurrences
+  2. Live Quiz Rooms
+  3. Linked Flagship Event Tracks
+
+### 5.7. Flagship Event Management & Dynamic Expiration Engine
 - Full event lifecycle management supporting start/end datetimes, registration deadlines, and seat capacity.
 - Automatic status evaluation: if `new Date(event.end_date || event.start_date) < new Date()`, the event automatically moves to **Completed / Past Events** and closes registrations.
 - Public registration endpoint (`POST /api/events/register`) automatically syncs attendees into matching live and scheduled quiz tracks.
 
-### 5.5. Targeted Email Dispatch & Broadcast Subsystem
+### 5.8. Targeted Email Dispatch & Broadcast Subsystem
 - Mass email delivery powered by Nodemailer SMTP transport.
 - Dynamic placeholder replacement engine:
   - `{name}` → Recipient student name
@@ -244,9 +329,21 @@ graph TB
   - `{join_code}` → 6-character room PIN
   - `{score}` → Participant test score
 
-### 5.6. Centralized SSO & OAuth 2.0 / OpenID Connect Provider
-- Authorization code grant flow with cryptographic PKCE verification.
+### 5.9. Centralized SSO & OAuth 2.0 / OpenID Connect Provider
+- Authorization code grant flow with cryptographic PKCE verification (`code_challenge` / `code_verifier`).
 - Cookie-based session tracking and `/oauth/userinfo` OpenID profile endpoint.
+
+### 5.10. Multi-Format Question Bank & Excel Ingestion Pipeline
+- Supports multiple question paradigms:
+  - Single-Choice Multiple Choice (MCQ)
+  - Multi-Select Multiple Correct Choices (`MULTI_SELECT`)
+  - Code Snippet Analysis (Syntax highlighted blocks)
+  - True / False Boolean evaluations
+- **Excel Spreadsheet Import**: Parses `.xlsx` / `.xls` spreadsheets via SheetJS (`xlsx`), validating required columns (`Question`, `Option A`, `Option B`, `Option C`, `Option D`, `Correct Answer`, `Points`, `Time Limit`), and previewing parsed questions in an interactive review modal before bulk insertion.
+
+### 5.11. Azure Blob Storage & Asset Management Pipeline
+- Integrates `@azure/storage-blob` for event posters, quiz media banners, and digital badge graphics.
+- Generates cryptographically unique blob filenames with sanitized content-type headers and CORS-enabled Azure CDN endpoints.
 
 ---
 
@@ -331,6 +428,8 @@ erDiagram
         int time_limit "Duration in Minutes"
         string status "draft / in_progress / completed"
         string event_name "Linked Event Title"
+        boolean issue_badge "Badge Issuance Flag"
+        string badge_title "Badge Title"
     }
 ```
 
@@ -344,11 +443,15 @@ erDiagram
 | :--- | :--- | :---: | :---: | :--- |
 | **Auth** | `/api/auth/login` | POST | Public (Rate Limited) | Admin login with JWT issue |
 | **Auth** | `/api/auth/verify` | GET | Bearer JWT | Current admin session verification |
+| **Branding** | `/api/branding` | GET | Public | Official chapter branding, colors, & logo tokens |
 | **Live Quizzes** | `/api/quizzes` | GET | Bearer JWT | Live Quiz catalog (`mode=LIVE`) |
 | **Live Quizzes** | `/api/quizzes` | POST | Bearer JWT | Create Live Quiz session |
 | **Live Quizzes** | `/api/quizzes/public` | GET | Public | Public sanitized live quizzes |
-| **Scheduled Quizzes**| `/api/scheduled-quizzes` | GET/POST | Bearer JWT | Scheduled quiz manager |
+| **Scheduled Quizzes**| `/api/scheduled-quizzes` | GET/POST | Bearer JWT | Scheduled quiz manager & creator |
+| **Scheduled Quizzes**| `/api/scheduled-quizzes/:id` | GET | Bearer JWT | Scheduled quiz details, occurrences, & attempts |
+| **Scheduled Quizzes**| `/api/scheduled-quizzes/slug/:slug` | GET | Public | Resolve custom vanity slug or join code |
 | **Scheduled Quizzes**| `/api/scheduled-quizzes/occurrences/:id` | GET | Public | Question sheet (answers stripped) |
+| **Scheduled Quizzes**| `/api/scheduled-quizzes/attempts/:attemptId/answer` | POST | Public/JWT | Persist candidate answer selection |
 | **Events** | `/api/events` | GET | Public | Flagship events catalog |
 | **Events** | `/api/events` | POST | Bearer JWT | Create new technical event |
 | **Events** | `/api/events/:id` | PUT/DELETE | Bearer JWT | Update/delete technical event |
@@ -366,8 +469,9 @@ erDiagram
 ## 8. Client-Side UX & Performance Engineering
 
 - **Mobile First Responsive Design**: Fluid typography (`clamp()`), safe-area padding for notches, and minimum 44px touch targets.
-- **Top 3 Podium Architecture**: Responsive Gold (#1 on top), Silver (#2), and Bronze (#3) leaderboard layout.
-- **Vite Bundle Optimization**: Vendor chunk splitting for React, Socket.io, Lucide icons, and QRCode generators.
+- **Top 3 Podium Architecture**: Responsive Gold (#1 on top), Silver (#2), and Bronze (#3) leaderboard layout with particle animations.
+- **High-DPI QR Card Rendering**: Pure HTML5 Canvas pipeline producing crisp 400×650 PNG cards with brand colors and center logo excavation.
+- **Vite Bundle Optimization**: Vendor chunk splitting for React, Socket.io, Lucide icons, SheetJS, and QRCode generators.
 
 ---
 
@@ -385,3 +489,14 @@ erDiagram
 
 - **WebSocket Reconnection Protocol**: Automatic resume token allowing students to reconnect to live question rounds without losing score state.
 - **Database Connection Pooling**: Tuned connection pool (`max: 40`) with automated SQLite/PostgreSQL schema migration.
+
+---
+
+## 11. Deployment, Infrastructure & Configuration Blueprint
+
+- **Environment Variables**:
+  - `PORT`: Server listening port (default: 5000)
+  - `AZURE_STORAGE_CONNECTION_STRING`: Azure Blob Storage credentials
+  - `AZURE_BRANDING_URL`: Dynamic remote chapter branding JSON URL
+  - `JWT_SECRET`: Cryptographic token signing key
+  - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`: SMTP email delivery configuration
