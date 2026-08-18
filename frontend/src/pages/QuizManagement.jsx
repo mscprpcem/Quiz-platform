@@ -312,8 +312,16 @@ export default function QuizManagement() {
     };
 
     const primaryColor = getValidColor(branding?.primary_color);
-    const clubName = (branding?.club_name || 'Microsoft Student Club').toUpperCase();
-    const chapterName = (branding?.chapter_name || 'MSC-PRPCEM Chapter').toUpperCase();
+    let rawClubName = (branding?.club_name || 'Microsoft Student Club').toUpperCase().trim();
+    let rawChapterName = (branding?.chapter_name || 'MSC-PRPCEM Chapter').toUpperCase().trim();
+
+    let clubName = rawClubName;
+    let chapterName = rawChapterName;
+
+    if (clubName === chapterName || (clubName.includes('PRPCEM') && chapterName.includes('PRPCEM'))) {
+      clubName = 'MICROSOFT STUDENT CLUB';
+      chapterName = 'MSC-PRPCEM CHAPTER';
+    }
     const footerText = branding?.footer_text || 'Powered by Microsoft Student Club Quiz Platform';
     const logoSrc = branding?.logo_path ? (branding.logo_path.startsWith('http') ? branding.logo_path : `/${branding.logo_path}`) : null;
 

@@ -148,8 +148,16 @@ export default function AdminDashboard() {
     };
 
     const primaryColor = getValidColor(brandData?.primary_color);
-    const clubName = (brandData?.club_name || 'Microsoft Student Club').toUpperCase();
-    const chapterName = (brandData?.chapter_name || 'MSC-PRPCEM Chapter').toUpperCase();
+    let rawClubName = (brandData?.club_name || 'Microsoft Student Club').toUpperCase().trim();
+    let rawChapterName = (brandData?.chapter_name || 'MSC-PRPCEM Chapter').toUpperCase().trim();
+
+    let clubName = rawClubName;
+    let chapterName = rawChapterName;
+
+    if (clubName === chapterName || (clubName.includes('PRPCEM') && chapterName.includes('PRPCEM'))) {
+      clubName = 'MICROSOFT STUDENT CLUB';
+      chapterName = 'MSC-PRPCEM CHAPTER';
+    }
     const footerText = brandData?.footer_text || 'Powered by Microsoft Student Club Quiz Platform';
 
     // Background
