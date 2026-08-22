@@ -81,6 +81,10 @@ const getMainWebsiteBaseUrl = () => {
   return (process.env.MAIN_WEBSITE_URL || 'https://www.mscprpcem.tech').replace(/\/+$/, '');
 };
 
+const isValidUUID = (val) => {
+  return typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
+};
+
 const POSTER_PRESETS = [
   { match: 'vision', url: 'https://mscprpcem.blob.core.windows.net/events/VisionX.png' },
   { match: 'spark', url: 'https://mscprpcem.blob.core.windows.net/events/clean_529287766.png' },
@@ -812,10 +816,6 @@ router.post('/', adminAuth, async (req, res) => {
   }
 });
 
-const isValidUUID = (val) => {
-  return typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
-};
-
 // ----------------------------------------------------
 // PUT /api/events/:id (Update Event)
 // ----------------------------------------------------
@@ -1484,12 +1484,13 @@ router.post('/register', async (req, res) => {
     }
 
     if (matchingQuizzes.length === 0 && slug) {
+      const orConditions = [{ custom_slug: slug }];
+      if (isValidUUID(slug)) {
+        orConditions.push({ id: slug });
+      }
       const q = await Quiz.findOne({
         where: {
-          [Op.or]: [
-            { custom_slug: slug },
-            { id: slug }
-          ]
+          [Op.or]: orConditions
         }
       });
       if (q) matchingQuizzes.push(q);
