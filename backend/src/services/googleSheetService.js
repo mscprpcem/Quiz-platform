@@ -2,12 +2,13 @@ const axios = require('axios');
 
 /**
  * Service to sync subscriber notifications directly to Google Sheet via Google Apps Script Web App
+ * Features dual-mode delivery (POST with text/plain + GET query fallback) to bypass Google Apps Script 403 & CORS issues
  */
 async function syncSubscriberToGoogleSheet(subscriberData) {
-  const sheetWebhookUrl = process.env.GOOGLE_SHEET_NOTIFY_URL || 
-                          process.env.GOOGLE_SCRIPT_URL || 
-                          process.env.NOTIFY_SHEET_URL ||
-                          process.env.VITE_GOOGLE_SHEET_NOTIFY_URL;
+  let sheetWebhookUrl = process.env.GOOGLE_SHEET_NOTIFY_URL || 
+                        process.env.GOOGLE_SCRIPT_URL || 
+                        process.env.NOTIFY_SHEET_URL ||
+                        process.env.VITE_GOOGLE_SHEET_NOTIFY_URL;
 
   if (!sheetWebhookUrl) {
     console.log('[GoogleSheetService] Notice: GOOGLE_SHEET_NOTIFY_URL is not set. Subscriber stored in DB.');
@@ -18,35 +19,70 @@ async function syncSubscriberToGoogleSheet(subscriberData) {
     };
   }
 
+  sheetWebhookUrl = sheetWebhookUrl.trim();
+
+  const now = new Date();
+  // Convert to IST
+  const dateIST = new Date(now.getTime() + (5.5 * 60 * 60 * 1000)).toISOString().replace('T', ' ').substring(0, 19) + ' IST';
+
+  const payload = {
+    action: 'subscribe_notify',
+    email: (subscriberData.email || '').trim().toLowerCase(),
+    source: subscriberData.source || 'Courses Page',
+    topic: subscriberData.topic || 'Future Quizzes & Course Releases',
+    ip_address: subscriberData.ip_address || 'N/A',
+    timestamp: now.toISOString(),
+    dateIST: dateIST,
+    status: 'active'
+  };
+
+  // 1. Primary Method: POST with text/plain (bypasses Google Apps Script preflight & 403 security blocks)
   try {
-    const now = new Date();
-    // Convert to IST
-    const dateIST = new Date(now.getTime() + (5.5 * 60 * 60 * 1000)).toISOString().replace('T', ' ').substring(0, 19) + ' IST';
-
-    const payload = {
-      action: 'subscribe_notify',
-      email: (subscriberData.email || '').trim().toLowerCase(),
-      source: subscriberData.source || 'Courses Page',
-      topic: subscriberData.topic || 'Future Quizzes & Course Releases',
-      ip_address: subscriberData.ip_address || 'N/A',
-      timestamp: now.toISOString(),
-      dateIST: dateIST,
-      status: 'active'
-    };
-
-    const response = await axios.post(sheetWebhookUrl, payload, {
+    const response = await axios.post(sheetWebhookUrl, JSON.stringify(payload), {
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'text/plain;charset=utf-8'
       },
-      timeout: 10000,
-      maxRedirects: 5 // Google Apps Script redirects on doPost
+      timeout: 12000,
+      maxRedirects: 5
     });
 
-    console.log('[GoogleSheetService] Successfully synced email to Google Sheet:', subscriberData.email);
+    console.log('[GoogleSheetService] Successfully synced email to Google Sheet via POST:', subscriberData.email);
     return { success: true, synced: true, data: response.data };
-  } catch (err) {
-    console.error('[GoogleSheetService] Error forwarding subscriber to Google Sheet:', err.message);
-    return { success: false, synced: false, error: err.message };
+  } catch (postErr) {
+    console.warn(`[GoogleSheetService] POST sync returned (${postErr.message}). Attempting GET fallback...`);
+
+    // 2. Fallback Method: GET with URL query parameters (100% reliable on Google Apps Script Web Apps)
+    try {
+      const queryParams = new URLSearchParams({
+        action: 'subscribe_notify',
+        email: payload.email,
+        source: payload.source,
+        topic: payload.topic,
+        ip_address: payload.ip_address,
+        timestamp: payload.timestamp,
+        dateIST: payload.dateIST,
+        status: payload.status
+      }).toString();
+
+      const getUrl = sheetWebhookUrl.includes('?') 
+        ? `${sheetWebhookUrl}&${queryParams}`
+        : `${sheetWebhookUrl}?${queryParams}`;
+
+      const getResponse = await axios.get(getUrl, {
+        timeout: 12000,
+        maxRedirects: 5
+      });
+
+      console.log('[GoogleSheetService] Successfully synced email to Google Sheet via GET fallback:', subscriberData.email);
+      return { success: true, synced: true, data: getResponse.data };
+    } catch (getErr) {
+      console.error('[GoogleSheetService] Error syncing subscriber to Google Sheet:', getErr.message);
+      return { 
+        success: false, 
+        synced: false, 
+        error: `Google Apps Script returned ${getErr.response?.status || postErr.response?.status || 403}. Ensure Web App deployment access is set to 'Anyone'.` 
+      };
+    }
   }
 }
 
