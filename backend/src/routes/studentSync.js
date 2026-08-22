@@ -44,8 +44,11 @@ try {
 // In-memory student certificates cache
 let studentCertificates = [];
 
+// In-memory OTP storage for registration and verification flows
+const otpStore = new Map();
+
 // Helper to normalize email
-const normalizeEmail = (email) => (email ? email.toLowerCase().trim() : '');
+const normalizeEmail = (email) => (email ? String(email).toLowerCase().trim() : '');
 
 // Helper to normalize and sanitize Verification Portal URL defensively
 const getVerificationPortalUrl = () => {
@@ -171,7 +174,7 @@ router.get('/search-profile', async (req, res) => {
 // =======================
 router.post('/send-otp', async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email, name, username, type } = req.body;
     const cleanEmail = normalizeEmail(email);
 
     if (!cleanEmail || !cleanEmail.includes('@')) {
@@ -183,27 +186,31 @@ router.post('/send-otp', async (req, res) => {
       localUser = await User.findOne({ where: { email: cleanEmail } });
     }
 
-    let targetOtp = crypto.randomInt(100000, 1000000).toString();
+    const targetOtp = crypto.randomInt(100000, 1000000).toString();
     const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 mins
 
+    // Store in memory cache
+    otpStore.set(cleanEmail, {
+      otp: targetOtp,
+      name: name || localUser?.name,
+      username: username || localUser?.username,
+      expiry: Date.now() + 15 * 60 * 1000,
+      type: type || 'verification'
+    });
+
     if (localUser) {
-      // If an active OTP was issued within the last 60 seconds, reuse it so rapid clicks don't invalidate codes in transit
-      if (localUser.otp && localUser.otp_expiry && (new Date(localUser.otp_expiry).getTime() - Date.now() > 14 * 60 * 1000)) {
-        targetOtp = localUser.otp;
-      } else {
-        localUser.otp = targetOtp;
-        localUser.otp_expiry = expiry;
-        await localUser.save();
-      }
+      localUser.otp = targetOtp;
+      localUser.otp_expiry = expiry;
+      await localUser.save().catch(() => {});
     }
 
     // Send real OTP email via Nodemailer
     try {
       await sendOtpEmail({
         to: cleanEmail,
-        name: localUser?.name,
+        name: name || localUser?.name,
         otp: targetOtp,
-        type: 'login'
+        type: type || 'login'
       });
     } catch (mailErr) {
       console.warn('Direct email dispatch notice:', mailErr.message);
@@ -214,8 +221,8 @@ router.post('/send-otp', async (req, res) => {
       if (axios && typeof axios.post === 'function') {
         const response = await axios.post(`${verificationPortalUrl}/api/auth/send-otp`, {
           email: cleanEmail,
-          purpose: 'login'
-        }, { timeout: 5000 });
+          purpose: type || 'login'
+        }, { timeout: 4000 });
 
         if (response.data && response.data.success) {
           return res.json(response.data);
@@ -225,17 +232,13 @@ router.post('/send-otp', async (req, res) => {
       console.warn('Portal send OTP notice:', portalErr.message);
     }
 
-    if (localUser) {
-      return res.json({
-        success: true,
-        message: `Verification code sent to your registered email address (${cleanEmail}).`
-      });
-    }
-
-    return res.status(404).json({ error: 'No account found with this email address. Please register a new account.' });
+    return res.json({
+      success: true,
+      message: `A 6-digit verification code has been sent to ${cleanEmail}.`
+    });
   } catch (err) {
     console.error('Send OTP error:', err);
-    return res.status(500).json({ error: 'Failed to send OTP.' });
+    return res.status(500).json({ error: 'Failed to send verification code.' });
   }
 });
 
@@ -243,44 +246,60 @@ router.post('/verify-otp', async (req, res) => {
   try {
     const { email, otp } = req.body;
     const cleanEmail = normalizeEmail(email);
-    const inputOtp = otp ? otp.toString().trim() : '';
+    const inputOtp = otp ? String(otp).trim().replace(/[^0-9]/g, '') : '';
 
     if (!cleanEmail || !inputOtp) {
-      return res.status(400).json({ error: 'Email address and OTP code are required.' });
+      return res.status(400).json({ error: 'Email address and 6-digit OTP code are required.' });
     }
 
-    let localUser = null;
-    if (User) {
-      localUser = await User.findOne({ where: { email: cleanEmail } });
-    }
+    let isValid = false;
 
-    if (localUser && localUser.otp && localUser.otp.trim() === inputOtp) {
-      if (localUser.otp_expiry && new Date(localUser.otp_expiry) < new Date()) {
-        return res.status(400).json({ error: 'OTP code has expired. Please request a new code.' });
+    // 1. Check in-memory store
+    const memoryRecord = otpStore.get(cleanEmail);
+    if (memoryRecord && String(memoryRecord.otp).trim() === inputOtp) {
+      if (Date.now() <= memoryRecord.expiry) {
+        isValid = true;
+      } else {
+        return res.status(400).json({ error: 'Verification code has expired. Please click Resend Code to request a new code.' });
       }
+    }
+
+    // 2. Check local database User model
+    let localUser = null;
+    if (!isValid && User) {
+      localUser = await User.findOne({ where: { email: cleanEmail } });
+      if (localUser && localUser.otp && String(localUser.otp).trim() === inputOtp) {
+        if (localUser.otp_expiry && new Date(localUser.otp_expiry) < new Date()) {
+          return res.status(400).json({ error: 'Verification code has expired. Please click Resend Code to request a new code.' });
+        }
+        isValid = true;
+      }
+    }
+
+    if (isValid) {
       return res.json({ success: true, is_email_verified: true, message: 'OTP verified successfully.' });
     }
 
+    // 3. Fallback check to Verification Portal
     const verificationPortalUrl = getVerificationPortalUrl();
     try {
       if (axios && typeof axios.post === 'function') {
         const response = await axios.post(`${verificationPortalUrl}/api/auth/verify-otp`, {
           email: cleanEmail,
           otp: inputOtp
-        }, { timeout: 5000 });
+        }, { timeout: 4000 });
 
         if (response.data && response.data.success) {
           return res.json(response.data);
         }
       }
     } catch (portalErr) {
-      if (portalErr.response && portalErr.response.data) {
-        return res.status(portalErr.response.status || 400).json(portalErr.response.data);
-      }
+      // Ignore remote portal error so clean message is returned
     }
 
-    return res.status(400).json({ error: 'Invalid or expired OTP code.' });
+    return res.status(400).json({ error: 'Invalid verification code. Please check the 6-digit code sent to your email.' });
   } catch (err) {
+    console.error('Verify OTP error:', err);
     return res.status(500).json({ error: 'Failed to verify OTP.' });
   }
 });
@@ -302,18 +321,21 @@ router.post('/forgot-password', async (req, res) => {
       localUser = await User.findOne({ where: { email: cleanEmail } });
     }
 
-    let targetOtp = crypto.randomInt(100000, 1000000).toString();
+    const targetOtp = crypto.randomInt(100000, 1000000).toString();
     const expiry = new Date(Date.now() + 15 * 60 * 1000);
 
+    // Save in memory store
+    otpStore.set(cleanEmail, {
+      otp: targetOtp,
+      name: localUser?.name,
+      expiry: Date.now() + 15 * 60 * 1000,
+      type: 'password_reset'
+    });
+
     if (localUser) {
-      // If an active OTP was issued within the last 60 seconds, reuse it so rapid clicks don't invalidate codes in transit
-      if (localUser.otp && localUser.otp_expiry && (new Date(localUser.otp_expiry).getTime() - Date.now() > 14 * 60 * 1000)) {
-        targetOtp = localUser.otp;
-      } else {
-        localUser.otp = targetOtp;
-        localUser.otp_expiry = expiry;
-        await localUser.save();
-      }
+      localUser.otp = targetOtp;
+      localUser.otp_expiry = expiry;
+      await localUser.save().catch(() => {});
     }
 
     // Send real password reset OTP email via Nodemailer
@@ -334,7 +356,7 @@ router.post('/forgot-password', async (req, res) => {
         const response = await axios.post(`${verificationPortalUrl}/api/auth/send-otp`, {
           email: cleanEmail,
           purpose: 'reset_password'
-        }, { timeout: 6000 });
+        }, { timeout: 4000 });
 
         if (response.data && response.data.success) {
           return res.json(response.data);
@@ -344,14 +366,10 @@ router.post('/forgot-password', async (req, res) => {
       console.warn('Portal forgot password warning:', portalErr.message);
     }
 
-    if (localUser) {
-      return res.json({
-        success: true,
-        message: `Password reset verification code sent to ${cleanEmail}.`
-      });
-    }
-
-    return res.status(404).json({ error: 'No account found with this email address. Please register a new account.' });
+    return res.json({
+      success: true,
+      message: `Password reset verification code sent to ${cleanEmail}.`
+    });
   } catch (err) {
     console.error('Forgot password error:', err);
     return res.status(500).json({ error: 'Failed to request password reset OTP.' });
@@ -362,7 +380,7 @@ router.post('/reset-password', async (req, res) => {
   try {
     const { email, otp, newPassword } = req.body;
     const cleanEmail = normalizeEmail(email);
-    const inputOtp = otp ? otp.toString().trim() : '';
+    const inputOtp = otp ? String(otp).trim().replace(/[^0-9]/g, '') : '';
 
     if (!cleanEmail || !inputOtp || !newPassword) {
       return res.status(400).json({ error: 'Email, OTP code, and new password are all required.' });
@@ -372,24 +390,32 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'New password must be at least 8 characters long.' });
     }
 
+    let isOtpValid = false;
+    const memoryRecord = otpStore.get(cleanEmail);
+    if (memoryRecord && String(memoryRecord.otp).trim() === inputOtp) {
+      if (Date.now() <= memoryRecord.expiry) {
+        isOtpValid = true;
+      } else {
+        return res.status(400).json({ error: 'OTP code has expired. Please request a new OTP code.' });
+      }
+    }
+
     let localUser = null;
     if (User) {
       localUser = await User.findOne({ where: { email: cleanEmail } });
     }
 
-    let resetDoneLocally = false;
-    if (localUser) {
-      // Validate OTP (or allow reset if valid local OTP)
-      if (localUser.otp && localUser.otp === inputOtp) {
-        if (localUser.otp_expiry && new Date(localUser.otp_expiry) < new Date()) {
-          return res.status(400).json({ error: 'OTP code has expired. Please request a new OTP code.' });
-        }
-        localUser.password = newPassword;
-        localUser.otp = null;
-        localUser.otp_expiry = null;
-        await localUser.save();
-        resetDoneLocally = true;
+    if (localUser && (isOtpValid || (localUser.otp && String(localUser.otp).trim() === inputOtp))) {
+      if (localUser.otp_expiry && new Date(localUser.otp_expiry) < new Date() && !isOtpValid) {
+        return res.status(400).json({ error: 'OTP code has expired. Please request a new OTP code.' });
       }
+      localUser.password = newPassword;
+      localUser.otp = null;
+      localUser.otp_expiry = null;
+      await localUser.save();
+      otpStore.delete(cleanEmail);
+
+      return res.json({ success: true, message: 'Password reset successfully! You can now log in.' });
     }
 
     const verificationPortalUrl = getVerificationPortalUrl();
@@ -400,7 +426,7 @@ router.post('/reset-password', async (req, res) => {
           otp: inputOtp,
           newPassword,
           password: newPassword
-        }, { timeout: 6000 });
+        }, { timeout: 5000 });
 
         if (response.data && response.data.success) {
           return res.json(response.data);
@@ -410,16 +436,7 @@ router.post('/reset-password', async (req, res) => {
       console.warn('Portal reset password warning:', portalErr.message);
     }
 
-    if (resetDoneLocally) {
-      return res.json({ success: true, message: 'Password reset successfully! You can now log in.' });
-    }
-
-    if (localUser && !resetDoneLocally) {
-      // If localUser exists but OTP didn't match
-      return res.status(400).json({ error: 'Invalid or expired OTP code.' });
-    }
-
-    return res.status(400).json({ error: 'Unable to reset password. Please check your OTP code and try again.' });
+    return res.status(400).json({ error: 'Invalid or expired verification code. Please check your OTP code and try again.' });
   } catch (err) {
     console.error('Reset password error:', err);
     return res.status(500).json({ error: 'Failed to reset password.' });
@@ -738,20 +755,30 @@ router.post('/register', async (req, res) => {
       }
     }
 
-    const inputOtp = otp ? otp.toString().trim() : '';
+    const inputOtp = otp ? String(otp).trim().replace(/[^0-9]/g, '') : '';
 
     // STEP 1: If OTP is not provided, generate & send 6-digit OTP email
     if (!inputOtp) {
       const generatedOtp = crypto.randomInt(100000, 1000000).toString();
       const expiry = Date.now() + 15 * 60 * 1000; // 15 minutes
 
-      pendingOtpStore.set(cleanEmail, {
+      otpStore.set(cleanEmail, {
         otp: generatedOtp,
         name: cleanName,
         username: cleanUsername,
         password,
-        expiry
+        expiry,
+        type: 'registration'
       });
+
+      if (User) {
+        const existingUser = await User.findOne({ where: { email: cleanEmail } });
+        if (existingUser) {
+          existingUser.otp = generatedOtp;
+          existingUser.otp_expiry = new Date(Date.now() + 15 * 60 * 1000);
+          await existingUser.save().catch(() => {});
+        }
+      }
 
       // Send real 6-digit registration OTP email
       try {
@@ -774,14 +801,25 @@ router.post('/register', async (req, res) => {
     }
 
     // STEP 2: Verify OTP
-    const pendingRecord = pendingOtpStore.get(cleanEmail);
+    const memoryRecord = otpStore.get(cleanEmail);
     let isOtpValid = false;
 
-    if (pendingRecord && pendingRecord.otp === inputOtp) {
-      if (Date.now() <= pendingRecord.expiry) {
+    if (memoryRecord && String(memoryRecord.otp).trim() === inputOtp) {
+      if (Date.now() <= memoryRecord.expiry) {
         isOtpValid = true;
       } else {
         return res.status(400).json({ error: 'Verification code has expired. Please click Resend Code to request a new code.' });
+      }
+    }
+
+    let localUser = null;
+    if (!isOtpValid && User) {
+      localUser = await User.findOne({ where: { email: cleanEmail } });
+      if (localUser && localUser.otp && String(localUser.otp).trim() === inputOtp) {
+        if (localUser.otp_expiry && new Date(localUser.otp_expiry) < new Date()) {
+          return res.status(400).json({ error: 'Verification code has expired. Please click Resend Code to request a new code.' });
+        }
+        isOtpValid = true;
       }
     }
 
@@ -789,15 +827,14 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Invalid verification code. Please check the 6-digit code sent to your email.' });
     }
 
-    // Remove from pending store
-    pendingOtpStore.delete(cleanEmail);
+    // Remove from memory store
+    otpStore.delete(cleanEmail);
 
-    const finalName = pendingRecord?.name || cleanName;
-    const finalUsername = pendingRecord?.username || cleanUsername;
-    const finalPassword = pendingRecord?.password || password;
+    const finalName = memoryRecord?.name || cleanName;
+    const finalUsername = memoryRecord?.username || cleanUsername;
+    const finalPassword = memoryRecord?.password || password;
 
     // Create or Update in Local Database
-    let localUser = null;
     if (User) {
       const existingUser = await User.findOne({ where: { email: cleanEmail } });
 
@@ -806,6 +843,8 @@ router.post('/register', async (req, res) => {
         existingUser.username = finalUsername;
         existingUser.password = finalPassword;
         existingUser.is_verified = true;
+        existingUser.otp = null;
+        existingUser.otp_expiry = null;
         await existingUser.save();
         localUser = existingUser;
       } else {

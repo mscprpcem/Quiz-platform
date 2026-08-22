@@ -69,7 +69,7 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
 
   // Handle Send Reset OTP
   const handleSendResetOtp = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (!email.trim() || !email.includes('@')) {
       setErrorMessage('Please enter a valid registered email address.');
       return;
@@ -84,8 +84,34 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
     if (res.success) {
       setSuccessMessage(res.message || `Verification code sent to ${email.trim()}.`);
       setResetStep(2);
+      setResetOtp('');
     } else {
       setErrorMessage(res.error || 'Failed to send reset code. Check your email address.');
+    }
+  };
+
+  // Handle Resend Register OTP
+  const handleResendRegisterOtp = async () => {
+    if (!email.trim() || !email.includes('@')) {
+      setErrorMessage('Please enter a valid email address.');
+      return;
+    }
+    setLoading(true);
+    setErrorMessage('');
+    setSuccessMessage('');
+    const finalUsername = (username || name.trim().toLowerCase().replace(/[^a-z0-9]/g, '')).replace(/[^a-z0-9_-]/g, '');
+    const res = await studentRegister({
+      name: name.trim(),
+      username: finalUsername,
+      email: email.trim(),
+      password
+    });
+    setLoading(false);
+    if (res.requireVerification || res.success) {
+      setSuccessMessage(`New 6-digit verification code sent to ${email.trim()}.`);
+      setRegisterOtp('');
+    } else {
+      setErrorMessage(res.error || 'Failed to resend verification code.');
     }
   };
 
@@ -331,13 +357,24 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
                   <label className="font-semibold text-slate-700">6-Digit Code</label>
-                  <button
-                    type="button"
-                    onClick={() => setResetStep(1)}
-                    className="text-[11px] text-blue-600 hover:underline cursor-pointer"
-                  >
-                    Change Email
-                  </button>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => setResetStep(1)}
+                      className="text-[11px] text-slate-500 hover:underline cursor-pointer"
+                    >
+                      Change Email
+                    </button>
+                    <span className="text-slate-300">•</span>
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={handleSendResetOtp}
+                      className="text-[11px] text-blue-600 font-semibold hover:underline cursor-pointer disabled:opacity-50"
+                    >
+                      Resend Code
+                    </button>
+                  </div>
                 </div>
                 <div className="relative flex items-center">
                   <KeyRound size={15} className="absolute left-3 text-slate-400 pointer-events-none" />
@@ -440,8 +477,9 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
                   </button>
                   <button
                     type="button"
-                    onClick={() => handleSubmit(new Event('submit'))}
-                    className="text-blue-600 font-semibold hover:underline cursor-pointer"
+                    disabled={loading}
+                    onClick={handleResendRegisterOtp}
+                    className="text-blue-600 font-semibold hover:underline cursor-pointer disabled:opacity-50"
                   >
                     Resend Code
                   </button>

@@ -144,7 +144,7 @@ export default function StudentAuth() {
 
   // Handle Send Reset OTP (Step 1)
   const handleSendResetOtp = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (!formData.email.trim() || !formData.email.includes('@')) {
       setError('Please enter a valid registered email address.');
       return;
@@ -160,8 +160,37 @@ export default function StudentAuth() {
     if (res.success) {
       setSuccessMsg(res.message || `Verification code sent to ${formData.email.trim()}.`);
       setResetStep(2);
+      setResetOtp('');
     } else {
       setError(res.error || 'Failed to send verification code. Check your email.');
+    }
+  };
+
+  // Handle Resend Register OTP (Step 2)
+  const handleResendRegisterOtp = async () => {
+    if (!formData.email.trim() || !formData.email.includes('@')) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccessMsg('');
+
+    const finalUsername = (formData.username || formData.name.trim().toLowerCase().replace(/[^a-z0-9]/g, '')).replace(/[^a-z0-9_-]/g, '');
+    const res = await studentRegister({
+      name: formData.name.trim(),
+      username: finalUsername,
+      email: formData.email.trim(),
+      password: formData.password
+    });
+    setLoading(false);
+
+    if (res.requireVerification || res.success) {
+      setSuccessMsg(`New 6-digit verification code sent to ${formData.email.trim()}.`);
+      setRegisterOtp('');
+    } else {
+      setError(res.error || 'Failed to resend verification code.');
     }
   };
 
@@ -521,15 +550,26 @@ export default function StudentAuth() {
             ) : resetStep === 2 ? (
               <form onSubmit={handleVerifyResetOtp} className="space-y-4">
                 <div className="space-y-1">
-                  <div className="flex items-center justify-between text-xs">
+                  <div className="flex items-center justify-between text-xs w-full">
                     <label className="font-semibold text-slate-700">6-Digit Code</label>
-                    <button
-                      type="button"
-                      onClick={() => setResetStep(1)}
-                      className="text-[11px] text-blue-600 hover:underline cursor-pointer"
-                    >
-                      Change Email
-                    </button>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => setResetStep(1)}
+                        className="text-[11px] text-slate-500 hover:underline cursor-pointer"
+                      >
+                        Change Email
+                      </button>
+                      <span className="text-slate-300">•</span>
+                      <button
+                        type="button"
+                        disabled={loading}
+                        onClick={handleSendResetOtp}
+                        className="text-[11px] text-blue-600 font-semibold hover:underline cursor-pointer disabled:opacity-50"
+                      >
+                        Resend Code
+                      </button>
+                    </div>
                   </div>
                   <div className="relative flex items-center">
                     <KeyRound size={15} className="absolute left-3 text-slate-400 pointer-events-none" />
@@ -646,8 +686,9 @@ export default function StudentAuth() {
                     </button>
                     <button
                       type="button"
-                      onClick={() => handleSubmit(new Event('submit'))}
-                      className="text-blue-600 font-semibold hover:underline cursor-pointer"
+                      disabled={loading}
+                      onClick={handleResendRegisterOtp}
+                      className="text-blue-600 font-semibold hover:underline cursor-pointer disabled:opacity-50"
                     >
                       Resend Code
                     </button>
