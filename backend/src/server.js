@@ -158,6 +158,7 @@ const ssoRoutes = require('./routes/sso');
 const emailDispatchRoutes = require('./routes/emailDispatch');
 const eventsApiRoutes = require('./routes/eventsApi');
 const userDirectoryRoutes = require('./routes/userDirectory');
+const subscribersRoutes = require('./routes/subscribers');
 
 app.use("/api/auth", authRoutes);
 app.use("/api/quizzes", quizRoutes);
@@ -171,6 +172,7 @@ app.use("/api/admin/users", userDirectoryRoutes);
 app.use("/api/users-directory", userDirectoryRoutes);
 app.use("/api/events", eventsApiRoutes);
 app.use("/api/v1/events", eventsApiRoutes);
+app.use("/api/subscribers", subscribersRoutes);
 app.use("/oauth", ssoRoutes);
 
 // =======================

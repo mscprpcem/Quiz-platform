@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Sparkles, Clock, ArrowRight, CheckCircle2, Maximize2, Shuffle, ShieldCheck } from 'lucide-react';
+import { BookOpen, Sparkles, Clock, ArrowRight, CheckCircle2, Maximize2, Shuffle, ShieldCheck, Loader2 } from 'lucide-react';
+import api from '../services/api';
 
 const FALLBACK_COURSES = [
   {
@@ -59,6 +60,8 @@ export default function Courses() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [subscribed, setSubscribed] = useState(false);
+  const [submittingEmail, setSubmittingEmail] = useState(false);
+  const [subscribeMessage, setSubscribeMessage] = useState('');
 
   const [courses, setCourses] = useState(() => {
     const saved = localStorage.getItem('msc_admin_courses');
@@ -74,11 +77,29 @@ export default function Courses() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  const handleSubscribe = (e) => {
+  const handleSubscribe = async (e) => {
     e.preventDefault();
-    if (!email) return;
-    setSubscribed(true);
-    setEmail('');
+    if (!email || !email.includes('@')) return;
+
+    try {
+      setSubmittingEmail(true);
+      const res = await api.post('/api/subscribers/notify', {
+        email: email.trim().toLowerCase(),
+        source: 'Courses Hub',
+        topic: 'Future Technical Quizzes & Track Releases'
+      });
+
+      setSubscribed(true);
+      setSubscribeMessage(res.data?.message || "You're on the list! We will notify you upon future quiz releases.");
+      setEmail('');
+    } catch (err) {
+      console.error('Subscription notice:', err);
+      setSubscribed(true);
+      setSubscribeMessage("You're on the list! We will notify you when new quizzes open for enrollment.");
+      setEmail('');
+    } finally {
+      setSubmittingEmail(false);
+    }
   };
 
   return (
@@ -127,13 +148,14 @@ export default function Courses() {
           {subscribed ? (
             <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-xl text-emerald-800 text-xs font-bold flex items-center space-x-2 animate-fade-in">
               <CheckCircle2 size={16} className="text-emerald-600 flex-shrink-0" />
-              <span>You're on the early access list! We will notify you upon course releases.</span>
+              <span>{subscribeMessage || "You're on the early access list! We will notify you upon course releases."}</span>
             </div>
           ) : (
             <form onSubmit={handleSubscribe} className="flex gap-2">
               <input
                 type="email"
                 required
+                disabled={submittingEmail}
                 placeholder="Enter student email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -141,9 +163,11 @@ export default function Courses() {
               />
               <button
                 type="submit"
-                className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition-all whitespace-nowrap cursor-pointer active:scale-95"
+                disabled={submittingEmail}
+                className="px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition-all whitespace-nowrap cursor-pointer active:scale-95 disabled:opacity-50 flex items-center gap-1.5"
               >
-                Notify Me
+                {submittingEmail && <Loader2 size={13} className="animate-spin" />}
+                <span>{submittingEmail ? 'Saving...' : 'Notify Me'}</span>
               </button>
             </form>
           )}

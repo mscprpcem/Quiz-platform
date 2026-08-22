@@ -151,6 +151,21 @@ async function runAutoMigrations(sequelize) {
     `ALTER TABLE ${quote}EventRegistrations${quote} ADD COLUMN ${ifNotExists}${quote}status${quote} VARCHAR(255) DEFAULT 'registered';`,
 
     // ═══════════════════════════════════════════
+    // 7. Subscribers Table (Notify Me for Future Quizzes)
+    // ═══════════════════════════════════════════
+    `CREATE TABLE IF NOT EXISTS ${quote}Subscribers${quote} (
+      ${quote}id${quote} UUID PRIMARY KEY,
+      ${quote}email${quote} VARCHAR(255) NOT NULL,
+      ${quote}source${quote} VARCHAR(255) DEFAULT 'Courses Page',
+      ${quote}topic${quote} VARCHAR(255) DEFAULT 'Future Quizzes & Course Releases',
+      ${quote}ip_address${quote} VARCHAR(255),
+      ${quote}synced_to_sheet${quote} BOOLEAN DEFAULT FALSE,
+      ${quote}sheet_sync_error${quote} TEXT,
+      ${quote}createdAt${quote} ${dateType},
+      ${quote}updatedAt${quote} ${dateType}
+    );`,
+
+    // ═══════════════════════════════════════════
     // 7. Postgres Unquoted Lowercase Fallbacks (if tables created unquoted)
     // ═══════════════════════════════════════════
     ...(isPostgres ? [

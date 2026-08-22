@@ -12,6 +12,7 @@ const AttemptAnswer = require('./AttemptAnswer');
 const AttemptViolation = require('./AttemptViolation');
 const Event = require('./Event');
 const EventRegistration = require('./EventRegistration');
+const Subscriber = require('./Subscriber');
 
 // Event <-> Quiz
 Event.hasMany(Quiz, { foreignKey: 'event_id', as: 'quizzes', onDelete: 'SET NULL' });
@@ -83,5 +84,6 @@ module.exports = {
   AttemptAnswer,
   AttemptViolation,
   Event,
-  EventRegistration
+  EventRegistration,
+  Subscriber
 };
