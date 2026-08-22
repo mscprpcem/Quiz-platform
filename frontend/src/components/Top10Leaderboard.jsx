@@ -132,11 +132,6 @@ export default function Top10Leaderboard({ leaderboard = [], currentParticipantI
                 <div className="flex items-center space-x-3 truncate">
                   {rankBadge}
 
-                  {/* Avatar Initials */}
-                  <div className="w-9 h-9 rounded-full bg-brand-blue/10 text-brand-blue font-black text-xs flex items-center justify-center flex-shrink-0 border border-brand-blue/15">
-                    {player.name ? player.name.substring(0, 2).toUpperCase() : 'P'}
-                  </div>
-
                   <div className="truncate text-left">
                     <div className="flex items-center gap-1.5 truncate">
                       <span className="font-extrabold text-xs sm:text-sm text-brand-textMain truncate">

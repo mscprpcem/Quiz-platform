@@ -754,10 +754,6 @@ export default function ScheduledQuizTake() {
                     <div className="flex items-center space-x-3 truncate">
                       {rankBadge}
 
-                      <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-black text-xs flex items-center justify-center flex-shrink-0">
-                        {player.participant_name ? player.participant_name.substring(0, 2).toUpperCase() : 'ST'}
-                      </div>
-
                       <div className="truncate text-left">
                         <div className="flex items-center gap-1.5 truncate">
                           <span className="font-extrabold text-xs sm:text-sm text-slate-900 truncate">
@@ -794,9 +790,6 @@ export default function ScheduledQuizTake() {
                       <span className="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center font-black text-xs">
                         #{myRank}
                       </span>
-                      <div className="w-8 h-8 rounded-full bg-blue-200 text-blue-800 font-black text-xs flex items-center justify-center flex-shrink-0">
-                        {(name || 'You').substring(0, 2).toUpperCase()}
-                      </div>
                       <div className="truncate text-left">
                         <div className="flex items-center gap-1.5 truncate">
                           <span className="font-extrabold text-xs sm:text-sm text-slate-900 truncate">
@@ -1036,10 +1029,6 @@ export default function ScheduledQuizTake() {
                     >
                       <div className="flex items-center space-x-3 truncate">
                         {rankBadge}
-
-                        <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-700 font-black text-xs flex items-center justify-center flex-shrink-0">
-                          {player.participant_name ? player.participant_name.substring(0, 2).toUpperCase() : 'ST'}
-                        </div>
 
                         <div className="truncate text-left">
                           <div className="flex items-center gap-1.5 truncate">

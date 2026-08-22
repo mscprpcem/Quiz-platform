@@ -1105,12 +1105,7 @@ export default function RunQuiz() {
                       <tr key={p.id} className="hover:bg-brand-bgLight/30 transition-colors duration-150">
                         <td className="px-6 py-4 font-bold text-brand-textMuted">#{idx + 1}</td>
                         <td className="px-6 py-4">
-                          <div className="flex items-center space-x-2.5">
-                            <div className="w-7 h-7 rounded-full bg-brand-lightBlue text-brand-blue border border-brand-blue/5 font-bold flex items-center justify-center text-[10px] flex-shrink-0">
-                              {p.name.charAt(0).toUpperCase()}
-                            </div>
-                            <span className="font-semibold text-brand-textMain">{p.name}</span>
-                          </div>
+                          <span className="font-semibold text-brand-textMain">{p.name}</span>
                         </td>
                         <td className="px-6 py-4 text-brand-textMuted truncate max-w-[150px]">{p.college}</td>
                         <td className="px-6 py-4 font-extrabold text-brand-blue">{p.score || 0} pts</td>
