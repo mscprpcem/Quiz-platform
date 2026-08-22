@@ -354,6 +354,14 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
             </form>
           ) : resetStep === 2 ? (
             <form onSubmit={handleVerifyResetOtp} className="space-y-3.5">
+              {/* Spam Folder Alert Notice */}
+              <div className="bg-rose-50 border border-rose-200 rounded-xl p-2.5 flex items-start space-x-2 text-left animate-fade-in shadow-xs">
+                <AlertCircle className="text-rose-600 shrink-0 mt-0.5" size={15} />
+                <div className="text-[11px] text-rose-800 leading-snug">
+                  <span className="font-bold text-rose-900">Notice:</span> If you cannot find the code in your inbox, please <span className="font-bold underline text-rose-950">check your Spam or Junk folder</span>.
+                </div>
+              </div>
+
               <div className="space-y-1">
                 <div className="flex items-center justify-between text-xs">
                   <label className="font-semibold text-slate-700">6-Digit Code</label>
@@ -451,6 +459,14 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
           <form onSubmit={handleSubmit} className="space-y-3">
             {activeTab === 'register' && regStep === 2 ? (
               <div className="space-y-3 animate-fade-in">
+                {/* Spam Folder Alert Notice */}
+                <div className="bg-rose-50 border border-rose-200 rounded-xl p-2.5 flex items-start space-x-2 text-left animate-fade-in shadow-xs">
+                  <AlertCircle className="text-rose-600 shrink-0 mt-0.5" size={15} />
+                  <div className="text-[11px] text-rose-800 leading-snug">
+                    <span className="font-bold text-rose-900">Notice:</span> If you cannot find the code in your inbox, please <span className="font-bold underline text-rose-950">check your Spam or Junk folder</span>.
+                  </div>
+                </div>
+
                 <div className="space-y-1">
                   <label className="block text-xs font-semibold text-slate-700">Verification Code</label>
                   <div className="relative flex items-center">
