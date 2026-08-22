@@ -76,7 +76,7 @@ export default function ScheduledQuizTake() {
     if (targetIdentifier) {
       fetchOccurrence();
     }
-  }, [targetIdentifier]);
+  }, [targetIdentifier, studentAccount?.email, user?.email]);
 
   useEffect(() => {
     if (quizSubmitted) {
@@ -113,7 +113,17 @@ export default function ScheduledQuizTake() {
       const res = await api.get(`/api/scheduled-quizzes/occurrences/${targetIdentifier}${queryString}`);
       setOccData(res.data);
 
-      if (res.data?.status === 'CLOSED' || (res.data?.occurrence?.end_time && new Date(res.data.occurrence.end_time) < new Date())) {
+      // If user has already completed/submitted an attempt for this quiz, immediately show the result and top 10 leaderboard!
+      if (res.data?.userAttempt && res.data.userAttempt.status === 'completed') {
+        setResultData({
+          attempt: res.data.userAttempt,
+          rank: res.data.userRank || 1,
+          totalParticipants: res.data.totalParticipants || 1,
+          totalQuestions: res.data.totalQuestions || res.data.quiz?.questions?.length || 10
+        });
+        setQuizSubmitted(true);
+        fetchLeaderboard();
+      } else if (res.data?.status === 'CLOSED' || (res.data?.occurrence?.end_time && new Date(res.data.occurrence.end_time) < new Date())) {
         fetchLeaderboard();
       }
     } catch (err) {
@@ -531,18 +541,45 @@ export default function ScheduledQuizTake() {
   // ════════ RENDER RESULT SCREEN (SCORE BOARD + TOP 10 LEADERBOARD) ════════
   if (quizSubmitted && resultData) {
     const att = resultData.attempt;
-    const totalQuestions = resultData.totalQuestions || questions.length || 1;
-    const accuracyPercent = Math.round(((att?.correct_count || 0) / totalQuestions) * 100);
+    const totalQuestions = resultData.totalQuestions || questions.length || occData?.quiz?.questions?.length || 1;
+    const accuracyPercent = Math.round(((att?.correct_count || 0) / Math.max(1, totalQuestions)) * 100);
     const userEmail = email || studentAccount?.email || user?.email || localStorage.getItem('msc_student_email') || '';
     const userName = name || studentAccount?.name || user?.name || localStorage.getItem('msc_student_name') || '';
-    const myRank = resultData?.rank || 1;
-    const totalParticipants = resultData?.totalParticipants || leaderboardList.length || 1;
+
+    // Find player in real-time leaderboard list if available
+    const playerInLeaderboard = leaderboardList.find(p =>
+      (userEmail && (p.email?.toLowerCase() === userEmail.toLowerCase() || p.participant_email?.toLowerCase() === userEmail.toLowerCase())) ||
+      (userName && (p.participant_name?.toLowerCase() === userName.toLowerCase() || p.name?.toLowerCase() === userName.toLowerCase()))
+    );
+    const myRank = playerInLeaderboard?.rank || resultData?.rank || 1;
+    const totalParticipants = leaderboardList.length > 0 ? leaderboardList.length : (resultData?.totalParticipants || 1);
     const top10List = leaderboardList.slice(0, 10);
-    const isInsideTop10 = top10List.some(p => userEmail && p.email && p.email.toLowerCase() === userEmail.toLowerCase());
+    const isInsideTop10 = top10List.some(p =>
+      (userEmail && (p.email?.toLowerCase() === userEmail.toLowerCase() || p.participant_email?.toLowerCase() === userEmail.toLowerCase())) ||
+      (userName && (p.participant_name?.toLowerCase() === userName.toLowerCase() || p.name?.toLowerCase() === userName.toLowerCase()))
+    );
 
     return (
       <div className="max-w-2xl mx-auto py-10 px-4 text-center space-y-7 font-segoe animate-fade-in">
         
+        {/* Already Attempted Alert Banner */}
+        <div className="p-4 bg-gradient-to-r from-blue-50 via-indigo-50 to-emerald-50 border border-blue-200 rounded-3xl flex items-center justify-between text-left shadow-2xs">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-xs flex-shrink-0">
+              <CheckCircle size={20} />
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-black text-slate-900">Assessment Already Attempted</h4>
+              <p className="text-[11px] text-slate-600 font-semibold">
+                You have completed your attempt for this session. Below is your official scorecard and the top 10 participants leaderboard.
+              </p>
+            </div>
+          </div>
+          <span className="hidden sm:inline-block px-3 py-1 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full text-[10px] font-black uppercase tracking-wider flex-shrink-0">
+            Recorded
+          </span>
+        </div>
+
         {/* 1. Official Score Board & Matrix Card */}
         <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-md space-y-6 text-left">
           

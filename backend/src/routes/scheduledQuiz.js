@@ -888,21 +888,73 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
       message = `This quiz session is ${occ.status.toLowerCase()}.`;
     }
 
-    // Check if current user already completed an attempt for this occurrence
+    const finalQuiz = quiz || occ.quiz || (await Quiz.findByPk(occ.quiz_id, { include: [{ model: Question, as: 'questions' }] }));
+
+    // Check if current user already completed an attempt for this occurrence or quiz
     let userAttempt = null;
+    let userRank = null;
+    let totalParticipants = 0;
     const cleanEmail = req.query.email ? req.query.email.trim().toLowerCase() : null;
     const cleanName = req.query.name ? req.query.name.trim() : null;
+    
     if (cleanEmail || cleanName) {
+      const userConditions = [];
+      if (cleanEmail) {
+        userConditions.push({ participant_email: cleanEmail });
+        userConditions.push({ participant_email: { [Op.like]: cleanEmail } });
+      }
+      if (cleanName) {
+        userConditions.push({ participant_name: cleanName });
+      }
+
       userAttempt = await QuizAttempt.findOne({
         where: {
-          occurrence_id: occ.id,
-          ...(cleanEmail ? { participant_email: cleanEmail } : { participant_name: cleanName })
+          [Op.or]: [
+            { occurrence_id: occ.id },
+            ...(finalQuiz?.id ? [{ quiz_id: finalQuiz.id }] : [])
+          ],
+          [Op.and]: [
+            { [Op.or]: userConditions }
+          ]
         },
-        order: [['createdAt', 'DESC']]
+        order: [
+          ['status', 'DESC'], // 'completed' or 'in_progress'
+          ['attempt_number', 'DESC'],
+          ['createdAt', 'DESC']
+        ]
       });
-    }
 
-    const finalQuiz = quiz || occ.quiz || (await Quiz.findByPk(occ.quiz_id, { include: [{ model: Question, as: 'questions' }] }));
+      // If user has a completed attempt, compute their official rank in real-time
+      if (userAttempt && userAttempt.status === 'completed') {
+        try {
+          const allCompleted = await QuizAttempt.findAll({
+            where: {
+              [Op.or]: [
+                { occurrence_id: occ.id },
+                ...(finalQuiz?.id ? [{ quiz_id: finalQuiz.id }] : [])
+              ],
+              status: 'completed'
+            },
+            order: [
+              ['attempt_number', 'DESC'],
+              ['submitted_at', 'DESC'],
+              ['createdAt', 'DESC']
+            ]
+          });
+
+          const rankedLeaderboard = getLatestAttemptsLeaderboard(allCompleted);
+          totalParticipants = rankedLeaderboard.length;
+          const myEntry = rankedLeaderboard.find(a =>
+            a.id === userAttempt.id ||
+            (cleanEmail && a.participant_email && a.participant_email.toLowerCase() === cleanEmail) ||
+            (cleanName && a.participant_name && a.participant_name.toLowerCase() === cleanName.toLowerCase())
+          );
+          userRank = myEntry ? myEntry.rank : 1;
+        } catch (rankErr) {
+          console.warn('Rank calculation notice:', rankErr.message);
+        }
+      }
+    }
 
     // Format clean JSON response preventing circular model serialization and answer leaks
     const occJson = occ.toJSON ? occ.toJSON() : { ...occ };
@@ -915,7 +967,10 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
       serverTime: now,
       status,
       message,
-      userAttempt
+      userAttempt,
+      userRank,
+      totalParticipants,
+      totalQuestions: finalQuiz?.questions?.length || 0
     });
   } catch (error) {
     console.error('Fetch occurrence info error:', error);
@@ -1373,19 +1428,45 @@ router.get('/occurrences/:occurrenceId/leaderboard', async (req, res) => {
         where: {
           [Op.or]: [
             { custom_slug: rawParam },
-            { join_code: rawParam.toUpperCase() }
+            { custom_slug: { [Op.like]: rawParam } },
+            { join_code: rawParam.toUpperCase() },
+            { join_code: rawParam }
           ]
         }
       });
     }
 
+    if (!occurrence && !quiz) {
+      const allQuizzes = await Quiz.findAll();
+      quiz = allQuizzes.find(q =>
+        (q.custom_slug && q.custom_slug.toLowerCase() === rawParam.toLowerCase()) ||
+        (q.join_code && q.join_code.toLowerCase() === rawParam.toLowerCase()) ||
+        (q.id === rawParam)
+      );
+    }
+
     let whereClause = { status: 'completed' };
     if (occurrence) {
-      whereClause.occurrence_id = occurrence.id;
+      whereClause = {
+        [Op.or]: [
+          { occurrence_id: occurrence.id },
+          ...(occurrence.quiz_id ? [{ quiz_id: occurrence.quiz_id }] : [])
+        ],
+        status: 'completed'
+      };
     } else if (quiz) {
-      whereClause.quiz_id = quiz.id;
+      whereClause = {
+        quiz_id: quiz.id,
+        status: 'completed'
+      };
     } else if (isUUID) {
-      whereClause.occurrence_id = rawParam;
+      whereClause = {
+        [Op.or]: [
+          { occurrence_id: rawParam },
+          { quiz_id: rawParam }
+        ],
+        status: 'completed'
+      };
     }
 
     const attempts = await QuizAttempt.findAll({

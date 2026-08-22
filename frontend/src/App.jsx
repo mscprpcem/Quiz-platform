@@ -126,9 +126,14 @@ export default function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/join" element={<JoinQuiz />} />
                 <Route path="/join/:joinCode" element={<JoinQuiz />} />
+                <Route path="/waiting" element={<WaitingRoom />} />
                 <Route path="/waiting/:participantId" element={<WaitingRoom />} />
+                <Route path="/live" element={<LiveQuiz />} />
+                <Route path="/live-quiz" element={<LiveQuiz />} />
                 <Route path="/live/:participantId" element={<LiveQuiz />} />
+                <Route path="/results" element={<Results />} />
                 <Route path="/results/:participantId" element={<Results />} />
+                <Route path="/leaderboard" element={<Navigate to="/courses" replace />} />
                 <Route path="/practice" element={<PracticeQuiz />} />
                 <Route path="/practice/:category" element={<PracticeQuiz />} />
                 <Route path="/courses" element={<Courses />} />

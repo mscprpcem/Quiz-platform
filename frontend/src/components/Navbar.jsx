@@ -65,6 +65,20 @@ export default function Navbar() {
     </button>
   );
 
+  const MobileNavButton = ({ onClick, isActive, icon: Icon, label, className = '' }) => (
+    <button
+      onClick={onClick}
+      className={`w-full flex items-center space-x-3 px-3.5 py-2.5 rounded-xl text-sm font-bold transition-all duration-200 cursor-pointer ${
+        isActive
+          ? 'text-blue-700 bg-blue-50/90 shadow-2xs font-black border border-blue-200/60'
+          : 'text-slate-700 hover:text-blue-600 hover:bg-slate-50 border border-transparent'
+      } ${className}`}
+    >
+      <Icon size={18} strokeWidth={isActive ? 2.5 : 2} className={isActive ? 'text-blue-600' : 'text-slate-400'} />
+      <span>{label}</span>
+    </button>
+  );
+
   const verificationPortalUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_VERIFICATION_PORTAL_URL) || 'https://verify.mscprpcem.tech';
 
   return (
@@ -172,13 +186,19 @@ export default function Navbar() {
                 onClick={() => navTo('/courses')}
                 isActive={isActive('/courses')}
                 icon={BookOpen}
-                label="All Quizzes"
+                label="All Quizzes & Courses"
               />
               <MobileNavButton
-                onClick={() => navTo('/leaderboard')}
-                isActive={isActive('/leaderboard')}
+                onClick={() => navTo('/join')}
+                isActive={isActive('/join')}
+                icon={Play}
+                label="Join Live Quiz"
+              />
+              <MobileNavButton
+                onClick={() => navTo('/practice')}
+                isActive={isActive('/practice')}
                 icon={Trophy}
-                label="Live Leaderboard"
+                label="Practice Challenges"
               />
               
               <div className="pt-2 border-t border-slate-100">
