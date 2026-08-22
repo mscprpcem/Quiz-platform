@@ -265,18 +265,18 @@ export default function PracticeQuiz() {
         <div className="max-w-5xl mx-auto space-y-10 animate-fade-in">
           
           <div className="text-center space-y-3">
-            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-100 px-3.5 py-1.5 rounded-full uppercase tracking-wider">
-              Self-Paced Training
+            <span className="text-xs font-bold text-amber-700 bg-amber-50 border border-amber-200 px-3.5 py-1.5 rounded-full uppercase tracking-wider">
+              Self-Paced Practice Tracks
             </span>
             <h1 className="text-4xl font-extrabold text-brand-textMain tracking-tight leading-none">
               Practice Arena
             </h1>
             <p className="text-zinc-550 text-base max-w-lg mx-auto leading-relaxed">
-              Sharpen your tech skills. Select a category below to test your knowledge independently.
+              Curated technical practice examinations and developer challenges. New question modules coming soon!
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {Object.entries(CATEGORY_META).map(([key, value]) => (
               <div
                 key={key}
@@ -287,13 +287,15 @@ export default function PracticeQuiz() {
                     {key === 'frontend' && <BookOpen size={22} />}
                     {key === 'dsa' && <Trophy size={22} />}
                     {key === 'cloud' && <Layers size={22} />}
+                    {key === 'dbms' && <CheckSquare size={22} />}
                   </div>
                   
                   <div className="space-y-1.5">
-                    <span className={`text-[9px] font-bold uppercase tracking-widest px-2.5 py-0.5 rounded-full ${value.pillBg}`}>
-                      5 Questions • 2 Mins
+                    <span className="text-[10px] font-black uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1">
+                      <Clock size={10} className="text-amber-600" />
+                      <span>Coming Soon</span>
                     </span>
-                    <h3 className="text-lg font-bold text-brand-textMain">{value.title}</h3>
+                    <h3 className="text-base font-bold text-brand-textMain">{value.title}</h3>
                   </div>
                   
                   <p className="text-xs text-brand-textMuted leading-relaxed">
@@ -303,13 +305,23 @@ export default function PracticeQuiz() {
 
                 <button
                   onClick={() => navigate(`/practice/${key}`)}
-                  className={`mt-8 w-full text-center bg-gradient-to-r ${value.themeColor} text-white font-bold py-2.5 rounded-lg text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer shadow-md active:scale-98`}
+                  className="mt-6 w-full text-center bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center space-x-1.5 cursor-pointer border border-slate-200 active:scale-98"
                 >
-                  <span>Start Practice Quiz</span>
-                  <ChevronRight size={14} />
+                  <Clock size={13} className="text-amber-600" />
+                  <span>Preview Track Details</span>
                 </button>
               </div>
             ))}
+          </div>
+
+          <div className="pt-4 text-center">
+            <button
+              onClick={() => navigate('/courses')}
+              className="inline-flex items-center space-x-2 text-xs font-extrabold text-brand-blue hover:underline cursor-pointer"
+            >
+              <span>Explore All Courses & Curriculums</span>
+              <ArrowRight size={14} />
+            </button>
           </div>
 
         </div>
@@ -794,16 +806,17 @@ export default function PracticeQuiz() {
     );
   }
 
-  // Pre-Quiz Landing Card View for the chosen course category
+  // Pre-Quiz Landing Card View for the chosen course category (Coming Soon)
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-brand-lightBlue/20 via-zinc-50 to-white">
-      <div className="max-w-md w-full bg-white border border-brand-border p-8 rounded-2xl shadow-xl space-y-6 relative overflow-hidden group animate-fade-in text-left">
-        <div className={`absolute top-0 left-0 w-full h-2 bg-gradient-to-r ${meta?.themeColor || 'from-purple-500 to-indigo-500'}`}></div>
+      <div className="max-w-md w-full bg-white border border-brand-border p-8 rounded-3xl shadow-xl space-y-6 relative overflow-hidden group animate-fade-in text-left">
+        <div className={`absolute top-0 left-0 w-full h-2 bg-gradient-to-r ${meta?.themeColor || 'from-amber-500 to-orange-500'}`}></div>
 
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
-            <span className="text-[10px] font-extrabold uppercase tracking-widest text-brand-blue bg-brand-lightBlue px-3 py-1 rounded-full">
-              Official Practice Examination
+            <span className="text-[10px] font-black uppercase tracking-widest text-amber-800 bg-amber-50 border border-amber-200 px-3 py-1 rounded-full inline-flex items-center gap-1.5">
+              <Clock size={12} className="text-amber-600" />
+              <span>Practice Track • Coming Soon</span>
             </span>
           </div>
           <h2 className="text-2xl font-black text-brand-textMain">{meta?.title || 'Practice Track'}</h2>
@@ -812,35 +825,45 @@ export default function PracticeQuiz() {
           </p>
         </div>
 
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2 text-xs">
+        <div className="p-4 bg-amber-50/70 border border-amber-200/80 rounded-2xl space-y-2 text-xs text-amber-900">
+          <div className="flex items-center space-x-2 font-black text-xs text-amber-800">
+            <Clock size={16} className="text-amber-600 flex-shrink-0" />
+            <span>Under Active Development</span>
+          </div>
+          <p className="text-[11px] leading-relaxed font-medium text-amber-800/90">
+            Practice questions, timer evaluations, and auto-synced certificates for <strong>{meta?.title || 'this track'}</strong> are currently being curated by the MSC-PRPCEM technical team.
+          </p>
+        </div>
+
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2 text-xs">
           <div className="flex justify-between text-slate-600 font-bold">
-            <span>Total Questions:</span>
-            <span className="text-purple-700">{questions.length} Questions</span>
+            <span>Question Bank:</span>
+            <span className="text-amber-700 font-extrabold">In Curation</span>
           </div>
           <div className="flex justify-between text-slate-600 font-bold">
-            <span>Duration:</span>
-            <span className="text-purple-700">2 Minutes</span>
+            <span>Certification:</span>
+            <span className="text-emerald-700 font-extrabold">Auto-Synced to verify.mscprpcem.tech</span>
           </div>
           <div className="flex justify-between text-slate-600 font-bold">
             <span>Passing Grade:</span>
-            <span className="text-emerald-700">60% or higher</span>
+            <span className="text-purple-700 font-extrabold">60% or higher</span>
           </div>
         </div>
 
         <div className="space-y-3 pt-2">
           <button
-            onClick={handleStartQuiz}
-            className={`w-full py-3.5 bg-gradient-to-r ${meta?.themeColor || 'from-purple-600 to-indigo-600'} text-white rounded-xl text-xs font-black shadow-md cursor-pointer active:scale-98 transition-all flex items-center justify-center space-x-2`}
+            onClick={() => navigate('/courses')}
+            className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-black shadow-md cursor-pointer active:scale-98 transition-all flex items-center justify-center space-x-2"
           >
-            <span>Launch Practice Examination</span>
-            <ArrowRight size={16} />
+            <span>Explore All Courses & Curriculums</span>
+            <ArrowRight size={15} />
           </button>
 
           <button
-            onClick={() => navigate('/courses')}
+            onClick={() => navigate('/practice')}
             className="w-full py-2.5 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all cursor-pointer text-center block"
           >
-            ← Return to Courses Catalog
+            ← Return to Practice Arena
           </button>
         </div>
       </div>

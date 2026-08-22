@@ -1,4 +1,5 @@
-const { Quiz, Question, Participant, Answer, Violation, sequelize } = require('../models');
+const { Quiz, Question, Participant, Answer, Violation, Event, EventRegistration, sequelize } = require('../models');
+const { Op } = require('sequelize');
 const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
@@ -379,6 +380,62 @@ const initializeSocket = (io) => {
         if (quiz.status === 'completed') {
           socket.emit('join_error', { message: 'This quiz has already ended' });
           return;
+        }
+
+        // Verify Event Registration if linked to an event
+        let linkedEvent = null;
+        if (quiz.event_id) {
+          linkedEvent = await Event.findByPk(quiz.event_id).catch(() => null);
+        }
+        if (!linkedEvent && quiz.event_name && quiz.event_name !== 'General' && quiz.event_name !== 'Technical') {
+          linkedEvent = await Event.findOne({
+            where: {
+              [Op.or]: [
+                { name: quiz.event_name },
+                { slug: quiz.event_name },
+                { id: quiz.event_name }
+              ]
+            }
+          }).catch(() => null);
+        }
+
+        if (linkedEvent) {
+          let isReg = false;
+          const cleanEmail = email ? email.trim().toLowerCase() : null;
+          const regConditions = [];
+          if (cleanEmail) {
+            regConditions.push({ email: cleanEmail });
+            regConditions.push({ email: { [Op.like]: cleanEmail } });
+          }
+          if (name) {
+            regConditions.push({ full_name: name.trim() });
+            regConditions.push({ full_name: { [Op.like]: name.trim() } });
+          }
+
+          const eventIdMatches = [
+            String(linkedEvent.id),
+            ...(linkedEvent.slug ? [String(linkedEvent.slug)] : []),
+            ...(linkedEvent.name ? [String(linkedEvent.name)] : [])
+          ];
+
+          const foundReg = await EventRegistration.findOne({
+            where: {
+              event_id: { [Op.or]: eventIdMatches },
+              [Op.or]: regConditions
+            }
+          }).catch(() => null);
+
+          if (foundReg) isReg = true;
+
+          if (!isReg) {
+            socket.emit('join_error', {
+              message: `You have not registered for '${linkedEvent.name}'. Please register for this event to attempt the quiz.`,
+              requireRegistration: true,
+              eventSlug: linkedEvent.slug || linkedEvent.id,
+              eventName: linkedEvent.name
+            });
+            return;
+          }
         }
 
         // Add participant to DB (or find existing by email/name in the same quiz)

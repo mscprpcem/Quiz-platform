@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { 
-  Quiz, Question, ScheduledOccurrence, QuizAttempt, AttemptAnswer, AttemptViolation 
+  Quiz, Question, ScheduledOccurrence, QuizAttempt, AttemptAnswer, AttemptViolation, Event, EventRegistration 
 } = require('../models');
 const authMiddleware = require('../middleware/auth');
 const { Op } = require('sequelize');
@@ -956,6 +956,53 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
       }
     }
 
+    // Check if the quiz is linked to an Event
+    let linkedEvent = null;
+    let isEventRegistered = false;
+
+    if (finalQuiz?.event_id) {
+      linkedEvent = await Event.findByPk(finalQuiz.event_id).catch(() => null);
+    }
+    if (!linkedEvent && finalQuiz?.event_name && finalQuiz.event_name !== 'General' && finalQuiz.event_name !== 'Technical') {
+      linkedEvent = await Event.findOne({
+        where: {
+          [Op.or]: [
+            { name: finalQuiz.event_name },
+            { slug: finalQuiz.event_name },
+            { id: finalQuiz.event_name }
+          ]
+        }
+      }).catch(() => null);
+    }
+
+    if (linkedEvent && (cleanEmail || cleanName)) {
+      const regConditions = [];
+      if (cleanEmail) {
+        regConditions.push({ email: cleanEmail });
+        regConditions.push({ email: { [Op.like]: cleanEmail } });
+      }
+      if (cleanName) {
+        regConditions.push({ full_name: cleanName });
+      }
+
+      const eventIdMatches = [
+        String(linkedEvent.id),
+        ...(linkedEvent.slug ? [String(linkedEvent.slug)] : []),
+        ...(linkedEvent.name ? [String(linkedEvent.name)] : [])
+      ];
+
+      const foundReg = await EventRegistration.findOne({
+        where: {
+          event_id: { [Op.or]: eventIdMatches },
+          [Op.or]: regConditions
+        }
+      }).catch(() => null);
+
+      if (foundReg) {
+        isEventRegistered = true;
+      }
+    }
+
     // Format clean JSON response preventing circular model serialization and answer leaks
     const occJson = occ.toJSON ? occ.toJSON() : { ...occ };
     delete occJson.quiz;
@@ -970,7 +1017,17 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
       userAttempt,
       userRank,
       totalParticipants,
-      totalQuestions: finalQuiz?.questions?.length || 0
+      totalQuestions: finalQuiz?.questions?.length || 0,
+      linkedEvent: linkedEvent ? {
+        id: linkedEvent.id,
+        name: linkedEvent.name,
+        slug: linkedEvent.slug || linkedEvent.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        category: linkedEvent.category,
+        status: linkedEvent.status,
+        is_registration_open: linkedEvent.is_registration_open !== false
+      } : null,
+      isEventRegistered,
+      requiresEventRegistration: Boolean(linkedEvent)
     });
   } catch (error) {
     console.error('Fetch occurrence info error:', error);
@@ -1051,6 +1108,60 @@ router.post('/occurrences/:occurrenceId/start', async (req, res) => {
 
     const targetQuiz = quiz || occ.quiz || (await Quiz.findByPk(occ.quiz_id));
     const cleanEmail = email ? email.trim().toLowerCase() : null;
+
+    // Verify Event Registration if linked to an event
+    let linkedEvent = null;
+    if (targetQuiz?.event_id) {
+      linkedEvent = await Event.findByPk(targetQuiz.event_id).catch(() => null);
+    }
+    if (!linkedEvent && targetQuiz?.event_name && targetQuiz.event_name !== 'General' && targetQuiz.event_name !== 'Technical') {
+      linkedEvent = await Event.findOne({
+        where: {
+          [Op.or]: [
+            { name: targetQuiz.event_name },
+            { slug: targetQuiz.event_name },
+            { id: targetQuiz.event_name }
+          ]
+        }
+      }).catch(() => null);
+    }
+
+    if (linkedEvent) {
+      let isReg = false;
+      const regConditions = [];
+      if (cleanEmail) {
+        regConditions.push({ email: cleanEmail });
+        regConditions.push({ email: { [Op.like]: cleanEmail } });
+      }
+      if (name) {
+        regConditions.push({ full_name: name.trim() });
+        regConditions.push({ full_name: { [Op.like]: name.trim() } });
+      }
+
+      const eventIdMatches = [
+        String(linkedEvent.id),
+        ...(linkedEvent.slug ? [String(linkedEvent.slug)] : []),
+        ...(linkedEvent.name ? [String(linkedEvent.name)] : [])
+      ];
+
+      const foundReg = await EventRegistration.findOne({
+        where: {
+          event_id: { [Op.or]: eventIdMatches },
+          [Op.or]: regConditions
+        }
+      }).catch(() => null);
+
+      if (foundReg) isReg = true;
+
+      if (!isReg) {
+        return res.status(403).json({
+          error: `You have not registered for '${linkedEvent.name}'. Please register for this event to attempt the quiz.`,
+          requireRegistration: true,
+          eventSlug: linkedEvent.slug || linkedEvent.id,
+          eventName: linkedEvent.name
+        });
+      }
+    }
 
     // Check Attempt Limit
     const existingAttempts = await QuizAttempt.findAll({

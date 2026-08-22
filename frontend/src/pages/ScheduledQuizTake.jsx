@@ -6,7 +6,7 @@ import api from '../services/api';
 import StudentAuthModal from '../components/StudentAuthModal';
 import {
   Clock, CheckSquare, AlertTriangle, Trophy, CheckCircle, 
-  Square, ShieldCheck, ArrowRight, RefreshCw, User, Lock, Award, LogIn, LogOut, ExternalLink, Sparkles, Maximize, KeyRound, Timer, AlertOctagon, XCircle
+  Square, ShieldCheck, ArrowRight, RefreshCw, User, Lock, Award, LogIn, LogOut, ExternalLink, Sparkles, Maximize, KeyRound, Timer, AlertOctagon, XCircle, Ticket, Calendar
 } from 'lucide-react';
 
 export default function ScheduledQuizTake() {
@@ -1175,30 +1175,85 @@ export default function ScheduledQuizTake() {
                     </div>
                   </div>
 
-                  {occData?.userAttempt?.status === 'in_progress' ? (
-                    <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-2xl space-y-1.5 animate-pulse">
-                      <div className="flex items-center space-x-2 text-xs font-black text-blue-900">
-                        <Sparkles size={15} className="text-blue-600" />
-                        <span>Active Session In Progress (Session Recovery)</span>
+                  {/* ════════ EVENT REGISTRATION CHECK GATE ════════ */}
+                  {occData?.requiresEventRegistration && !occData?.isEventRegistered ? (
+                    <div className="p-5 bg-gradient-to-r from-amber-50/90 via-orange-50/70 to-rose-50/80 border border-amber-300 rounded-2xl space-y-3.5 animate-fade-in shadow-xs text-left">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-bold text-sm shadow-xs flex-shrink-0">
+                            <Ticket size={20} />
+                          </div>
+                          <div>
+                            <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-100/90 px-2.5 py-0.5 rounded-full border border-amber-200 block w-fit mb-0.5">
+                              Event Registration Required
+                            </span>
+                            <h4 className="text-xs sm:text-sm font-black text-slate-900">
+                              You Have Not Registered for This Event
+                            </h4>
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-[11px] text-blue-700 font-medium">
-                        You have an unfinished attempt for this assessment. All previously answered questions will be automatically restored.
+
+                      <p className="text-xs text-slate-700 leading-relaxed font-semibold">
+                        This assessment is exclusively linked to <strong>{occData.linkedEvent?.name || 'this event'}</strong>. You must complete event registration before you can attempt this quiz.
                       </p>
+
+                      <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                        <a
+                          href={`/events/${occData.linkedEvent?.slug || occData.linkedEvent?.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex-1 py-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md transition-all cursor-pointer active:scale-98 text-center"
+                        >
+                          <ExternalLink size={14} />
+                          <span>Register for {occData.linkedEvent?.name || 'Event'} Now</span>
+                        </a>
+
+                        <button
+                          type="button"
+                          onClick={() => fetchOccurrence()}
+                          className="py-3 px-4 bg-white hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-xs border border-slate-200 flex items-center justify-center space-x-1.5 transition-colors cursor-pointer"
+                        >
+                          <RefreshCw size={13} />
+                          <span>Verify Registration</span>
+                        </button>
+                      </div>
                     </div>
                   ) : (
-                    <div className="text-[10px] text-slate-400 font-semibold bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex items-center space-x-1.5">
-                      <ShieldCheck size={13} className="text-emerald-600 flex-shrink-0" />
-                      <span>Your attempt and official certificate will be linked to your student account.</span>
-                    </div>
-                  )}
+                    <>
+                      {occData?.requiresEventRegistration && occData?.isEventRegistered && (
+                        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center space-x-2">
+                          <ShieldCheck size={16} className="text-emerald-600 flex-shrink-0" />
+                          <span>Event Registration Verified: <strong>{occData.linkedEvent?.name}</strong></span>
+                        </div>
+                      )}
 
-                  <button
-                    onClick={handleStartAttempt}
-                    className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all active:scale-98"
-                  >
-                    <span>{occData?.userAttempt?.status === 'in_progress' ? 'Resume Quiz Attempt' : 'Start Quiz Attempt'}</span>
-                    <ArrowRight size={16} />
-                  </button>
+                      {occData?.userAttempt?.status === 'in_progress' ? (
+                        <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-2xl space-y-1.5 animate-pulse">
+                          <div className="flex items-center space-x-2 text-xs font-black text-blue-900">
+                            <Sparkles size={15} className="text-blue-600" />
+                            <span>Active Session In Progress (Session Recovery)</span>
+                          </div>
+                          <p className="text-[11px] text-blue-700 font-medium">
+                            You have an unfinished attempt for this assessment. All previously answered questions will be automatically restored.
+                          </p>
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-slate-400 font-semibold bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex items-center space-x-1.5">
+                          <ShieldCheck size={13} className="text-emerald-600 flex-shrink-0" />
+                          <span>Your attempt and official certificate will be linked to your student account.</span>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={handleStartAttempt}
+                        className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all active:scale-98"
+                      >
+                        <span>{occData?.userAttempt?.status === 'in_progress' ? 'Resume Quiz Attempt' : 'Start Quiz Attempt'}</span>
+                        <ArrowRight size={16} />
+                      </button>
+                    </>
+                  )}
                 </div>
               ) : (
                 /* Unauthenticated State: Prompt for Student Login / Sign In Modal */

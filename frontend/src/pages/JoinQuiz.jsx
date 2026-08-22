@@ -58,6 +58,7 @@ export default function JoinQuiz() {
     };
   });
   const [error, setError] = useState('');
+  const [regEventSlug, setRegEventSlug] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showScannerModal, setShowScannerModal] = useState(false);
 
@@ -103,6 +104,11 @@ export default function JoinQuiz() {
     socket.on('join_error', (data) => {
       setLoading(false);
       setError(data.message);
+      if (data.requireRegistration && data.eventSlug) {
+        setRegEventSlug(data.eventSlug);
+      } else {
+        setRegEventSlug(null);
+      }
     });
 
     return () => {
@@ -209,8 +215,21 @@ export default function JoinQuiz() {
           </div>
 
           {error && (
-            <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-2.5 rounded-xl text-xs font-semibold animate-fade-in join-quiz-error-shadow">
-              {error}
+            <div className="bg-red-50 border border-red-200 text-red-700 p-3.5 rounded-xl text-xs font-semibold animate-fade-in join-quiz-error-shadow space-y-2">
+              <div>{error}</div>
+              {regEventSlug && (
+                <div className="pt-1">
+                  <a
+                    href={`/events/${regEventSlug}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg text-xs font-extrabold shadow-xs transition-all cursor-pointer"
+                  >
+                    <span>Register for Event Now</span>
+                    <ArrowRight size={12} />
+                  </a>
+                </div>
+              )}
             </div>
           )}
 
