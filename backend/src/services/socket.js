@@ -383,19 +383,22 @@ const initializeSocket = (io) => {
         }
 
         // Verify Event Registration if linked to an event
+        const isUUID = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
         let linkedEvent = null;
-        if (quiz.event_id) {
+        if (quiz.event_id && isUUID(quiz.event_id)) {
           linkedEvent = await Event.findByPk(quiz.event_id).catch(() => null);
         }
         if (!linkedEvent && quiz.event_name && quiz.event_name !== 'General' && quiz.event_name !== 'Technical') {
+          const orConds = [
+            { name: quiz.event_name },
+            { slug: quiz.event_name },
+            { slug: quiz.event_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') }
+          ];
+          if (isUUID(quiz.event_name)) {
+            orConds.push({ id: quiz.event_name });
+          }
           linkedEvent = await Event.findOne({
-            where: {
-              [Op.or]: [
-                { name: quiz.event_name },
-                { slug: quiz.event_name },
-                { id: quiz.event_name }
-              ]
-            }
+            where: { [Op.or]: orConds }
           }).catch(() => null);
         }
 
@@ -414,24 +417,42 @@ const initializeSocket = (io) => {
 
           const eventIdMatches = [
             String(linkedEvent.id),
-            ...(linkedEvent.slug ? [String(linkedEvent.slug)] : []),
-            ...(linkedEvent.name ? [String(linkedEvent.name)] : [])
+            ...(linkedEvent.slug ? [String(linkedEvent.slug), String(linkedEvent.slug).toLowerCase()] : []),
+            ...(linkedEvent.name ? [String(linkedEvent.name), String(linkedEvent.name).toLowerCase()] : [])
           ];
 
           const foundReg = await EventRegistration.findOne({
             where: {
-              event_id: { [Op.or]: eventIdMatches },
-              [Op.or]: regConditions
+              [Op.or]: [
+                { event_id: { [Op.or]: eventIdMatches } },
+                { event_name: { [Op.or]: eventIdMatches } }
+              ],
+              [Op.and]: [{ [Op.or]: regConditions }]
             }
           }).catch(() => null);
 
           if (foundReg) isReg = true;
 
+          // Fuzzy match fallback
+          if (!isReg && cleanEmail) {
+            const userRegs = await EventRegistration.findAll({ where: { email: cleanEmail } }).catch(() => []);
+            const searchKey = (linkedEvent.name || linkedEvent.slug || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+            for (const r of userRegs) {
+              const regKey = String(r.event_id || r.event_name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+              if (regKey && (searchKey.includes(regKey) || regKey.includes(searchKey))) {
+                isReg = true;
+                break;
+              }
+            }
+          }
+
           if (!isReg) {
+            const regSlug = linkedEvent.slug || linkedEvent.id || 'visionx-season-2';
             socket.emit('join_error', {
-              message: `You have not registered for '${linkedEvent.name}'. Please register for this event to attempt the quiz.`,
+              message: `You have not registered for '${linkedEvent.name}'. Please register on the MSC PRPCEM website to attempt the quiz.`,
               requireRegistration: true,
-              eventSlug: linkedEvent.slug || linkedEvent.id,
+              registrationUrl: `https://www.mscprpcem.tech/register/${regSlug}`,
+              eventSlug: regSlug,
               eventName: linkedEvent.name
             });
             return;

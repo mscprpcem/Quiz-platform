@@ -99,12 +99,25 @@ export default function ScheduledQuizTake() {
     }
   };
 
-  const fetchOccurrence = async () => {
+  const handleSignOut = () => {
+    if (studentLogout) studentLogout();
+    if (logout) logout();
+    setEmail('');
+    setName('');
+    localStorage.removeItem('msc_student_email');
+    localStorage.removeItem('msc_student_name');
+    localStorage.removeItem('msc_participant_email');
+    localStorage.removeItem('msc_participant_name');
+    setUserAttempt(null);
+    fetchOccurrence('', '');
+  };
+
+  const fetchOccurrence = async (overrideEmail, overrideName) => {
     try {
       setLoading(true);
       setLoadError('');
-      const targetEmail = email || studentAccount?.email || user?.email || localStorage.getItem('msc_student_email') || '';
-      const targetName = name || studentAccount?.name || user?.name || localStorage.getItem('msc_student_name') || '';
+      const targetEmail = overrideEmail !== undefined ? overrideEmail : (email || studentAccount?.email || user?.email || localStorage.getItem('msc_student_email') || '');
+      const targetName = overrideName !== undefined ? overrideName : (name || studentAccount?.name || user?.name || localStorage.getItem('msc_student_name') || '');
       const queryParams = new URLSearchParams();
       if (targetEmail) queryParams.append('email', targetEmail);
       if (targetName) queryParams.append('name', targetName);
@@ -844,6 +857,7 @@ export default function ScheduledQuizTake() {
     const message = occData?.message;
     const displayName = studentAccount?.name || user?.name || name;
     const displayEmail = studentAccount?.email || user?.email || email;
+    const isLoggedIn = Boolean(studentAccount?.email || user?.email || email);
     const endTime = occData?.occurrence?.end_time ? new Date(occData.occurrence.end_time) : null;
     const isQuizEnded = status === 'CLOSED' || (endTime && endTime < new Date());
 
@@ -1163,9 +1177,7 @@ export default function ScheduledQuizTake() {
 
                       <button
                         type="button"
-                        onClick={() => {
-                          if (studentLogout) studentLogout();
-                        }}
+                        onClick={handleSignOut}
                         className="flex items-center space-x-1 text-[11px] text-red-600 hover:text-red-800 font-bold bg-white px-2.5 py-1 rounded-lg border border-red-200 hover:bg-red-50 transition-colors cursor-pointer"
                         title="Sign out of current account"
                       >
@@ -1195,18 +1207,18 @@ export default function ScheduledQuizTake() {
                       </div>
 
                       <p className="text-xs text-slate-700 leading-relaxed font-semibold">
-                        This assessment is exclusively linked to <strong>{occData.linkedEvent?.name || 'this event'}</strong>. You must complete event registration before you can attempt this quiz.
+                        This assessment is exclusively linked to <strong>{occData.linkedEvent?.name || 'VisionX Season 2'}</strong>. You must complete event registration before you can attempt this quiz.
                       </p>
 
                       <div className="flex flex-col sm:flex-row gap-2 pt-1">
                         <a
-                          href={`/events/${occData.linkedEvent?.slug || occData.linkedEvent?.id}`}
+                          href={`https://www.mscprpcem.tech/register/${occData.linkedEvent?.slug || occData.linkedEvent?.id || 'visionx-season-2'}`}
                           target="_blank"
-                          rel="noreferrer"
+                          rel="noopener noreferrer"
                           className="flex-1 py-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md transition-all cursor-pointer active:scale-98 text-center"
                         >
                           <ExternalLink size={14} />
-                          <span>Register for {occData.linkedEvent?.name || 'Event'} Now</span>
+                          <span>Register for {occData.linkedEvent?.name || 'VisionX Season 2'} on MSC Website</span>
                         </a>
 
                         <button

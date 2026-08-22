@@ -1496,14 +1496,30 @@ router.post('/register', async (req, res) => {
       if (q) matchingQuizzes.push(q);
     }
 
-    if (matchingQuizzes.length === 0 && (targetEventName || targetEventId)) {
-      const matchSearch = targetEventName.replace(/^event-/, '').replace(/-/g, ' ').toLowerCase();
+    if (matchingQuizzes.length === 0 && (targetEventName || targetEventId || slug)) {
       const allQuizzes = await Quiz.findAll();
-      matchingQuizzes = allQuizzes.filter(q =>
-        q.event_id === targetEventId ||
-        (targetEvent && q.event_id === targetEvent.id) ||
-        (q.event_name && (q.event_name.toLowerCase().includes(matchSearch) || matchSearch.includes(q.event_name.toLowerCase())))
-      );
+      const searchTerms = [
+        targetEventName,
+        targetEventId,
+        slug,
+        targetEvent ? targetEvent.name : null,
+        targetEvent ? targetEvent.slug : null
+      ].filter(Boolean).map(s => String(s).toLowerCase().replace(/[^a-z0-9]/g, ''));
+
+      matchingQuizzes = allQuizzes.filter(q => {
+        if (targetEventId && q.event_id === targetEventId) return true;
+        if (targetEvent && q.event_id === targetEvent.id) return true;
+        const qTerms = [
+          q.event_name,
+          q.custom_slug,
+          q.title,
+          q.join_code
+        ].filter(Boolean).map(s => String(s).toLowerCase().replace(/[^a-z0-9]/g, ''));
+
+        return searchTerms.some(st => 
+          st && qTerms.some(qt => qt && (qt.includes(st) || st.includes(qt) || qt.startsWith(st) || st.startsWith(qt)))
+        );
+      });
     }
 
     const baseUrl = getQuizPlatformBaseUrl();

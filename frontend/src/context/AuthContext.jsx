@@ -125,7 +125,16 @@ export const AuthProvider = ({ children }) => {
   const logout = () => {
     localStorage.removeItem('msc_quiz_token');
     localStorage.removeItem('msc_quiz_token_time');
+    localStorage.removeItem('msc_student_account');
+    localStorage.removeItem('msc_student_token');
+    localStorage.removeItem('msc_student_name');
+    localStorage.removeItem('msc_student_email');
+    localStorage.removeItem('msc_participant_name');
+    localStorage.removeItem('msc_participant_email');
+    localStorage.removeItem('msc_saved_form_data');
+    sessionStorage.removeItem('msc_quiz_return_url');
     setUser(null);
+    setStudentAccount(null);
   };
 
   const studentLogin = async (email, password) => {
@@ -233,6 +242,13 @@ export const AuthProvider = ({ children }) => {
 
   const studentLogout = () => {
     localStorage.removeItem('msc_student_account');
+    localStorage.removeItem('msc_student_token');
+    localStorage.removeItem('msc_student_name');
+    localStorage.removeItem('msc_student_email');
+    localStorage.removeItem('msc_participant_name');
+    localStorage.removeItem('msc_participant_email');
+    localStorage.removeItem('msc_saved_form_data');
+    sessionStorage.removeItem('msc_quiz_return_url');
     setStudentAccount(null);
   };
 

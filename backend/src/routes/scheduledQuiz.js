@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { 
-  Quiz, Question, ScheduledOccurrence, QuizAttempt, AttemptAnswer, AttemptViolation, Event, EventRegistration 
+  Quiz, Question, ScheduledOccurrence, QuizAttempt, AttemptAnswer, AttemptViolation, Event, EventRegistration, Participant 
 } = require('../models');
 const authMiddleware = require('../middleware/auth');
 const { Op } = require('sequelize');
@@ -22,6 +22,160 @@ const sanitizeQuizForPublic = (quiz) => {
   }
   return json;
 };
+
+const isUUID = (val) => typeof val === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
+
+/**
+ * Checks if a participant is registered for an event across:
+ * 1. Participant direct records for the quiz
+ * 2. EventRegistration table (from mscprpcem.tech website & Quiz platform registrations)
+ * 3. Keyword / Slug fuzzy matching for multi-week series like VisionX Season 2
+ */
+async function checkStudentEventRegistration(quiz, cleanEmail, cleanName) {
+  if (!quiz) {
+    return { linkedEvent: null, isEventRegistered: false, requiresEventRegistration: false };
+  }
+
+  // 1. Resolve linked event defensively without Postgres UUID type mismatches
+  let linkedEvent = null;
+  if (quiz.event_id && isUUID(quiz.event_id)) {
+    linkedEvent = await Event.findByPk(quiz.event_id).catch(() => null);
+  }
+
+  if (!linkedEvent && quiz.event_name && quiz.event_name !== 'General' && quiz.event_name !== 'Technical') {
+    const orConds = [
+      { name: quiz.event_name },
+      { slug: quiz.event_name },
+      { slug: quiz.event_name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') }
+    ];
+    if (isUUID(quiz.event_name)) {
+      orConds.push({ id: quiz.event_name });
+    }
+    linkedEvent = await Event.findOne({
+      where: { [Op.or]: orConds }
+    }).catch(() => null);
+  }
+
+  // If still not found, check if quiz title or custom_slug contains known event keywords (e.g. VisionX)
+  if (!linkedEvent) {
+    const slugOrTitle = (quiz.custom_slug || quiz.title || '').toLowerCase();
+    if (slugOrTitle.includes('vision') || slugOrTitle.includes('spark') || slugOrTitle.includes('gitlit') || slugOrTitle.includes('dotnet')) {
+      const allEvents = await Event.findAll().catch(() => []);
+      linkedEvent = allEvents.find(e => {
+        const eSlug = (e.slug || e.name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        const qSlug = slugOrTitle.replace(/[^a-z0-9]/g, '');
+        return eSlug && (qSlug.includes(eSlug) || eSlug.includes(qSlug));
+      });
+    }
+  }
+
+  const requiresEventRegistration = Boolean(linkedEvent);
+  if (!requiresEventRegistration) {
+    return { linkedEvent: null, isEventRegistered: true, requiresEventRegistration: false };
+  }
+
+  let isEventRegistered = false;
+  const emailNorm = cleanEmail ? String(cleanEmail).toLowerCase().trim() : '';
+  const nameNorm = cleanName ? String(cleanName).trim() : '';
+
+  // Check 1: Participant table for this Quiz (direct registration)
+  if (emailNorm) {
+    const directParticipant = await Participant.findOne({
+      where: {
+        quiz_id: quiz.id,
+        [Op.or]: [
+          { email: emailNorm },
+          ...(cleanEmail ? [{ email: cleanEmail }] : [])
+        ]
+      }
+    }).catch(() => null);
+    if (directParticipant) {
+      isEventRegistered = true;
+    }
+  }
+
+  // Check 2: EventRegistration table (registered on mscprpcem.tech or quiz platform)
+  if (!isEventRegistered && (emailNorm || nameNorm)) {
+    const regConditions = [];
+    if (emailNorm) {
+      regConditions.push({ email: emailNorm });
+      regConditions.push({ email: { [Op.like]: emailNorm } });
+      if (cleanEmail && cleanEmail !== emailNorm) {
+        regConditions.push({ email: cleanEmail });
+      }
+    }
+    if (nameNorm) {
+      regConditions.push({ full_name: nameNorm });
+      regConditions.push({ full_name: { [Op.like]: nameNorm } });
+    }
+
+    const possibleEventMatches = new Set();
+    if (linkedEvent.id) possibleEventMatches.add(String(linkedEvent.id));
+    if (linkedEvent.slug) {
+      possibleEventMatches.add(String(linkedEvent.slug));
+      possibleEventMatches.add(String(linkedEvent.slug).toLowerCase());
+    }
+    if (linkedEvent.name) {
+      possibleEventMatches.add(String(linkedEvent.name));
+      possibleEventMatches.add(String(linkedEvent.name).toLowerCase());
+    }
+    if (quiz.event_id) possibleEventMatches.add(String(quiz.event_id));
+    if (quiz.event_name) {
+      possibleEventMatches.add(String(quiz.event_name));
+      possibleEventMatches.add(String(quiz.event_name).toLowerCase());
+    }
+
+    const eventMatchList = Array.from(possibleEventMatches);
+
+    const foundReg = await EventRegistration.findOne({
+      where: {
+        [Op.or]: [
+          { event_id: { [Op.or]: eventMatchList } },
+          { event_name: { [Op.or]: eventMatchList } }
+        ],
+        [Op.and]: [{ [Op.or]: regConditions }]
+      }
+    }).catch(() => null);
+
+    if (foundReg) {
+      isEventRegistered = true;
+    }
+
+    // Check 3: Fuzzy matching on any EventRegistration under this student's email
+    if (!isEventRegistered && emailNorm) {
+      const allUserRegs = await EventRegistration.findAll({
+        where: {
+          [Op.or]: [
+            { email: emailNorm },
+            ...(cleanEmail ? [{ email: cleanEmail }] : [])
+          ]
+        }
+      }).catch(() => []);
+
+      const searchTerms = [
+        linkedEvent.name,
+        linkedEvent.slug,
+        quiz.event_name,
+        quiz.custom_slug,
+        quiz.title
+      ].filter(Boolean).map(s => String(s).toLowerCase().replace(/[^a-z0-9]/g, ''));
+
+      for (const r of allUserRegs) {
+        const regKey = String(r.event_id || r.event_name || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+        if (regKey && searchTerms.some(st => st.includes(regKey) || regKey.includes(st) || st.startsWith(regKey) || regKey.startsWith(st))) {
+          isEventRegistered = true;
+          break;
+        }
+      }
+    }
+  }
+
+  return {
+    linkedEvent,
+    isEventRegistered,
+    requiresEventRegistration
+  };
+}
 
 /**
  * Deduplicates quiz attempts for each unique participant so only their LATEST attempt is shown on the leaderboard.
@@ -956,52 +1110,8 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
       }
     }
 
-    // Check if the quiz is linked to an Event
-    let linkedEvent = null;
-    let isEventRegistered = false;
-
-    if (finalQuiz?.event_id) {
-      linkedEvent = await Event.findByPk(finalQuiz.event_id).catch(() => null);
-    }
-    if (!linkedEvent && finalQuiz?.event_name && finalQuiz.event_name !== 'General' && finalQuiz.event_name !== 'Technical') {
-      linkedEvent = await Event.findOne({
-        where: {
-          [Op.or]: [
-            { name: finalQuiz.event_name },
-            { slug: finalQuiz.event_name },
-            { id: finalQuiz.event_name }
-          ]
-        }
-      }).catch(() => null);
-    }
-
-    if (linkedEvent && (cleanEmail || cleanName)) {
-      const regConditions = [];
-      if (cleanEmail) {
-        regConditions.push({ email: cleanEmail });
-        regConditions.push({ email: { [Op.like]: cleanEmail } });
-      }
-      if (cleanName) {
-        regConditions.push({ full_name: cleanName });
-      }
-
-      const eventIdMatches = [
-        String(linkedEvent.id),
-        ...(linkedEvent.slug ? [String(linkedEvent.slug)] : []),
-        ...(linkedEvent.name ? [String(linkedEvent.name)] : [])
-      ];
-
-      const foundReg = await EventRegistration.findOne({
-        where: {
-          event_id: { [Op.or]: eventIdMatches },
-          [Op.or]: regConditions
-        }
-      }).catch(() => null);
-
-      if (foundReg) {
-        isEventRegistered = true;
-      }
-    }
+    // Verify Event Registration if linked to an event (matches MSC PRPCEM website registrations)
+    const { linkedEvent, isEventRegistered, requiresEventRegistration } = await checkStudentEventRegistration(finalQuiz, cleanEmail, cleanName);
 
     // Format clean JSON response preventing circular model serialization and answer leaks
     const occJson = occ.toJSON ? occ.toJSON() : { ...occ };
@@ -1027,7 +1137,8 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
         is_registration_open: linkedEvent.is_registration_open !== false
       } : null,
       isEventRegistered,
-      requiresEventRegistration: Boolean(linkedEvent)
+      requiresEventRegistration,
+      registrationUrl: `https://www.mscprpcem.tech/register/${linkedEvent?.slug || 'visionx-season-2'}`
     });
   } catch (error) {
     console.error('Fetch occurrence info error:', error);
@@ -1109,58 +1220,18 @@ router.post('/occurrences/:occurrenceId/start', async (req, res) => {
     const targetQuiz = quiz || occ.quiz || (await Quiz.findByPk(occ.quiz_id));
     const cleanEmail = email ? email.trim().toLowerCase() : null;
 
-    // Verify Event Registration if linked to an event
-    let linkedEvent = null;
-    if (targetQuiz?.event_id) {
-      linkedEvent = await Event.findByPk(targetQuiz.event_id).catch(() => null);
-    }
-    if (!linkedEvent && targetQuiz?.event_name && targetQuiz.event_name !== 'General' && targetQuiz.event_name !== 'Technical') {
-      linkedEvent = await Event.findOne({
-        where: {
-          [Op.or]: [
-            { name: targetQuiz.event_name },
-            { slug: targetQuiz.event_name },
-            { id: targetQuiz.event_name }
-          ]
-        }
-      }).catch(() => null);
-    }
+    // Verify Event Registration if linked to an event (matches MSC PRPCEM website registrations)
+    const { linkedEvent, isEventRegistered, requiresEventRegistration } = await checkStudentEventRegistration(targetQuiz, cleanEmail, name);
 
-    if (linkedEvent) {
-      let isReg = false;
-      const regConditions = [];
-      if (cleanEmail) {
-        regConditions.push({ email: cleanEmail });
-        regConditions.push({ email: { [Op.like]: cleanEmail } });
-      }
-      if (name) {
-        regConditions.push({ full_name: name.trim() });
-        regConditions.push({ full_name: { [Op.like]: name.trim() } });
-      }
-
-      const eventIdMatches = [
-        String(linkedEvent.id),
-        ...(linkedEvent.slug ? [String(linkedEvent.slug)] : []),
-        ...(linkedEvent.name ? [String(linkedEvent.name)] : [])
-      ];
-
-      const foundReg = await EventRegistration.findOne({
-        where: {
-          event_id: { [Op.or]: eventIdMatches },
-          [Op.or]: regConditions
-        }
-      }).catch(() => null);
-
-      if (foundReg) isReg = true;
-
-      if (!isReg) {
-        return res.status(403).json({
-          error: `You have not registered for '${linkedEvent.name}'. Please register for this event to attempt the quiz.`,
-          requireRegistration: true,
-          eventSlug: linkedEvent.slug || linkedEvent.id,
-          eventName: linkedEvent.name
-        });
-      }
+    if (requiresEventRegistration && !isEventRegistered) {
+      const regSlug = linkedEvent?.slug || linkedEvent?.id || 'visionx-season-2';
+      return res.status(403).json({
+        error: `You have not registered for '${linkedEvent?.name || 'this event'}'. Please register on the MSC PRPCEM website to attempt the quiz.`,
+        requireRegistration: true,
+        registrationUrl: `https://www.mscprpcem.tech/register/${regSlug}`,
+        eventSlug: regSlug,
+        eventName: linkedEvent?.name || 'VisionX Season 2'
+      });
     }
 
     // Check Attempt Limit

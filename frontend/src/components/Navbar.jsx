@@ -28,6 +28,7 @@ export default function Navbar() {
 
   const handleLogout = () => {
     logout();
+    studentLogout();
     navigate('/');
     setShowConfirm(false);
   };
@@ -123,7 +124,7 @@ export default function Navbar() {
                 label="Join Quiz"
               />
 
-              {/* Student Account Status / Sign Out vs Login */}
+              {/* Student Account or Admin Account Status / Sign Out vs Login */}
               {studentAccount ? (
                 <div className="flex items-center space-x-2">
                   <a
@@ -140,10 +141,26 @@ export default function Navbar() {
                     <ExternalLink size={11} className="text-blue-400 group-hover:text-blue-600" />
                   </a>
                   <button
-                    onClick={() => {
-                      studentLogout();
-                      navigate('/');
-                    }}
+                    onClick={handleLogout}
+                    className="flex items-center space-x-1 px-2.5 py-1.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl transition-all cursor-pointer"
+                    title="Sign Out"
+                  >
+                    <LogOut size={13} />
+                    <span className="hidden lg:inline">Sign Out</span>
+                  </button>
+                </div>
+              ) : user ? (
+                <div className="flex items-center space-x-2">
+                  <button
+                    onClick={() => navTo('/admin')}
+                    className="flex items-center space-x-1.5 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-xl text-xs font-bold text-purple-900 cursor-pointer transition-all"
+                    title="Open Admin Dashboard"
+                  >
+                    <ShieldCheck size={14} className="text-purple-600 flex-shrink-0" />
+                    <span className="truncate max-w-[120px]">{user.name || user.email?.split('@')[0] || 'Admin'}</span>
+                  </button>
+                  <button
+                    onClick={handleLogout}
                     className="flex items-center space-x-1 px-2.5 py-1.5 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl transition-all cursor-pointer"
                     title="Sign Out"
                   >
@@ -249,6 +266,46 @@ export default function Navbar() {
                     </a>
                     <button
                       onClick={() => {
+                        studentLogout();
+                        logout();
+                        setMobileOpen(false);
+                        navigate('/');
+                      }}
+                      className="py-2.5 px-3 bg-rose-50 hover:bg-rose-100 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                    >
+                      <LogOut size={13} />
+                      <span>Sign Out</span>
+                    </button>
+                  </div>
+                </div>
+              ) : user ? (
+                <div className="space-y-2.5">
+                  <div className="p-3 bg-white border border-purple-100 rounded-2xl shadow-2xs flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold text-xs shrink-0 border border-purple-200/60">
+                        <ShieldCheck size={16} />
+                      </div>
+                      <div className="truncate">
+                        <div className="text-xs font-black text-slate-900 truncate">
+                          {user.name || 'Admin'}
+                        </div>
+                        <div className="text-[10px] text-purple-600 font-mono font-bold truncate">
+                          {user.email}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => navTo('/admin')}
+                      className="py-2.5 px-3 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-bold transition-all text-center flex items-center justify-center gap-1 cursor-pointer shadow-2xs"
+                    >
+                      <span>Dashboard</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        logout();
                         studentLogout();
                         setMobileOpen(false);
                         navigate('/');
