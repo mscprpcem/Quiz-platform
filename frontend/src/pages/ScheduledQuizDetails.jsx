@@ -287,14 +287,17 @@ export default function ScheduledQuizDetails() {
                     <td className="py-3.5 px-4 text-slate-500">{att.participant_email || 'N/A'}</td>
                     <td className="py-3.5 px-4 font-extrabold text-emerald-600">{att.score} pts</td>
                     <td className="py-3.5 px-4">
-                      {(att.violation_count || 0) > 0 ? (
-                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-rose-50 text-rose-700 border border-rose-200 inline-flex items-center gap-1">
-                          <AlertTriangle size={10} className="text-rose-600" />
-                          <span>{att.violation_count}</span>
-                        </span>
-                      ) : (
-                        <span className="text-slate-400 font-bold text-[11px]">0</span>
-                      )}
+                      {(() => {
+                        const vCount = Number(att.violation_count ?? att.violationsCount ?? att.violationCount ?? (Array.isArray(att.violations) ? att.violations.length : 0)) || 0;
+                        return vCount > 0 ? (
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-rose-50 text-rose-700 border border-rose-200 inline-flex items-center gap-1">
+                            <AlertTriangle size={11} className="text-rose-600" />
+                            <span>{vCount}</span>
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 font-bold text-[11px]">0</span>
+                        );
+                      })()}
                     </td>
                     <td className="py-3.5 px-4 text-slate-600">{att.time_taken_seconds || 0}s</td>
                     <td className="py-3.5 px-4">

@@ -18,6 +18,7 @@ router.get('/quiz/:id/results', authMiddleware, async (req, res) => {
     const answers = await Answer.findAll({
       include: [{ model: Question, as: 'question', where: { quiz_id: quizId } }]
     });
+    const liveViolations = await Violation.findAll({ where: { quiz_id: quizId } }).catch(() => []);
 
     // Compute player statistics
     const leaderboard = participants.map((p) => {
@@ -26,6 +27,7 @@ router.get('/quiz/:id/results', authMiddleware, async (req, res) => {
       const correctAnswers = pAnswers.filter((a) => a.is_correct).length;
       const totalTime = pAnswers.reduce((sum, a) => sum + a.response_time, 0);
       const avgResponseTime = pAnswers.length > 0 ? parseFloat(((totalTime / pAnswers.length) / 1000).toFixed(2)) : 0;
+      const pViolations = liveViolations.filter(v => v.participant_id === p.id).length;
 
       return {
         id: p.id,
@@ -35,7 +37,7 @@ router.get('/quiz/:id/results', authMiddleware, async (req, res) => {
         score: totalPoints,
         correctAnswers,
         avgResponseTime,
-        violations: p.tab_switch_count,
+        violations: Math.max(p.tab_switch_count || 0, pViolations),
         disqualified: p.disqualified ? 'Yes' : 'No'
       };
     });

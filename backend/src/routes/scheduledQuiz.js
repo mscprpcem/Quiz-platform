@@ -814,17 +814,69 @@ router.get('/:id', authMiddleware, async (req, res) => {
     });
 
     const attemptIds = attempts.map(a => a.id);
-    const violationCount = attemptIds.length > 0
-      ? await AttemptViolation.count({ where: { attempt_id: { [Op.in]: attemptIds } } }).catch(() => 0)
-      : 0;
+    let allViolations = [];
+    const attemptViolationsMap = new Map();
 
-    const latestLeaderboard = getLatestAttemptsLeaderboard(attempts.filter(a => a.status === 'completed'));
+    if (attemptIds.length > 0) {
+      allViolations = await AttemptViolation.findAll({
+        where: { attempt_id: { [Op.in]: attemptIds } }
+      }).catch(() => []);
+
+      for (const v of allViolations) {
+        const aId = String(v.attempt_id);
+        attemptViolationsMap.set(aId, (attemptViolationsMap.get(aId) || 0) + 1);
+      }
+    }
+
+    const totalViolationCount = allViolations.length;
+
+    // Attach attempt-specific violation count
+    const enrichedAttempts = attempts.map(a => {
+      const aJson = a.toJSON ? a.toJSON() : { ...a };
+      const aId = String(aJson.id);
+      const vCount = attemptViolationsMap.get(aId) || 0;
+      return {
+        ...aJson,
+        violation_count: vCount,
+        violationsCount: vCount,
+        violationCount: vCount
+      };
+    });
+
+    // Compute total violations per unique student across all their attempts
+    const userTotalViolationsMap = new Map();
+    for (const a of enrichedAttempts) {
+      const ssoId = a.sso_user_id ? String(a.sso_user_id).trim() : '';
+      const email = (a.participant_email || a.email || '').toLowerCase().trim();
+      const name = (a.participant_name || a.name || '').toLowerCase().trim();
+      const userKey = ssoId ? `sso:${ssoId}` : (email ? `email:${email}` : `name:${name}`);
+      if (userKey) {
+        userTotalViolationsMap.set(userKey, (userTotalViolationsMap.get(userKey) || 0) + (a.violation_count || 0));
+      }
+    }
+
+    const finalEnrichedAttempts = enrichedAttempts.map(a => {
+      const ssoId = a.sso_user_id ? String(a.sso_user_id).trim() : '';
+      const email = (a.participant_email || a.email || '').toLowerCase().trim();
+      const name = (a.participant_name || a.name || '').toLowerCase().trim();
+      const userKey = ssoId ? `sso:${ssoId}` : (email ? `email:${email}` : `name:${name}`);
+      const userTotal = (userKey && userTotalViolationsMap.get(userKey)) || a.violation_count || 0;
+      return {
+        ...a,
+        total_user_violations: userTotal,
+        violation_count: Math.max(a.violation_count || 0, userTotal),
+        violationsCount: Math.max(a.violation_count || 0, userTotal),
+        violationCount: Math.max(a.violation_count || 0, userTotal)
+      };
+    });
+
+    const latestLeaderboard = getLatestAttemptsLeaderboard(finalEnrichedAttempts.filter(a => a.status === 'completed'));
 
     return res.json({ 
-      quiz: { ...quiz.toJSON(), violationCount }, 
+      quiz: { ...quiz.toJSON(), violationCount: totalViolationCount }, 
       attempts: latestLeaderboard, 
-      allAttempts: attempts,
-      violationCount
+      allAttempts: finalEnrichedAttempts,
+      violationCount: totalViolationCount
     });
   } catch (error) {
     console.error('Fetch scheduled quiz error:', error);
@@ -1679,7 +1731,32 @@ router.get('/occurrences/:occurrenceId/leaderboard', async (req, res) => {
       ]
     });
 
-    const ranked = getLatestAttemptsLeaderboard(attempts);
+    const attemptIds = attempts.map(a => a.id);
+    const attemptViolationsMap = new Map();
+
+    if (attemptIds.length > 0) {
+      const allViolations = await AttemptViolation.findAll({
+        where: { attempt_id: { [Op.in]: attemptIds } }
+      }).catch(() => []);
+
+      for (const v of allViolations) {
+        const aId = String(v.attempt_id);
+        attemptViolationsMap.set(aId, (attemptViolationsMap.get(aId) || 0) + 1);
+      }
+    }
+
+    const enrichedAttempts = attempts.map(a => {
+      const aJson = a.toJSON ? a.toJSON() : { ...a };
+      const vCount = attemptViolationsMap.get(String(aJson.id)) || 0;
+      return {
+        ...aJson,
+        violation_count: vCount,
+        violationsCount: vCount,
+        violationCount: vCount
+      };
+    });
+
+    const ranked = getLatestAttemptsLeaderboard(enrichedAttempts);
 
     return res.json(ranked);
   } catch (error) {
