@@ -1,8 +1,36 @@
 const express = require('express');
 const router = express.Router();
-const { Quiz, Question, Participant, Answer, Violation } = require('../models');
+const { Quiz, Question, Participant, QuizAttempt, Answer, Violation } = require('../models');
 const authMiddleware = require('../middleware/auth');
 const { Op } = require('sequelize');
+
+// Helper to count unique participants for a quiz
+const getUniqueQuizCount = async (qId) => {
+  try {
+    const [liveP, schedA] = await Promise.all([
+      Participant.findAll({ where: { quiz_id: qId }, attributes: ['sso_user_id', 'email', 'name'] }).catch(() => []),
+      QuizAttempt.findAll({ where: { quiz_id: qId }, attributes: ['sso_user_id', 'participant_email', 'participant_name'] }).catch(() => [])
+    ]);
+    const uSet = new Set();
+    for (const p of liveP) {
+      const sso = p.sso_user_id ? String(p.sso_user_id).trim() : '';
+      const email = (p.email || '').toLowerCase().trim();
+      const name = (p.name || '').toLowerCase().trim();
+      const key = sso ? `sso:${sso}` : (email ? `email:${email}` : `name:${name}`);
+      if (key && key !== 'name:') uSet.add(key);
+    }
+    for (const a of schedA) {
+      const sso = a.sso_user_id ? String(a.sso_user_id).trim() : '';
+      const email = (a.participant_email || '').toLowerCase().trim();
+      const name = (a.participant_name || '').toLowerCase().trim();
+      const key = sso ? `sso:${sso}` : (email ? `email:${email}` : `name:${name}`);
+      if (key && key !== 'name:') uSet.add(key);
+    }
+    return uSet.size;
+  } catch (err) {
+    return 0;
+  }
+};
 
 // Public endpoint for homepage leaderboard & recent events
 router.get('/public/leaderboard', async (req, res) => {
@@ -57,7 +85,7 @@ router.get('/public/leaderboard', async (req, res) => {
     if (completedQuizzes && completedQuizzes.length > 0) {
       recentEvents = await Promise.all(
         completedQuizzes.map(async (q) => {
-          const pCount = await Participant.count({ where: { quiz_id: q.id } }).catch(() => 0);
+          const pCount = await getUniqueQuizCount(q.id);
           return {
             id: q.id,
             title: q.title,
@@ -73,7 +101,7 @@ router.get('/public/leaderboard', async (req, res) => {
       if (allQuizzes && allQuizzes.length > 0) {
         recentEvents = await Promise.all(
           allQuizzes.map(async (q) => {
-            const pCount = await Participant.count({ where: { quiz_id: q.id } }).catch(() => 0);
+            const pCount = await getUniqueQuizCount(q.id);
             return {
               id: q.id,
               title: q.title,

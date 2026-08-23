@@ -9,6 +9,32 @@ import {
   Square, ShieldCheck, ArrowRight, RefreshCw, User, Lock, Award, LogIn, LogOut, ExternalLink, Sparkles, Maximize, KeyRound, Timer, AlertOctagon, XCircle, Ticket, Calendar
 } from 'lucide-react';
 
+// Helper to accurately match a participant to current user by email and name combo
+const isMatchingParticipant = (player, userEmail, userName) => {
+  if (!player) return false;
+  const pEmail = (player.participant_email || player.email || '').toLowerCase().trim();
+  const pName = (player.participant_name || player.name || '').toLowerCase().trim();
+  const uEmail = (userEmail || '').toLowerCase().trim();
+  const uName = (userName || '').toLowerCase().trim();
+
+  // If email is available on both, email is the primary unique identifier
+  if (uEmail && pEmail) {
+    return uEmail === pEmail;
+  }
+
+  // If email is provided on both but doesn't match, they are definitely different users
+  if (uEmail && pEmail && uEmail !== pEmail) {
+    return false;
+  }
+
+  // If email is missing on either side, match by name
+  if (uName && pName) {
+    return uName === pName;
+  }
+
+  return false;
+};
+
 export default function ScheduledQuizTake() {
   const { toast } = useToast();
   const { occurrenceId, slug, identifier } = useParams();
@@ -560,17 +586,11 @@ export default function ScheduledQuizTake() {
     const userName = name || studentAccount?.name || user?.name || localStorage.getItem('msc_student_name') || '';
 
     // Find player in real-time leaderboard list if available
-    const playerInLeaderboard = leaderboardList.find(p =>
-      (userEmail && (p.email?.toLowerCase() === userEmail.toLowerCase() || p.participant_email?.toLowerCase() === userEmail.toLowerCase())) ||
-      (userName && (p.participant_name?.toLowerCase() === userName.toLowerCase() || p.name?.toLowerCase() === userName.toLowerCase()))
-    );
+    const playerInLeaderboard = leaderboardList.find(p => isMatchingParticipant(p, userEmail, userName));
     const myRank = playerInLeaderboard?.rank || resultData?.rank || 1;
     const totalParticipants = leaderboardList.length > 0 ? leaderboardList.length : (resultData?.totalParticipants || 1);
     const top10List = leaderboardList.slice(0, 10);
-    const isInsideTop10 = top10List.some(p =>
-      (userEmail && (p.email?.toLowerCase() === userEmail.toLowerCase() || p.participant_email?.toLowerCase() === userEmail.toLowerCase())) ||
-      (userName && (p.participant_name?.toLowerCase() === userName.toLowerCase() || p.name?.toLowerCase() === userName.toLowerCase()))
-    );
+    const isInsideTop10 = top10List.some(p => isMatchingParticipant(p, userEmail, userName));
 
     return (
       <div className="max-w-2xl mx-auto py-10 px-4 text-center space-y-7 font-segoe animate-fade-in">
@@ -721,7 +741,8 @@ export default function ScheduledQuizTake() {
           ) : (
             <div className="space-y-2">
               {top10List.map((player) => {
-                const isCurrentPlayer = (userEmail && (player.email?.toLowerCase() === userEmail.toLowerCase() || player.participant_email?.toLowerCase() === userEmail.toLowerCase())) || (userName && (player.participant_name?.toLowerCase() === userName.toLowerCase() || player.name?.toLowerCase() === userName.toLowerCase()));
+                const isCurrentPlayer = isMatchingParticipant(player, userEmail, userName);
+                const playerEmailDisplay = player.participant_email || player.email;
                 
                 let rankBadge = (
                   <span className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-black text-xs border border-slate-200">
@@ -768,17 +789,22 @@ export default function ScheduledQuizTake() {
                       {rankBadge}
 
                       <div className="truncate text-left">
-                        <div className="flex items-center gap-1.5 truncate">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="font-extrabold text-xs sm:text-sm text-slate-900 truncate">
-                            {player.participant_name || 'Participant'}
+                            {player.participant_name || player.name || 'Participant'}
                           </span>
+                          {playerEmailDisplay && (
+                            <span className="text-[11px] font-semibold text-slate-500 truncate">
+                              ({playerEmailDisplay})
+                            </span>
+                          )}
                           {isCurrentPlayer && (
-                            <span className="text-[9px] font-black uppercase tracking-wider bg-blue-600 text-white px-2 py-0.5 rounded-md">
+                            <span className="text-[9px] font-black uppercase tracking-wider bg-blue-600 text-white px-2 py-0.5 rounded-md shadow-2xs flex-shrink-0">
                               You
                             </span>
                           )}
                         </div>
-                        <p className="text-[10px] font-semibold text-slate-500 truncate">
+                        <p className="text-[10px] font-semibold text-slate-500 truncate mt-0.5">
                           {player.correct_count || 0} Correct • {Math.floor((player.time_taken_seconds || 0) / 60)}m {(player.time_taken_seconds || 0) % 60}s
                         </p>
                       </div>
@@ -804,15 +830,20 @@ export default function ScheduledQuizTake() {
                         #{myRank}
                       </span>
                       <div className="truncate text-left">
-                        <div className="flex items-center gap-1.5 truncate">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="font-extrabold text-xs sm:text-sm text-slate-900 truncate">
-                            {name || studentAccount?.name || 'You'}
+                            {userName || name || studentAccount?.name || 'You'}
                           </span>
-                          <span className="text-[9px] font-black uppercase tracking-wider bg-blue-600 text-white px-2 py-0.5 rounded-md">
+                          {(userEmail || email || studentAccount?.email) && (
+                            <span className="text-[11px] font-semibold text-slate-500 truncate">
+                              ({userEmail || email || studentAccount?.email})
+                            </span>
+                          )}
+                          <span className="text-[9px] font-black uppercase tracking-wider bg-blue-600 text-white px-2 py-0.5 rounded-md shadow-2xs flex-shrink-0">
                             You
                           </span>
                         </div>
-                        <p className="text-[10px] font-semibold text-slate-500 truncate">
+                        <p className="text-[10px] font-semibold text-slate-500 truncate mt-0.5">
                           {att?.correct_count || 0} Correct • {Math.floor((att?.time_taken_seconds || 0) / 60)}m {(att?.time_taken_seconds || 0) % 60}s
                         </p>
                       </div>
@@ -999,7 +1030,8 @@ export default function ScheduledQuizTake() {
             ) : (
               <div className="space-y-2">
                 {top10List.map((player) => {
-                  const isCurrentPlayer = (userEmail && (player.email?.toLowerCase() === userEmail.toLowerCase() || player.participant_email?.toLowerCase() === userEmail.toLowerCase())) || (userName && (player.participant_name?.toLowerCase() === userName.toLowerCase() || player.name?.toLowerCase() === userName.toLowerCase()));
+                  const isCurrentPlayer = isMatchingParticipant(player, userEmail, userName);
+                  const playerEmailDisplay = player.participant_email || player.email;
                   
                   let rankBadge = (
                     <span className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-black text-xs border border-slate-200">
@@ -1045,17 +1077,22 @@ export default function ScheduledQuizTake() {
                         {rankBadge}
 
                         <div className="truncate text-left">
-                          <div className="flex items-center gap-1.5 truncate">
+                          <div className="flex items-center gap-1.5 flex-wrap">
                             <span className="font-extrabold text-xs sm:text-sm text-slate-900 truncate">
-                              {player.participant_name || 'Participant'}
+                              {player.participant_name || player.name || 'Participant'}
                             </span>
+                            {playerEmailDisplay && (
+                              <span className="text-[11px] font-semibold text-slate-500 truncate">
+                                ({playerEmailDisplay})
+                              </span>
+                            )}
                             {isCurrentPlayer && (
-                              <span className="text-[9px] font-black uppercase tracking-wider bg-blue-600 text-white px-2 py-0.5 rounded-md">
+                              <span className="text-[9px] font-black uppercase tracking-wider bg-blue-600 text-white px-2 py-0.5 rounded-md shadow-2xs flex-shrink-0">
                                 You
                               </span>
                             )}
                           </div>
-                          <p className="text-[10px] font-semibold text-slate-500 truncate">
+                          <p className="text-[10px] font-semibold text-slate-500 truncate mt-0.5">
                             {player.correct_count || 0} Correct • {Math.floor((player.time_taken_seconds || 0) / 60)}m {(player.time_taken_seconds || 0) % 60}s
                           </p>
                         </div>

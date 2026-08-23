@@ -285,8 +285,8 @@ export default function AdminScheduledQuizzes() {
                     <span className="font-extrabold text-blue-600">{quiz.questionCount || 0} Questions</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-slate-400 font-semibold">Attempts:</span>
-                    <span className="font-extrabold text-slate-800">{quiz.participantCount || 0} Total</span>
+                    <span className="text-slate-400 font-semibold">Participants:</span>
+                    <span className="font-extrabold text-slate-800">{quiz.participantCount || 0} Joined</span>
                   </div>
                 </div>
               </div>

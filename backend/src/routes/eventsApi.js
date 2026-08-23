@@ -1079,13 +1079,34 @@ router.get('/public', async (req, res) => {
           }
         }
 
-        const [questionCount, liveCount, attemptCount] = await Promise.all([
+        const [questionCount, liveParticipants, scheduledAttempts] = await Promise.all([
           Question.count({ where: { quiz_id: q.id } }).catch(() => 0),
-          Participant.count({ where: { quiz_id: q.id } }).catch(() => 0),
-          QuizAttempt.count({ where: { quiz_id: q.id } }).catch(() => 0)
+          Participant.findAll({
+            where: { quiz_id: q.id },
+            attributes: ['sso_user_id', 'email', 'name']
+          }).catch(() => []),
+          QuizAttempt.findAll({
+            where: { quiz_id: q.id },
+            attributes: ['sso_user_id', 'participant_email', 'participant_name']
+          }).catch(() => [])
         ]);
 
-        const totalQuizAttempts = attemptCount + liveCount;
+        const uniqueSet = new Set();
+        for (const p of liveParticipants) {
+          const sso = p.sso_user_id ? String(p.sso_user_id).trim() : '';
+          const email = (p.email || '').toLowerCase().trim();
+          const name = (p.name || '').toLowerCase().trim();
+          const key = sso ? `sso:${sso}` : (email ? `email:${email}` : `name:${name}`);
+          if (key && key !== 'name:') uniqueSet.add(key);
+        }
+        for (const a of scheduledAttempts) {
+          const sso = a.sso_user_id ? String(a.sso_user_id).trim() : '';
+          const email = (a.participant_email || '').toLowerCase().trim();
+          const name = (a.participant_name || '').toLowerCase().trim();
+          const key = sso ? `sso:${sso}` : (email ? `email:${email}` : `name:${name}`);
+          if (key && key !== 'name:') uniqueSet.add(key);
+        }
+        const totalUniqueParticipants = uniqueSet.size;
 
         const sDate = startTime ? new Date(startTime) : null;
         if (sDate && sDate <= now && (!endTime || new Date(endTime) >= now)) {
@@ -1099,9 +1120,9 @@ router.get('/public', async (req, res) => {
           mode: q.mode,
           join_code: q.join_code,
           question_count: questionCount,
-          attempt_count: attemptCount,
-          total_attempts: totalQuizAttempts,
-          participant_count: totalQuizAttempts,
+          attempt_count: scheduledAttempts.length,
+          total_attempts: scheduledAttempts.length + liveParticipants.length,
+          participant_count: totalUniqueParticipants,
           direct_quiz_url: directUrl,
           start_time: startTime,
           end_time: endTime,

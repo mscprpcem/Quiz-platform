@@ -47,7 +47,44 @@ const generateJoinCode = async () => {
 
 // ----------------------------------------------------
 // PUBLIC ROUTES (No Auth Required)
-// ----------------------------------------------------
+// Helper to calculate total unique participants across both live sessions and scheduled attempts
+const getUniqueParticipantCount = async (quizId) => {
+  try {
+    const [liveParticipants, scheduledAttempts] = await Promise.all([
+      Participant.findAll({
+        where: { quiz_id: quizId },
+        attributes: ['sso_user_id', 'email', 'name']
+      }).catch(() => []),
+      QuizAttempt.findAll({
+        where: { quiz_id: quizId },
+        attributes: ['sso_user_id', 'participant_email', 'participant_name']
+      }).catch(() => [])
+    ]);
+
+    const uniqueSet = new Set();
+
+    for (const p of liveParticipants) {
+      const sso = p.sso_user_id ? String(p.sso_user_id).trim() : '';
+      const email = (p.email || '').toLowerCase().trim();
+      const name = (p.name || '').toLowerCase().trim();
+      const key = sso ? `sso:${sso}` : (email ? `email:${email}` : `name:${name}`);
+      if (key && key !== 'name:') uniqueSet.add(key);
+    }
+
+    for (const a of scheduledAttempts) {
+      const sso = a.sso_user_id ? String(a.sso_user_id).trim() : '';
+      const email = (a.participant_email || '').toLowerCase().trim();
+      const name = (a.participant_name || '').toLowerCase().trim();
+      const key = sso ? `sso:${sso}` : (email ? `email:${email}` : `name:${name}`);
+      if (key && key !== 'name:') uniqueSet.add(key);
+    }
+
+    return uniqueSet.size;
+  } catch (err) {
+    console.error('getUniqueParticipantCount error:', err);
+    return 0;
+  }
+};
 
 // Get All Public / Active / Scheduled Quizzes
 router.get('/public', async (req, res) => {
@@ -60,11 +97,7 @@ router.get('/public', async (req, res) => {
     const quizzesWithCounts = await Promise.all(
       quizzes.map(async (quiz) => {
         const questionCount = await Question.count({ where: { quiz_id: quiz.id } });
-        const [liveParticipantCount, attemptCount] = await Promise.all([
-          Participant.count({ where: { quiz_id: quiz.id } }),
-          QuizAttempt.count({ where: { quiz_id: quiz.id } })
-        ]);
-        const participantCount = liveParticipantCount + attemptCount;
+        const participantCount = await getUniqueParticipantCount(quiz.id);
 
         let computedStatus = quiz.status;
         const eTime = quiz.scheduled_end ? new Date(quiz.scheduled_end) : null;
@@ -230,11 +263,7 @@ router.get('/', authMiddleware, async (req, res) => {
     const quizzesWithCounts = await Promise.all(
       quizzes.map(async (quiz) => {
         const questionCount = await Question.count({ where: { quiz_id: quiz.id } });
-        const [liveParticipantCount, attemptCount] = await Promise.all([
-          Participant.count({ where: { quiz_id: quiz.id } }),
-          QuizAttempt.count({ where: { quiz_id: quiz.id } })
-        ]);
-        const participantCount = liveParticipantCount + attemptCount;
+        const participantCount = await getUniqueParticipantCount(quiz.id);
 
         let computedStatus = quiz.status;
         const eTime = quiz.scheduled_end ? new Date(quiz.scheduled_end) : null;

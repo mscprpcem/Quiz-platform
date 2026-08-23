@@ -6,7 +6,7 @@ import { formatToISTDateTimeString } from '../utils/dateUtils';
 import { downloadBrandedQRCard, fetchBrandingConfig, getLogoUrl } from '../utils/qrCardGenerator';
 import {
   Calendar, Clock, CheckCircle, ArrowLeft, Users, Trophy, Pause, 
-  Play, ExternalLink, ShieldCheck, HelpCircle, Layers, QrCode, Mail, Send, Copy, Check, Trash2, Download
+  Play, ExternalLink, ShieldCheck, HelpCircle, Layers, QrCode, Mail, Send, Copy, Check, Trash2, Download, AlertTriangle
 } from 'lucide-react';
 
 export default function ScheduledQuizDetails() {
@@ -275,24 +275,49 @@ export default function ScheduledQuizDetails() {
                   <th className="py-3 px-4">Email</th>
                   <th className="py-3 px-4">Score</th>
                   <th className="py-3 px-4">Time Taken</th>
+                  <th className="py-3 px-4">Violations</th>
                   <th className="py-3 px-4">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {attempts.map((att, idx) => (
-                  <tr key={att.id} className="hover:bg-slate-50">
-                    <td className="py-3.5 px-4 font-black text-blue-600">#{idx + 1}</td>
-                    <td className="py-3.5 px-4 font-bold text-slate-900">{att.participant_name}</td>
-                    <td className="py-3.5 px-4 text-slate-500">{att.participant_email || 'N/A'}</td>
-                    <td className="py-3.5 px-4 font-extrabold text-emerald-600">{att.score} pts</td>
-                    <td className="py-3.5 px-4 text-slate-600">{att.time_taken_seconds || 0}s</td>
-                    <td className="py-3.5 px-4">
-                      <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-50 text-emerald-700">
-                        {att.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                {attempts.map((att, idx) => {
+                  const vCount = att.violation_count !== undefined 
+                    ? Number(att.violation_count) 
+                    : (Array.isArray(att.violations) ? att.violations.length : (Number(att.tab_switch_count) || 0));
+
+                  return (
+                    <tr key={att.id} className="hover:bg-slate-50">
+                      <td className="py-3.5 px-4 font-black text-blue-600">#{idx + 1}</td>
+                      <td className="py-3.5 px-4 font-bold text-slate-900">{att.participant_name}</td>
+                      <td className="py-3.5 px-4 text-slate-500">{att.participant_email || 'N/A'}</td>
+                      <td className="py-3.5 px-4 font-extrabold text-emerald-600">{att.score} pts</td>
+                      <td className="py-3.5 px-4 text-slate-600">{att.time_taken_seconds || 0}s</td>
+                      <td className="py-3.5 px-4">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold border ${
+                          vCount >= 3
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : vCount > 0
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : 'bg-slate-50 text-slate-600 border-slate-200'
+                        }`}>
+                          {vCount > 0 && <AlertTriangle size={11} className={vCount >= 3 ? 'text-rose-600' : 'text-amber-600'} />}
+                          <span>{vCount} {vCount === 1 ? 'violation' : 'violations'}</span>
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                          att.status === 'completed'
+                            ? 'bg-emerald-50 text-emerald-700'
+                            : att.status === 'disqualified'
+                            ? 'bg-rose-50 text-rose-700'
+                            : 'bg-blue-50 text-blue-700'
+                        }`}>
+                          {att.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

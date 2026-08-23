@@ -887,6 +887,7 @@ const getLiveLeaderboard = async (quizId) => {
       return {
         id: p.id,
         name: p.name,
+        email: p.email || '',
         college: p.college,
         score,
         correctAnswers,

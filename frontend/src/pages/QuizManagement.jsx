@@ -673,7 +673,7 @@ export default function QuizManagement() {
                           </span>
                           <span className="flex items-center gap-1.5">
                             <Users size={13} className="text-brand-blue" />
-                            <span><strong>{quiz.participantCount || 0}</strong> Plays</span>
+                            <span><strong>{quiz.participantCount || 0}</strong> Joined</span>
                           </span>
                         </div>
                       </div>

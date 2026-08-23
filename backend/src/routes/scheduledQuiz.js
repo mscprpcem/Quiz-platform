@@ -237,13 +237,52 @@ function getLatestAttemptsLeaderboard(attempts) {
     return subA - subB;
   });
 
-  return latestList.map((att, idx) => ({
-    ...att,
-    email: att.participant_email || att.email || '',
-    name: att.participant_name || att.name || 'Participant',
-    rank: idx + 1
-  }));
+  return latestList.map((att, idx) => {
+    const violationCount = Array.isArray(att.violations)
+      ? att.violations.length
+      : (att.violation_count !== undefined ? Number(att.violation_count) : (Number(att.tab_switch_count) || 0));
+
+    return {
+      ...att,
+      email: att.participant_email || att.email || '',
+      participant_email: att.participant_email || att.email || '',
+      name: att.participant_name || att.name || 'Participant',
+      participant_name: att.participant_name || att.name || 'Participant',
+      violation_count: violationCount,
+      violations_count: violationCount,
+      tab_switch_count: violationCount,
+      violations: Array.isArray(att.violations) ? att.violations : [],
+      rank: idx + 1
+    };
+  });
 }
+
+// Helper: Calculate unique participants count for a scheduled quiz or specific occurrence
+const getUniqueScheduledParticipantCount = async (quizId, occurrenceId = null) => {
+  try {
+    const whereClause = { quiz_id: quizId };
+    if (occurrenceId) {
+      whereClause.occurrence_id = occurrenceId;
+    }
+    const attempts = await QuizAttempt.findAll({
+      where: whereClause,
+      attributes: ['sso_user_id', 'participant_email', 'participant_name']
+    });
+
+    const uniqueSet = new Set();
+    for (const a of attempts) {
+      const sso = a.sso_user_id ? String(a.sso_user_id).trim() : '';
+      const email = (a.participant_email || '').toLowerCase().trim();
+      const name = (a.participant_name || '').toLowerCase().trim();
+      const key = sso ? `sso:${sso}` : (email ? `email:${email}` : `name:${name}`);
+      if (key && key !== 'name:') uniqueSet.add(key);
+    }
+    return uniqueSet.size;
+  } catch (err) {
+    console.error('getUniqueScheduledParticipantCount error:', err);
+    return 0;
+  }
+};
 
 // Helper: Resolve occurrence by UUID, Quiz Join Code, Quiz UUID, or Title Slug
 const resolveOccurrence = async (identifier) => {
@@ -538,7 +577,7 @@ router.get('/', authMiddleware, async (req, res) => {
     const enriched = await Promise.all(
       quizzes.map(async (quiz) => {
         const questionCount = await Question.count({ where: { quiz_id: quiz.id } });
-        const attemptCount = await QuizAttempt.count({ where: { quiz_id: quiz.id } });
+        const participantCount = await getUniqueScheduledParticipantCount(quiz.id);
         const occurrences = quiz.occurrences || [];
 
         const now = new Date();
@@ -547,7 +586,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
         let computedStatus = quiz.status;
         if (!activeOccurrence && !nextOccurrence && occurrences.length > 0) {
-          computedStatus = attemptCount > 0 ? 'completed' : 'expired';
+          computedStatus = participantCount > 0 ? 'completed' : 'expired';
           if (quiz.status !== computedStatus) {
             await quiz.update({ status: computedStatus }).catch(() => {});
           }
@@ -557,7 +596,7 @@ router.get('/', authMiddleware, async (req, res) => {
           ...quiz.toJSON(),
           status: computedStatus,
           questionCount,
-          participantCount: attemptCount,
+          participantCount,
           activeOccurrence,
           nextOccurrence,
           totalOccurrences: occurrences.length
@@ -728,18 +767,11 @@ router.get('/public/all', async (req, res) => {
           const sTime = new Date(occ.start_time);
           const eTime = new Date(occ.end_time);
 
-          const [occAttempts, totalQuizAttempts] = await Promise.all([
-            QuizAttempt.count({
-              where: {
-                quiz_id: q.id,
-                occurrence_id: occ.id
-              }
-            }),
-            QuizAttempt.count({
-              where: { quiz_id: q.id }
-            })
+          const [occUnique, totalQuizUnique] = await Promise.all([
+            getUniqueScheduledParticipantCount(q.id, occ.id),
+            getUniqueScheduledParticipantCount(q.id)
           ]);
-          const participantCount = occAttempts > 0 ? occAttempts : totalQuizAttempts;
+          const participantCount = occUnique > 0 ? occUnique : totalQuizUnique;
 
           let availability = 'UPCOMING';
           if (now >= sTime && now <= eTime) {
@@ -797,6 +829,14 @@ router.get('/:id', authMiddleware, async (req, res) => {
 
     const attempts = await QuizAttempt.findAll({
       where: { quiz_id: quiz.id },
+      include: [
+        {
+          model: AttemptViolation,
+          as: 'violations',
+          attributes: ['id', 'violation_type', 'timestamp'],
+          required: false
+        }
+      ],
       order: [
         ['attempt_number', 'DESC'],
         ['submitted_at', 'DESC'],
@@ -1653,6 +1693,14 @@ router.get('/occurrences/:occurrenceId/leaderboard', async (req, res) => {
 
     const attempts = await QuizAttempt.findAll({
       where: whereClause,
+      include: [
+        {
+          model: AttemptViolation,
+          as: 'violations',
+          attributes: ['id', 'violation_type', 'timestamp'],
+          required: false
+        }
+      ],
       order: [
         ['attempt_number', 'DESC'],
         ['submitted_at', 'DESC'],

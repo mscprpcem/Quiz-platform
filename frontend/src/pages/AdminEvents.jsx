@@ -570,13 +570,6 @@ export default function AdminEvents() {
             {/* Top Action Icons */}
             <div className="absolute top-3 right-3 flex items-center gap-1.5">
               <button
-                onClick={() => setQrModalEvent(ev)}
-                className="p-1.5 bg-white/80 hover:bg-white text-purple-700 rounded-xl backdrop-blur-xs transition-colors cursor-pointer shadow-xs"
-                title="View & Download Event QR Card"
-              >
-                <QrCode size={13} />
-              </button>
-              <button
                 onClick={() => openEditModal(ev)}
                 className="p-1.5 bg-white/80 hover:bg-white text-slate-700 rounded-xl backdrop-blur-xs transition-colors cursor-pointer shadow-xs"
                 title="Edit event"
@@ -656,13 +649,6 @@ export default function AdminEvents() {
                 </span>
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => setQrModalEvent(ev)}
-                  className="p-1 text-purple-600 hover:text-purple-800 hover:bg-white rounded-md cursor-pointer transition-colors"
-                  title="View Event QR Card"
-                >
-                  <QrCode size={12} />
-                </button>
                 <button
                   onClick={() => handleCopyLink(currentSlug)}
                   className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1 ${

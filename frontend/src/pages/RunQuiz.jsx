@@ -1110,15 +1110,22 @@ export default function RunQuiz() {
                         <td className="px-6 py-4 text-brand-textMuted truncate max-w-[150px]">{p.college}</td>
                         <td className="px-6 py-4 font-extrabold text-brand-blue">{p.score || 0} pts</td>
                         <td className="px-6 py-4">
-                          <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold tracking-wide uppercase ${
-                            p.tab_switch_count >= 3
-                              ? 'bg-red-50 text-red-655 border border-red-100'
-                              : p.tab_switch_count >= 1
-                              ? 'bg-amber-50 text-amber-600 border border-amber-100'
-                              : 'bg-brand-bgLight text-brand-textMuted border border-zinc-100'
-                          }`}>
-                            {p.tab_switch_count || 0} switches
-                          </span>
+                          {(() => {
+                            const vCount = p.tab_switch_count !== undefined
+                              ? Number(p.tab_switch_count)
+                              : (p.violation_count !== undefined ? Number(p.violation_count) : (Array.isArray(p.violations) ? p.violations.length : (Number(p.violations) || 0)));
+                            return (
+                              <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-bold tracking-wide uppercase ${
+                                vCount >= 3
+                                  ? 'bg-red-50 text-red-655 border border-red-100'
+                                  : vCount >= 1
+                                  ? 'bg-amber-50 text-amber-600 border border-amber-100'
+                                  : 'bg-brand-bgLight text-brand-textMuted border border-zinc-100'
+                              }`}>
+                                {vCount} {vCount === 1 ? 'violation' : 'violations'}
+                              </span>
+                            );
+                          })()}
                         </td>
                         <td className="px-6 py-4">
                           <span className={`inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-[9px] font-extrabold border ${

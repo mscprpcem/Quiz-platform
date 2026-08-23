@@ -133,17 +133,22 @@ export default function Top10Leaderboard({ leaderboard = [], currentParticipantI
                   {rankBadge}
 
                   <div className="truncate text-left">
-                    <div className="flex items-center gap-1.5 truncate">
+                    <div className="flex items-center gap-1.5 flex-wrap truncate">
                       <span className="font-extrabold text-xs sm:text-sm text-brand-textMain truncate">
                         {player.name}
                       </span>
+                      {player.email && (
+                        <span className="text-[11px] font-semibold text-brand-textMuted truncate">
+                          ({player.email})
+                        </span>
+                      )}
                       {isCurrentPlayer && (
-                        <span className="text-[9px] font-black uppercase tracking-wider bg-brand-blue text-white px-2 py-0.5 rounded">
+                        <span className="text-[9px] font-black uppercase tracking-wider bg-brand-blue text-white px-2 py-0.5 rounded shadow-2xs flex-shrink-0">
                           You
                         </span>
                       )}
                     </div>
-                    <p className="text-[10px] font-medium text-brand-textMuted truncate">
+                    <p className="text-[10px] font-medium text-brand-textMuted truncate mt-0.5">
                       {player.college || 'PRPCEM Campus'}
                     </p>
                   </div>
