@@ -17,43 +17,24 @@ import {
   getLogoUrl
 } from '../utils/qrCardGenerator';
 
+const DEFAULT_SPARK_POSTER = 'https://mscprpcem.blob.core.windows.net/events/clean_529287766.png';
+
 const POSTER_GALLERY = [
   {
-    id: 'visionx',
-    name: 'VisionX Innovation Fest',
-    matchKeywords: ['vision', 'visionx', 'innovation', 'project'],
-    url: 'https://mscprpcem.blob.core.windows.net/events/VisionX.png'
-  },
-  {
     id: 'spark',
-    name: 'Spark Flagship Event',
-    matchKeywords: ['spark', 'inauguration', 'team', 'gai'],
-    url: 'https://mscprpcem.blob.core.windows.net/events/clean_529287766.png'
-  },
-  {
-    id: 'dotnet',
-    name: '.NET Conf Amravati',
-    matchKeywords: ['dotnet', '.net', 'c#', 'microsoft'],
-    url: 'https://mscprpcem.blob.core.windows.net/events/12.png'
-  },
-  {
-    id: 'gitlit',
-    name: 'GitLit Code Fest',
-    matchKeywords: ['gitlit', 'git', 'github', 'diwali', 'fest'],
-    url: 'https://mscprpcem.blob.core.windows.net/events/gitlit.jpg'
-  },
-  {
-    id: 'js_ai',
-    name: 'JS AI Build-a-thon',
-    matchKeywords: ['js', 'javascript', 'buildathon', 'hackathon'],
-    url: 'https://mscprpcem.blob.core.windows.net/events/js_ai.png'
-  },
-  {
-    id: 'ai_skill',
-    name: 'Microsoft AI Skill Fest',
-    matchKeywords: ['ai', 'copilot', 'azure', 'skill', 'cloud'],
-    url: 'https://mscprpcem.blob.core.windows.net/events/aiskillfest.png'
+    name: 'Spark Flagship Poster (Default)',
+    matchKeywords: ['spark', 'inauguration', 'team', 'gai', 'default'],
+    url: DEFAULT_SPARK_POSTER
   }
+];
+
+const DEFAULT_VENUES = [
+  'PRPCEM Main Auditorium',
+  'PRPCEM Campus, Amravati',
+  'PRPCEM Campus & Virtual',
+  'Virtual / Online',
+  'Computer Lab 1 - Department of CSE',
+  'Seminar Hall 2 - PRPCEM'
 ];
 
 import {
@@ -70,6 +51,7 @@ export default function AdminEvents() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('ALL');
+  const [venueSuggestions, setVenueSuggestions] = useState(DEFAULT_VENUES);
   
   // Create / Edit Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -79,8 +61,8 @@ export default function AdminEvents() {
     slug: '',
     category: 'Innovation Challenge',
     mode: 'Hybrid',
-    venue: 'PRPCEM Campus & Virtual',
-    poster_url: POSTER_GALLERY[0].url,
+    venue: 'PRPCEM Main Auditorium',
+    poster_url: DEFAULT_SPARK_POSTER,
     description: '',
     start_date: '',
     end_date: '',
@@ -89,6 +71,7 @@ export default function AdminEvents() {
     max_registrations: '',
     initial_registration_count: '',
     fee: 'Free',
+    feeNumeric: 0,
     is_registration_open: true,
     rewards: 'Certificates, Prizes & Swags',
     status: 'upcoming'
@@ -220,6 +203,8 @@ export default function AdminEvents() {
       const res = await api.get('/api/events');
       if (res.data?.success && Array.isArray(res.data.events)) {
         setEvents(res.data.events);
+        const existingVenues = res.data.events.map(e => e.venue).filter(Boolean);
+        setVenueSuggestions(prev => Array.from(new Set([...prev, ...existingVenues])));
       }
     } catch (err) {
       console.warn('Failed to load events:', err);
@@ -237,16 +222,9 @@ export default function AdminEvents() {
     const updated = {
       ...formData,
       name: nameVal,
-      slug: (!editingEvent || !formData.slug) ? autoSlug : formData.slug
+      slug: (!editingEvent || !formData.slug) ? autoSlug : formData.slug,
+      poster_url: (!formData.poster_url || formData.poster_url.trim() === '') ? DEFAULT_SPARK_POSTER : formData.poster_url
     };
-
-    const cleanLower = nameVal.toLowerCase();
-    for (const item of POSTER_GALLERY) {
-      if (item.matchKeywords.some(kw => cleanLower.includes(kw))) {
-        updated.poster_url = item.url;
-        break;
-      }
-    }
     setFormData(updated);
   };
 
@@ -262,8 +240,8 @@ export default function AdminEvents() {
       slug: '',
       category: 'Innovation Challenge',
       mode: 'Hybrid',
-      venue: 'PRPCEM Campus & Virtual',
-      poster_url: POSTER_GALLERY[0].url,
+      venue: venueSuggestions[0] || 'PRPCEM Main Auditorium',
+      poster_url: DEFAULT_SPARK_POSTER,
       description: '',
       start_date: formatToDateTimeLocal(nextWeek),
       end_date: formatToDateTimeLocal(nextWeekEnd),
@@ -272,6 +250,7 @@ export default function AdminEvents() {
       max_registrations: '',
       initial_registration_count: '',
       fee: 'Free',
+      feeNumeric: 0,
       is_registration_open: true,
       rewards: 'Certificates, Prizes & Swags',
       status: 'upcoming'
@@ -292,13 +271,17 @@ export default function AdminEvents() {
     const startDateObj = resolvedStartDate ? new Date(resolvedStartDate) : null;
     const isFuture = Boolean(startDateObj && !isNaN(startDateObj.getTime()) && startDateObj > new Date());
 
+    const rawFee = ev.fee || ev.price || 'Free';
+    const isFree = !rawFee || String(rawFee).toLowerCase().includes('free') || String(rawFee).trim() === '0' || String(rawFee).trim() === '₹0';
+    const numFee = isFree ? 0 : (parseInt(String(rawFee).replace(/[^0-9]/g, ''), 10) || 0);
+
     setFormData({
       name: ev.name || ev.title || ev.event_name || '',
       slug: ev.slug || (ev.name ? ev.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : ''),
       category: ev.category || 'Technical Workshop',
       mode: ev.mode || 'Offline',
-      venue: ev.venue || 'PRPCEM Amravati',
-      poster_url: ev.poster_url || ev.poster || ev.banner || ev.image || POSTER_GALLERY[0].url,
+      venue: ev.venue || venueSuggestions[0] || 'PRPCEM Main Auditorium',
+      poster_url: ev.poster_url || ev.poster || ev.banner || ev.image || DEFAULT_SPARK_POSTER,
       description: ev.description || '',
       start_date: formatToDateTimeLocal(resolvedStartDate),
       end_date: formatToDateTimeLocal(resolvedEndDate),
@@ -310,7 +293,8 @@ export default function AdminEvents() {
       initial_registration_count: (ev.initial_registration_count !== undefined && ev.initial_registration_count !== null && ev.initial_registration_count !== '')
         ? String(ev.initial_registration_count)
         : (ev.initialRegistrationCount !== undefined ? String(ev.initialRegistrationCount) : '0'),
-      fee: ev.fee || ev.price || 'Free',
+      fee: isFree ? 'Free' : `₹${numFee}`,
+      feeNumeric: numFee,
       is_registration_open: ev.is_registration_open !== false && ev.isRegistrationOpen !== false,
       rewards: ev.rewards || ev.prizes || 'Certificates & Swags',
       status: isFuture ? 'upcoming' : ((ev.status === 'past' || ev.status === 'completed' || ev.event_status === 'completed') ? 'completed' : (ev.status || ev.event_status || 'upcoming'))
@@ -426,13 +410,23 @@ export default function AdminEvents() {
         ? 'upcoming'
         : ((formData.status === 'past' || formData.status === 'completed') ? 'completed' : (formData.status || 'upcoming'));
 
+      const numFee = Number(formData.feeNumeric);
+      const isZeroFee = isNaN(numFee) || numFee <= 0 || formData.fee === 'Free' || !formData.fee;
+      const finalFee = isZeroFee ? 'Free' : `₹${numFee || String(formData.fee).replace(/[^0-9.]/g, '')}`;
+      const finalPoster = (formData.poster_url && formData.poster_url.trim()) ? formData.poster_url.trim() : DEFAULT_SPARK_POSTER;
+      const cleanVenue = (formData.venue && formData.venue.trim()) ? formData.venue.trim() : (venueSuggestions[0] || 'PRPCEM Main Auditorium');
+
+      if (cleanVenue && !venueSuggestions.includes(cleanVenue)) {
+        setVenueSuggestions(prev => [cleanVenue, ...prev]);
+      }
+
       const payload = {
         name: formData.name.trim(),
         slug: formData.slug.trim(),
         category: formData.category,
         mode: formData.mode,
-        venue: formData.venue,
-        poster_url: formData.poster_url,
+        venue: cleanVenue,
+        poster_url: finalPoster,
         description: formData.description,
         start_date: resolvedStartIso,
         end_date: resolvedEndIso,
@@ -440,7 +434,7 @@ export default function AdminEvents() {
         registration_end_date: resolvedRegEndIso,
         max_registrations: formData.max_registrations !== '' && formData.max_registrations !== null ? parseInt(formData.max_registrations, 10) : null,
         initial_registration_count: formData.initial_registration_count !== '' && formData.initial_registration_count !== null ? parseInt(formData.initial_registration_count, 10) : 0,
-        fee: formData.fee || 'Free',
+        fee: finalFee,
         is_registration_open: Boolean(formData.is_registration_open),
         rewards: formData.rewards,
         status: cleanStatus
@@ -1355,16 +1349,42 @@ export default function AdminEvents() {
                   </div>
 
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Entry Fee / Price
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+                      <span>Entry Fee / Price</span>
+                      <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${
+                        Number(formData.feeNumeric || 0) === 0 ? 'bg-emerald-100 text-emerald-800' : 'bg-purple-100 text-purple-800'
+                      }`}>
+                        {Number(formData.feeNumeric || 0) === 0 ? 'Free' : `₹${formData.feeNumeric} INR`}
+                      </span>
                     </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Free, ₹50, ₹100"
-                      value={formData.fee}
-                      onChange={(e) => setFormData({ ...formData, fee: e.target.value })}
-                      className="w-full px-3 py-2 bg-white border border-blue-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
-                    />
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-black text-xs select-none">
+                        ₹
+                      </span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="0 for Free, or amount in INR"
+                        value={formData.feeNumeric !== undefined ? formData.feeNumeric : (formData.fee === 'Free' ? 0 : (String(formData.fee).replace(/[^0-9.]/g, '') || 0))}
+                        onChange={(e) => {
+                          const num = e.target.value;
+                          const isZero = num === '' || num === '0' || Number(num) === 0;
+                          setFormData({
+                            ...formData,
+                            feeNumeric: num,
+                            fee: isZero ? 'Free' : `₹${num}`
+                          });
+                        }}
+                        className="w-full pl-7 pr-12 py-2 bg-white border border-blue-200 rounded-xl text-xs font-bold text-slate-800 outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-extrabold text-slate-400 select-none">
+                        INR
+                      </span>
+                    </div>
+                    <p className="text-[9px] text-slate-400 mt-0.5">
+                      {Number(formData.feeNumeric || 0) === 0 ? '0 = Free Event. Displayed as "Free" on website.' : `Participants will pay ₹${formData.feeNumeric} INR.`}
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1439,35 +1459,41 @@ export default function AdminEvents() {
                 {/* Preset Gallery */}
                 <div>
                   <label className="block text-[10px] font-bold text-slate-500 mb-1.5">
-                    Or Choose from Pre-Designed Event Posters:
+                    Pre-Designed Event Poster:
                   </label>
-                  <div className="grid grid-cols-3 sm:grid-cols-6 gap-1.5">
+                  <div className="flex items-center gap-2">
                     {POSTER_GALLERY.map((p) => {
-                      const isSelected = formData.poster_url === p.url;
+                      const isSelected = formData.poster_url === p.url || (!formData.poster_url && p.url === DEFAULT_SPARK_POSTER);
                       return (
                         <button
                           key={p.id}
                           type="button"
                           onClick={() => setFormData({ ...formData, poster_url: p.url })}
-                          className={`relative aspect-4/3 rounded-lg overflow-hidden border-2 transition-all cursor-pointer group ${
+                          className={`relative w-40 aspect-4/3 rounded-xl overflow-hidden border-2 transition-all cursor-pointer group ${
                             isSelected
-                              ? 'border-purple-600 ring-2 ring-purple-600/30 scale-102 shadow-xs'
+                              ? 'border-purple-600 ring-2 ring-purple-600/30 shadow-xs'
                               : 'border-slate-200 hover:border-slate-400 opacity-70 hover:opacity-100'
                           }`}
                           title={p.name}
                         >
                           <img src={p.url} alt={p.name} className="w-full h-full object-cover" />
                           {isSelected && (
-                            <div className="absolute inset-0 bg-purple-600/30 flex items-center justify-center text-white">
-                              <Check size={14} className="stroke-[3]" />
+                            <div className="absolute inset-0 bg-purple-600/20 flex items-center justify-center text-white">
+                              <span className="bg-purple-600 text-white text-[9px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs">
+                                <Check size={11} /> Default Spark
+                              </span>
                             </div>
                           )}
-                          <span className="absolute bottom-0 inset-x-0 bg-black/70 text-[7px] font-bold text-white text-center py-0.5 truncate px-1">
-                            {p.name.split(' ')[0]}
+                          <span className="absolute bottom-0 inset-x-0 bg-black/75 text-[8px] font-bold text-white text-center py-0.5 truncate px-1">
+                            Spark Flagship Poster (Default)
                           </span>
                         </button>
                       );
                     })}
+                    <div className="text-[10px] text-slate-500 font-medium leading-relaxed pl-2">
+                      <p className="font-bold text-slate-700">Official Default Poster</p>
+                      <p className="text-[9px] text-slate-400">If no custom image is uploaded, this official Spark poster is automatically attached.</p>
+                    </div>
                   </div>
                 </div>
 
@@ -1531,14 +1557,45 @@ export default function AdminEvents() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 mb-1">Venue</label>
+                <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+                  <span>Venue / Location</span>
+                  <span className="text-[10px] text-purple-600 font-medium">Type new or choose suggestion</span>
+                </label>
                 <input
                   type="text"
-                  placeholder="e.g. PRPCEM Campus / Main Auditorium"
+                  list="admin-event-venue-suggestions"
+                  placeholder="e.g. PRPCEM Main Auditorium, Virtual / Online"
                   value={formData.venue}
-                  onChange={(e) => setFormData({ ...formData, venue: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs outline-hidden"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData({ ...formData, venue: val });
+                  }}
+                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 outline-none focus:bg-white focus:border-purple-600"
                 />
+                <datalist id="admin-event-venue-suggestions">
+                  {venueSuggestions.map((v, i) => (
+                    <option key={i} value={v} />
+                  ))}
+                </datalist>
+
+                {/* Quick Venue Suggestion Pills */}
+                <div className="flex items-center gap-1.5 flex-wrap pt-2">
+                  <span className="text-[10px] font-bold text-slate-400">Suggestions:</span>
+                  {venueSuggestions.slice(0, 6).map((v, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, venue: v })}
+                      className={`text-[10px] font-extrabold px-2 py-0.5 rounded-lg border transition-all cursor-pointer ${
+                        formData.venue === v
+                          ? 'bg-purple-100 text-purple-800 border-purple-300 shadow-2xs font-black'
+                          : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
