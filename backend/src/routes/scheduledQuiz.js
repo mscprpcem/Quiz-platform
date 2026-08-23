@@ -538,7 +538,15 @@ router.get('/', authMiddleware, async (req, res) => {
     const enriched = await Promise.all(
       quizzes.map(async (quiz) => {
         const questionCount = await Question.count({ where: { quiz_id: quiz.id } });
-        const attemptCount = await QuizAttempt.count({ where: { quiz_id: quiz.id } });
+        const [attemptCount, attempts] = await Promise.all([
+          QuizAttempt.count({ where: { quiz_id: quiz.id } }),
+          QuizAttempt.findAll({ where: { quiz_id: quiz.id }, attributes: ['id'] }).catch(() => [])
+        ]);
+        const attemptIds = attempts.map(a => a.id);
+        const violationCount = attemptIds.length > 0
+          ? await AttemptViolation.count({ where: { attempt_id: { [Op.in]: attemptIds } } }).catch(() => 0)
+          : 0;
+
         const occurrences = quiz.occurrences || [];
 
         const now = new Date();
@@ -558,6 +566,7 @@ router.get('/', authMiddleware, async (req, res) => {
           status: computedStatus,
           questionCount,
           participantCount: attemptCount,
+          violationCount,
           activeOccurrence,
           nextOccurrence,
           totalOccurrences: occurrences.length
@@ -804,9 +813,19 @@ router.get('/:id', authMiddleware, async (req, res) => {
       ]
     });
 
+    const attemptIds = attempts.map(a => a.id);
+    const violationCount = attemptIds.length > 0
+      ? await AttemptViolation.count({ where: { attempt_id: { [Op.in]: attemptIds } } }).catch(() => 0)
+      : 0;
+
     const latestLeaderboard = getLatestAttemptsLeaderboard(attempts.filter(a => a.status === 'completed'));
 
-    return res.json({ quiz, attempts: latestLeaderboard, allAttempts: attempts });
+    return res.json({ 
+      quiz: { ...quiz.toJSON(), violationCount }, 
+      attempts: latestLeaderboard, 
+      allAttempts: attempts,
+      violationCount
+    });
   } catch (error) {
     console.error('Fetch scheduled quiz error:', error);
     return res.status(500).json({ error: 'Failed to fetch scheduled quiz details.' });

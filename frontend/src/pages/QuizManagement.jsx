@@ -11,6 +11,7 @@ import {
   ListCollapse,
   Calendar,
   AlertCircle,
+  AlertTriangle,
   FileUp,
   X,
   Share2,
@@ -30,11 +31,20 @@ import {
 import EventSelector from '../components/EventSelector';
 
 /* ── Status badge helper ── */
-function StatusBadge({ status }) {
+function StatusBadge({ status, violationCount = 0 }) {
+  if (status === 'completed') {
+    return (
+      <span className={`px-2.5 py-0.5 rounded-full text-[9px] font-extrabold uppercase tracking-wider flex items-center gap-1 ${
+        violationCount > 0 ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-zinc-150 text-zinc-650 border border-zinc-250'
+      }`}>
+        <AlertTriangle size={10} className={violationCount > 0 ? "text-rose-600" : "text-zinc-500"} />
+        <span>{violationCount} {violationCount === 1 ? 'Violation' : 'Violations'}</span>
+      </span>
+    );
+  }
   const map = {
     draft: 'bg-blue-50 text-blue-700 border border-blue-200',
     in_progress: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
-    completed: 'bg-zinc-150 text-zinc-650 border border-zinc-250',
     waiting_lobby: 'bg-amber-50 text-amber-700 border border-amber-200',
   };
   const cls = map[status] || map.draft;
@@ -642,7 +652,7 @@ export default function QuizManagement() {
                       <div>
                         <div className="flex justify-between items-start gap-2 pt-1">
                           <span className="text-[9px] font-extrabold text-zinc-550 uppercase tracking-widest bg-zinc-100 px-2.5 py-0.5 rounded-full truncate max-w-[160px]">{quiz.event_name}</span>
-                          <StatusBadge status={quiz.status} />
+                          <StatusBadge status={quiz.status} violationCount={quiz.violationCount || 0} />
                         </div>
                         <div className="mt-3.5">
                           <h3 className="text-base font-extrabold text-brand-textMain leading-snug group-hover:text-brand-blue transition-colors duration-200 truncate" title={quiz.title}>{quiz.title}</h3>
@@ -666,14 +676,20 @@ export default function QuizManagement() {
                         </div>
 
                         {/* Counts section inline */}
-                        <div className="flex gap-4 items-center text-xs text-brand-textMuted border-t border-brand-border pt-2.5">
-                          <span className="flex items-center gap-1.5">
+                        <div className="flex justify-between items-center text-xs text-brand-textMuted border-t border-brand-border pt-2.5 gap-2">
+                          <span className="flex items-center gap-1.5" title="Total Questions">
                             <BookOpen size={13} className="text-brand-blue" />
                             <span><strong>{quiz.questionCount || 0}</strong> Questions</span>
                           </span>
-                          <span className="flex items-center gap-1.5">
+                          <span className="flex items-center gap-1.5" title="Total Participants">
                             <Users size={13} className="text-brand-blue" />
                             <span><strong>{quiz.participantCount || 0}</strong> Plays</span>
+                          </span>
+                          <span className="flex items-center gap-1.5" title="Recorded Anti-Cheat Violations">
+                            <AlertTriangle size={13} className={(quiz.violationCount || 0) > 0 ? "text-rose-500" : "text-zinc-400"} />
+                            <span className={(quiz.violationCount || 0) > 0 ? "text-rose-600 font-bold" : ""}>
+                              <strong>{quiz.violationCount || 0}</strong> Violations
+                            </span>
                           </span>
                         </div>
                       </div>

@@ -367,15 +367,20 @@ export default function AdminDashboard() {
 
   // Status details styling helper
   const getStatusDetails = (quiz) => {
+    if (quiz.status === 'completed') {
+      const vCount = quiz.violationCount || 0;
+      return {
+        label: `${vCount} ${vCount === 1 ? 'Violation' : 'Violations'}`,
+        cls: vCount > 0 ? 'bg-rose-50 text-rose-700 border border-rose-200 font-black' : 'bg-zinc-150 text-zinc-650 border border-zinc-250',
+        isViolation: true
+      };
+    }
     if (quiz.mode === 'SCHEDULED' || quiz.schedule_type) {
       return { label: 'Scheduled', cls: 'bg-blue-50 text-blue-700 border border-blue-200' };
     }
     const isExpired = quiz.scheduled_start && new Date(quiz.scheduled_start) < new Date() && quiz.status === 'draft';
     if (isExpired) {
       return { label: 'Expired', cls: 'bg-red-50 text-red-700 border border-red-200' };
-    }
-    if (quiz.status === 'completed') {
-      return { label: 'Closed', cls: 'bg-zinc-150 text-zinc-650 border border-zinc-250' };
     }
     if (quiz.status === 'in_progress') {
       return { label: 'Live', cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200 animate-pulse' };
@@ -470,8 +475,11 @@ export default function AdminDashboard() {
                       <div>
                         <div className="flex justify-between items-start gap-2 pt-1">
                           <span className="text-[9px] font-extrabold text-zinc-550 uppercase tracking-widest bg-zinc-100 px-2.5 py-0.5 rounded-full truncate max-w-[120px]">{quiz.event_name}</span>
-                          <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${statusDetails.cls}`}>
-                            {statusDetails.label}
+                          <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full flex items-center gap-1 ${statusDetails.cls}`}>
+                            {statusDetails.isViolation && (
+                              <AlertTriangle size={10} className={(quiz.violationCount || 0) > 0 ? "text-rose-600" : "text-zinc-500"} />
+                            )}
+                            <span>{statusDetails.label}</span>
                           </span>
                         </div>
 
@@ -498,14 +506,20 @@ export default function AdminDashboard() {
                           </div>
                         </div>
 
-                        <div className="flex justify-between items-center text-xs text-brand-textMuted pt-1">
-                          <span className="flex items-center gap-1.5">
+                        <div className="flex justify-between items-center text-xs text-brand-textMuted pt-1 gap-2">
+                          <span className="flex items-center gap-1.5" title="Total Questions">
                             <BookOpen size={13} className="text-brand-blue" />
                             <span><strong>{quiz.questionCount || 0}</strong> Questions</span>
                           </span>
-                          <span className="flex items-center gap-1.5">
+                          <span className="flex items-center gap-1.5" title="Total Participants">
                             <Users size={13} className="text-brand-blue" />
                             <span><strong>{quiz.participantCount || 0}</strong> Plays</span>
+                          </span>
+                          <span className="flex items-center gap-1.5" title="Recorded Anti-Cheat Violations">
+                            <AlertTriangle size={13} className={(quiz.violationCount || 0) > 0 ? "text-rose-500" : "text-zinc-400"} />
+                            <span className={(quiz.violationCount || 0) > 0 ? "text-rose-600 font-bold" : ""}>
+                              <strong>{quiz.violationCount || 0}</strong> Violations
+                            </span>
                           </span>
                         </div>
                       </div>

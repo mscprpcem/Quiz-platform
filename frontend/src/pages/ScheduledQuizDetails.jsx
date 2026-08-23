@@ -6,7 +6,7 @@ import { formatToISTDateTimeString } from '../utils/dateUtils';
 import { downloadBrandedQRCard, fetchBrandingConfig, getLogoUrl } from '../utils/qrCardGenerator';
 import {
   Calendar, Clock, CheckCircle, ArrowLeft, Users, Trophy, Pause, 
-  Play, ExternalLink, ShieldCheck, HelpCircle, Layers, QrCode, Mail, Send, Copy, Check, Trash2, Download
+  Play, ExternalLink, ShieldCheck, HelpCircle, Layers, QrCode, Mail, Send, Copy, Check, Trash2, Download, AlertTriangle
 } from 'lucide-react';
 
 export default function ScheduledQuizDetails() {
@@ -27,10 +27,10 @@ export default function ScheduledQuizDetails() {
 
   const loadBranding = async () => {
     try {
-      const brand = await fetchBrandingConfig();
-      setBranding(brand);
-    } catch (err) {
-      console.error('Failed to load branding:', err);
+      const config = await fetchBrandingConfig();
+      setBranding(config);
+    } catch (e) {
+      console.warn('Could not load branding:', e);
     }
   };
 
@@ -135,12 +135,12 @@ export default function ScheduledQuizDetails() {
 
         <div className="flex items-center space-x-2 w-full sm:w-auto">
           <button
-            onClick={handleSendWeeklyReminder}
-            disabled={sendingMail}
+            onClick={() => navigate(`/admin/email-dispatch?quizId=${id}`)}
             className="flex-1 sm:flex-initial px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all"
+            title="Dispatch targeted emails by completion status"
           >
             <Mail size={16} />
-            <span>{sendingMail ? 'Dispatching...' : 'Email Reminder'}</span>
+            <span>Targeted Email Dispatch</span>
           </button>
 
           <button
@@ -274,6 +274,7 @@ export default function ScheduledQuizDetails() {
                   <th className="py-3 px-4">Participant Name</th>
                   <th className="py-3 px-4">Email</th>
                   <th className="py-3 px-4">Score</th>
+                  <th className="py-3 px-4">Violations</th>
                   <th className="py-3 px-4">Time Taken</th>
                   <th className="py-3 px-4">Status</th>
                 </tr>
@@ -285,6 +286,16 @@ export default function ScheduledQuizDetails() {
                     <td className="py-3.5 px-4 font-bold text-slate-900">{att.participant_name}</td>
                     <td className="py-3.5 px-4 text-slate-500">{att.participant_email || 'N/A'}</td>
                     <td className="py-3.5 px-4 font-extrabold text-emerald-600">{att.score} pts</td>
+                    <td className="py-3.5 px-4">
+                      {(att.violation_count || 0) > 0 ? (
+                        <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-rose-50 text-rose-700 border border-rose-200 inline-flex items-center gap-1">
+                          <AlertTriangle size={10} className="text-rose-600" />
+                          <span>{att.violation_count}</span>
+                        </span>
+                      ) : (
+                        <span className="text-slate-400 font-bold text-[11px]">0</span>
+                      )}
+                    </td>
                     <td className="py-3.5 px-4 text-slate-600">{att.time_taken_seconds || 0}s</td>
                     <td className="py-3.5 px-4">
                       <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-50 text-emerald-700">

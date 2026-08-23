@@ -23,8 +23,10 @@ export default function AdminEmailDispatch() {
   const [selectedEventId, setSelectedEventId] = useState('');
   const [selectedEventInfo, setSelectedEventInfo] = useState(null);
   
-  // Participant Sub-filter: 'all' | 'completed' | 'in_progress' | 'registered'
+  // Participant Sub-filter: 'all' | 'completed' | 'not_completed' | 'in_progress'
   const [participantFilter, setParticipantFilter] = useState('all');
+  const [eventCounts, setEventCounts] = useState({ total: 0, completed: 0, not_completed: 0, in_progress: 0 });
+  const [quizCounts, setQuizCounts] = useState({ total: 0, completed: 0, not_completed: 0, in_progress: 0 });
 
   const [loadingQuizParticipants, setLoadingQuizParticipants] = useState(false);
   const [quizParticipants, setQuizParticipants] = useState([]);
@@ -63,7 +65,8 @@ export default function AdminEmailDispatch() {
     { label: 'College', tag: '{college}', desc: 'College name' },
     { label: 'Event Name', tag: '{event_name}', desc: 'Associated event' },
     { label: 'Quiz Title', tag: '{quiz_title}', desc: 'Title of quiz' },
-    { label: 'Score', tag: '{score}', desc: 'Achieved score' }
+    { label: 'Score', tag: '{score}', desc: 'Achieved score' },
+    { label: 'Status', tag: '{status}', desc: 'Completion status' }
   ];
 
   // Fetch audiences on mount
@@ -90,6 +93,19 @@ export default function AdminEmailDispatch() {
         // Check if URL has ?eventId= or ?event=
         const urlEventId = searchParams.get('eventId') || searchParams.get('event');
         const urlEventName = searchParams.get('event') || searchParams.get('eventName');
+        const urlQuizId = searchParams.get('quizId') || searchParams.get('quiz');
+
+        if (urlQuizId && quizzesList.length > 0) {
+          const matchQ = quizzesList.find(q =>
+            String(q.id).toLowerCase() === String(urlQuizId).toLowerCase() ||
+            String(q.join_code || '').toLowerCase() === String(urlQuizId).toLowerCase()
+          ) || quizzesList[0];
+          setAudienceType('quiz_participants');
+          setSelectedQuizId(matchQ.id);
+          setSelectedQuizInfo(matchQ);
+          fetchQuizParticipants(matchQ.id, participantFilter);
+          return;
+        }
 
         if (urlEventId && eventsList.length > 0) {
           const urlLower = String(urlEventId).toLowerCase().trim();
@@ -106,7 +122,7 @@ export default function AdminEmailDispatch() {
           setAudienceType('event_registrants');
           setSelectedEventId(targetEvent.id);
           setSelectedEventInfo(targetEvent);
-          fetchEventParticipants(targetEvent.id, targetEvent.name);
+          fetchEventParticipants(targetEvent.id, targetEvent.name, participantFilter);
 
           // Auto-populate default template for this event
           setSubject(`📢 Announcement: Upcoming Technical Tracks for ${targetEvent.name}`);
@@ -136,30 +152,36 @@ export default function AdminEmailDispatch() {
     }
   };
 
-  // Fetch participants when quiz selection changes
+  // Fetch participants when quiz selection or filter changes
   useEffect(() => {
     if (audienceType === 'quiz_participants' && selectedQuizId) {
       const found = audienceData.quizzes.find(q => String(q.id) === String(selectedQuizId));
       if (found) setSelectedQuizInfo(found);
-      fetchQuizParticipants(selectedQuizId);
+      fetchQuizParticipants(selectedQuizId, participantFilter);
     }
-  }, [audienceType, selectedQuizId, audienceData.quizzes]);
+  }, [audienceType, selectedQuizId, participantFilter, audienceData.quizzes]);
 
-  // Fetch participants when event selection changes
+  // Fetch participants when event selection or filter changes
   useEffect(() => {
     if (audienceType === 'event_registrants' && selectedEventId) {
       const found = audienceData.events.find(e => String(e.id) === String(selectedEventId));
       if (found) setSelectedEventInfo(found);
-      fetchEventParticipants(selectedEventId, found?.name);
+      fetchEventParticipants(selectedEventId, found?.name, participantFilter);
     }
-  }, [audienceType, selectedEventId, audienceData.events]);
+  }, [audienceType, selectedEventId, participantFilter, audienceData.events]);
 
-  const fetchQuizParticipants = async (quizId) => {
+  const fetchQuizParticipants = async (quizId, filter = participantFilter) => {
     try {
       setLoadingQuizParticipants(true);
-      const res = await api.get(`/api/admin/email-dispatch/quiz-participants?quizId=${encodeURIComponent(quizId)}`);
+      const res = await api.get(`/api/admin/email-dispatch/quiz-participants?quizId=${encodeURIComponent(quizId)}&participantFilter=${encodeURIComponent(filter)}`);
       if (res.data.success) {
         setQuizParticipants(res.data.participants || []);
+        setQuizCounts({
+          total: res.data.totalCount !== undefined ? res.data.totalCount : (res.data.participants || []).length,
+          completed: res.data.completedCount || 0,
+          not_completed: res.data.notCompletedCount || 0,
+          in_progress: res.data.inProgressCount || 0
+        });
         if (res.data.quiz) {
           setSelectedQuizInfo(res.data.quiz);
         }
@@ -172,13 +194,19 @@ export default function AdminEmailDispatch() {
     }
   };
 
-  const fetchEventParticipants = async (eventId, eventName) => {
+  const fetchEventParticipants = async (eventId, eventName, filter = participantFilter) => {
     try {
       setLoadingEventParticipants(true);
       const evNameQuery = eventName ? `&eventName=${encodeURIComponent(eventName)}` : '';
-      const res = await api.get(`/api/admin/email-dispatch/event-participants?eventId=${encodeURIComponent(eventId)}${evNameQuery}`);
+      const res = await api.get(`/api/admin/email-dispatch/event-participants?eventId=${encodeURIComponent(eventId)}${evNameQuery}&participantFilter=${encodeURIComponent(filter)}`);
       if (res.data.success) {
         setEventParticipants(res.data.participants || []);
+        setEventCounts({
+          total: res.data.totalCount !== undefined ? res.data.totalCount : (res.data.participants || []).length,
+          completed: res.data.completedCount || 0,
+          not_completed: res.data.notCompletedCount || 0,
+          in_progress: res.data.inProgressCount || 0
+        });
         setExcludedEmails(new Set());
       }
     } catch (err) {
@@ -216,30 +244,28 @@ export default function AdminEmailDispatch() {
         name: s.name,
         college: s.college || '',
         meta: s.username ? `@${s.username}` : 'Student',
-        status: 'registered'
+        quiz_status: 'registered',
+        status: 'Registered Student'
       }));
     } else if (audienceType === 'event_registrants') {
       list = eventParticipants.map(p => ({
         email: (p.email || '').toLowerCase().trim(),
         name: p.name,
         college: p.college || '',
-        meta: p.branch ? `${p.branch} (${p.year || ''})` : (p.source || 'Website Registered'),
-        status: p.status || 'registered',
+        meta: p.branch ? `${p.branch} (${p.year || ''})` : (p.source || 'Event Registered'),
+        quiz_status: p.quiz_status || (p.status === 'Completed' ? 'completed' : 'not_completed'),
+        status: p.status || 'Not Completed',
+        score: p.score,
         phone: p.phone
       }));
     } else if (audienceType === 'quiz_participants') {
-      list = quizParticipants.filter(p => {
-        const st = (p.status || '').toLowerCase();
-        if (participantFilter === 'completed') return st === 'completed' || st === 'finished';
-        if (participantFilter === 'in_progress') return st === 'in_progress' || st === 'started';
-        if (participantFilter === 'registered') return st === 'registered';
-        return true; // 'all'
-      }).map(p => ({
+      list = quizParticipants.map(p => ({
         email: (p.email || '').toLowerCase().trim(),
         name: p.name,
         college: p.college || '',
         meta: p.source || 'Participant',
-        status: p.status || 'registered',
+        quiz_status: p.quiz_status || (p.status === 'Completed' ? 'completed' : 'not_completed'),
+        status: p.status || 'Registered',
         score: p.score
       }));
     } else if (audienceType === 'custom') {
@@ -251,7 +277,8 @@ export default function AdminEmailDispatch() {
         email: e,
         name: e.split('@')[0],
         meta: 'Custom Email',
-        status: 'custom'
+        quiz_status: 'custom',
+        status: 'Custom'
       }));
     }
 
@@ -291,19 +318,19 @@ export default function AdminEmailDispatch() {
     const qTitle = selectedQuizInfo?.title || '{quiz_title}';
     const evName = selectedEventInfo?.name || selectedQuizInfo?.event_name || '{event_name}';
 
-    if (type === 'reminder') {
-      setSubject(`⏳ Reminder: ${evName} Assessment Starts Soon!`);
-      setHeading(`${evName} Updates`);
+    if (type === 'not_attended' || type === 'didnt_attend' || type === 'pending_quiz' || type === 'reminder') {
+      setSubject(`📢 Action Required: You Registered for ${evName} but Missed the Quiz Assessment`);
+      setHeading(`Registered But Didn't Attend — Missed Assessment`);
       setMessageBody(
-        `Hello {name},\n\nThis is a friendly reminder that your registered technical session for "${evName}" is scheduled to begin shortly.\n\nPlease ensure you have a stable internet connection, sign in with your email ({email}), and be ready on time.\n\nBest of luck!\n— Microsoft Student Club PRPCEM`
+        `Hello {name},\n\nOur records show that you successfully registered for "${evName}" from {college}, but have not yet attended or submitted your "${qTitle}" quiz assessment.\n\nDon't miss out on your performance ranking, score evaluation, and official MSC digital certificate! The assessment portal is still active for registered participants.\n\nPlease click the button below to start and submit your quiz attempt now.\n\nBest regards,\nMicrosoft Student Club PRPCEM`
       );
-      setCtaText('Launch Event Assessment');
+      setCtaText('Take Missed Assessment Now');
       setCtaUrl(window.location.origin + '/courses');
     } else if (type === 'results') {
       setSubject(`🏆 Results & Leaderboard Announced: ${evName}`);
       setHeading(`${evName} Results Published`);
       setMessageBody(
-        `Hello {name},\n\nThe official scores and performance rankings for "${evName}" have been verified and published!\n\nLog in to review your detailed scorecard, view your standing among participants from {college}, and access your digital certificate.\n\nThank you for participating!`
+        `Hello {name},\n\nThe official scores and performance rankings for "${evName}" have been verified and published!\n\nYour recorded score: {score} pts.\n\nLog in to review your detailed scorecard, view your standing among participants from {college}, and access your digital certificate.\n\nThank you for participating!\n— Microsoft Student Club PRPCEM`
       );
       setCtaText('View Scorecard & Certificate');
       setCtaUrl(window.location.origin + '/student/profile');
@@ -311,7 +338,7 @@ export default function AdminEmailDispatch() {
       setSubject(`🎉 Congratulations on Completing ${evName}!`);
       setHeading(`Outstanding Achievement!`);
       setMessageBody(
-        `Hello {name},\n\nCongratulations on successfully participating in "${evName}" organized by the Microsoft Student Club PRPCEM!\n\nYour verified digital credential is now ready to claim and showcase on your LinkedIn profile.\n\nKeep learning and building!`
+        `Hello {name},\n\nCongratulations on successfully completing the "${evName}" assessment organized by the Microsoft Student Club PRPCEM!\n\nYour verified digital credential and badge are now ready to claim and showcase on your LinkedIn profile.\n\nKeep learning and building!\n— Microsoft Student Club PRPCEM`
       );
       setCtaText('Claim Digital Badge & Certificate');
       setCtaUrl(window.location.origin + '/student/profile');
@@ -350,7 +377,7 @@ export default function AdminEmailDispatch() {
         eventId: audienceType === 'event_registrants' ? selectedEventId : undefined,
         eventName: audienceType === 'event_registrants' ? (selectedEventInfo?.name || searchParams.get('event')) : undefined,
         quizId: audienceType === 'quiz_participants' ? selectedQuizId : undefined,
-        participantFilter: audienceType === 'quiz_participants' ? participantFilter : undefined,
+        participantFilter: (audienceType === 'quiz_participants' || audienceType === 'event_registrants') ? participantFilter : undefined,
         customEmails: audienceType === 'custom' ? customEmailsText : undefined,
         excludedEmails: Array.from(excludedEmails),
         subject,
@@ -530,7 +557,7 @@ export default function AdminEmailDispatch() {
               </button>
             </div>
 
-            {/* When By Event is selected: Event Dropdown */}
+            {/* When By Event is selected: Event Dropdown + Completion Filters */}
             {audienceType === 'event_registrants' && (
               <div className="space-y-3.5 animate-fade-in bg-purple-50/50 p-4 rounded-2xl border border-purple-100">
                 <div className="space-y-1">
@@ -551,20 +578,60 @@ export default function AdminEmailDispatch() {
                     ))}
                   </select>
                 </div>
-                <div className="text-[11px] font-bold text-purple-700 flex items-center justify-between">
-                  <span>Enrolled from Website Form:</span>
-                  <span className="bg-purple-200/80 px-2 py-0.5 rounded-md text-purple-900 font-black">
-                    {eventParticipants.length} Participant(s)
-                  </span>
+
+                {/* Event Quiz Completion Filter Group */}
+                <div className="space-y-1.5 pt-1">
+                  <label className="block text-[11px] font-extrabold text-purple-900 uppercase tracking-wider">
+                    Quiz Completion Filter
+                  </label>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-white p-1 rounded-xl border border-purple-200">
+                    <button
+                      type="button"
+                      onClick={() => { setParticipantFilter('all'); setExcludedEmails(new Set()); }}
+                      className={`py-1.5 px-2 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer ${
+                        participantFilter === 'all' ? 'bg-purple-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      All ({eventCounts.total})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setParticipantFilter('completed'); setExcludedEmails(new Set()); }}
+                      className={`py-1.5 px-2 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer ${
+                        participantFilter === 'completed' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-slate-600 hover:text-emerald-700'
+                      }`}
+                    >
+                      Completed ({eventCounts.completed})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setParticipantFilter('not_attended'); setExcludedEmails(new Set()); }}
+                      className={`py-1.5 px-2 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer ${
+                        (participantFilter === 'not_attended' || participantFilter === 'not_completed') ? 'bg-amber-600 text-white shadow-2xs font-black' : 'text-amber-700 hover:text-amber-900 bg-amber-50/50'
+                      }`}
+                      title="Registered students who have not attended or submitted the quiz"
+                    >
+                      Didn't Attend ({eventCounts.not_completed})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setParticipantFilter('in_progress'); setExcludedEmails(new Set()); }}
+                      className={`py-1.5 px-2 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer ${
+                        participantFilter === 'in_progress' ? 'bg-blue-600 text-white shadow-2xs' : 'text-slate-600 hover:text-blue-700'
+                      }`}
+                    >
+                      In Progress ({eventCounts.in_progress})
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
 
             {/* When By Quiz is selected: Quiz Dropdown + Participant Subset Filters */}
             {audienceType === 'quiz_participants' && (
-              <div className="space-y-3.5 animate-fade-in">
+              <div className="space-y-3.5 animate-fade-in bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
                 <div className="space-y-1">
-                  <label className="block text-xs font-bold text-slate-700">Select Quiz Assessment</label>
+                  <label className="block text-xs font-black text-blue-900">Select Quiz Assessment</label>
                   <select
                     value={selectedQuizId}
                     onChange={(e) => {
@@ -572,7 +639,7 @@ export default function AdminEmailDispatch() {
                       const q = audienceData.quizzes.find(item => String(item.id) === String(e.target.value));
                       if (q) setSelectedQuizInfo(q);
                     }}
-                    className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs font-bold bg-slate-50 text-slate-800 focus:bg-white focus:border-blue-600 outline-none"
+                    className="w-full border border-blue-200 rounded-xl px-3.5 py-2.5 text-xs font-bold bg-white text-slate-800 focus:border-blue-600 outline-none"
                   >
                     {audienceData.quizzes.map((q) => (
                       <option key={q.id} value={q.id}>
@@ -582,47 +649,48 @@ export default function AdminEmailDispatch() {
                   </select>
                 </div>
 
-                {/* Participant Filter Pills: All, Completed, In Progress, Registered */}
-                <div className="space-y-1.5">
-                  <label className="block text-[11px] font-extrabold text-slate-600 uppercase tracking-wider">
-                    Participant Filter Group
+                {/* Participant Filter Pills: All, Completed, Didn't Attend, In Progress */}
+                <div className="space-y-1.5 pt-1">
+                  <label className="block text-[11px] font-extrabold text-blue-900 uppercase tracking-wider">
+                    Quiz Completion Filter
                   </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-slate-100 p-1 rounded-xl">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 bg-white p-1 rounded-xl border border-blue-200">
                     <button
                       type="button"
-                      onClick={() => setParticipantFilter('all')}
+                      onClick={() => { setParticipantFilter('all'); setExcludedEmails(new Set()); }}
                       className={`py-1.5 px-2 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer ${
-                        participantFilter === 'all' ? 'bg-white text-blue-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+                        participantFilter === 'all' ? 'bg-blue-600 text-white shadow-2xs' : 'text-slate-600 hover:text-slate-900'
                       }`}
                     >
-                      All ({quizParticipants.length})
+                      All ({quizCounts.total})
                     </button>
                     <button
                       type="button"
-                      onClick={() => setParticipantFilter('completed')}
+                      onClick={() => { setParticipantFilter('completed'); setExcludedEmails(new Set()); }}
                       className={`py-1.5 px-2 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer ${
-                        participantFilter === 'completed' ? 'bg-white text-emerald-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+                        participantFilter === 'completed' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-slate-600 hover:text-emerald-700'
                       }`}
                     >
-                      Completed
+                      Completed ({quizCounts.completed})
                     </button>
                     <button
                       type="button"
-                      onClick={() => setParticipantFilter('in_progress')}
+                      onClick={() => { setParticipantFilter('not_attended'); setExcludedEmails(new Set()); }}
                       className={`py-1.5 px-2 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer ${
-                        participantFilter === 'in_progress' ? 'bg-white text-amber-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+                        (participantFilter === 'not_attended' || participantFilter === 'not_completed') ? 'bg-amber-600 text-white shadow-2xs font-black' : 'text-amber-700 hover:text-amber-900 bg-amber-50/50'
                       }`}
+                      title="Registered students who have not attended or submitted the quiz"
                     >
-                      In Progress
+                      Didn't Attend ({quizCounts.not_completed})
                     </button>
                     <button
                       type="button"
-                      onClick={() => setParticipantFilter('registered')}
+                      onClick={() => { setParticipantFilter('in_progress'); setExcludedEmails(new Set()); }}
                       className={`py-1.5 px-2 rounded-lg text-[11px] font-extrabold transition-all cursor-pointer ${
-                        participantFilter === 'registered' ? 'bg-white text-indigo-700 shadow-2xs' : 'text-slate-500 hover:text-slate-800'
+                        participantFilter === 'in_progress' ? 'bg-indigo-600 text-white shadow-2xs' : 'text-slate-600 hover:text-indigo-700'
                       }`}
                     >
-                      Registered
+                      In Progress ({quizCounts.in_progress})
                     </button>
                   </div>
                 </div>
@@ -674,11 +742,13 @@ export default function AdminEmailDispatch() {
                 ) : (
                   currentRecipients.map((r) => {
                     const isChecked = !excludedEmails.has(r.email);
+                    const isCompleted = r.quiz_status === 'completed' || r.status === 'Completed';
+                    const isInProgress = r.quiz_status === 'in_progress' || r.status === 'In Progress';
                     return (
                       <div
                         key={r.email}
                         onClick={() => toggleExcludeEmail(r.email)}
-                        className={`flex items-center justify-between p-2 rounded-xl text-xs transition-all cursor-pointer border ${
+                        className={`flex items-center justify-between p-2.5 rounded-xl text-xs transition-all cursor-pointer border ${
                           isChecked
                             ? 'bg-white border-slate-200/80 text-slate-800 shadow-2xs'
                             : 'bg-slate-100/60 border-transparent text-slate-400 line-through opacity-60'
@@ -699,14 +769,24 @@ export default function AdminEmailDispatch() {
                           </div>
                         </div>
 
-                        <div className="text-right flex-shrink-0">
-                          {r.college && (
-                            <span className="text-[9px] font-bold text-slate-500 block truncate max-w-[120px]">
-                              {r.college}
+                        <div className="text-right flex-shrink-0 flex flex-col items-end gap-1">
+                          {isCompleted ? (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-50 text-emerald-700 border border-emerald-200">
+                              Completed {r.score != null ? `• ${r.score} pts` : ''}
+                            </span>
+                          ) : isInProgress ? (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-blue-50 text-blue-700 border border-blue-200">
+                              In Progress
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-50 text-amber-700 border border-amber-200 font-extrabold">
+                              Registered • Didn't Attend
                             </span>
                           )}
-                          {r.meta && (
-                            <span className="text-[9px] font-extrabold text-blue-600 block">{r.meta}</span>
+                          {r.college && (
+                            <span className="text-[9px] font-bold text-slate-400 block truncate max-w-[120px]">
+                              {r.college}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -737,10 +817,11 @@ export default function AdminEmailDispatch() {
               </button>
               <button
                 type="button"
-                onClick={() => applyPreset('reminder')}
-                className="p-2.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-2xl text-[11px] font-black text-blue-700 transition-all cursor-pointer text-center"
+                onClick={() => applyPreset('not_attended')}
+                className="p-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-2xl text-[11px] font-black text-amber-800 transition-all cursor-pointer text-center"
+                title="Send email reminder to students who registered but haven't attended the quiz"
               >
-                ⏳ Session Reminder
+                📩 Didn't Attend Reminder
               </button>
               <button
                 type="button"
@@ -752,7 +833,7 @@ export default function AdminEmailDispatch() {
               <button
                 type="button"
                 onClick={() => applyPreset('congratulations')}
-                className="p-2.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-2xl text-[11px] font-black text-amber-700 transition-all cursor-pointer text-center"
+                className="p-2.5 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-2xl text-[11px] font-black text-blue-700 transition-all cursor-pointer text-center"
               >
                 🎉 Claim Certificate
               </button>

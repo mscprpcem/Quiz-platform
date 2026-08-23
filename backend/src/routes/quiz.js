@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const ExcelJS = require('exceljs');
-const { Quiz, Question, Participant, QuizAttempt, Answer, Violation, ScheduledOccurrence } = require('../models');
+const { Quiz, Question, Participant, QuizAttempt, Answer, Violation, AttemptViolation, ScheduledOccurrence } = require('../models');
 const authMiddleware = require('../middleware/auth');
 const { Op } = require('sequelize');
 
@@ -60,11 +60,19 @@ router.get('/public', async (req, res) => {
     const quizzesWithCounts = await Promise.all(
       quizzes.map(async (quiz) => {
         const questionCount = await Question.count({ where: { quiz_id: quiz.id } });
-        const [liveParticipantCount, attemptCount] = await Promise.all([
+        const [liveParticipantCount, attemptCount, liveViolationCount, attempts] = await Promise.all([
           Participant.count({ where: { quiz_id: quiz.id } }),
-          QuizAttempt.count({ where: { quiz_id: quiz.id } })
+          QuizAttempt.count({ where: { quiz_id: quiz.id } }),
+          Violation.count({ where: { quiz_id: quiz.id } }).catch(() => 0),
+          QuizAttempt.findAll({ where: { quiz_id: quiz.id }, attributes: ['id'] }).catch(() => [])
         ]);
         const participantCount = liveParticipantCount + attemptCount;
+
+        const attemptIds = attempts.map(a => a.id);
+        const attemptViolationCount = attemptIds.length > 0
+          ? await AttemptViolation.count({ where: { attempt_id: { [Op.in]: attemptIds } } }).catch(() => 0)
+          : 0;
+        const violationCount = liveViolationCount + attemptViolationCount;
 
         let computedStatus = quiz.status;
         const eTime = quiz.scheduled_end ? new Date(quiz.scheduled_end) : null;
@@ -90,7 +98,8 @@ router.get('/public', async (req, res) => {
           scheduled_end: quiz.scheduled_end,
           createdAt: quiz.createdAt,
           questionCount,
-          participantCount
+          participantCount,
+          violationCount
         };
       })
     );
@@ -226,15 +235,23 @@ router.get('/', authMiddleware, async (req, res) => {
     });
 
     const now = new Date();
-    // Fetch question and participant counts for each quiz
+    // Fetch question, participant, and violation counts for each quiz
     const quizzesWithCounts = await Promise.all(
       quizzes.map(async (quiz) => {
         const questionCount = await Question.count({ where: { quiz_id: quiz.id } });
-        const [liveParticipantCount, attemptCount] = await Promise.all([
+        const [liveParticipantCount, attemptCount, liveViolationCount, attempts] = await Promise.all([
           Participant.count({ where: { quiz_id: quiz.id } }),
-          QuizAttempt.count({ where: { quiz_id: quiz.id } })
+          QuizAttempt.count({ where: { quiz_id: quiz.id } }),
+          Violation.count({ where: { quiz_id: quiz.id } }).catch(() => 0),
+          QuizAttempt.findAll({ where: { quiz_id: quiz.id }, attributes: ['id'] }).catch(() => [])
         ]);
         const participantCount = liveParticipantCount + attemptCount;
+
+        const attemptIds = attempts.map(a => a.id);
+        const attemptViolationCount = attemptIds.length > 0
+          ? await AttemptViolation.count({ where: { attempt_id: { [Op.in]: attemptIds } } }).catch(() => 0)
+          : 0;
+        const violationCount = liveViolationCount + attemptViolationCount;
 
         let computedStatus = quiz.status;
         const eTime = quiz.scheduled_end ? new Date(quiz.scheduled_end) : null;
@@ -249,7 +266,8 @@ router.get('/', authMiddleware, async (req, res) => {
           ...quiz.toJSON(),
           status: computedStatus,
           questionCount,
-          participantCount
+          participantCount,
+          violationCount
         };
       })
     );

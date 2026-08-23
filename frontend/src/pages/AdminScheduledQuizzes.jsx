@@ -6,7 +6,7 @@ import { formatToISTDateTimeString } from '../utils/dateUtils';
 import { downloadBrandedQRCard, fetchBrandingConfig, getLogoUrl } from '../utils/qrCardGenerator';
 import {
   Calendar, Plus, Search, Clock, Users, Eye, Play, Pause, Edit2, ExternalLink, Trash2,
-  QrCode, Copy, Check, X, Download
+  QrCode, Copy, Check, X, Download, AlertTriangle
 } from 'lucide-react';
 
 export default function AdminScheduledQuizzes() {
@@ -234,8 +234,13 @@ export default function AdminScheduledQuizzes() {
                       UPCOMING
                     </span>
                   ) : (quiz.participantCount || 0) > 0 ? (
-                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-purple-50 text-purple-700 border border-purple-200">
-                      COMPLETED
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase flex items-center gap-1 ${
+                      (quiz.violationCount || 0) > 0
+                        ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                        : 'bg-zinc-100 text-zinc-650 border border-zinc-200'
+                    }`}>
+                      <AlertTriangle size={11} className={(quiz.violationCount || 0) > 0 ? "text-rose-600" : "text-zinc-500"} />
+                      <span>{quiz.violationCount || 0} {(quiz.violationCount || 0) === 1 ? 'Violation' : 'Violations'}</span>
                     </span>
                   ) : (
                     <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase bg-slate-100 text-slate-500 border border-slate-200" title="Concluded with 0 attempts">
@@ -287,6 +292,13 @@ export default function AdminScheduledQuizzes() {
                   <div className="flex items-center justify-between">
                     <span className="text-slate-400 font-semibold">Attempts:</span>
                     <span className="font-extrabold text-slate-800">{quiz.participantCount || 0} Total</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400 font-semibold">Violations:</span>
+                    <span className={`font-extrabold flex items-center gap-1 ${(quiz.violationCount || 0) > 0 ? 'text-rose-600' : 'text-slate-800'}`}>
+                      <AlertTriangle size={12} className={(quiz.violationCount || 0) > 0 ? 'text-rose-500' : 'text-slate-400'} />
+                      <span>{quiz.violationCount || 0} Recorded</span>
+                    </span>
                   </div>
                 </div>
               </div>
