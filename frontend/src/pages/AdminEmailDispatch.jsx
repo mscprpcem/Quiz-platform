@@ -80,7 +80,12 @@ export default function AdminEmailDispatch() {
       setErrorMessage('');
       const res = await api.get('/api/admin/email-dispatch/audiences');
       if (res.data.success) {
-        const eventsList = res.data.events || [];
+        const rawEvents = res.data.events || [];
+        const eventsList = [...rawEvents].sort((a, b) => {
+          const timeA = Number(a.timestamp) || (a.createdAt ? new Date(a.createdAt).getTime() : (a.start_date ? new Date(a.start_date).getTime() : 0));
+          const timeB = Number(b.timestamp) || (b.createdAt ? new Date(b.createdAt).getTime() : (b.start_date ? new Date(b.start_date).getTime() : 0));
+          return timeB - timeA;
+        });
         const quizzesList = res.data.quizzes || [];
 
         setAudienceData({

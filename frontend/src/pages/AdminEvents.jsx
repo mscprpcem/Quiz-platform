@@ -570,13 +570,6 @@ export default function AdminEvents() {
             {/* Top Action Icons */}
             <div className="absolute top-3 right-3 flex items-center gap-1.5">
               <button
-                onClick={() => setQrModalEvent(ev)}
-                className="p-1.5 bg-white/80 hover:bg-white text-purple-700 rounded-xl backdrop-blur-xs transition-colors cursor-pointer shadow-xs"
-                title="View & Download Event QR Card"
-              >
-                <QrCode size={13} />
-              </button>
-              <button
                 onClick={() => openEditModal(ev)}
                 className="p-1.5 bg-white/80 hover:bg-white text-slate-700 rounded-xl backdrop-blur-xs transition-colors cursor-pointer shadow-xs"
                 title="Edit event"
@@ -599,20 +592,20 @@ export default function AdminEvents() {
               <span className="text-[11px] font-bold opacity-90 truncate">
                 {ev.category || 'MSC Flagship Event'}
               </span>
-              <span className="text-[10px] font-black bg-white/20 px-2 py-0.5 rounded-md backdrop-blur-xs">
-                {ev.mode || 'Hybrid'}
+              <span className="text-[11px] font-medium opacity-80">
+                {ev.mode || 'Offline'}
               </span>
             </div>
           </div>
 
           {/* Event Content Body */}
-          <div className="p-5 space-y-3">
+          <div className="p-5 flex-1 flex flex-col justify-between space-y-3">
             <div>
               <h3 className="text-base font-black text-slate-900 group-hover:text-purple-600 transition-colors line-clamp-1">
                 {ev.name}
               </h3>
-              <p className="text-xs text-slate-500 line-clamp-2 mt-1">
-                {ev.description || 'Official challenges and tracks for this event.'}
+              <p className="text-xs text-slate-500 line-clamp-2 mt-1 font-medium leading-relaxed">
+                {ev.description || 'No description provided.'}
               </p>
             </div>
 
@@ -656,13 +649,6 @@ export default function AdminEvents() {
                 </span>
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => setQrModalEvent(ev)}
-                  className="p-1 text-purple-600 hover:text-purple-800 hover:bg-white rounded-md cursor-pointer transition-colors"
-                  title="View Event QR Card"
-                >
-                  <QrCode size={12} />
-                </button>
                 <button
                   onClick={() => handleCopyLink(currentSlug)}
                   className={`px-2 py-1 rounded-lg text-[10px] font-extrabold transition-all cursor-pointer flex items-center gap-1 ${

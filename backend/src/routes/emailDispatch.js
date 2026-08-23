@@ -77,13 +77,19 @@ router.get('/audiences', authMiddleware, async (req, res) => {
         r.event_id === ev.id || r.event_id === ev.slug || (r.event_name && r.event_name.toLowerCase().trim() === evNameLower)
       ).length;
 
+      const eventDate = ev.start_date || ev.createdAt;
+      const parsedTime = eventDate ? new Date(eventDate).getTime() : 0;
+
       eventsFormatted.push({
         id: ev.id,
         name: ev.name,
         slug: ev.slug || ev.id,
         category: ev.category || 'Innovation Challenge',
         registration_count: regCount,
-        status: ev.status || 'upcoming'
+        status: ev.status || 'upcoming',
+        start_date: ev.start_date,
+        createdAt: ev.createdAt,
+        timestamp: isNaN(parsedTime) ? 0 : parsedTime
       });
     }
 
@@ -97,16 +103,33 @@ router.get('/audiences', authMiddleware, async (req, res) => {
           r.event_id === se.id || (r.event_name && (r.event_name.toLowerCase().includes(seKey) || seKey.includes(r.event_name.toLowerCase())))
         ).length;
 
+        const seDate = se.startDate || se.date;
+        let seTime = 0;
+        if (seDate) {
+          const d = new Date(seDate);
+          if (!isNaN(d.getTime())) seTime = d.getTime();
+        }
+
         eventsFormatted.push({
           id: se.id,
           name: seTitle,
           slug: se.id,
           category: se.category || 'Flagship Event',
           registration_count: regCount,
-          status: se.status === 'past' ? 'completed' : (se.status || 'upcoming')
+          status: se.status === 'past' ? 'completed' : (se.status || 'upcoming'),
+          start_date: se.startDate || se.date,
+          createdAt: se.startDate ? new Date(se.startDate) : null,
+          timestamp: seTime
         });
       }
     }
+
+    // Sort events: LATEST BY TIME FIRST, OLDER EVENTS GO BELOW
+    eventsFormatted.sort((a, b) => {
+      const timeA = Number(a.timestamp) || (a.createdAt ? new Date(a.createdAt).getTime() : 0);
+      const timeB = Number(b.timestamp) || (b.createdAt ? new Date(b.createdAt).getTime() : 0);
+      return timeB - timeA;
+    });
 
     res.json({
       success: true,
