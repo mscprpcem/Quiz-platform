@@ -1,6 +1,9 @@
 const express = require('express');
 const router = express.Router();
-const { Quiz, Question, Participant, Answer, Violation } = require('../models');
+const { 
+  Quiz, Question, Participant, Answer, Violation,
+  ScheduledOccurrence, QuizAttempt, AttemptAnswer, AttemptViolation 
+} = require('../models');
 const authMiddleware = require('../middleware/auth');
 const { Op } = require('sequelize');
 
@@ -125,6 +128,7 @@ router.get('/public/leaderboard', async (req, res) => {
   }
 });
 
+// Detailed Quiz Analytics (supports both Live and Scheduled Quizzes)
 router.get('/quiz/:id', authMiddleware, async (req, res) => {
   try {
     const quizId = req.params.id;
@@ -133,11 +137,204 @@ router.get('/quiz/:id', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Quiz not found' });
     }
 
-    // Fetch quiz dependencies
+    const isScheduled = quiz.mode === 'SCHEDULED' || Boolean(quiz.schedule_type);
+
     const questions = await Question.findAll({
       where: { quiz_id: quizId },
       order: [['order_index', 'ASC']]
     });
+    const totalQuestions = questions.length;
+
+    // ── 1. SCHEDULED QUIZ ANALYTICS ──
+    if (isScheduled) {
+      const occurrences = await ScheduledOccurrence.findAll({
+        where: { quiz_id: quizId },
+        order: [['occurrence_number', 'ASC'], ['start_time', 'ASC']]
+      });
+
+      const attempts = await QuizAttempt.findAll({
+        where: { quiz_id: quizId },
+        order: [['submitted_at', 'DESC'], ['createdAt', 'DESC']]
+      });
+
+      const attemptIds = attempts.map(a => a.id);
+      let attemptAnswers = [];
+      let attemptViolations = [];
+
+      if (attemptIds.length > 0) {
+        [attemptAnswers, attemptViolations] = await Promise.all([
+          AttemptAnswer.findAll({ where: { attempt_id: { [Op.in]: attemptIds } } }).catch(() => []),
+          AttemptViolation.findAll({ where: { attempt_id: { [Op.in]: attemptIds } } }).catch(() => [])
+        ]);
+      }
+
+      // Unique participants calculation
+      const uniqueParticipantsSet = new Set();
+      attempts.forEach(a => {
+        const userKey = a.sso_user_id 
+          ? `sso:${String(a.sso_user_id).trim()}` 
+          : (a.participant_email ? `email:${a.participant_email.toLowerCase().trim()}` : `name:${(a.participant_name || '').toLowerCase().trim()}`);
+        if (userKey) uniqueParticipantsSet.add(userKey);
+      });
+      const totalParticipants = uniqueParticipantsSet.size;
+      const totalAttempts = attempts.length;
+      const completedAttempts = attempts.filter(a => a.status === 'completed');
+
+      if (attempts.length === 0) {
+        return res.json({
+          quizTitle: quiz.title,
+          eventName: quiz.event_name,
+          category: quiz.subject || 'Scheduled Assessment',
+          isScheduled: true,
+          totalParticipants: 0,
+          totalAttempts: 0,
+          totalQuestions,
+          averageResponseTime: 0,
+          highestScore: 0,
+          lowestScore: 0,
+          completionPercentage: 0,
+          questionAccuracy: [],
+          mostMissedQuestion: 'N/A',
+          scoreDistribution: [],
+          accuracyChart: [],
+          speedChart: [],
+          violationCount: 0,
+          occurrences: occurrences.map(o => ({
+            id: o.id,
+            title: o.title || `Slot #${o.occurrence_number}`,
+            startTime: o.start_time,
+            endTime: o.end_time,
+            status: o.status,
+            attemptCount: 0
+          }))
+        });
+      }
+
+      const scoresList = completedAttempts.map(a => Number(a.score) || 0);
+      const highestScore = scoresList.length > 0 ? Math.max(...scoresList) : 0;
+      const lowestScore = scoresList.length > 0 ? Math.min(...scoresList) : 0;
+
+      const totalTimeTakenSeconds = completedAttempts.reduce((sum, a) => sum + (Number(a.time_taken_seconds) || 0), 0);
+      const averageResponseTime = completedAttempts.length > 0
+        ? parseFloat((totalTimeTakenSeconds / completedAttempts.length).toFixed(1))
+        : 0;
+
+      const completionPercentage = totalAttempts > 0
+        ? Math.round((completedAttempts.length / totalAttempts) * 100)
+        : 0;
+
+      // Question-wise Accuracy & Diagnostics
+      const questionAccuracy = [];
+      const accuracyChart = [];
+      const speedChart = [];
+      let lowestAccuracy = 1.1;
+      let mostMissedQuestion = 'N/A';
+
+      const avgSecondsPerQ = totalQuestions > 0 ? parseFloat((averageResponseTime / totalQuestions).toFixed(1)) : 0;
+
+      questions.forEach((q, idx) => {
+        const qAnswers = attemptAnswers.filter(ans => ans.question_id === q.id);
+        const qCorrectAnswers = qAnswers.filter(ans => ans.is_correct);
+        const qAccuracy = qAnswers.length > 0 ? qCorrectAnswers.length / qAnswers.length : 0;
+        const qAccuracyPct = Math.round(qAccuracy * 100);
+
+        // Calculate question avg response speed if timestamps present
+        let qSpeed = avgSecondsPerQ;
+        if (qAnswers.length > 0) {
+          const validAnswerTimes = qAnswers
+            .filter(a => a.answered_at)
+            .map(a => new Date(a.answered_at).getTime());
+          if (validAnswerTimes.length > 1) {
+            const timeDiffs = validAnswerTimes.map((t, i, arr) => i > 0 ? (t - arr[i - 1]) / 1000 : null).filter(t => t !== null && t >= 0 && t <= 300);
+            if (timeDiffs.length > 0) {
+              qSpeed = parseFloat((timeDiffs.reduce((a, b) => a + b, 0) / timeDiffs.length).toFixed(1));
+            }
+          }
+        }
+
+        questionAccuracy.push({
+          questionId: q.id,
+          questionText: q.question,
+          index: idx + 1,
+          accuracy: qAccuracyPct,
+          avgResponseTime: qSpeed,
+          correctCount: qCorrectAnswers.length,
+          totalSubmissions: qAnswers.length
+        });
+
+        accuracyChart.push({
+          name: `Q${idx + 1}`,
+          Accuracy: qAccuracyPct
+        });
+
+        speedChart.push({
+          name: `Q${idx + 1}`,
+          'Avg Speed (s)': qSpeed
+        });
+
+        if (qAnswers.length > 0 && qAccuracy < lowestAccuracy) {
+          lowestAccuracy = qAccuracy;
+          mostMissedQuestion = q.question;
+        }
+      });
+
+      // Score distribution calculation into 5 buckets
+      const bucketSize = highestScore > 0 ? Math.max(1, Math.ceil(highestScore / 5)) : 10;
+      const scoreDistribution = [];
+      for (let i = 0; i < 5; i++) {
+        const minVal = i * bucketSize;
+        const maxVal = (i + 1) * bucketSize;
+        const label = `${minVal} - ${maxVal}`;
+        const count = i === 4
+          ? scoresList.filter(s => s >= minVal && s <= maxVal).length
+          : scoresList.filter(s => s >= minVal && s < maxVal).length;
+
+        scoreDistribution.push({
+          range: label,
+          Count: count
+        });
+      }
+
+      const occurrenceStats = occurrences.map(o => {
+        const occAttempts = attempts.filter(a => a.occurrence_id === o.id);
+        const occCompleted = occAttempts.filter(a => a.status === 'completed');
+        const occScores = occCompleted.map(a => Number(a.score) || 0);
+        const avgScore = occScores.length > 0 ? (occScores.reduce((a, b) => a + b, 0) / occScores.length).toFixed(1) : 0;
+        return {
+          id: o.id,
+          title: o.title || `Slot #${o.occurrence_number}`,
+          startTime: o.start_time,
+          endTime: o.end_time,
+          status: o.status,
+          attemptCount: occAttempts.length,
+          completedCount: occCompleted.length,
+          averageScore: parseFloat(avgScore)
+        };
+      });
+
+      return res.json({
+        quizTitle: quiz.title,
+        eventName: quiz.event_name,
+        category: quiz.subject || 'Scheduled Assessment',
+        isScheduled: true,
+        totalParticipants,
+        totalAttempts,
+        totalQuestions,
+        averageResponseTime,
+        highestScore,
+        lowestScore,
+        completionPercentage,
+        questionAccuracy,
+        mostMissedQuestion: mostMissedQuestion === 'N/A' && questions.length > 0 ? (questions[0]?.question || 'None yet') : mostMissedQuestion,
+        scoreDistribution,
+        accuracyChart,
+        speedChart,
+        violationCount: attemptViolations.length,
+        occurrences: occurrenceStats
+      });
+    }
+
+    // ── 2. LIVE QUIZ ANALYTICS ──
     const participants = await Participant.findAll({ where: { quiz_id: quizId } });
     const answers = await Answer.findAll({
       include: [
@@ -148,15 +345,15 @@ router.get('/quiz/:id', authMiddleware, async (req, res) => {
         }
       ]
     });
-    const violations = await Violation.findAll({ where: { quiz_id: quizId } });
+    const violations = await Violation.findAll({ where: { quiz_id: quizId } }).catch(() => []);
 
     const totalParticipants = participants.length;
-    const totalQuestions = questions.length;
 
     if (totalParticipants === 0) {
       return res.json({
         quizTitle: quiz.title,
         eventName: quiz.event_name,
+        isScheduled: false,
         totalParticipants: 0,
         totalQuestions,
         averageResponseTime: 0,
@@ -167,7 +364,8 @@ router.get('/quiz/:id', authMiddleware, async (req, res) => {
         mostMissedQuestion: 'N/A',
         scoreDistribution: [],
         accuracyChart: [],
-        speedChart: []
+        speedChart: [],
+        violationCount: violations.length
       });
     }
 
@@ -221,7 +419,7 @@ router.get('/quiz/:id', authMiddleware, async (req, res) => {
     const questionAccuracy = [];
     const accuracyChart = [];
     const speedChart = [];
-    let lowestAccuracy = 1.1; // Accuracy represents 0 to 1
+    let lowestAccuracy = 1.1;
     let mostMissedQuestion = 'N/A';
 
     questions.forEach((q, idx) => {
@@ -261,16 +459,14 @@ router.get('/quiz/:id', authMiddleware, async (req, res) => {
       }
     });
 
-    // Score distribution calculation
-    // Create 5 buckets based on highest score
-    const bucketSize = highestScore > 0 ? Math.ceil(highestScore / 5) : 500;
+    // Score distribution calculation into 5 buckets
+    const bucketSize = highestScore > 0 ? Math.max(1, Math.ceil(highestScore / 5)) : 500;
     const scoreDistribution = [];
     for (let i = 0; i < 5; i++) {
       const minVal = i * bucketSize;
       const maxVal = (i + 1) * bucketSize;
       const label = `${minVal} - ${maxVal}`;
       const count = scoresList.filter((s) => s >= minVal && s < maxVal).length;
-      // For the last bucket, include the boundary
       const countAdjusted = i === 4 ? scoresList.filter((s) => s >= minVal && s <= maxVal).length : count;
 
       scoreDistribution.push({
@@ -282,6 +478,7 @@ router.get('/quiz/:id', authMiddleware, async (req, res) => {
     return res.json({
       quizTitle: quiz.title,
       eventName: quiz.event_name,
+      isScheduled: false,
       totalParticipants,
       totalQuestions,
       averageResponseTime,
@@ -292,7 +489,8 @@ router.get('/quiz/:id', authMiddleware, async (req, res) => {
       mostMissedQuestion: mostMissedQuestion === 'N/A' && questions.length > 0 ? 'None yet' : mostMissedQuestion,
       scoreDistribution,
       accuracyChart,
-      speedChart
+      speedChart,
+      violationCount: violations.length
     });
   } catch (error) {
     console.error('Analytics fetching error:', error);

@@ -728,16 +728,24 @@ export default function QuizManagement() {
 
                       <div className="flex gap-1.5">
                         <button
+                          onClick={() => navigate(`/admin/analytics/${quiz.id}`)}
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2 bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-700 rounded-xl transition-all text-xs font-extrabold cursor-pointer active:scale-95"
+                          title="View Quiz Analytics & Export"
+                        >
+                          <BarChart2 size={13} />
+                          <span>Analytics</span>
+                        </button>
+                        <button
                           onClick={() => handleOpenCreate(quiz)}
                           className="flex-1 flex items-center justify-center gap-1.5 py-2 border border-brand-border hover:bg-zinc-50 text-zinc-600 hover:text-brand-textMain rounded-xl transition-all text-xs font-bold cursor-pointer active:scale-95"
                           title="Edit Quiz Details"
                         >
                           <Edit2 size={13} />
-                          <span>Edit Info</span>
+                          <span>Edit</span>
                         </button>
                         <button
                           onClick={() => handleOpenDeleteModal(quiz)}
-                          className="px-3.5 py-2 border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-all text-xs font-extrabold cursor-pointer active:scale-95 flex items-center justify-center"
+                          className="px-3 py-2 border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl transition-all text-xs font-extrabold cursor-pointer active:scale-95 flex items-center justify-center"
                           title="Delete Quiz"
                         >
                           <Trash2 size={14} />

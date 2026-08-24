@@ -6,7 +6,7 @@ import { formatToISTDateTimeString } from '../utils/dateUtils';
 import { downloadBrandedQRCard, fetchBrandingConfig, getLogoUrl } from '../utils/qrCardGenerator';
 import {
   Calendar, Plus, Search, Clock, Users, Eye, Play, Pause, Edit2, ExternalLink, Trash2,
-  QrCode, Copy, Check, X, Download, AlertTriangle
+  QrCode, Copy, Check, X, Download, AlertTriangle, BarChart2
 } from 'lucide-react';
 
 export default function AdminScheduledQuizzes() {
@@ -320,6 +320,14 @@ export default function AdminScheduledQuizzes() {
                 >
                   <Edit2 size={14} />
                   <span>Edit</span>
+                </button>
+
+                <button
+                  onClick={() => navigate(`/admin/analytics/${quiz.id}`)}
+                  className="p-2 border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl text-xs transition-colors cursor-pointer"
+                  title="View Assessment Analytics & Reports"
+                >
+                  <BarChart2 size={14} />
                 </button>
 
                 <button

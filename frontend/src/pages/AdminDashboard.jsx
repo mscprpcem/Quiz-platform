@@ -529,12 +529,12 @@ export default function AdminDashboard() {
                     <div className="flex justify-between items-center space-x-2 mt-4 pt-3.5 border-t border-brand-border relative z-10">
                       {/* View Analytics / Report */}
                       <button
-                        onClick={() => navigate(isScheduled ? `/admin/scheduled-quizzes/${quiz.id}` : `/admin/analytics/${quiz.id}`)}
+                        onClick={() => navigate(`/admin/analytics/${quiz.id}`)}
                         className="flex items-center justify-center space-x-1 px-3.5 py-2 bg-zinc-50 hover:bg-zinc-100 border border-brand-border text-zinc-650 hover:text-brand-textMain rounded-xl transition-all text-xs font-semibold select-none cursor-pointer active:scale-95"
-                        title={isScheduled ? 'View Overview' : 'View Report'}
+                        title="View Analytics & Export Report"
                       >
                         <BarChart2 size={13} />
-                        <span>{isScheduled ? 'Overview' : 'Report'}</span>
+                        <span>Analytics</span>
                       </button>
 
                       {/* Action Button: Live Control Room OR Scheduled Manager */}
