@@ -312,7 +312,7 @@ export default function Analytics() {
       </div>
 
       {/* ════════ CHARTS & BREAKDOWN ════════ */}
-      {(data?.totalParticipants > 0 || (data?.totalAttempts || 0) > 0) ? (
+      {(data?.totalParticipants > 0 || (data?.totalAttempts || 0) > 0 || (data?.accuracyChart && data.accuracyChart.length > 0)) ? (
         <>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             

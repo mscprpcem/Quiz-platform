@@ -149,6 +149,52 @@ export default function ScheduledQuizDetails() {
   const quiz = quizData?.quiz;
   const occurrences = quiz?.occurrences || [];
   const attempts = quizData?.attempts || [];
+  const allAttempts = quizData?.allAttempts || quizData?.attempts || [];
+  const completedAttempts = allAttempts.filter(a => a.status === 'completed');
+  const validAttempts = completedAttempts.length > 0 ? completedAttempts : allAttempts;
+
+  // Real-time computed metrics
+  const totalAttemptsCount = analyticsData?.totalAttempts || allAttempts.length;
+  const uniqueParticipantsCount = analyticsData?.totalParticipants || (() => {
+    const userSet = new Set();
+    allAttempts.forEach(a => {
+      const key = a.sso_user_id ? `sso:${a.sso_user_id}` : (a.participant_email ? `email:${a.participant_email.toLowerCase().trim()}` : `name:${(a.participant_name || '').toLowerCase().trim()}`);
+      if (key) userSet.add(key);
+    });
+    return userSet.size > 0 ? userSet.size : allAttempts.length;
+  })();
+
+  const scoresList = (validAttempts.length > 0 ? validAttempts : allAttempts).map(a => Number(a.score) || 0);
+  const highestScore = analyticsData?.highestScore ?? (scoresList.length > 0 ? Math.max(...scoresList) : 0);
+  const lowestScore = analyticsData?.lowestScore ?? (scoresList.length > 0 ? Math.min(...scoresList) : 0);
+
+  const totalTimeTaken = validAttempts.reduce((s, a) => s + (Number(a.time_taken_seconds) || 0), 0);
+  const avgResponseTime = analyticsData?.averageResponseTime ?? (validAttempts.length > 0 ? parseFloat((totalTimeTaken / validAttempts.length).toFixed(1)) : 0);
+
+  const completionPercentage = analyticsData?.completionPercentage ?? (totalAttemptsCount > 0 ? Math.round((completedAttempts.length / totalAttemptsCount) * 100) : 0);
+
+  const totalViolationsCount = quizData?.violationCount || analyticsData?.violationCount || allAttempts.reduce((s, a) => s + (Number(a.violation_count || a.violationsCount || a.violationCount || 0)), 0);
+
+  // Dynamic accuracy chart data
+  const accuracyChartData = (analyticsData?.accuracyChart && analyticsData.accuracyChart.length > 0 && analyticsData.accuracyChart.some(d => d.Accuracy > 0))
+    ? analyticsData.accuracyChart
+    : (quiz?.questions || []).map((q, idx) => {
+        return {
+          name: `Q${idx + 1}`,
+          Accuracy: totalAttemptsCount > 0 ? Math.round(((scoresList.reduce((a, b) => a + b, 0) / (totalAttemptsCount * (quiz?.questions?.length || 1))) * 100)) : 0
+        };
+      });
+
+  // Dynamic score distribution
+  const scoreDistData = (analyticsData?.scoreDistribution && analyticsData.scoreDistribution.length > 0 && analyticsData.scoreDistribution.some(d => d.Count > 0))
+    ? analyticsData.scoreDistribution
+    : [
+        { range: '0 - 20', Count: scoresList.filter(s => s >= 0 && s <= 20).length },
+        { range: '20 - 40', Count: scoresList.filter(s => s > 20 && s <= 40).length },
+        { range: '40 - 60', Count: scoresList.filter(s => s > 40 && s <= 60).length },
+        { range: '60 - 80', Count: scoresList.filter(s => s > 60 && s <= 80).length },
+        { range: '80 - 100', Count: scoresList.filter(s => s > 80).length }
+      ];
 
   const slugOrCode = quiz?.custom_slug || quiz?.join_code || id;
   const hostOrigin = typeof window !== 'undefined' ? window.location.origin : 'https://quiz.mscprpcem.tech';
@@ -332,34 +378,34 @@ export default function ScheduledQuizDetails() {
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
         <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-2xs">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Total Attempts</span>
-          <div className="text-2xl font-black text-slate-900 mt-1">{analyticsData?.totalAttempts ?? attempts.length}</div>
-          <span className="text-[10px] text-slate-400 font-bold">{analyticsData?.totalParticipants ?? attempts.length} unique</span>
+          <div className="text-2xl font-black text-slate-900 mt-1">{totalAttemptsCount}</div>
+          <span className="text-[10px] text-slate-400 font-bold">{uniqueParticipantsCount} unique</span>
         </div>
 
         <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-2xs">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Top Score</span>
-          <div className="text-2xl font-black text-emerald-600 mt-1">{analyticsData?.highestScore ?? (attempts[0]?.score || 0)} pts</div>
-          <span className="text-[10px] text-slate-400 font-bold">Lowest: {analyticsData?.lowestScore ?? 0} pts</span>
+          <div className="text-2xl font-black text-emerald-600 mt-1">{highestScore} pts</div>
+          <span className="text-[10px] text-slate-400 font-bold">Lowest: {lowestScore} pts</span>
         </div>
 
         <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-2xs">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Avg Duration</span>
-          <div className="text-2xl font-black text-blue-600 mt-1">{analyticsData?.averageResponseTime ?? 0}s</div>
+          <div className="text-2xl font-black text-blue-600 mt-1">{avgResponseTime}s</div>
           <span className="text-[10px] text-slate-400 font-bold">Per submission</span>
         </div>
 
         <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-2xs">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Completion Rate</span>
-          <div className="text-2xl font-black text-purple-700 mt-1">{analyticsData?.completionPercentage ?? 0}%</div>
+          <div className="text-2xl font-black text-purple-700 mt-1">{completionPercentage}%</div>
           <span className="text-[10px] text-slate-400 font-bold">{quizData?.quiz?.questions?.length || 0} Questions</span>
         </div>
 
         <div className="bg-white border border-slate-200 p-4 rounded-2xl shadow-2xs">
           <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Anti-Cheat Flags</span>
           <div className={`text-2xl font-black mt-1 ${
-            (quizData?.violationCount || analyticsData?.violationCount || 0) > 0 ? 'text-rose-600' : 'text-slate-900'
+            totalViolationsCount > 0 ? 'text-rose-600' : 'text-slate-900'
           }`}>
-            {quizData?.violationCount ?? (analyticsData?.violationCount || 0)}
+            {totalViolationsCount}
           </div>
           <span className="text-[10px] text-slate-400 font-bold">Violations logged</span>
         </div>
@@ -378,7 +424,7 @@ export default function ScheduledQuizDetails() {
       </div>
 
       {/* ════════ INTERACTIVE CHARTS ════════ */}
-      {analyticsData && (analyticsData.totalParticipants > 0 || analyticsData.totalAttempts > 0) && (
+      {(totalAttemptsCount > 0 || (quiz?.questions && quiz.questions.length > 0)) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Accuracy chart */}
           <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-2xs space-y-4">
@@ -392,7 +438,7 @@ export default function ScheduledQuizDetails() {
 
             <div className="h-56 text-xs font-semibold">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={analyticsData.accuracyChart} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <BarChart data={accuracyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="name" stroke="#94a3b8" />
                   <YAxis unit="%" stroke="#94a3b8" domain={[0, 100]} />
@@ -418,7 +464,7 @@ export default function ScheduledQuizDetails() {
 
             <div className="h-56 text-xs font-semibold">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={analyticsData.scoreDistribution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                <BarChart data={scoreDistData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                   <XAxis dataKey="range" stroke="#94a3b8" />
                   <YAxis stroke="#94a3b8" allowDecimals={false} />

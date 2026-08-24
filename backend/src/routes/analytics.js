@@ -137,7 +137,14 @@ router.get('/quiz/:id', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Quiz not found' });
     }
 
-    const isScheduled = quiz.mode === 'SCHEDULED' || Boolean(quiz.schedule_type);
+    const scheduledOccurrencesCount = await ScheduledOccurrence.count({ where: { quiz_id: quizId } }).catch(() => 0);
+    const scheduledAttemptsCount = await QuizAttempt.count({ where: { quiz_id: quizId } }).catch(() => 0);
+
+    const isScheduled = quiz.mode === 'SCHEDULED' ||
+      (quiz.mode && String(quiz.mode).toUpperCase() === 'SCHEDULED') ||
+      Boolean(quiz.schedule_type) ||
+      scheduledOccurrencesCount > 0 ||
+      scheduledAttemptsCount > 0;
 
     const questions = await Question.findAll({
       where: { quiz_id: quizId },
@@ -150,12 +157,19 @@ router.get('/quiz/:id', authMiddleware, async (req, res) => {
       const occurrences = await ScheduledOccurrence.findAll({
         where: { quiz_id: quizId },
         order: [['occurrence_number', 'ASC'], ['start_time', 'ASC']]
-      });
+      }).catch(() => []);
+
+      const occurrenceIds = occurrences.map(o => o.id);
 
       const attempts = await QuizAttempt.findAll({
-        where: { quiz_id: quizId },
+        where: {
+          [Op.or]: [
+            { quiz_id: quizId },
+            ...(occurrenceIds.length > 0 ? [{ occurrence_id: { [Op.in]: occurrenceIds } }] : [])
+          ]
+        },
         order: [['submitted_at', 'DESC'], ['createdAt', 'DESC']]
-      });
+      }).catch(() => []);
 
       const attemptIds = attempts.map(a => a.id);
       let attemptAnswers = [];
@@ -176,9 +190,10 @@ router.get('/quiz/:id', authMiddleware, async (req, res) => {
           : (a.participant_email ? `email:${a.participant_email.toLowerCase().trim()}` : `name:${(a.participant_name || '').toLowerCase().trim()}`);
         if (userKey) uniqueParticipantsSet.add(userKey);
       });
-      const totalParticipants = uniqueParticipantsSet.size;
+      const totalParticipants = uniqueParticipantsSet.size > 0 ? uniqueParticipantsSet.size : attempts.length;
       const totalAttempts = attempts.length;
       const completedAttempts = attempts.filter(a => a.status === 'completed');
+      const validAttempts = completedAttempts.length > 0 ? completedAttempts : attempts;
 
       if (attempts.length === 0) {
         return res.json({
@@ -193,11 +208,25 @@ router.get('/quiz/:id', authMiddleware, async (req, res) => {
           highestScore: 0,
           lowestScore: 0,
           completionPercentage: 0,
-          questionAccuracy: [],
-          mostMissedQuestion: 'N/A',
-          scoreDistribution: [],
-          accuracyChart: [],
-          speedChart: [],
+          questionAccuracy: questions.map((q, idx) => ({
+            questionId: q.id,
+            questionText: q.question,
+            index: idx + 1,
+            accuracy: 0,
+            avgResponseTime: 0,
+            correctCount: 0,
+            totalSubmissions: 0
+          })),
+          mostMissedQuestion: questions[0]?.question || 'None yet',
+          scoreDistribution: [
+            { range: '0 - 20', Count: 0 },
+            { range: '20 - 40', Count: 0 },
+            { range: '40 - 60', Count: 0 },
+            { range: '60 - 80', Count: 0 },
+            { range: '80 - 100', Count: 0 }
+          ],
+          accuracyChart: questions.map((q, idx) => ({ name: `Q${idx + 1}`, Accuracy: 0 })),
+          speedChart: questions.map((q, idx) => ({ name: `Q${idx + 1}`, 'Avg Speed (s)': 0 })),
           violationCount: 0,
           occurrences: occurrences.map(o => ({
             id: o.id,
@@ -205,18 +234,20 @@ router.get('/quiz/:id', authMiddleware, async (req, res) => {
             startTime: o.start_time,
             endTime: o.end_time,
             status: o.status,
-            attemptCount: 0
+            attemptCount: 0,
+            completedCount: 0,
+            averageScore: 0
           }))
         });
       }
 
-      const scoresList = completedAttempts.map(a => Number(a.score) || 0);
+      const scoresList = validAttempts.map(a => Number(a.score) || 0);
       const highestScore = scoresList.length > 0 ? Math.max(...scoresList) : 0;
       const lowestScore = scoresList.length > 0 ? Math.min(...scoresList) : 0;
 
-      const totalTimeTakenSeconds = completedAttempts.reduce((sum, a) => sum + (Number(a.time_taken_seconds) || 0), 0);
-      const averageResponseTime = completedAttempts.length > 0
-        ? parseFloat((totalTimeTakenSeconds / completedAttempts.length).toFixed(1))
+      const totalTimeTakenSeconds = validAttempts.reduce((sum, a) => sum + (Number(a.time_taken_seconds) || 0), 0);
+      const averageResponseTime = validAttempts.length > 0
+        ? parseFloat((totalTimeTakenSeconds / validAttempts.length).toFixed(1))
         : 0;
 
       const completionPercentage = totalAttempts > 0
@@ -233,12 +264,24 @@ router.get('/quiz/:id', authMiddleware, async (req, res) => {
       const avgSecondsPerQ = totalQuestions > 0 ? parseFloat((averageResponseTime / totalQuestions).toFixed(1)) : 0;
 
       questions.forEach((q, idx) => {
-        const qAnswers = attemptAnswers.filter(ans => ans.question_id === q.id);
-        const qCorrectAnswers = qAnswers.filter(ans => ans.is_correct);
-        const qAccuracy = qAnswers.length > 0 ? qCorrectAnswers.length / qAnswers.length : 0;
-        const qAccuracyPct = Math.round(qAccuracy * 100);
+        const qAnswers = attemptAnswers.filter(ans => String(ans.question_id) === String(q.id));
+        const qCorrectAnswers = qAnswers.filter(ans => Boolean(ans.is_correct));
+        
+        let qAccuracyPct = 0;
+        let correctCount = qCorrectAnswers.length;
+        let totalSubmissions = qAnswers.length;
 
-        // Calculate question avg response speed if timestamps present
+        if (totalSubmissions > 0) {
+          qAccuracyPct = Math.round((correctCount / totalSubmissions) * 100);
+        } else if (validAttempts.length > 0) {
+          // Fallback: estimate from attempt totals if AttemptAnswer was not populated individually
+          const totalCorrectSum = validAttempts.reduce((sum, a) => sum + (Number(a.correct_count) || 0), 0);
+          const estimatedAccuracy = totalQuestions > 0 ? Math.round((totalCorrectSum / (validAttempts.length * totalQuestions)) * 100) : 0;
+          qAccuracyPct = Math.min(100, Math.max(0, estimatedAccuracy));
+          totalSubmissions = validAttempts.length;
+          correctCount = Math.round((qAccuracyPct / 100) * totalSubmissions);
+        }
+
         let qSpeed = avgSecondsPerQ;
         if (qAnswers.length > 0) {
           const validAnswerTimes = qAnswers
@@ -258,8 +301,8 @@ router.get('/quiz/:id', authMiddleware, async (req, res) => {
           index: idx + 1,
           accuracy: qAccuracyPct,
           avgResponseTime: qSpeed,
-          correctCount: qCorrectAnswers.length,
-          totalSubmissions: qAnswers.length
+          correctCount,
+          totalSubmissions
         });
 
         accuracyChart.push({
@@ -272,8 +315,9 @@ router.get('/quiz/:id', authMiddleware, async (req, res) => {
           'Avg Speed (s)': qSpeed
         });
 
-        if (qAnswers.length > 0 && qAccuracy < lowestAccuracy) {
-          lowestAccuracy = qAccuracy;
+        const qRatio = totalSubmissions > 0 ? qAccuracyPct / 100 : 0;
+        if (qRatio < lowestAccuracy) {
+          lowestAccuracy = qRatio;
           mostMissedQuestion = q.question;
         }
       });
@@ -296,9 +340,9 @@ router.get('/quiz/:id', authMiddleware, async (req, res) => {
       }
 
       const occurrenceStats = occurrences.map(o => {
-        const occAttempts = attempts.filter(a => a.occurrence_id === o.id);
+        const occAttempts = attempts.filter(a => String(a.occurrence_id) === String(o.id));
         const occCompleted = occAttempts.filter(a => a.status === 'completed');
-        const occScores = occCompleted.map(a => Number(a.score) || 0);
+        const occScores = (occCompleted.length > 0 ? occCompleted : occAttempts).map(a => Number(a.score) || 0);
         const avgScore = occScores.length > 0 ? (occScores.reduce((a, b) => a + b, 0) / occScores.length).toFixed(1) : 0;
         return {
           id: o.id,

@@ -21,22 +21,36 @@ router.get('/quiz/:id/results', authMiddleware, async (req, res) => {
     const format = req.query.format === 'csv' ? 'csv' : 'xlsx';
 
     const quiz = await Quiz.findByPk(quizId);
-    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+    const scheduledOccurrencesCount = await ScheduledOccurrence.count({ where: { quiz_id: quizId } }).catch(() => 0);
+    const scheduledAttemptsCount = await QuizAttempt.count({ where: { quiz_id: quizId } }).catch(() => 0);
 
-    const isScheduled = quiz.mode === 'SCHEDULED' || Boolean(quiz.schedule_type);
+    const isScheduled = quiz.mode === 'SCHEDULED' ||
+      (quiz.mode && String(quiz.mode).toUpperCase() === 'SCHEDULED') ||
+      Boolean(quiz.schedule_type) ||
+      scheduledOccurrencesCount > 0 ||
+      scheduledAttemptsCount > 0;
+
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet('Leaderboard');
 
     if (isScheduled) {
       // ── SCHEDULED QUIZ LEADERBOARD EXPORT ──
+      const occurrences = await ScheduledOccurrence.findAll({ where: { quiz_id: quizId } }).catch(() => []);
+      const occurrenceIds = occurrences.map(o => o.id);
+
       const attempts = await QuizAttempt.findAll({
-        where: { quiz_id: quizId },
+        where: {
+          [Op.or]: [
+            { quiz_id: quizId },
+            ...(occurrenceIds.length > 0 ? [{ occurrence_id: { [Op.in]: occurrenceIds } }] : [])
+          ]
+        },
         order: [
           ['attempt_number', 'DESC'],
           ['submitted_at', 'DESC'],
           ['createdAt', 'DESC']
         ]
-      });
+      }).catch(() => []);
 
       const attemptIds = attempts.map(a => a.id);
       let violationsMap = new Map();
@@ -216,9 +230,15 @@ router.get('/quiz/:id/responses', authMiddleware, async (req, res) => {
     const format = req.query.format === 'csv' ? 'csv' : 'xlsx';
 
     const quiz = await Quiz.findByPk(quizId);
-    if (!quiz) return res.status(404).json({ error: 'Quiz not found' });
+    const scheduledOccurrencesCount = await ScheduledOccurrence.count({ where: { quiz_id: quizId } }).catch(() => 0);
+    const scheduledAttemptsCount = await QuizAttempt.count({ where: { quiz_id: quizId } }).catch(() => 0);
 
-    const isScheduled = quiz.mode === 'SCHEDULED' || Boolean(quiz.schedule_type);
+    const isScheduled = quiz.mode === 'SCHEDULED' ||
+      (quiz.mode && String(quiz.mode).toUpperCase() === 'SCHEDULED') ||
+      Boolean(quiz.schedule_type) ||
+      scheduledOccurrencesCount > 0 ||
+      scheduledAttemptsCount > 0;
+
     const questions = await Question.findAll({
       where: { quiz_id: quizId },
       order: [['order_index', 'ASC']]
@@ -229,10 +249,18 @@ router.get('/quiz/:id/responses', authMiddleware, async (req, res) => {
 
     if (isScheduled) {
       // ── SCHEDULED QUIZ RESPONSES EXPORT ──
+      const occurrences = await ScheduledOccurrence.findAll({ where: { quiz_id: quizId } }).catch(() => []);
+      const occurrenceIds = occurrences.map(o => o.id);
+
       const attempts = await QuizAttempt.findAll({
-        where: { quiz_id: quizId },
+        where: {
+          [Op.or]: [
+            { quiz_id: quizId },
+            ...(occurrenceIds.length > 0 ? [{ occurrence_id: { [Op.in]: occurrenceIds } }] : [])
+          ]
+        },
         order: [['submitted_at', 'DESC'], ['createdAt', 'DESC']]
-      });
+      }).catch(() => []);
 
       const attemptIds = attempts.map(a => a.id);
       let attemptAnswers = [];
