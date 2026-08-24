@@ -986,9 +986,23 @@ router.delete('/:id', adminAuth, async (req, res) => {
     } else {
       event = await Event.findOne({ where: { slug: id } }).catch(() => null);
     }
-    if (event) {
-      await event.destroy();
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found.' });
     }
+
+    // 1. Safely detach linked quizzes so quizzes remain safe and foreign keys never conflict
+    await Quiz.update(
+      { event_id: null },
+      { where: { [Op.or]: [{ event_id: event.id }, ...(event.slug ? [{ event_id: event.slug }] : [])] } }
+    ).catch(() => {});
+
+    // 2. Remove registrations linked to this event
+    await EventRegistration.destroy({
+      where: { [Op.or]: [{ event_id: event.id }, ...(event.slug ? [{ event_id: event.slug }] : [])] }
+    }).catch(() => {});
+
+    // 3. Destroy event record
+    await event.destroy();
     res.json({ success: true, message: 'Event deleted successfully.' });
   } catch (err) {
     console.error('Error deleting event:', err);

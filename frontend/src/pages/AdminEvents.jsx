@@ -1644,8 +1644,8 @@ export default function AdminEvents() {
 
       {/* Quick Event QR Modal */}
       {qrModalEvent && createPortal(
-        <div className="fixed inset-0 z-[9999] bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-200 space-y-4">
+        <div className="fixed inset-0 z-[9999] bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl border border-slate-200 space-y-4 my-auto max-h-[92vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shadow-xs">
@@ -1669,7 +1669,7 @@ export default function AdminEvents() {
                 <Sparkles size={12} />
                 <span>{qrModalEvent.category || 'Flagship Event'}</span>
               </div>
-              <h3 className="text-base font-black text-slate-900 line-clamp-1">{qrModalEvent.name}</h3>
+              <h3 className="text-base font-black text-slate-900 line-clamp-1 px-4">{qrModalEvent.name}</h3>
               <p className="text-xs text-slate-500 font-medium">Scan to open event registration & details</p>
             </div>
 
@@ -1684,7 +1684,7 @@ export default function AdminEvents() {
                       <QRCodeSVG
                         id="admin-event-qr-svg"
                         value={fullUrl}
-                        size={150}
+                        size={140}
                         bgColor="#FFFFFF"
                         fgColor="#0F172A"
                         level="H"
@@ -1704,11 +1704,11 @@ export default function AdminEvents() {
                         type="text"
                         readOnly
                         value={fullUrl}
-                        className="bg-white border border-slate-200 text-purple-700 font-mono font-bold text-[11px] px-2.5 py-1.5 rounded-lg w-full"
+                        className="bg-white border border-slate-200 text-purple-700 font-mono font-bold text-[11px] px-2.5 py-1.5 rounded-lg w-full truncate"
                       />
                       <button
                         onClick={() => handleCopyEventQrLink(fullUrl)}
-                        className="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-lg flex items-center space-x-1 cursor-pointer whitespace-nowrap"
+                        className="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-lg flex items-center space-x-1 cursor-pointer shrink-0"
                         title="Copy registration link"
                       >
                         {qrCopied ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}

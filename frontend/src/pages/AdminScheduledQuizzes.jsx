@@ -304,38 +304,38 @@ export default function AdminScheduledQuizzes() {
               </div>
 
               {/* Action Buttons */}
-              <div className="flex items-center space-x-2 pt-3 border-t border-slate-100">
+              <div className="grid grid-cols-4 sm:flex items-center gap-1.5 pt-3 border-t border-slate-100">
                 <button
                   onClick={() => navigate(`/admin/scheduled-quizzes/${quiz.id}`)}
-                  className="flex-1 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold rounded-xl text-xs flex items-center justify-center space-x-1 transition-colors cursor-pointer"
+                  className="col-span-2 sm:flex-1 py-2 px-2 bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold rounded-xl text-xs flex items-center justify-center space-x-1 transition-colors cursor-pointer"
                 >
-                  <Eye size={14} />
+                  <Eye size={13} />
                   <span>View</span>
                 </button>
 
                 <button
                   onClick={() => navigate(`/admin/scheduled-quizzes/edit/${quiz.id}`)}
-                  className="flex-1 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 font-extrabold rounded-xl text-xs flex items-center justify-center space-x-1 transition-colors cursor-pointer"
+                  className="col-span-2 sm:flex-1 py-2 px-2 bg-purple-50 hover:bg-purple-100 text-purple-700 font-extrabold rounded-xl text-xs flex items-center justify-center space-x-1 transition-colors cursor-pointer"
                   title="Edit Scheduled Quiz"
                 >
-                  <Edit2 size={14} />
+                  <Edit2 size={13} />
                   <span>Edit</span>
                 </button>
 
                 <button
                   onClick={() => navigate(`/admin/analytics/${quiz.id}`)}
-                  className="p-2 border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl text-xs transition-colors cursor-pointer"
+                  className="p-2 border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-100 rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center"
                   title="View Assessment Analytics & Reports"
                 >
-                  <BarChart2 size={14} />
+                  <BarChart2 size={13} />
                 </button>
 
                 <button
                   onClick={() => setQrModalQuiz(quiz)}
-                  className="p-2 border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs transition-colors cursor-pointer"
+                  className="p-2 border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center"
                   title="View & Download Direct QR Card"
                 >
-                  <QrCode size={14} />
+                  <QrCode size={13} />
                 </button>
 
                 <button
@@ -344,26 +344,26 @@ export default function AdminScheduledQuizzes() {
                     const url = `${window.location.origin}/q/${slug}`;
                     window.open(url, '_blank');
                   }}
-                  className="p-2 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-xs transition-colors cursor-pointer"
+                  className="p-2 border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center"
                   title="Open Quiz Link in New Page (/q/slug)"
                 >
-                  <ExternalLink size={14} />
+                  <ExternalLink size={13} />
                 </button>
 
                 <button
                   onClick={() => handlePauseSchedule(quiz.id)}
-                  className="p-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl text-xs transition-colors cursor-pointer"
+                  className="p-2 border border-slate-200 text-slate-600 hover:bg-slate-50 rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center"
                   title="Pause Schedule"
                 >
-                  <Pause size={14} />
+                  <Pause size={13} />
                 </button>
 
                 <button
                   onClick={() => handleDeleteQuiz(quiz.id, quiz.title)}
-                  className="p-2 border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs transition-colors cursor-pointer"
+                  className="p-2 border border-red-200 bg-red-50 text-red-600 hover:bg-red-100 rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center"
                   title="Delete Scheduled Quiz"
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={13} />
                 </button>
               </div>
 
@@ -374,8 +374,8 @@ export default function AdminScheduledQuizzes() {
 
       {/* ════════ QUICK QR CODE & BRANDED CARD MODAL ════════ */}
       {qrModalQuiz && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-5 border border-slate-100 text-center relative">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4 border border-slate-100 text-center relative my-auto max-h-[92vh] overflow-y-auto">
             <button
               onClick={() => setQrModalQuiz(null)}
               className="absolute top-4 right-4 p-1.5 rounded-full bg-slate-100 text-slate-400 hover:text-slate-700 hover:bg-slate-200 transition-colors cursor-pointer"
@@ -383,12 +383,12 @@ export default function AdminScheduledQuizzes() {
               <X size={16} />
             </button>
 
-            <div className="space-y-1 text-center">
+            <div className="space-y-1 text-center pt-2">
               <div className="inline-flex items-center space-x-1.5 px-3 py-1 bg-blue-50 text-blue-700 border border-blue-100 rounded-full text-[10px] font-black uppercase">
                 <QrCode size={12} />
                 <span>Scheduled Quiz QR Card</span>
               </div>
-              <h3 className="text-base font-black text-slate-900 line-clamp-1">{qrModalQuiz.title}</h3>
+              <h3 className="text-base font-black text-slate-900 line-clamp-1 px-4">{qrModalQuiz.title}</h3>
               <p className="text-xs text-slate-500 font-medium">Scan with camera or share short join link</p>
             </div>
 
@@ -403,7 +403,7 @@ export default function AdminScheduledQuizzes() {
                       <QRCodeSVG
                         id="admin-scheduled-quiz-qr-svg"
                         value={fullUrl}
-                        size={150}
+                        size={140}
                         bgColor="#FFFFFF"
                         fgColor="#0F172A"
                         level="H"
@@ -423,11 +423,11 @@ export default function AdminScheduledQuizzes() {
                         type="text"
                         readOnly
                         value={fullUrl}
-                        className="bg-white border border-slate-200 text-blue-700 font-mono font-bold text-[11px] px-2.5 py-1.5 rounded-lg w-full"
+                        className="bg-white border border-slate-200 text-blue-700 font-mono font-bold text-[11px] px-2.5 py-1.5 rounded-lg w-full truncate"
                       />
                       <button
                         onClick={() => handleCopyLink(fullUrl)}
-                        className="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-lg flex items-center space-x-1 cursor-pointer whitespace-nowrap"
+                        className="px-2.5 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-lg flex items-center space-x-1 cursor-pointer shrink-0"
                         title="Copy direct join link"
                       >
                         {copiedLink ? <Check size={13} className="text-emerald-600" /> : <Copy size={13} />}

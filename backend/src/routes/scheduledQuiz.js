@@ -990,20 +990,54 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Scheduled Quiz not found.' });
     }
 
-    const occurrences = await ScheduledOccurrence.findAll({ where: { quiz_id: quiz.id } });
+    // 1. Scheduled occurrences & attempts
+    const occurrences = await ScheduledOccurrence.findAll({ where: { quiz_id: quiz.id } }).catch(() => []);
     const occurrenceIds = occurrences.map(o => o.id);
 
-    if (occurrenceIds.length > 0) {
-      const attempts = await QuizAttempt.findAll({ where: { occurrence_id: occurrenceIds } });
-      const attemptIds = attempts.map(a => a.id);
-      if (attemptIds.length > 0) {
-        await AttemptAnswer.destroy({ where: { attempt_id: attemptIds } });
+    const attempts = await QuizAttempt.findAll({
+      where: {
+        [Op.or]: [
+          { quiz_id: quiz.id },
+          ...(occurrenceIds.length > 0 ? [{ occurrence_id: { [Op.in]: occurrenceIds } }] : [])
+        ]
       }
-      await QuizAttempt.destroy({ where: { occurrence_id: occurrenceIds } });
-      await ScheduledOccurrence.destroy({ where: { quiz_id: quiz.id } });
+    }).catch(() => []);
+    const attemptIds = attempts.map(a => a.id);
+
+    if (attemptIds.length > 0) {
+      await AttemptAnswer.destroy({ where: { attempt_id: { [Op.in]: attemptIds } } }).catch(() => {});
+      await AttemptViolation.destroy({ where: { attempt_id: { [Op.in]: attemptIds } } }).catch(() => {});
+      await QuizAttempt.destroy({ where: { id: { [Op.in]: attemptIds } } }).catch(() => {});
+    }
+    await QuizAttempt.destroy({ where: { quiz_id: quiz.id } }).catch(() => {});
+    if (occurrenceIds.length > 0) {
+      await ScheduledOccurrence.destroy({ where: { id: { [Op.in]: occurrenceIds } } }).catch(() => {});
+    }
+    await ScheduledOccurrence.destroy({ where: { quiz_id: quiz.id } }).catch(() => {});
+
+    // 2. Questions & Answers
+    const questions = await Question.findAll({ where: { quiz_id: quiz.id } }).catch(() => []);
+    const questionIds = questions.map(q => q.id);
+
+    if (questionIds.length > 0) {
+      await Answer.destroy({ where: { question_id: { [Op.in]: questionIds } } }).catch(() => {});
+      await AttemptAnswer.destroy({ where: { question_id: { [Op.in]: questionIds } } }).catch(() => {});
     }
 
-    await Question.destroy({ where: { quiz_id: quiz.id } });
+    // 3. Live session participants/answers/violations if any
+    const participants = await Participant.findAll({ where: { quiz_id: quiz.id } }).catch(() => []);
+    const participantIds = participants.map(p => p.id);
+
+    if (participantIds.length > 0) {
+      await Answer.destroy({ where: { participant_id: { [Op.in]: participantIds } } }).catch(() => {});
+      await Violation.destroy({ where: { participant_id: { [Op.in]: participantIds } } }).catch(() => {});
+      await Participant.destroy({ where: { id: { [Op.in]: participantIds } } }).catch(() => {});
+    }
+    await Participant.destroy({ where: { quiz_id: quiz.id } }).catch(() => {});
+    await Violation.destroy({ where: { quiz_id: quiz.id } }).catch(() => {});
+
+    // 4. Delete questions and quiz
+    await Question.destroy({ where: { quiz_id: quiz.id } }).catch(() => {});
     await quiz.destroy();
 
     return res.json({ success: true, message: 'Scheduled Quiz deleted successfully.' });

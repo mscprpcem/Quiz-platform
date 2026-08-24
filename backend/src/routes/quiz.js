@@ -2,9 +2,66 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const ExcelJS = require('exceljs');
-const { Quiz, Question, Participant, QuizAttempt, Answer, Violation, AttemptViolation, ScheduledOccurrence } = require('../models');
+const { Quiz, Question, Participant, QuizAttempt, Answer, Violation, AttemptViolation, AttemptAnswer, ScheduledOccurrence } = require('../models');
 const authMiddleware = require('../middleware/auth');
 const { Op } = require('sequelize');
+
+// Helper: Full Cascade Deletion for any Quiz (Live or Scheduled)
+const deleteQuizWithFullCascade = async (quizId) => {
+  const quiz = await Quiz.findByPk(quizId);
+  if (!quiz) return false;
+
+  // 1. Scheduled Quizzes Data
+  const occurrences = await ScheduledOccurrence.findAll({ where: { quiz_id: quiz.id } }).catch(() => []);
+  const occurrenceIds = occurrences.map(o => o.id);
+
+  const attempts = await QuizAttempt.findAll({
+    where: {
+      [Op.or]: [
+        { quiz_id: quiz.id },
+        ...(occurrenceIds.length > 0 ? [{ occurrence_id: { [Op.in]: occurrenceIds } }] : [])
+      ]
+    }
+  }).catch(() => []);
+  const attemptIds = attempts.map(a => a.id);
+
+  if (attemptIds.length > 0) {
+    await AttemptAnswer.destroy({ where: { attempt_id: { [Op.in]: attemptIds } } }).catch(() => {});
+    await AttemptViolation.destroy({ where: { attempt_id: { [Op.in]: attemptIds } } }).catch(() => {});
+    await QuizAttempt.destroy({ where: { id: { [Op.in]: attemptIds } } }).catch(() => {});
+  }
+  await QuizAttempt.destroy({ where: { quiz_id: quiz.id } }).catch(() => {});
+  if (occurrenceIds.length > 0) {
+    await ScheduledOccurrence.destroy({ where: { id: { [Op.in]: occurrenceIds } } }).catch(() => {});
+  }
+  await ScheduledOccurrence.destroy({ where: { quiz_id: quiz.id } }).catch(() => {});
+
+  // 2. Questions & Answers
+  const questions = await Question.findAll({ where: { quiz_id: quiz.id } }).catch(() => []);
+  const questionIds = questions.map(q => q.id);
+
+  if (questionIds.length > 0) {
+    await Answer.destroy({ where: { question_id: { [Op.in]: questionIds } } }).catch(() => {});
+    await AttemptAnswer.destroy({ where: { question_id: { [Op.in]: questionIds } } }).catch(() => {});
+  }
+
+  // 3. Live Quiz Participants, Answers & Violations
+  const participants = await Participant.findAll({ where: { quiz_id: quiz.id } }).catch(() => []);
+  const participantIds = participants.map(p => p.id);
+
+  if (participantIds.length > 0) {
+    await Answer.destroy({ where: { participant_id: { [Op.in]: participantIds } } }).catch(() => {});
+    await Violation.destroy({ where: { participant_id: { [Op.in]: participantIds } } }).catch(() => {});
+    await Participant.destroy({ where: { id: { [Op.in]: participantIds } } }).catch(() => {});
+  }
+  await Participant.destroy({ where: { quiz_id: quiz.id } }).catch(() => {});
+  await Violation.destroy({ where: { quiz_id: quiz.id } }).catch(() => {});
+
+  // 4. Delete questions and quiz
+  await Question.destroy({ where: { quiz_id: quiz.id } }).catch(() => {});
+  await quiz.destroy();
+  return true;
+};
 
 
 // Multer memory storage configuration for Excel uploads (5 MB max limit)
@@ -306,24 +363,11 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // Delete quiz (Admin)
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
-    const quiz = await Quiz.findByPk(req.params.id);
-    if (!quiz) {
+    const success = await deleteQuizWithFullCascade(req.params.id);
+    if (!success) {
       return res.status(404).json({ error: 'Quiz not found' });
     }
-
-    const participants = await Participant.findAll({ where: { quiz_id: quiz.id } });
-    const participantIds = participants.map(p => p.id);
-
-    if (participantIds.length > 0) {
-      await Answer.destroy({ where: { participant_id: participantIds } });
-      await Violation.destroy({ where: { participant_id: participantIds } });
-      await Participant.destroy({ where: { quiz_id: quiz.id } });
-    }
-
-    await Question.destroy({ where: { quiz_id: quiz.id } });
-    await quiz.destroy();
-
-    return res.json({ success: true, message: 'Quiz deleted successfully' });
+    return res.json({ success: true, message: 'Quiz and all associated sessions deleted successfully' });
   } catch (error) {
     console.error('Delete quiz error:', error);
     return res.status(500).json({ error: 'Server error deleting quiz' });
@@ -439,50 +483,7 @@ router.put('/:id/publish', authMiddleware, async (req, res) => {
   }
 });
 
-// Delete quiz
-router.delete('/:id', authMiddleware, async (req, res) => {
-  try {
-    const quiz = await Quiz.findByPk(req.params.id);
-    if (!quiz) {
-      return res.status(404).json({ error: 'Quiz not found' });
-    }
 
-    // Manually cascade-delete all child records since SQLite doesn't
-    // reliably enforce ON DELETE CASCADE foreign key constraints.
-
-    // 1. Get all question IDs and participant IDs for this quiz
-    const questions = await Question.findAll({ where: { quiz_id: quiz.id }, attributes: ['id'] });
-    const questionIds = questions.map(q => q.id);
-
-    const participants = await Participant.findAll({ where: { quiz_id: quiz.id }, attributes: ['id'] });
-    const participantIds = participants.map(p => p.id);
-
-    // 2. Delete Answers (linked to both questions and participants)
-    if (questionIds.length > 0) {
-      await Answer.destroy({ where: { question_id: questionIds } });
-    }
-    if (participantIds.length > 0) {
-      // Also delete any answers linked by participant_id that weren't caught above
-      await Answer.destroy({ where: { participant_id: participantIds } });
-    }
-
-    // 3. Delete Violations
-    await Violation.destroy({ where: { quiz_id: quiz.id } });
-
-    // 4. Delete Participants
-    await Participant.destroy({ where: { quiz_id: quiz.id } });
-
-    // 5. Delete Questions
-    await Question.destroy({ where: { quiz_id: quiz.id } });
-
-    // 6. Finally delete the Quiz itself
-    await quiz.destroy();
-    return res.json({ message: 'Quiz deleted successfully' });
-  } catch (error) {
-    console.error('Delete quiz error:', error);
-    return res.status(500).json({ error: 'Server error deleting quiz' });
-  }
-});
 
 // ----------------------------------------------------
 // QUESTION ROUTES
@@ -571,6 +572,8 @@ router.delete('/questions/:id', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Question not found' });
     }
 
+    await Answer.destroy({ where: { question_id: existingQuestion.id } }).catch(() => {});
+    await AttemptAnswer.destroy({ where: { question_id: existingQuestion.id } }).catch(() => {});
     await existingQuestion.destroy();
     return res.json({ message: 'Question deleted successfully' });
   } catch (error) {
