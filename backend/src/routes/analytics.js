@@ -2,57 +2,131 @@ const express = require('express');
 const router = express.Router();
 const { 
   Quiz, Question, Participant, Answer, Violation,
-  ScheduledOccurrence, QuizAttempt, AttemptAnswer, AttemptViolation 
+  ScheduledOccurrence, QuizAttempt, AttemptAnswer, AttemptViolation, User 
 } = require('../models');
 const authMiddleware = require('../middleware/auth');
 const { Op } = require('sequelize');
+const { rankLeaderboard, calculateNormalizedScoreAndXP } = require('../services/scoringService');
 
 // Public endpoint for homepage leaderboard & recent events
 router.get('/public/leaderboard', async (req, res) => {
   try {
-    const completedQuizzes = await Quiz.findAll({
+    const userAggregates = new Map();
+
+    // 1. Process Scheduled Quiz Attempts (Completed)
+    const completedAttempts = await QuizAttempt.findAll({
       where: { status: 'completed' },
-      order: [['updatedAt', 'DESC']],
-      limit: 5
+      include: [{ model: AttemptAnswer, as: 'answers' }]
     }).catch(() => []);
 
-    const answers = await Answer.findAll({
-      attributes: ['participant_id', 'points', 'is_correct']
-    }).catch(() => []);
+    for (const att of completedAttempts) {
+      const ssoId = att.sso_user_id ? String(att.sso_user_id).trim() : '';
+      const email = (att.participant_email || '').toLowerCase().trim();
+      const name = att.participant_name ? att.participant_name.trim() : 'Student';
 
-    const participants = await Participant.findAll().catch(() => []);
+      // Only count authenticated / registered students for global persistent leaderboard
+      const isAuth = Boolean(ssoId || (email && email.includes('@')));
+      if (!isAuth) continue;
 
-    const pScores = {};
-    (participants || []).forEach((p) => {
-      pScores[p.id] = {
-        id: p.id,
-        name: p.name,
-        college: p.college || 'PRPCEM',
+      const userKey = ssoId ? `sso:${ssoId}` : `email:${email}`;
+      const existing = userAggregates.get(userKey) || {
+        id: ssoId || att.id,
+        sso_user_id: ssoId || null,
+        name,
+        email,
+        college: 'PRPCEM Amravati',
         score: 0,
-        correctCount: 0
+        correctCount: 0,
+        totalQuestions: 0,
+        quizzesCompleted: 0,
+        totalTimeSeconds: 0,
+        violations: 0,
+        is_authenticated: true
+      };
+
+      existing.score += Math.round(Number(att.score) || 0);
+      existing.correctCount += Number(att.correct_count) || 0;
+      existing.totalQuestions += (Number(att.correct_count) || 0) + (Number(att.incorrect_count) || 0) + (Number(att.unanswered_count) || 0);
+      existing.quizzesCompleted += 1;
+      existing.totalTimeSeconds += Number(att.time_taken_seconds) || 0;
+      userAggregates.set(userKey, existing);
+    }
+
+    // 2. Process Live Quiz Participants
+    const liveParticipants = await Participant.findAll({
+      where: {
+        [Op.or]: [
+          { sso_user_id: { [Op.ne]: null } },
+          { email: { [Op.ne]: null } }
+        ]
+      }
+    }).catch(() => []);
+
+    if (liveParticipants.length > 0) {
+      const pIds = liveParticipants.map(p => p.id);
+      const liveAnswers = await Answer.findAll({
+        where: { participant_id: { [Op.in]: pIds } }
+      }).catch(() => []);
+
+      for (const p of liveParticipants) {
+        const ssoId = p.sso_user_id ? String(p.sso_user_id).trim() : '';
+        const email = (p.email || '').toLowerCase().trim();
+        const isAuth = Boolean(ssoId || (email && email.includes('@')));
+        if (!isAuth) continue;
+
+        const pAnswers = liveAnswers.filter(a => a.participant_id === p.id);
+        const pScore = pAnswers.reduce((sum, a) => sum + (a.points || 0), 0);
+        const pCorrect = pAnswers.filter(a => a.is_correct).length;
+        const pTotalTime = pAnswers.reduce((sum, a) => sum + (a.response_time || 0), 0);
+
+        const userKey = ssoId ? `sso:${ssoId}` : `email:${email}`;
+        const existing = userAggregates.get(userKey) || {
+          id: ssoId || p.id,
+          sso_user_id: ssoId || null,
+          name: p.name || 'Participant',
+          email,
+          college: p.college || 'PRPCEM Amravati',
+          score: 0,
+          correctCount: 0,
+          totalQuestions: 0,
+          quizzesCompleted: 0,
+          totalTimeSeconds: 0,
+          violations: 0,
+          is_authenticated: true
+        };
+
+        if (p.college) existing.college = p.college;
+        existing.score += pScore;
+        existing.correctCount += pCorrect;
+        existing.totalQuestions += pAnswers.length;
+        existing.quizzesCompleted += 1;
+        existing.totalTimeSeconds += Math.round(pTotalTime / 1000);
+        existing.violations += (p.tab_switch_count || 0);
+        userAggregates.set(userKey, existing);
+      }
+    }
+
+    const aggregatedList = Array.from(userAggregates.values()).map(u => {
+      const accuracy = u.totalQuestions > 0 ? Math.round((u.correctCount / u.totalQuestions) * 100) : 100;
+      const { xp } = calculateNormalizedScoreAndXP({ score: u.score, maxScore: Math.max(100, u.score) });
+      return {
+        ...u,
+        accuracy,
+        xp,
+        avgResponseTime: u.quizzesCompleted > 0 ? Math.round(u.totalTimeSeconds / u.quizzesCompleted) : 0
       };
     });
 
-    (answers || []).forEach((a) => {
-      if (pScores[a.participant_id]) {
-        pScores[a.participant_id].score += (a.points || 0);
-        if (a.is_correct) pScores[a.participant_id].correctCount += 1;
-      }
-    });
-
-    let leaderboard = Object.values(pScores)
-      .filter((p) => p.score > 0)
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 10);
+    let leaderboard = rankLeaderboard(aggregatedList, { filterAuthenticatedOnly: true }).slice(0, 10);
 
     // Fallback default community leaders if no live participant scores yet
     if (leaderboard.length === 0) {
       leaderboard = [
-        { id: 'lb-1', name: 'Aarav Sharma', college: 'PRPCEM Amravati', score: 2450, correctCount: 5 },
-        { id: 'lb-2', name: 'Priya Deshmukh', college: 'PRPCEM Amravati', score: 2300, correctCount: 5 },
-        { id: 'lb-3', name: 'Rohan Kulkarni', college: 'PRPCEM Amravati', score: 2150, correctCount: 4 },
-        { id: 'lb-4', name: 'Sneha Patel', college: 'PRPCEM Amravati', score: 1950, correctCount: 4 },
-        { id: 'lb-5', name: 'Aditya Verma', college: 'PRPCEM Amravati', score: 1800, correctCount: 4 }
+        { id: 'lb-1', name: 'Aarav Sharma', college: 'PRPCEM Amravati', score: 2450, correctCount: 24, accuracy: 96, xp: 1150, is_authenticated: true, rank: 1 },
+        { id: 'lb-2', name: 'Priya Deshmukh', college: 'PRPCEM Amravati', score: 2300, correctCount: 22, accuracy: 92, xp: 1020, is_authenticated: true, rank: 2 },
+        { id: 'lb-3', name: 'Rohan Kulkarni', college: 'PRPCEM Amravati', score: 2150, correctCount: 20, accuracy: 88, xp: 950, is_authenticated: true, rank: 3 },
+        { id: 'lb-4', name: 'Sneha Patel', college: 'PRPCEM Amravati', score: 1950, correctCount: 18, accuracy: 85, xp: 870, is_authenticated: true, rank: 4 },
+        { id: 'lb-5', name: 'Aditya Verma', college: 'PRPCEM Amravati', score: 1800, correctCount: 17, accuracy: 82, xp: 810, is_authenticated: true, rank: 5 }
       ];
     }
 

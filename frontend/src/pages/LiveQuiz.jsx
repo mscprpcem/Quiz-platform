@@ -402,6 +402,17 @@ export default function LiveQuiz() {
                       🎯 Final Question
                     </span>
                   )}
+                  {currentQuestion?.difficulty && (
+                    <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+                      currentQuestion.difficulty.toLowerCase().includes('easy')
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : currentQuestion.difficulty.toLowerCase().includes('hard')
+                        ? 'bg-rose-50 text-rose-700 border-rose-200'
+                        : 'bg-amber-50 text-amber-700 border-amber-200'
+                    }`}>
+                      {currentQuestion.difficulty} Level
+                    </span>
+                  )}
                 </div>
                 <h1 className="text-lg font-bold text-brand-textMain">{initialData.title}</h1>
               </div>

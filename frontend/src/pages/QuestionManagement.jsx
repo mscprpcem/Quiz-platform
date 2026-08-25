@@ -67,6 +67,7 @@ export default function QuestionManagement() {
     correct_answer: 'A',
     timer: 30,
     marks: 500,
+    difficulty: 'Intermediate'
   });
 
   const loadQuizDetails = async () => {
@@ -96,10 +97,21 @@ export default function QuestionManagement() {
         correct_answer: q.correct_answer,
         timer: q.timer,
         marks: q.marks,
+        difficulty: q.difficulty || 'Intermediate'
       });
     } else {
       setSelectedQuestion(null);
-      setForm({ question: '', option_a: '', option_b: '', option_c: '', option_d: '', correct_answer: 'A', timer: 30, marks: 500 });
+      setForm({
+        question: '',
+        option_a: '',
+        option_b: '',
+        option_c: '',
+        option_d: '',
+        correct_answer: 'A',
+        timer: 30,
+        marks: 500,
+        difficulty: quiz?.difficulty || 'Intermediate'
+      });
     }
     setFormError('');
     setShowModal(true);
@@ -310,7 +322,16 @@ export default function QuestionManagement() {
                 </span>
                 <span className="flex items-center gap-1">
                   <Award size={12} className="text-brand-blue" />
-                  {q.marks} points
+                  {q.marks} pts
+                </span>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase tracking-wider ${
+                  (q.difficulty || 'Intermediate').toLowerCase().includes('easy')
+                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                    : (q.difficulty || 'Intermediate').toLowerCase().includes('hard')
+                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                    : 'bg-amber-50 text-amber-700 border-amber-200'
+                }`}>
+                  {q.difficulty || 'Medium'}
                 </span>
               </div>
               <div className="flex items-center gap-2">
@@ -468,8 +489,8 @@ export default function QuestionManagement() {
                   </div>
                 </div>
 
-                {/* Correct answer, timer, marks row */}
-                <div className="grid grid-cols-3 gap-3">
+                {/* Correct answer, timer, marks, difficulty row */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="space-y-1.5">
                     <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-widest">
                       Correct Option
@@ -483,6 +504,20 @@ export default function QuestionManagement() {
                       <option value="B">Option B</option>
                       <option value="C">Option C</option>
                       <option value="D">Option D</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-brand-textMuted uppercase tracking-widest">
+                      Difficulty
+                    </label>
+                    <select
+                      value={form.difficulty}
+                      onChange={(e) => setForm((p) => ({ ...p, difficulty: e.target.value }))}
+                      className="w-full px-3 py-2.5 border border-brand-border rounded-xl bg-brand-bgLight/50 text-brand-textMain focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all text-sm font-semibold"
+                    >
+                      <option value="Easy">Easy (1.0x)</option>
+                      <option value="Intermediate">Medium (1.5x)</option>
+                      <option value="Hard">Hard (2.0x)</option>
                     </select>
                   </div>
                   <div className="space-y-1.5">

@@ -1,6 +1,7 @@
-const { Quiz, Question, Participant, Answer, Violation, Event, EventRegistration, sequelize } = require('../models');
+const { Quiz, Question, Participant, Answer, Violation, Event, EventRegistration, User, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const jwt = require('jsonwebtoken');
+const { calculateLiveQuestionScore, rankLeaderboard, getDifficultyConfig } = require('./scoringService');
 require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'msc_quiz_secret_key_2026';
@@ -363,7 +364,7 @@ const initializeSocket = (io) => {
     // ----------------------------------------------------
 
     // Participant joins a quiz room
-    socket.on('join_quiz', async ({ name, college, email, joinCode }) => {
+    socket.on('join_quiz', async ({ name, college, email, joinCode, sso_user_id }) => {
       try {
         // Find active/waiting quiz by join code
         const quiz = await Quiz.findOne({
@@ -459,6 +460,16 @@ const initializeSocket = (io) => {
           }
         }
 
+        // Resolve SSO User ID if student is logged in or exists in DB
+        const cleanEmail = email ? email.trim().toLowerCase() : null;
+        let resolvedSsoId = sso_user_id ? String(sso_user_id).trim() : null;
+        if (!resolvedSsoId && cleanEmail) {
+          const matchedUser = await User.findOne({ where: { email: cleanEmail } }).catch(() => null);
+          if (matchedUser) {
+            resolvedSsoId = matchedUser.id || matchedUser.subject_id;
+          }
+        }
+
         // Add participant to DB (or find existing by email/name in the same quiz)
         let participant = await Participant.findOne({
           where: {
@@ -471,6 +482,7 @@ const initializeSocket = (io) => {
         if (!participant) {
           participant = await Participant.create({
             quiz_id: quiz.id,
+            sso_user_id: resolvedSsoId || null,
             name,
             college,
             email: email || null,
@@ -478,7 +490,10 @@ const initializeSocket = (io) => {
           });
         } else {
           // Re-connecting participant
-          await participant.update({ connection_status: 'connected' });
+          await participant.update({
+            connection_status: 'connected',
+            ...(resolvedSsoId && !participant.sso_user_id ? { sso_user_id: resolvedSsoId } : {})
+          });
         }
 
         // Store information on the socket object
@@ -726,29 +741,15 @@ const initializeSocket = (io) => {
         const question = await Question.findByPk(questionId);
         if (!question) return;
 
-        // Scoring rules
+        // Difficulty & Speed-weighted scoring
         const isCorrect = selectedAnswer === question.correct_answer;
-        let points = 0;
-
-        if (isCorrect) {
-          // Speed Bonus Math
-          // Max Speed Bonus = 30% of base marks
-          const maxSpeedBonus = Math.round(question.marks * 0.3);
-          const responseTimeSeconds = responseTime / 1000;
-          const timeRatio = (question.timer - responseTimeSeconds) / question.timer;
-          const speedBonus = Math.round(maxSpeedBonus * Math.max(0, timeRatio));
-
-          points = question.marks + speedBonus;
-
-          // Deduct points for tab switching / window violations - Disabled for now
-          /*
-          if (participant.tab_switch_count === 2) {
-            points = Math.round(points * 0.8); // 20% points deduction
-          } else if (participant.tab_switch_count >= 3) {
-            points = 0; // Disqualified from points for this question
-          }
-          */
-        }
+        const points = calculateLiveQuestionScore({
+          marks: question.marks,
+          difficulty: question.difficulty,
+          timer: question.timer,
+          responseTimeMs: responseTime,
+          isCorrect
+        });
 
         // Save answer to database
         await Answer.create({
@@ -879,31 +880,29 @@ const getLiveLeaderboard = async (quizId) => {
 
     const leaderboard = participants.map((p) => {
       const pAnswers = answers.filter((a) => a.participant_id === p.id);
-      const score = pAnswers.reduce((sum, a) => sum + a.points, 0);
+      const score = pAnswers.reduce((sum, a) => sum + (a.points || 0), 0);
       const correctAnswers = pAnswers.filter((a) => a.is_correct).length;
-      const totalTime = pAnswers.reduce((sum, a) => sum + a.response_time, 0);
+      const totalTime = pAnswers.reduce((sum, a) => sum + (a.response_time || 0), 0);
       const avgResponseTime = pAnswers.length > 0 ? parseFloat(((totalTime / pAnswers.length) / 1000).toFixed(2)) : 0;
+      const isAuth = Boolean(p.sso_user_id || (p.email && p.email.includes('@')));
 
       return {
         id: p.id,
         name: p.name,
+        email: p.email || '',
         college: p.college,
+        sso_user_id: p.sso_user_id || null,
+        is_authenticated: isAuth,
+        is_guest: !isAuth,
         score,
         correctAnswers,
         avgResponseTime,
-        violations: p.tab_switch_count,
+        violations: p.tab_switch_count || 0,
         connectionStatus: p.connection_status
       };
     });
 
-    // Sort by Score DESC, then CorrectAnswers DESC, then AvgResponseTime ASC
-    leaderboard.sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      if (b.correctAnswers !== a.correctAnswers) return b.correctAnswers - a.correctAnswers;
-      return a.avgResponseTime - b.avgResponseTime;
-    });
-
-    return leaderboard;
+    return rankLeaderboard(leaderboard);
   } catch (err) {
     console.error('getLiveLeaderboard error:', err);
     return [];

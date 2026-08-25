@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
-import { Keyboard, User, School, Mail, ArrowRight, Zap, QrCode, X } from 'lucide-react';
+import { Keyboard, User, School, Mail, ArrowRight, Zap, QrCode, X, CheckCircle2, UserCheck } from 'lucide-react';
 import api from '../services/api';
 import QRScanner from '../components/QRScanner';
+import { useAuth } from '../context/AuthContext';
 import './JoinQuiz.css';
 
 const InputRow = ({ id, name, icon: Icon, label, required, type = 'text', placeholder, value, onChange, className = '' }) => (
@@ -34,17 +35,22 @@ export default function JoinQuiz() {
   const { code } = useParams();
   const navigate = useNavigate();
   const { socket, connectSocket } = useSocket();
+  const { studentAccount, user } = useAuth();
 
   const [formData, setFormData] = useState(() => {
     const saved = localStorage.getItem('msc_saved_form_data');
+    const localStudent = localStorage.getItem('msc_student_account');
+    let parsedStudent = null;
+    try { parsedStudent = localStudent ? JSON.parse(localStudent) : null; } catch(e){}
+
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         return {
           joinCode: code || (parsed.joinCode || ''),
-          name: parsed.name || '',
-          college: parsed.college || '',
-          email: parsed.email || ''
+          name: parsed.name || parsedStudent?.name || '',
+          college: parsed.college || parsedStudent?.college || '',
+          email: parsed.email || parsedStudent?.email || ''
         };
       } catch (e) {
         console.error('Error parsing saved form data:', e);
@@ -52,9 +58,9 @@ export default function JoinQuiz() {
     }
     return {
       joinCode: code || '',
-      name: '',
-      college: '',
-      email: ''
+      name: parsedStudent?.name || '',
+      college: parsedStudent?.college || '',
+      email: parsedStudent?.email || ''
     };
   });
   const [error, setError] = useState('');
@@ -179,9 +185,17 @@ export default function JoinQuiz() {
     // 2. Fallback to Live Quiz Socket Lobby Join
     connectSocket();
 
+    const ssoUserId = studentAccount?.id || studentAccount?.sso_user_id || studentAccount?.subject_id || user?.id || null;
+
     setTimeout(() => {
       if (socket) {
-        socket.emit('join_quiz', { name, college, email, joinCode: cleanCode.toUpperCase() });
+        socket.emit('join_quiz', {
+          name,
+          college,
+          email,
+          joinCode: cleanCode.toUpperCase(),
+          sso_user_id: ssoUserId
+        });
       } else {
         setLoading(false);
         setError('Connection issues. Please try again.');
@@ -212,6 +226,19 @@ export default function JoinQuiz() {
             <p className="text-[13px] text-brand-textMuted">
               Enter your details and the event code to join the lobby.
             </p>
+
+            {/* Auth status indicator */}
+            {studentAccount ? (
+              <div className="mt-2.5 inline-flex items-center space-x-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1 rounded-full text-[11px] font-bold">
+                <CheckCircle2 size={12} className="text-emerald-600" />
+                <span>Verified Student: {studentAccount.name || studentAccount.email}</span>
+              </div>
+            ) : (
+              <div className="mt-2.5 inline-flex items-center space-x-1.5 bg-slate-50 text-slate-600 border border-slate-200 px-3 py-1 rounded-full text-[11px] font-medium">
+                <User size={12} className="text-slate-400" />
+                <span>Joining as Guest</span>
+              </div>
+            )}
           </div>
 
           {error && (

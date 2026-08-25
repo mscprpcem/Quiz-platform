@@ -1,4 +1,9 @@
-const nodemailer = require('nodemailer');
+let nodemailer = null;
+try {
+  nodemailer = require('nodemailer');
+} catch (e) {
+  // nodemailer optional in dev/local test environments
+}
 const crypto = require('crypto');
 require('dotenv').config();
 

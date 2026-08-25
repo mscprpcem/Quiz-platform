@@ -414,7 +414,7 @@ router.post('/', authMiddleware, async (req, res) => {
 // Update quiz details
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
-    const { title, event_id, event_name, subject, description, scheduled_start, scheduled_end, custom_slug, badge_title } = req.body;
+    const { title, event_id, event_name, subject, description, scheduled_start, scheduled_end, custom_slug, badge_title, difficulty } = req.body;
     const quiz = await Quiz.findByPk(req.params.id);
 
     if (!quiz) {
@@ -437,6 +437,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       event_id: event_id !== undefined ? event_id : quiz.event_id,
       event_name: event_name || quiz.event_name,
       subject: subject || quiz.subject,
+      difficulty: difficulty || quiz.difficulty,
       custom_slug: cleanSlug,
       badge_title: badge_title !== undefined ? (badge_title || null) : quiz.badge_title,
       description: description !== undefined ? description : quiz.description,
@@ -492,7 +493,7 @@ router.put('/:id/publish', authMiddleware, async (req, res) => {
 // Add a question manually
 router.post('/:id/questions', authMiddleware, async (req, res) => {
   try {
-    const { question, option_a, option_b, option_c, option_d, correct_answer, timer, marks } = req.body;
+    const { question, option_a, option_b, option_c, option_d, correct_answer, timer, marks, difficulty } = req.body;
     const quiz_id = req.params.id;
 
     const quiz = await Quiz.findByPk(quiz_id);
@@ -522,6 +523,7 @@ router.post('/:id/questions', authMiddleware, async (req, res) => {
       correct_answer,
       timer: timer || 30,
       marks: marks || 500,
+      difficulty: difficulty || quiz.difficulty || 'Intermediate',
       order_index
     });
 
@@ -535,7 +537,7 @@ router.post('/:id/questions', authMiddleware, async (req, res) => {
 // Update a question
 router.put('/questions/:id', authMiddleware, async (req, res) => {
   try {
-    const { question, option_a, option_b, option_c, option_d, correct_answer, timer, marks } = req.body;
+    const { question, option_a, option_b, option_c, option_d, correct_answer, timer, marks, difficulty } = req.body;
     const existingQuestion = await Question.findByPk(req.params.id);
 
     if (!existingQuestion) {
@@ -554,7 +556,8 @@ router.put('/questions/:id', authMiddleware, async (req, res) => {
       option_d: option_d || existingQuestion.option_d,
       correct_answer: correct_answer || existingQuestion.correct_answer,
       timer: timer !== undefined ? timer : existingQuestion.timer,
-      marks: marks !== undefined ? marks : existingQuestion.marks
+      marks: marks !== undefined ? marks : existingQuestion.marks,
+      difficulty: difficulty || existingQuestion.difficulty || 'Intermediate'
     });
 
     return res.json(existingQuestion);

@@ -61,6 +61,11 @@ const Question = sequelize.define('Question', {
   section_description: {
     type: DataTypes.TEXT,
     allowNull: true
+  },
+  difficulty: {
+    type: DataTypes.STRING,
+    defaultValue: 'Intermediate',
+    allowNull: true
   }
 });
 

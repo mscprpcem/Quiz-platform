@@ -43,6 +43,7 @@ async function runAutoMigrations(sequelize) {
     `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}custom_slug${quote} VARCHAR(255);`,
     `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}badge_title${quote} VARCHAR(255);`,
     `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}event_id${quote} UUID;`,
+    `ALTER TABLE ${quote}Quizzes${quote} ADD COLUMN ${ifNotExists}${quote}difficulty${quote} VARCHAR(255) DEFAULT 'Intermediate';`,
 
     // ═══════════════════════════════════════════
     // 2. Questions Table Columns
@@ -50,6 +51,7 @@ async function runAutoMigrations(sequelize) {
     `ALTER TABLE ${quote}Questions${quote} ADD COLUMN ${ifNotExists}${quote}occurrence_number${quote} INTEGER DEFAULT 1;`,
     `ALTER TABLE ${quote}Questions${quote} ADD COLUMN ${ifNotExists}${quote}section_name${quote} VARCHAR(255);`,
     `ALTER TABLE ${quote}Questions${quote} ADD COLUMN ${ifNotExists}${quote}section_description${quote} TEXT;`,
+    `ALTER TABLE ${quote}Questions${quote} ADD COLUMN ${ifNotExists}${quote}difficulty${quote} VARCHAR(255) DEFAULT 'Intermediate';`,
 
     // ═══════════════════════════════════════════
     // 3. Users Table Columns

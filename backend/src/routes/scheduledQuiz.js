@@ -7,6 +7,7 @@ const authMiddleware = require('../middleware/auth');
 const { Op } = require('sequelize');
 const sequelize = require('../config/database');
 const { sendQuizReminderEmail } = require('../services/emailService');
+const { calculateScheduledQuestionScore, calculateNormalizedScoreAndXP, rankLeaderboard, getDifficultyConfig } = require('../services/scoringService');
 
 // Helper: Sanitize Quiz object for public endpoints to prevent answer leaks
 const sanitizeQuizForPublic = (quiz) => {
@@ -185,7 +186,7 @@ async function checkStudentEventRegistration(quiz, cleanEmail, cleanName) {
  * 3. Correct answers count (DESC)
  * 4. Submission time (ASC)
  */
-function getLatestAttemptsLeaderboard(attempts) {
+function getLatestAttemptsLeaderboard(attempts, options = {}) {
   if (!Array.isArray(attempts) || attempts.length === 0) return [];
 
   const latestByUser = new Map();
@@ -216,33 +217,20 @@ function getLatestAttemptsLeaderboard(attempts) {
     }
   }
 
-  const latestList = Array.from(latestByUser.values());
-
-  // Rank by Score (DESC), Speed / Time Taken (ASC), Correct Count (DESC), Submission Time (ASC)
-  latestList.sort((a, b) => {
-    const scoreA = Number(a.score) || 0;
-    const scoreB = Number(b.score) || 0;
-    if (scoreB !== scoreA) return scoreB - scoreA;
-
-    const timeA = Number(a.time_taken_seconds) || 0;
-    const timeB = Number(b.time_taken_seconds) || 0;
-    if (timeA !== timeB) return timeA - timeB;
-
-    const correctA = Number(a.correct_count) || 0;
-    const correctB = Number(b.correct_count) || 0;
-    if (correctB !== correctA) return correctB - correctA;
-
-    const subA = a.submitted_at ? new Date(a.submitted_at).getTime() : (a.createdAt ? new Date(a.createdAt).getTime() : 0);
-    const subB = b.submitted_at ? new Date(b.submitted_at).getTime() : (b.createdAt ? new Date(b.createdAt).getTime() : 0);
-    return subA - subB;
+  const latestList = Array.from(latestByUser.values()).map(att => {
+    const isAuth = Boolean(att.sso_user_id || (att.participant_email && att.participant_email.includes('@')));
+    return {
+      ...att,
+      email: att.participant_email || att.email || '',
+      name: att.participant_name || att.name || 'Participant',
+      is_authenticated: isAuth,
+      is_guest: !isAuth,
+      correctAnswers: att.correct_count || 0,
+      violations: att.violation_count || att.violationsCount || 0
+    };
   });
 
-  return latestList.map((att, idx) => ({
-    ...att,
-    email: att.participant_email || att.email || '',
-    name: att.participant_name || att.name || 'Participant',
-    rank: idx + 1
-  }));
+  return rankLeaderboard(latestList, options);
 }
 
 // Helper: Resolve occurrence by UUID, Quiz Join Code, Quiz UUID, or Title Slug
@@ -1622,14 +1610,23 @@ router.post('/attempts/:attemptId/submit', async (req, res) => {
     let incorrectCount = 0;
 
     questions.forEach(q => {
+      const qDifficulty = q.difficulty || quiz.difficulty || 'Intermediate';
       const ans = answers.find(a => a.question_id === q.id);
       if (ans) {
         if (ans.is_correct) {
           correctCount++;
-          totalScore += quiz.positive_marks || 1;
+          totalScore += calculateScheduledQuestionScore({
+            positiveMarks: quiz.positive_marks,
+            difficulty: qDifficulty,
+            isCorrect: true
+          });
         } else {
           incorrectCount++;
-          totalScore -= quiz.negative_marks || 0;
+          totalScore += calculateScheduledQuestionScore({
+            negativeMarks: quiz.negative_marks,
+            difficulty: qDifficulty,
+            isCorrect: false
+          });
         }
       }
     });

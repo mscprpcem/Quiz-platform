@@ -137,6 +137,15 @@ export default function Top10Leaderboard({ leaderboard = [], currentParticipantI
                       <span className="font-extrabold text-xs sm:text-sm text-brand-textMain truncate">
                         {player.name}
                       </span>
+                      {player.is_authenticated ? (
+                        <span className="inline-flex items-center text-[8px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded" title="Verified Student (Eligible for Global Leaderboard)">
+                          ✓ Verified
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center text-[8px] font-medium text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded" title="Guest Player">
+                          Guest
+                        </span>
+                      )}
                       {isCurrentPlayer && (
                         <span className="text-[9px] font-black uppercase tracking-wider bg-brand-blue text-white px-2 py-0.5 rounded">
                           You
