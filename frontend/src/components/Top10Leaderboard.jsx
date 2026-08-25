@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, TrendingUp, TrendingDown, Minus, Sparkles, Award } from 'lucide-react';
+import { Trophy, TrendingUp, TrendingDown, Minus, Sparkles, Award, Info, X, Zap, CheckCircle2, Clock } from 'lucide-react';
 
 export default function Top10Leaderboard({ leaderboard = [], currentParticipantId = null, title = "Top 10 Live Standings" }) {
   const [rankedList, setRankedList] = useState([]);
+  const [showMatrixModal, setShowMatrixModal] = useState(false);
   const prevRanksRef = useRef({});
 
   useEffect(() => {
@@ -40,22 +41,18 @@ export default function Top10Leaderboard({ leaderboard = [], currentParticipantI
     setRankedList(listWithDeltas);
   }, [leaderboard]);
 
-  if (rankedList.length === 0) {
+  if (!leaderboard || leaderboard.length === 0) {
     return (
-      <div className="bg-white border border-brand-border rounded-2xl p-8 text-center space-y-3 shadow-soft">
-        <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-xl flex items-center justify-center mx-auto border border-purple-100 shadow-sm">
-          <Trophy size={24} />
-        </div>
-        <h3 className="text-base font-extrabold text-brand-textMain">{title}</h3>
-        <p className="text-xs text-brand-textMuted max-w-sm mx-auto">
-          Standings will appear dynamically as answers are evaluated after each question.
-        </p>
+      <div className="bg-white border border-brand-border rounded-2xl p-8 text-center space-y-3 shadow-soft animate-fade-in">
+        <Trophy size={36} className="mx-auto text-amber-500/40 animate-pulse" />
+        <h3 className="font-bold text-sm text-brand-textMain">Standings will appear after Question 1</h3>
+        <p className="text-xs text-brand-textMuted">Answer quickly to secure a top spot on the podium!</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white border border-brand-border rounded-2xl p-5 sm:p-7 shadow-soft space-y-5 animate-fade-in text-left">
+    <div className="bg-white border border-brand-border rounded-2xl p-5 sm:p-7 shadow-soft space-y-5 animate-fade-in text-left relative">
       {/* Header */}
       <div className="flex justify-between items-center border-b border-brand-border pb-4">
         <div className="flex items-center space-x-2.5">
@@ -63,13 +60,34 @@ export default function Top10Leaderboard({ leaderboard = [], currentParticipantI
             <Trophy size={20} />
           </div>
           <div>
-            <h3 className="text-base sm:text-lg font-black text-brand-textMain tracking-tight leading-none">{title}</h3>
+            <div className="flex items-center gap-1.5">
+              <h3 className="text-base sm:text-lg font-black text-brand-textMain tracking-tight leading-none">{title}</h3>
+              <button
+                type="button"
+                onClick={() => setShowMatrixModal(true)}
+                className="w-6 h-6 rounded-full bg-brand-lightBlue hover:bg-brand-blue hover:text-white text-brand-blue flex items-center justify-center transition-all shadow-xs border border-brand-blue/20 cursor-pointer"
+                title="View Scoring Matrix & Multipliers"
+                aria-label="View Scoring Matrix & Multipliers"
+              >
+                <Info size={13} />
+              </button>
+            </div>
             <p className="text-[11px] font-semibold text-brand-textMuted mt-1">Live ranking after latest question</p>
           </div>
         </div>
-        <span className="text-[10px] font-black uppercase tracking-wider bg-brand-lightBlue text-brand-blue border border-brand-blue/15 px-3 py-1 rounded-full">
-          {rankedList.length} Performers
-        </span>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setShowMatrixModal(true)}
+            className="hidden sm:inline-flex items-center gap-1 text-[10px] font-extrabold text-brand-blue bg-white hover:bg-slate-50 border border-brand-border px-2.5 py-1 rounded-full cursor-pointer transition-all"
+          >
+            <Info size={11} />
+            <span>Rules Matrix</span>
+          </button>
+          <span className="text-[10px] font-black uppercase tracking-wider bg-brand-lightBlue text-brand-blue border border-brand-blue/15 px-3 py-1 rounded-full">
+            {rankedList.length} Performers
+          </span>
+        </div>
       </div>
 
       {/* Top 10 List with FLIP Shuffle Animations via Framer Motion */}
@@ -211,6 +229,86 @@ export default function Top10Leaderboard({ leaderboard = [], currentParticipantI
           })}
         </AnimatePresence>
       </motion.div>
+
+      {/* ── LIVE SCORING & DIFFICULTY MATRIX MODAL ── */}
+      {showMatrixModal && (
+        <div 
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in text-left"
+          onClick={() => setShowMatrixModal(false)}
+        >
+          <div 
+            className="max-w-lg w-full bg-white rounded-3xl shadow-2xl border border-zinc-100 overflow-hidden animate-scale-up"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="bg-gradient-to-r from-brand-blue to-indigo-700 px-5 py-4 text-white flex items-center justify-between">
+              <div className="flex items-center space-x-2.5">
+                <Trophy size={18} className="text-amber-300" />
+                <h4 className="font-extrabold text-sm tracking-tight">Live Quiz Scoring Matrix</h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowMatrixModal(false)}
+                className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X size={15} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs">
+              <div className="space-y-2">
+                <p className="font-black text-brand-textMain uppercase tracking-wider text-[10px]">Difficulty Multipliers</p>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-emerald-50 border border-emerald-200 p-2.5 rounded-xl">
+                    <span className="font-bold text-emerald-800">Easy</span>
+                    <p className="font-extrabold text-emerald-950 text-sm mt-0.5">1.0x</p>
+                    <p className="text-[10px] text-emerald-700">+20% Speed</p>
+                  </div>
+                  <div className="bg-amber-50 border border-amber-200 p-2.5 rounded-xl">
+                    <span className="font-bold text-amber-800">Medium</span>
+                    <p className="font-extrabold text-amber-950 text-sm mt-0.5">1.5x</p>
+                    <p className="text-[10px] text-amber-700">+30% Speed</p>
+                  </div>
+                  <div className="bg-rose-50 border border-rose-200 p-2.5 rounded-xl">
+                    <span className="font-bold text-rose-800">Hard</span>
+                    <p className="font-extrabold text-rose-950 text-sm mt-0.5">2.0x</p>
+                    <p className="text-[10px] text-rose-700">+40% Speed</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl space-y-1.5 text-slate-700">
+                <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                  <Zap size={13} className="text-brand-blue" />
+                  <span>Dynamic Speed Bonus Formula</span>
+                </div>
+                <p className="text-[11px] leading-relaxed">
+                  Score = (Base Marks × Multiplier) + Speed Bonus. Faster answers award up to 40% additional bonus points based on the countdown clock.
+                </p>
+              </div>
+
+              <div className="bg-blue-50/70 border border-blue-100 p-3 rounded-xl space-y-1 text-slate-700">
+                <div className="flex items-center gap-1.5 font-bold text-blue-900">
+                  <CheckCircle2 size={13} className="text-blue-600" />
+                  <span>Verified Student vs. Guest</span>
+                </div>
+                <p className="text-[11px] leading-relaxed">
+                  Guest players can play and place on the live in-room podium. Only verified student accounts persist permanently on the Global Leaderboard.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-zinc-50 border-t border-zinc-100 p-3 px-5 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowMatrixModal(false)}
+                className="px-4 py-1.5 rounded-xl bg-brand-blue hover:bg-brand-dark text-white font-bold text-xs transition-all cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
