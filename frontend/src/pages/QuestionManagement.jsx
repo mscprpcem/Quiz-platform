@@ -385,7 +385,6 @@ export default function QuestionManagement() {
                   </button>
                 </div>
               </div>
-              </div>
 
               {/* Question body */}
               <div className="px-5 py-4 space-y-3">
