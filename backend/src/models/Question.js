@@ -25,15 +25,20 @@ const Question = sequelize.define('Question', {
   },
   option_c: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: true
   },
   option_d: {
     type: DataTypes.STRING,
-    allowNull: false
+    allowNull: true
   },
   correct_answer: {
-    type: DataTypes.ENUM('A', 'B', 'C', 'D'),
+    type: DataTypes.STRING,
     allowNull: false
+  },
+  question_type: {
+    type: DataTypes.STRING,
+    defaultValue: 'single',
+    allowNull: true
   },
   timer: {
     type: DataTypes.INTEGER,

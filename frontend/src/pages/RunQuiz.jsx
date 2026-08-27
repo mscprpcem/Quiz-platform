@@ -4,6 +4,7 @@ import api from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import Top10Leaderboard from '../components/Top10Leaderboard';
 import { QRCodeSVG } from 'qrcode.react';
+import { normalizeSelection } from '../utils/fullscreen';
 import {
   Play,
   Pause,
@@ -951,14 +952,36 @@ export default function RunQuiz() {
 
               {currentQuestionIndex >= 0 && activeQuiz.questions[currentQuestionIndex] ? (
                 <div className="py-4 space-y-4 flex-grow flex flex-col justify-between z-10">
-                  <p className="font-extrabold text-sm text-slate-100 leading-snug">
-                    {activeQuiz.questions[currentQuestionIndex].question}
-                  </p>
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between text-[10px] font-black text-slate-400">
+                      <span>SLIDE PREVIEW</span>
+                      {activeQuiz.questions[currentQuestionIndex].question_type === 'true_false' ? (
+                        <span className="text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800">True / False</span>
+                      ) : normalizeSelection(activeQuiz.questions[currentQuestionIndex].correct_answer).includes(',') ? (
+                        <span className="text-purple-400 bg-purple-950/60 px-2 py-0.5 rounded border border-purple-800">Multi-Choice</span>
+                      ) : (
+                        <span className="text-blue-400 bg-blue-950/60 px-2 py-0.5 rounded border border-blue-800">Single Choice</span>
+                      )}
+                    </div>
+                    <p className="font-extrabold text-sm text-slate-100 leading-snug">
+                      {activeQuiz.questions[currentQuestionIndex].question}
+                    </p>
+                  </div>
                   
                   <div className="grid grid-cols-1 gap-2.5 text-xs">
-                    {['a', 'b', 'c', 'd'].map((opt) => {
-                      const isCorrect = activeQuiz.questions[currentQuestionIndex].correct_answer === opt;
-                      const labelText = activeQuiz.questions[currentQuestionIndex][`option_${opt}`];
+                    {['a', 'b', 'c', 'd'].filter(opt => {
+                      if (activeQuiz.questions[currentQuestionIndex].question_type === 'true_false') {
+                        return opt === 'a' || opt === 'b';
+                      }
+                      return Boolean(activeQuiz.questions[currentQuestionIndex][`option_${opt}`]);
+                    }).map((opt) => {
+                      const optUpper = opt.toUpperCase();
+                      const correctKeys = normalizeSelection(activeQuiz.questions[currentQuestionIndex].correct_answer).split(',').filter(Boolean);
+                      const isCorrect = correctKeys.includes(optUpper);
+                      const labelText = activeQuiz.questions[currentQuestionIndex].question_type === 'true_false'
+                        ? (optUpper === 'A' ? 'True' : 'False')
+                        : activeQuiz.questions[currentQuestionIndex][`option_${opt}`];
+
                       return (
                         <div
                           key={opt}
@@ -968,7 +991,7 @@ export default function RunQuiz() {
                               : 'border-slate-800 bg-slate-850 text-slate-400'
                           }`}
                         >
-                          <span className="font-semibold">{opt.toUpperCase()}: {labelText}</span>
+                          <span className="font-semibold">{optUpper}: {labelText}</span>
                           {isCorrect && <CheckCircle2 size={12} className="text-emerald-400 flex-shrink-0" />}
                         </div>
                       );
@@ -977,7 +1000,12 @@ export default function RunQuiz() {
 
                   <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 p-2.5 rounded-xl text-[10px] font-extrabold flex justify-between items-center">
                     <span>Correct Answer:</span>
-                    <span className="bg-emerald-500/25 px-2 py-0.5 rounded text-white font-black uppercase">Option {activeQuiz.questions[currentQuestionIndex].correct_answer}</span>
+                    <span className="bg-emerald-500/25 px-2 py-0.5 rounded text-white font-black uppercase">
+                      {activeQuiz.questions[currentQuestionIndex].question_type === 'true_false' 
+                        ? (activeQuiz.questions[currentQuestionIndex].correct_answer === 'A' ? 'True (A)' : 'False (B)')
+                        : `Option ${normalizeSelection(activeQuiz.questions[currentQuestionIndex].correct_answer)}`
+                      }
+                    </span>
                   </div>
                 </div>
               ) : (

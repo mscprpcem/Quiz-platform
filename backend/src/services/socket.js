@@ -2,6 +2,7 @@ const { Quiz, Question, Participant, Answer, Violation, Event, EventRegistration
 const { Op } = require('sequelize');
 const jwt = require('jsonwebtoken');
 const { calculateLiveQuestionScore, rankLeaderboard, getDifficultyConfig } = require('./scoringService');
+const { normalizeAnswers, isAnswerCorrect, determineQuestionType } = require('../utils/answerUtils');
 require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'msc_quiz_secret_key_2026';
@@ -161,6 +162,7 @@ const initializeSocket = (io) => {
         };
 
         const totalQuestions = await Question.count({ where: { quiz_id: quizId } });
+        const qType = question.question_type || determineQuestionType(question);
 
         // Broadcast question to participants (do NOT send correct_answer!)
         io.to(`quiz_${quizId}`).emit('question_released', {
@@ -171,6 +173,8 @@ const initializeSocket = (io) => {
           option_b: question.option_b,
           option_c: question.option_c,
           option_d: question.option_d,
+          question_type: qType,
+          multiple_correct: qType === 'multiple',
           timer: question.timer,
           marks: question.marks,
           totalQuestions
@@ -741,8 +745,9 @@ const initializeSocket = (io) => {
         const question = await Question.findByPk(questionId);
         if (!question) return;
 
-        // Difficulty & Speed-weighted scoring
-        const isCorrect = selectedAnswer === question.correct_answer;
+        // Difficulty & Speed-weighted scoring with Multi-Choice & True/False normalization
+        const normSelected = normalizeAnswers(selectedAnswer);
+        const isCorrect = isAnswerCorrect(selectedAnswer, question.correct_answer);
         const points = calculateLiveQuestionScore({
           marks: question.marks,
           difficulty: question.difficulty,
@@ -755,7 +760,7 @@ const initializeSocket = (io) => {
         await Answer.create({
           participant_id: participantId,
           question_id: questionId,
-          selected_answer: selectedAnswer,
+          selected_answer: normSelected,
           response_time: responseTime,
           is_correct: isCorrect,
           points

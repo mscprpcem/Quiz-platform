@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
 import FullscreenHandler from '../components/FullscreenHandler';
+import { normalizeSelection, toggleOptionInSelection } from '../utils/fullscreen';
 import Top10Leaderboard from '../components/Top10Leaderboard';
 import { Clock, ShieldAlert, Award, ArrowRight } from 'lucide-react';
 import './LiveQuiz.css';
@@ -309,6 +310,14 @@ export default function LiveQuiz() {
   const handleSelectOption = (optionKey) => {
     if (submitted || timer === 0 || isPaused || disqualified) return;
 
+    const isMulti = currentQuestion?.question_type === 'multiple' || currentQuestion?.multiple_correct;
+    if (isMulti) {
+      const current = selectedOption || '';
+      const updated = toggleOptionInSelection(current, optionKey);
+      setSelectedOption(updated);
+      return;
+    }
+
     setSelectedOption(optionKey);
     setSubmitted(true);
 
@@ -325,6 +334,28 @@ export default function LiveQuiz() {
       const pendingAnswer = {
         questionId: currentQuestion.questionId,
         selectedAnswer: optionKey,
+        responseTime: responseTimeMs
+      };
+      localStorage.setItem('msc_pending_answer', JSON.stringify(pendingAnswer));
+    }
+  };
+
+  const handleConfirmMultiSubmit = () => {
+    if (submitted || timer === 0 || isPaused || disqualified || !selectedOption) return;
+
+    setSubmitted(true);
+    const responseTimeMs = Math.round(performance.now() - questionStartTimeRef.current);
+
+    if (socket && socket.connected) {
+      socket.emit('submit_answer', {
+        questionId: currentQuestion.questionId,
+        selectedAnswer: selectedOption,
+        responseTime: responseTimeMs
+      });
+    } else {
+      const pendingAnswer = {
+        questionId: currentQuestion.questionId,
+        selectedAnswer: selectedOption,
         responseTime: responseTimeMs
       };
       localStorage.setItem('msc_pending_answer', JSON.stringify(pendingAnswer));
@@ -571,42 +602,110 @@ export default function LiveQuiz() {
                 </div>
 
                 {/* Options list */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
-                  {[
-                    { key: 'A', text: currentQuestion.option_a },
-                    { key: 'B', text: currentQuestion.option_b },
-                    { key: 'C', text: currentQuestion.option_c },
-                    { key: 'D', text: currentQuestion.option_d }
-                  ].map((option) => {
-                    const isSelected = selectedOption === option.key;
-                    const canSelect = !submitted && timer > 0 && !isPaused;
+                {currentQuestion.question_type === 'true_false' ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                    {[
+                      { key: 'A', text: 'True', sub: 'This statement is true', color: 'emerald' },
+                      { key: 'B', text: 'False', sub: 'This statement is false', color: 'rose' }
+                    ].map((opt) => {
+                      const isSelected = selectedOption === opt.key;
+                      const canSelect = !submitted && timer > 0 && !isPaused;
 
-                    return (
+                      return (
+                        <button
+                          key={opt.key}
+                          onClick={() => handleSelectOption(opt.key)}
+                          disabled={!canSelect}
+                          className={`w-full text-left p-4 sm:p-5 rounded-2xl border transition-all relative flex items-center justify-between cursor-pointer ${
+                            isSelected
+                              ? (opt.color === 'emerald' ? 'bg-emerald-50 border-emerald-500 text-emerald-950 ring-2 ring-emerald-500/20 shadow-sm' : 'bg-rose-50 border-rose-500 text-rose-950 ring-2 ring-rose-500/20 shadow-sm')
+                              : canSelect
+                              ? 'bg-white border-brand-border hover:bg-brand-bgLight'
+                              : 'bg-brand-bgLight border-brand-border text-brand-textMuted cursor-not-allowed'
+                          }`}
+                        >
+                          <div className="flex items-center space-x-3.5">
+                            <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs ${
+                              isSelected ? (opt.color === 'emerald' ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white') : 'bg-slate-100 text-slate-700'
+                            }`}>
+                              {opt.key}
+                            </div>
+                            <div>
+                              <div className="font-extrabold text-base sm:text-lg">{opt.text}</div>
+                              <div className="text-xs text-slate-500 font-medium">{opt.sub}</div>
+                            </div>
+                          </div>
+                          {isSelected && <CheckCircle className={opt.color === 'emerald' ? 'text-emerald-600' : 'text-rose-600'} size={22} />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {Boolean(currentQuestion.question_type === 'multiple' || currentQuestion.multiple_correct) && (
+                      <div className="bg-purple-50 border border-purple-200 text-purple-800 text-xs font-bold px-4 py-2 rounded-xl flex items-center justify-between">
+                        <span>☑ Multiple Choice: Select all options that apply, then click Submit below.</span>
+                        {selectedOption && (
+                          <span className="bg-purple-600 text-white text-[10px] px-2 py-0.5 rounded-full font-black">
+                            Selected: {normalizeSelection(selectedOption)}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4">
+                      {[
+                        { key: 'A', text: currentQuestion.option_a },
+                        { key: 'B', text: currentQuestion.option_b },
+                        { key: 'C', text: currentQuestion.option_c },
+                        { key: 'D', text: currentQuestion.option_d }
+                      ].filter(opt => opt.text).map((option) => {
+                        const isMulti = currentQuestion.question_type === 'multiple' || currentQuestion.multiple_correct;
+                        const selectedKeys = normalizeSelection(selectedOption).split(',').filter(Boolean);
+                        const isSelected = isMulti ? selectedKeys.includes(option.key) : selectedOption === option.key;
+                        const canSelect = !submitted && timer > 0 && !isPaused;
+
+                        return (
+                          <button
+                            key={option.key}
+                            onClick={() => handleSelectOption(option.key)}
+                            disabled={!canSelect}
+                            className={`w-full text-left p-3.5 sm:p-5 rounded-xl border transition-all relative flex items-center justify-between space-x-3 sm:space-x-4 cursor-pointer ${
+                              isSelected
+                                ? (isMulti ? 'bg-purple-50 border-purple-500 text-purple-950 ring-2 ring-purple-500/20' : 'bg-brand-lightBlue border-brand-blue text-brand-dark ring-2 ring-brand-blue/20')
+                                : canSelect
+                                ? 'bg-white border-brand-border hover:border-brand-blue/50 hover:bg-brand-bgLight'
+                                : 'bg-brand-bgLight border-brand-border text-brand-textMuted cursor-not-allowed'
+                            }`}
+                          >
+                            <div className="flex items-center space-x-3 min-w-0 flex-1">
+                              <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+                                isSelected
+                                  ? (isMulti ? 'bg-purple-600 text-white' : 'bg-brand-blue text-white')
+                                  : 'bg-brand-lightBlue text-brand-textMain'
+                              }`}>
+                                {option.key}
+                              </div>
+                              <span className="font-semibold text-sm sm:text-base break-words">{option.text}</span>
+                            </div>
+                            {isSelected && <CheckCircle className={isMulti ? 'text-purple-600 shrink-0' : 'text-brand-blue shrink-0'} size={20} />}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {Boolean(currentQuestion.question_type === 'multiple' || currentQuestion.multiple_correct) && !submitted && timer > 0 && (
                       <button
-                        key={option.key}
-                        onClick={() => handleSelectOption(option.key)}
-                        disabled={!canSelect}
-                        className={`w-full text-left p-3.5 sm:p-5 rounded-xl border transition-all relative flex items-center space-x-3 sm:space-x-4 ${
-                          isSelected
-                            ? 'bg-brand-lightBlue border-brand-blue text-brand-dark ring-2 ring-brand-blue/20'
-                            : canSelect
-                            ? 'bg-white border-brand-border hover:border-brand-blue/50 hover:bg-brand-bgLight'
-                            : 'bg-brand-bgLight border-brand-border text-brand-textMuted cursor-not-allowed'
-                        }`}
+                        type="button"
+                        onClick={handleConfirmMultiSubmit}
+                        disabled={!selectedOption}
+                        className="w-full py-3.5 bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white font-extrabold rounded-xl text-sm shadow-md cursor-pointer transition-all active:scale-98"
                       >
-                        {/* Option tag circle */}
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 ${
-                          isSelected
-                            ? 'bg-brand-blue text-white'
-                            : 'bg-brand-lightBlue text-brand-textMain'
-                        }`}>
-                          {option.key}
-                        </div>
-                        <span className="font-semibold text-sm sm:text-lg">{option.text}</span>
+                        Submit Selected Answers ({normalizeSelection(selectedOption) || 'None'})
                       </button>
-                    );
-                  })}
-                </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Submission State Info overlay */}
                 {submitted && timer > 0 && (

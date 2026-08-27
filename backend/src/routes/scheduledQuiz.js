@@ -8,6 +8,7 @@ const { Op } = require('sequelize');
 const sequelize = require('../config/database');
 const { sendQuizReminderEmail } = require('../services/emailService');
 const { calculateScheduledQuestionScore, calculateNormalizedScoreAndXP, rankLeaderboard, getDifficultyConfig } = require('../services/scoringService');
+const { normalizeAnswers, isAnswerCorrect, determineQuestionType } = require('../utils/answerUtils');
 
 // Helper: Sanitize Quiz object for public endpoints to prevent answer leaks
 const sanitizeQuizForPublic = (quiz) => {
@@ -17,6 +18,9 @@ const sanitizeQuizForPublic = (quiz) => {
   if (Array.isArray(json.questions)) {
     json.questions = json.questions.map(q => {
       const qJson = q.toJSON ? q.toJSON() : { ...q };
+      const qType = determineQuestionType(qJson);
+      qJson.question_type = qType;
+      qJson.multiple_correct = qType === 'multiple';
       delete qJson.correct_answer;
       return qJson;
     });
@@ -624,21 +628,26 @@ router.post('/', authMiddleware, async (req, res) => {
 
     // Create Questions if provided
     if (Array.isArray(questions) && questions.length > 0) {
-      const qRecords = questions.map((q, idx) => ({
-        quiz_id: quiz.id,
-        question: q.question,
-        option_a: q.option_a,
-        option_b: q.option_b,
-        option_c: q.option_c,
-        option_d: q.option_d,
-        correct_answer: q.correct_answer || 'A',
-        timer: quiz.time_limit * 60,
-        marks: quiz.positive_marks,
-        order_index: q.order_index || idx + 1,
-        occurrence_number: q.occurrence_number !== undefined ? q.occurrence_number : (q.section_number || 1),
-        section_name: q.section_name || null,
-        section_description: q.section_description || null
-      }));
+      const qRecords = questions.map((q, idx) => {
+        const normCorrect = normalizeAnswers(q.correct_answer) || 'A';
+        const qType = q.question_type || determineQuestionType({ ...q, correct_answer: normCorrect });
+        return {
+          quiz_id: quiz.id,
+          question: q.question,
+          option_a: q.option_a || 'True',
+          option_b: q.option_b || 'False',
+          option_c: qType === 'true_false' ? null : (q.option_c || ''),
+          option_d: qType === 'true_false' ? null : (q.option_d || ''),
+          correct_answer: normCorrect,
+          question_type: qType,
+          timer: quiz.time_limit * 60,
+          marks: quiz.positive_marks,
+          order_index: q.order_index || idx + 1,
+          occurrence_number: q.occurrence_number !== undefined ? q.occurrence_number : (q.section_number || 1),
+          section_name: q.section_name || null,
+          section_description: q.section_description || null
+        };
+      });
       await Question.bulkCreate(qRecords);
     }
 
@@ -929,21 +938,26 @@ router.put('/:id', authMiddleware, async (req, res) => {
     // Sync Questions if array provided
     if (Array.isArray(questions)) {
       await Question.destroy({ where: { quiz_id: quiz.id } });
-      const qRecords = questions.map((q, idx) => ({
-        quiz_id: quiz.id,
-        question: q.question,
-        option_a: q.option_a,
-        option_b: q.option_b,
-        option_c: q.option_c,
-        option_d: q.option_d,
-        correct_answer: q.correct_answer || 'A',
-        timer: (time_limit || quiz.time_limit || 30) * 60,
-        marks: positive_marks || quiz.positive_marks || 1,
-        order_index: q.order_index || idx + 1,
-        occurrence_number: q.occurrence_number !== undefined ? q.occurrence_number : (q.section_number || 1),
-        section_name: q.section_name || null,
-        section_description: q.section_description || null
-      }));
+      const qRecords = questions.map((q, idx) => {
+        const normCorrect = normalizeAnswers(q.correct_answer) || 'A';
+        const qType = q.question_type || determineQuestionType({ ...q, correct_answer: normCorrect });
+        return {
+          quiz_id: quiz.id,
+          question: q.question,
+          option_a: q.option_a || 'True',
+          option_b: q.option_b || 'False',
+          option_c: qType === 'true_false' ? null : (q.option_c || ''),
+          option_d: qType === 'true_false' ? null : (q.option_d || ''),
+          correct_answer: normCorrect,
+          question_type: qType,
+          timer: (time_limit || quiz.time_limit || 30) * 60,
+          marks: positive_marks || quiz.positive_marks || 1,
+          order_index: q.order_index || idx + 1,
+          occurrence_number: q.occurrence_number !== undefined ? q.occurrence_number : (q.section_number || 1),
+          section_name: q.section_name || null,
+          section_description: q.section_description || null
+        };
+      });
       await Question.bulkCreate(qRecords);
     }
 
@@ -1455,13 +1469,17 @@ router.post('/occurrences/:occurrenceId/start', async (req, res) => {
     // Option Shuffling map per question
     const optionOrders = {};
     questions.forEach(q => {
+      const qType = q.question_type || determineQuestionType(q);
       let opts = [
-        { key: 'A', text: q.option_a },
-        { key: 'B', text: q.option_b },
-        { key: 'C', text: q.option_c },
-        { key: 'D', text: q.option_d }
+        { key: 'A', text: q.option_a || (qType === 'true_false' ? 'True' : 'Option A') },
+        { key: 'B', text: q.option_b || (qType === 'true_false' ? 'False' : 'Option B') }
       ];
-      if (targetQuiz.shuffle_answers) {
+      if (qType !== 'true_false') {
+        if (q.option_c) opts.push({ key: 'C', text: q.option_c });
+        if (q.option_d) opts.push({ key: 'D', text: q.option_d });
+      }
+
+      if (targetQuiz.shuffle_answers && qType !== 'true_false') {
         opts = shuffleArray(opts);
       }
       optionOrders[q.id] = opts;
@@ -1486,12 +1504,17 @@ router.post('/occurrences/:occurrenceId/start', async (req, res) => {
     });
 
     // Strip correct answers from public questions returned to client
-    const safeQuestions = questions.map(q => ({
-      id: q.id,
-      question: q.question,
-      options: optionOrders[q.id],
-      marks: q.marks
-    }));
+    const safeQuestions = questions.map(q => {
+      const qType = q.question_type || determineQuestionType(q);
+      return {
+        id: q.id,
+        question: q.question,
+        options: optionOrders[q.id],
+        marks: q.marks,
+        question_type: qType,
+        multiple_correct: qType === 'multiple'
+      };
+    });
 
     return res.status(201).json({
       message: 'Quiz attempt started successfully.',
@@ -1533,15 +1556,17 @@ router.post('/attempts/:attemptId/answer', async (req, res) => {
     if (!question) return res.status(404).json({ error: 'Question not found.' });
 
     const quiz = await Quiz.findByPk(attempt.quiz_id);
-    const isCorrect = selectedOption === question.correct_answer;
+    const isCorrect = isAnswerCorrect(selectedOption, question.correct_answer);
     const points = isCorrect ? (quiz.positive_marks || 1) : -(quiz.negative_marks || 0);
+
+    const normSelected = normalizeAnswers(selectedOption);
 
     const existingAnswer = await AttemptAnswer.findOne({
       where: { attempt_id: attempt.id, question_id: questionId }
     });
 
     if (existingAnswer) {
-      existingAnswer.selected_option = selectedOption;
+      existingAnswer.selected_option = normSelected;
       existingAnswer.is_correct = isCorrect;
       existingAnswer.points = points;
       existingAnswer.answered_at = now;
@@ -1550,7 +1575,7 @@ router.post('/attempts/:attemptId/answer', async (req, res) => {
       await AttemptAnswer.create({
         attempt_id: attempt.id,
         question_id: questionId,
-        selected_option: selectedOption,
+        selected_option: normSelected,
         is_correct: isCorrect,
         points,
         answered_at: now
@@ -1613,7 +1638,8 @@ router.post('/attempts/:attemptId/submit', async (req, res) => {
       const qDifficulty = q.difficulty || quiz.difficulty || 'Intermediate';
       const ans = answers.find(a => a.question_id === q.id);
       if (ans) {
-        if (ans.is_correct) {
+        const isCorrect = isAnswerCorrect(ans.selected_option, q.correct_answer);
+        if (isCorrect) {
           correctCount++;
           totalScore += calculateScheduledQuestionScore({
             positiveMarks: quiz.positive_marks,

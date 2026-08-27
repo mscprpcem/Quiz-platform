@@ -16,7 +16,7 @@ const Answer = sequelize.define('Answer', {
     allowNull: false
   },
   selected_answer: {
-    type: DataTypes.ENUM('A', 'B', 'C', 'D'),
+    type: DataTypes.STRING,
     allowNull: false
   },
   response_time: {

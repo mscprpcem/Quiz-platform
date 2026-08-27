@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSocket } from '../context/SocketContext';
+import { isMobileDevice, isFullscreenAPISupported, requestAppFullscreen, isNativeFullscreenActive } from '../utils/fullscreen';
 
 export default function FullscreenHandler({ quizStarted, participantId, quizId, disqualified, onViolationAlert }) {
   const { socket } = useSocket();
@@ -7,55 +8,21 @@ export default function FullscreenHandler({ quizStarted, participantId, quizId, 
   const [showWarningModal, setShowWarningModal] = useState(false);
   const [modalMessage, setModalMessage] = useState('');
 
-  const isMobile = () => {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-      (typeof window !== 'undefined' && window.innerWidth <= 768) ||
-      (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1);
-  };
-
-  const isFullscreenSupported = () => {
-    if (typeof document === 'undefined') return false;
-    const el = document.documentElement;
-    return Boolean(
-      el.requestFullscreen ||
-      el.webkitRequestFullscreen ||
-      el.mozRequestFullScreen ||
-      el.msRequestFullscreen
-    );
-  };
-
   // Check if browser is in fullscreen mode
   const checkFullscreen = () => {
-    if (isMobile() && !isFullscreenSupported()) {
+    if (isMobileDevice() && !isFullscreenAPISupported()) {
       setIsFullscreen(true);
       return true;
     }
-    const isFS = !!(
-      document.fullscreenElement ||
-      document.webkitFullscreenElement ||
-      document.mozFullScreenElement ||
-      document.msFullscreenElement
-    );
+    const isFS = isNativeFullscreenActive();
     setIsFullscreen(isFS);
     return isFS;
   };
 
   // Request browser fullscreen mode
   const enterFullscreen = async () => {
-    const element = document.documentElement;
     try {
-      if (element.requestFullscreen) {
-        await element.requestFullscreen().catch(() => {});
-      } else if (element.webkitRequestFullscreen) {
-        await element.webkitRequestFullscreen().catch(() => {});
-      } else if (element.mozRequestFullScreen) {
-        await element.mozRequestFullScreen().catch(() => {});
-      } else if (element.msRequestFullscreen) {
-        await element.msRequestFullscreen().catch(() => {});
-      }
-      if (typeof window !== 'undefined') {
-        window.scrollTo(0, 1);
-      }
+      await requestAppFullscreen();
       setIsFullscreen(true);
       setShowWarningModal(false);
     } catch (err) {

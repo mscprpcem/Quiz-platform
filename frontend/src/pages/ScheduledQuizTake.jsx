@@ -6,8 +6,12 @@ import api from '../services/api';
 import StudentAuthModal from '../components/StudentAuthModal';
 import {
   Clock, CheckSquare, AlertTriangle, Trophy, CheckCircle, 
-  Square, ShieldCheck, ArrowRight, RefreshCw, User, Lock, Award, LogIn, LogOut, ExternalLink, Sparkles, Maximize, KeyRound, Timer, AlertOctagon, XCircle, Ticket, Calendar
+  Square, ShieldCheck, ArrowRight, RefreshCw, User, Lock, Award, LogIn, LogOut, ExternalLink, Sparkles, Maximize, KeyRound, Timer, AlertOctagon, XCircle, Ticket, Calendar, Check
 } from 'lucide-react';
+import { 
+  isMobileDevice, isFullscreenAPISupported, requestAppFullscreen, isNativeFullscreenActive, 
+  normalizeSelection, toggleOptionInSelection 
+} from '../utils/fullscreen';
 
 export default function ScheduledQuizTake() {
   const { toast } = useToast();
@@ -201,22 +205,8 @@ export default function ScheduledQuizTake() {
     };
   }, [attempt, quizSubmitted]);
 
-  const isMobile = () => {
-    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
-      (typeof window !== 'undefined' && window.innerWidth <= 768) ||
-      (typeof navigator !== 'undefined' && navigator.maxTouchPoints > 1);
-  };
-
-  const isFullscreenSupported = () => {
-    if (typeof document === 'undefined') return false;
-    const el = document.documentElement;
-    return Boolean(
-      el.requestFullscreen ||
-      el.webkitRequestFullscreen ||
-      el.mozRequestFullScreen ||
-      el.msRequestFullscreen
-    );
-  };
+  const isMobile = () => isMobileDevice();
+  const isFullscreenSupported = () => isFullscreenAPISupported();
 
   // Anti-Cheat Violations Event Listeners (Desktop & Mobile safe)
   useEffect(() => {
@@ -304,21 +294,7 @@ export default function ScheduledQuizTake() {
 
   const enterFullscreen = async () => {
     try {
-      const el = document.documentElement;
-      if (el.requestFullscreen) {
-        await el.requestFullscreen().catch(() => {});
-      } else if (el.webkitRequestFullscreen) {
-        await el.webkitRequestFullscreen().catch(() => {});
-      } else if (el.mozRequestFullScreen) {
-        await el.mozRequestFullScreen().catch(() => {});
-      } else if (el.msRequestFullscreen) {
-        await el.msRequestFullscreen().catch(() => {});
-      }
-      
-      // On mobile, scroll to hide browser bar
-      if (typeof window !== 'undefined') {
-        window.scrollTo(0, 1);
-      }
+      await requestAppFullscreen();
       setIsFullscreen(true);
       setShowFullscreenModal(false);
     } catch (err) {
@@ -385,6 +361,11 @@ export default function ScheduledQuizTake() {
   const handleStartAttempt = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
 
+    // Critical: Call requestFullscreen synchronously within user gesture before async fetch
+    if (requireFullscreen || isMobileDevice()) {
+      requestAppFullscreen().catch(() => {});
+    }
+
     const targetName = name || studentAccount?.name || user?.name;
     const targetEmail = email || studentAccount?.email || user?.email;
 
@@ -435,8 +416,17 @@ export default function ScheduledQuizTake() {
   };
 
   const handleSelectOption = async (questionId, optionKey) => {
+    const q = questions.find(item => item.id === questionId) || currentQuestion;
+    const isMulti = q?.question_type === 'multiple' || q?.multiple_correct;
+
+    let newSelection = optionKey;
+    if (isMulti) {
+      const cur = selectedAnswers[questionId] || '';
+      newSelection = toggleOptionInSelection(cur, optionKey);
+    }
+
     setSelectedAnswers(prev => {
-      const updated = { ...prev, [questionId]: optionKey };
+      const updated = { ...prev, [questionId]: newSelection };
       if (attempt?.id) {
         try {
           localStorage.setItem(`msc_attempt_${attempt.id}_answers`, JSON.stringify(updated));
@@ -449,7 +439,7 @@ export default function ScheduledQuizTake() {
     try {
       await api.post(`/api/scheduled-quizzes/attempts/${attempt.id}/answer`, {
         questionId,
-        selectedOption: optionKey
+        selectedOption: newSelection
       });
     } catch (err) {
       console.error('Answer saving error:', err);
@@ -1298,11 +1288,11 @@ export default function ScheduledQuizTake() {
 
   // ════════ RENDER ACTIVE ATTEMPT INTERFACE ════════
   const currentQ = questions[currentQIndex];
-  const answeredCount = questions.filter(q => selectedAnswers[q.id] !== undefined && selectedAnswers[q.id] !== null).length;
+  const answeredCount = questions.filter(q => selectedAnswers[q.id] !== undefined && selectedAnswers[q.id] !== null && selectedAnswers[q.id] !== '').length;
   const unansweredCount = Math.max(0, questions.length - answeredCount);
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4 font-segoe text-left space-y-6">
+    <div className="w-full max-w-3xl mx-auto py-3 sm:py-8 px-3 sm:px-4 font-segoe text-left space-y-4 sm:space-y-6 min-h-[100dvh] flex flex-col justify-start">
       
       {/* Quiz Time Ended Modal Notification Overlay */}
       {isTimeExpired && (
@@ -1439,38 +1429,113 @@ export default function ScheduledQuizTake() {
       {currentQ && (
         <div className="bg-white border border-slate-200 rounded-3xl p-4 sm:p-8 shadow-xs space-y-5 sm:space-y-6">
           <div className="space-y-1.5">
-            <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Question {currentQIndex + 1}</span>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Question {currentQIndex + 1} of {questions.length}</span>
+              {currentQ.question_type === 'true_false' ? (
+                <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                  True / False Question
+                </span>
+              ) : currentQ.question_type === 'multiple' || currentQ.multiple_correct ? (
+                <span className="text-[10px] font-black text-purple-700 bg-purple-50 border border-purple-200 px-2.5 py-0.5 rounded-full">
+                  ☑ Multiple Choice (Select all correct)
+                </span>
+              ) : (
+                <span className="text-[10px] font-black text-blue-700 bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
+                  Single Choice
+                </span>
+              )}
+            </div>
             <h2 className="text-sm sm:text-lg font-extrabold text-slate-900 leading-snug">{currentQ.question}</h2>
           </div>
 
-          {/* Options */}
-          <div className="space-y-2.5 sm:space-y-3">
-            {currentQ.options?.map((opt) => {
-              const isSelected = selectedAnswers[currentQ.id] === opt.key;
-              return (
-                <button
-                  key={opt.key}
-                  onClick={() => handleSelectOption(currentQ.id, opt.key)}
-                  className={`w-full p-3 sm:p-4 rounded-2xl border text-left text-xs font-bold transition-all flex items-center justify-between gap-2.5 cursor-pointer min-h-[50px] active:scale-[0.99] ${
-                    isSelected 
-                      ? 'bg-blue-50 border-blue-500 text-blue-900 shadow-2xs ring-2 ring-blue-500/20' 
-                      : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-                  }`}
-                >
-                  <div className="flex items-start sm:items-center space-x-3 min-w-0 flex-1">
-                    <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black shrink-0 mt-0.5 sm:mt-0 ${
-                      isSelected ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      {opt.key}
-                    </span>
-                    <span className="break-words leading-relaxed flex-1">{opt.text}</span>
+          {/* True / False Layout */}
+          {currentQ.question_type === 'true_false' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 pt-1">
+              <button
+                type="button"
+                onClick={() => handleSelectOption(currentQ.id, 'A')}
+                className={`w-full p-4 sm:p-5 rounded-2xl border text-left text-xs font-bold transition-all flex items-center justify-between gap-3 cursor-pointer min-h-[64px] active:scale-[0.99] ${
+                  selectedAnswers[currentQ.id] === 'A'
+                    ? 'bg-emerald-50 border-emerald-500 text-emerald-950 shadow-sm ring-2 ring-emerald-500/20'
+                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center space-x-3.5">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
+                    selectedAnswers[currentQ.id] === 'A' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    A
                   </div>
+                  <div>
+                    <div className="text-sm font-extrabold text-slate-900">True</div>
+                    <div className="text-[11px] text-slate-500 font-medium">This statement is correct</div>
+                  </div>
+                </div>
+                {selectedAnswers[currentQ.id] === 'A' && <CheckCircle size={20} className="text-emerald-600 shrink-0" />}
+              </button>
 
-                  {isSelected && <CheckSquare size={16} className="text-blue-600 shrink-0 ml-1" />}
-                </button>
-              );
-            })}
-          </div>
+              <button
+                type="button"
+                onClick={() => handleSelectOption(currentQ.id, 'B')}
+                className={`w-full p-4 sm:p-5 rounded-2xl border text-left text-xs font-bold transition-all flex items-center justify-between gap-3 cursor-pointer min-h-[64px] active:scale-[0.99] ${
+                  selectedAnswers[currentQ.id] === 'B'
+                    ? 'bg-rose-50 border-rose-500 text-rose-950 shadow-sm ring-2 ring-rose-500/20'
+                    : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                <div className="flex items-center space-x-3.5">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center text-xs font-black shrink-0 ${
+                    selectedAnswers[currentQ.id] === 'B' ? 'bg-rose-600 text-white shadow-xs' : 'bg-slate-100 text-slate-600'
+                  }`}>
+                    B
+                  </div>
+                  <div>
+                    <div className="text-sm font-extrabold text-slate-900">False</div>
+                    <div className="text-[11px] text-slate-500 font-medium">This statement is incorrect</div>
+                  </div>
+                </div>
+                {selectedAnswers[currentQ.id] === 'B' && <CheckCircle size={20} className="text-rose-600 shrink-0" />}
+              </button>
+            </div>
+          ) : (
+            /* Multi / Single Choice Options */
+            <div className="space-y-2.5 sm:space-y-3">
+              {currentQ.options?.map((opt) => {
+                const currentAnswer = selectedAnswers[currentQ.id] || '';
+                const isMulti = currentQ.question_type === 'multiple' || currentQ.multiple_correct;
+                const selectedKeys = normalizeSelection(currentAnswer).split(',').filter(Boolean);
+                const isSelected = isMulti ? selectedKeys.includes(opt.key) : currentAnswer === opt.key;
+
+                return (
+                  <button
+                    key={opt.key}
+                    type="button"
+                    onClick={() => handleSelectOption(currentQ.id, opt.key)}
+                    className={`w-full p-3.5 sm:p-4 rounded-2xl border text-left text-xs font-bold transition-all flex items-center justify-between gap-2.5 cursor-pointer min-h-[52px] active:scale-[0.99] ${
+                      isSelected 
+                        ? (isMulti ? 'bg-purple-50 border-purple-500 text-purple-950 shadow-2xs ring-2 ring-purple-500/20' : 'bg-blue-50 border-blue-500 text-blue-950 shadow-2xs ring-2 ring-blue-500/20')
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
+                    }`}
+                  >
+                    <div className="flex items-start sm:items-center space-x-3 min-w-0 flex-1">
+                      <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs font-black shrink-0 mt-0.5 sm:mt-0 ${
+                        isSelected ? (isMulti ? 'bg-purple-600 text-white' : 'bg-blue-600 text-white') : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {opt.key}
+                      </span>
+                      <span className="break-words leading-relaxed flex-1">{opt.text}</span>
+                    </div>
+
+                    {isSelected && (
+                      <span className={`shrink-0 ml-1 font-black text-xs flex items-center gap-1 ${isMulti ? 'text-purple-600' : 'text-blue-600'}`}>
+                        <CheckSquare size={17} />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
 
           {/* Navigation Controls */}
           <div className="flex justify-between items-center pt-4 border-t border-slate-100 gap-2">

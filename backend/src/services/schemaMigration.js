@@ -52,6 +52,13 @@ async function runAutoMigrations(sequelize) {
     `ALTER TABLE ${quote}Questions${quote} ADD COLUMN ${ifNotExists}${quote}section_name${quote} VARCHAR(255);`,
     `ALTER TABLE ${quote}Questions${quote} ADD COLUMN ${ifNotExists}${quote}section_description${quote} TEXT;`,
     `ALTER TABLE ${quote}Questions${quote} ADD COLUMN ${ifNotExists}${quote}difficulty${quote} VARCHAR(255) DEFAULT 'Intermediate';`,
+    `ALTER TABLE ${quote}Questions${quote} ADD COLUMN ${ifNotExists}${quote}question_type${quote} VARCHAR(50) DEFAULT 'single';`,
+    ...(isPostgres ? [
+      `ALTER TABLE "Questions" ALTER COLUMN "correct_answer" TYPE VARCHAR(255) USING "correct_answer"::VARCHAR(255);`,
+      `ALTER TABLE IF EXISTS questions ALTER COLUMN correct_answer TYPE VARCHAR(255) USING correct_answer::VARCHAR(255);`,
+      `ALTER TABLE "Answers" ALTER COLUMN "selected_answer" TYPE VARCHAR(255) USING "selected_answer"::VARCHAR(255);`,
+      `ALTER TABLE IF EXISTS answers ALTER COLUMN selected_answer TYPE VARCHAR(255) USING selected_answer::VARCHAR(255);`
+    ] : []),
 
     // ═══════════════════════════════════════════
     // 3. Users Table Columns

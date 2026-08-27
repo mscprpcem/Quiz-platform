@@ -7,9 +7,10 @@ import EventSelector from '../components/EventSelector';
 import { useToast } from '../context/ToastContext';
 import { formatToISTDateString } from '../utils/dateUtils';
 import { downloadBrandedQRCard, fetchBrandingConfig, getLogoUrl } from '../utils/qrCardGenerator';
+import { toggleOptionInSelection, normalizeSelection } from '../utils/fullscreen';
 import {
   Calendar, ArrowLeft, ArrowRight, Plus, Trash2, Upload, FileSpreadsheet, FileText,
-  CheckCircle, AlertTriangle, Clock, ShieldCheck, HelpCircle, Layers, CheckSquare, Sparkles, RefreshCw, QrCode, Mail, Award, ExternalLink, Download, Search, ChevronDown, Check
+  CheckCircle, AlertTriangle, Clock, ShieldCheck, HelpCircle, Layers, CheckSquare, Sparkles, RefreshCw, QrCode, Mail, Award, ExternalLink, Download, Search, ChevronDown, Check, ToggleLeft
 } from 'lucide-react';
 
 export default function CreateScheduledQuiz() {
@@ -371,13 +372,53 @@ export default function CreateScheduledQuiz() {
           const qText = row.Question || row.question || row.QuestionText || row.Prompt || row.prompt || row.Title || '';
           if (!qText || String(qText).trim() === '') return null;
 
-          const optA = row['Option A'] || row['option a'] || row.option_a || row.OptionA || row.A || row.a || '';
-          const optB = row['Option B'] || row['option b'] || row.option_b || row.OptionB || row.B || row.b || '';
-          const optC = row['Option C'] || row['option c'] || row.option_c || row.OptionC || row.C || row.c || '';
-          const optD = row['Option D'] || row['option d'] || row.option_d || row.OptionD || row.D || row.d || '';
-          const rawAnswer = (row['Correct Answer'] || row['correct answer'] || row.correct_answer || row.Correct || row.Answer || row.answer || 'A').toString().trim().toUpperCase();
-          const validAnswer = ['A', 'B', 'C', 'D'].includes(rawAnswer) ? rawAnswer : 'A';
+          const rawOptA = row['Option A'] || row['option a'] || row.option_a || row.OptionA || row.A || row.a || '';
+          const rawOptB = row['Option B'] || row['option b'] || row.option_b || row.OptionB || row.B || row.b || '';
+          const rawOptC = row['Option C'] || row['option c'] || row.option_c || row.OptionC || row.C || row.c || '';
+          const rawOptD = row['Option D'] || row['option d'] || row.option_d || row.OptionD || row.D || row.d || '';
+          const rawAnswer = (row['Correct Answer'] || row['correct answer'] || row.correct_answer || row.Correct || row.Answer || row.answer || 'A').toString().trim();
+          const rawType = (row['Question Type'] || row['question_type'] || row.Type || row.type || '').toString().trim().toLowerCase();
           const explanation = row.Explanation || row.explanation || row.Rationale || row.solution || '';
+
+          // Normalize answer
+          let validAnswer = normalizeSelection(rawAnswer);
+          const upperRaw = rawAnswer.toUpperCase();
+          if (upperRaw === 'TRUE' || upperRaw === 'T') validAnswer = 'A';
+          if (upperRaw === 'FALSE' || upperRaw === 'F') validAnswer = 'B';
+          if (!validAnswer) validAnswer = 'A';
+
+          // Detect Question Type
+          let qType = 'single';
+          if (rawType.includes('tf') || rawType.includes('true') || rawType.includes('bool')) {
+            qType = 'true_false';
+          } else if (rawType.includes('multi')) {
+            qType = 'multiple';
+          } else {
+            const isTFOpts = (String(rawOptA).toLowerCase() === 'true' || String(rawOptA).toLowerCase() === 't') && (!rawOptC && !rawOptD);
+            const isTFAns = ['true', 'false', 't', 'f'].includes(rawAnswer.toLowerCase());
+            if (isTFOpts || isTFAns) {
+              qType = 'true_false';
+            } else if (validAnswer.includes(',')) {
+              qType = 'multiple';
+            }
+          }
+
+          let optA = String(rawOptA).trim();
+          let optB = String(rawOptB).trim();
+          let optC = String(rawOptC).trim();
+          let optD = String(rawOptD).trim();
+
+          if (qType === 'true_false') {
+            optA = optA || 'True';
+            optB = optB || 'False';
+            optC = '';
+            optD = '';
+          } else {
+            optA = optA || 'Option A';
+            optB = optB || 'Option B';
+            optC = optC || 'Option C';
+            optD = optD || 'Option D';
+          }
 
           let secNum = 1;
           const rawSec = row.Section || row.section || row.Occurrence || row.occurrence || row.Round || row.round || row.Week || row.week || row.Day || row.day || row.Session || row.session;
@@ -403,11 +444,12 @@ export default function CreateScheduledQuiz() {
           return {
             id: `imported-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`,
             question: String(qText).trim(),
-            option_a: String(optA).trim() || 'Option A',
-            option_b: String(optB).trim() || 'Option B',
-            option_c: String(optC).trim() || 'Option C',
-            option_d: String(optD).trim() || 'Option D',
+            option_a: optA,
+            option_b: optB,
+            option_c: optC,
+            option_d: optD,
             correct_answer: validAnswer,
+            question_type: qType,
             explanation: String(explanation).trim(),
             timer: parseInt(row.Timer || row.timer || row['Time Limit'] || '30', 10) || 30,
             marks: parseInt(row.Marks || row.marks || row.Points || row.points || '1', 10) || 1,
@@ -562,6 +604,7 @@ export default function CreateScheduledQuiz() {
       option_c: '',
       option_d: '',
       correct_answer: 'A',
+      question_type: 'single',
       explanation: '',
       occurrence_number: occNumber,
       section_name: secName,
@@ -1483,19 +1526,82 @@ export default function CreateScheduledQuiz() {
           const currentOccNum = q.occurrence_number || 1;
           const secInfo = sections.find(s => s.number === currentOccNum) || sections[0];
           const secDisplayName = customSections[currentOccNum]?.name || secInfo?.name || `Section ${currentOccNum}`;
+          const currentQType = q.question_type || (q.correct_answer && q.correct_answer.includes(',') ? 'multiple' : 'single');
+          const isTF = currentQType === 'true_false';
+          const isMulti = currentQType === 'multiple';
+          const selectedKeys = normalizeSelection(q.correct_answer).split(',').filter(Boolean);
+
+          const handleTypeChange = (newType) => {
+            handleQuestionChange(origIdx, 'question_type', newType);
+            if (newType === 'true_false') {
+              handleQuestionChange(origIdx, 'option_a', 'True');
+              handleQuestionChange(origIdx, 'option_b', 'False');
+              handleQuestionChange(origIdx, 'option_c', '');
+              handleQuestionChange(origIdx, 'option_d', '');
+              if (!['A', 'B'].includes(q.correct_answer)) {
+                handleQuestionChange(origIdx, 'correct_answer', 'A');
+              }
+            } else if (newType === 'single') {
+              // Ensure only one answer selected
+              const first = selectedKeys[0] || 'A';
+              handleQuestionChange(origIdx, 'correct_answer', first);
+            }
+          };
+
+          const handleOptionToggle = (optKey) => {
+            if (isTF) {
+              handleQuestionChange(origIdx, 'correct_answer', optKey);
+            } else if (isMulti) {
+              const updated = toggleOptionInSelection(q.correct_answer, optKey);
+              handleQuestionChange(origIdx, 'correct_answer', updated || optKey);
+            } else {
+              handleQuestionChange(origIdx, 'correct_answer', optKey);
+            }
+          };
 
           return (
             <div key={origIdx} className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-4 text-left shadow-2xs hover:border-slate-300 transition-colors">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-200 pb-3">
-                <div className="flex items-center space-x-2.5">
+                <div className="flex flex-wrap items-center gap-2">
                   <span className="text-xs font-black text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
                     Q #{origIdx + 1}
                   </span>
+
+                  {/* Question Type Selector */}
+                  <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
+                    <button
+                      type="button"
+                      onClick={() => handleTypeChange('single')}
+                      className={`px-2.5 py-1 text-[10px] font-extrabold rounded-md transition-all cursor-pointer ${
+                        currentQType === 'single' ? 'bg-blue-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Single Choice
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleTypeChange('multiple')}
+                      className={`px-2.5 py-1 text-[10px] font-extrabold rounded-md transition-all cursor-pointer ${
+                        currentQType === 'multiple' ? 'bg-purple-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      ☑ Multi-Choice
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleTypeChange('true_false')}
+                      className={`px-2.5 py-1 text-[10px] font-extrabold rounded-md transition-all cursor-pointer ${
+                        currentQType === 'true_false' ? 'bg-emerald-600 text-white shadow-xs' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      True / False
+                    </button>
+                  </div>
                   
                   {/* Section Assignment Dropdown */}
                   {isMultiSection && (
-                    <div className="flex items-center space-x-1.5">
-                      <span className="text-[11px] font-bold text-slate-500">Assigned Round:</span>
+                    <div className="flex items-center space-x-1.5 ml-1">
+                      <span className="text-[11px] font-bold text-slate-500">Round:</span>
                       <select
                         value={currentOccNum}
                         onChange={(e) => {
@@ -1531,71 +1637,123 @@ export default function CreateScheduledQuiz() {
                 <label className="block text-xs font-bold text-slate-700">Question Statement</label>
                 <input
                   type="text"
-                  placeholder="Enter question text..."
+                  placeholder={isTF ? "e.g. Relational databases support ACID transactions." : "Enter question text..."}
                   value={q.question}
                   onChange={e => handleQuestionChange(origIdx, 'question', e.target.value)}
                   className="w-full border rounded-xl px-4 py-2.5 text-xs font-bold bg-white text-slate-800 focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-bold text-slate-500">Option A</label>
-                  <input
-                    type="text"
-                    placeholder="Option A"
-                    value={q.option_a}
-                    onChange={e => handleQuestionChange(origIdx, 'option_a', e.target.value)}
-                    className="w-full border rounded-xl px-3 py-2 text-xs bg-white font-medium focus:ring-2 focus:ring-blue-500"
-                  />
+              {/* True/False Options Layout */}
+              {isTF ? (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className={`p-3.5 rounded-xl border flex items-center justify-between ${
+                    q.correct_answer === 'A' ? 'bg-emerald-50 border-emerald-400 text-emerald-900 ring-2 ring-emerald-400/20' : 'bg-white border-slate-200 text-slate-700'
+                  }`}>
+                    <div className="flex items-center space-x-2">
+                      <span className="w-5 h-5 rounded-md bg-emerald-600 text-white font-black text-[10px] flex items-center justify-center">A</span>
+                      <span className="font-extrabold text-xs">True</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleQuestionChange(origIdx, 'correct_answer', 'A')}
+                      className={`px-3 py-1 rounded-lg text-xs font-black cursor-pointer transition-all ${
+                        q.correct_answer === 'A' ? 'bg-emerald-600 text-white shadow-xs' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      {q.correct_answer === 'A' ? '✓ Correct Answer' : 'Mark Correct'}
+                    </button>
+                  </div>
+
+                  <div className={`p-3.5 rounded-xl border flex items-center justify-between ${
+                    q.correct_answer === 'B' ? 'bg-rose-50 border-rose-400 text-rose-900 ring-2 ring-rose-400/20' : 'bg-white border-slate-200 text-slate-700'
+                  }`}>
+                    <div className="flex items-center space-x-2">
+                      <span className="w-5 h-5 rounded-md bg-rose-600 text-white font-black text-[10px] flex items-center justify-center">B</span>
+                      <span className="font-extrabold text-xs">False</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleQuestionChange(origIdx, 'correct_answer', 'B')}
+                      className={`px-3 py-1 rounded-lg text-xs font-black cursor-pointer transition-all ${
+                        q.correct_answer === 'B' ? 'bg-rose-600 text-white shadow-xs' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      {q.correct_answer === 'B' ? '✓ Correct Answer' : 'Mark Correct'}
+                    </button>
+                  </div>
                 </div>
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-bold text-slate-500">Option B</label>
-                  <input
-                    type="text"
-                    placeholder="Option B"
-                    value={q.option_b}
-                    onChange={e => handleQuestionChange(origIdx, 'option_b', e.target.value)}
-                    className="w-full border rounded-xl px-3 py-2 text-xs bg-white font-medium focus:ring-2 focus:ring-blue-500"
-                  />
+              ) : (
+                /* Multiple / Single Choice 4-Option Grid */
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {['a', 'b', 'c', 'd'].map((letter) => {
+                    const optKey = letter.toUpperCase();
+                    const field = `option_${letter}`;
+                    const isSelected = selectedKeys.includes(optKey);
+
+                    return (
+                      <div key={letter} className="space-y-1">
+                        <div className="flex justify-between items-center">
+                          <label className="block text-[11px] font-bold text-slate-500">Option {optKey}</label>
+                          <button
+                            type="button"
+                            onClick={() => handleOptionToggle(optKey)}
+                            className={`text-[10px] font-black px-2 py-0.5 rounded cursor-pointer transition-all ${
+                              isSelected ? 'bg-emerald-600 text-white' : 'text-slate-400 hover:text-slate-700 bg-slate-100'
+                            }`}
+                          >
+                            {isSelected ? '✓ Correct' : '+ Mark Correct'}
+                          </button>
+                        </div>
+                        <div className="relative">
+                          <input
+                            type="text"
+                            placeholder={`Option ${optKey}`}
+                            value={q[field]}
+                            onChange={e => handleQuestionChange(origIdx, field, e.target.value)}
+                            className={`w-full border rounded-xl pl-8 pr-3 py-2 text-xs bg-white font-medium focus:ring-2 focus:ring-blue-500 ${
+                              isSelected ? 'border-emerald-400 bg-emerald-50/30 ring-1 ring-emerald-300' : ''
+                            }`}
+                          />
+                          <span className={`absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 rounded text-[10px] font-black flex items-center justify-center ${
+                            isSelected ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-600'
+                          }`}>
+                            {optKey}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-bold text-slate-500">Option C</label>
-                  <input
-                    type="text"
-                    placeholder="Option C"
-                    value={q.option_c}
-                    onChange={e => handleQuestionChange(origIdx, 'option_c', e.target.value)}
-                    className="w-full border rounded-xl px-3 py-2 text-xs bg-white font-medium focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <label className="block text-[11px] font-bold text-slate-500">Option D</label>
-                  <input
-                    type="text"
-                    placeholder="Option D"
-                    value={q.option_d}
-                    onChange={e => handleQuestionChange(origIdx, 'option_d', e.target.value)}
-                    className="w-full border rounded-xl px-3 py-2 text-xs bg-white font-medium focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
+              )}
 
               <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
                 <div className="flex items-center space-x-2 text-xs">
-                  <span className="font-bold text-slate-600">Correct Option:</span>
-                  {['A', 'B', 'C', 'D'].map((opt) => (
-                    <button
-                      key={opt}
-                      type="button"
-                      onClick={() => handleQuestionChange(origIdx, 'correct_answer', opt)}
-                      className={`w-8 h-8 rounded-xl font-black text-xs cursor-pointer transition-all ${
-                        q.correct_answer === opt ? 'bg-emerald-600 text-white shadow-xs scale-105' : 'bg-white border text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      {opt}
-                    </button>
-                  ))}
+                  <span className="font-bold text-slate-600">
+                    {isTF ? 'Correct Choice:' : isMulti ? 'Correct Options (Select all that apply):' : 'Correct Option:'}
+                  </span>
+                  {(isTF ? ['A', 'B'] : ['A', 'B', 'C', 'D']).map((opt) => {
+                    const isSelected = isTF ? q.correct_answer === opt : selectedKeys.includes(opt);
+                    return (
+                      <button
+                        key={opt}
+                        type="button"
+                        onClick={() => handleOptionToggle(opt)}
+                        className={`w-8 h-8 rounded-xl font-black text-xs cursor-pointer transition-all ${
+                          isSelected ? 'bg-emerald-600 text-white shadow-xs scale-105' : 'bg-white border text-slate-700 hover:bg-slate-100'
+                        }`}
+                        title={isMulti ? `Click to toggle Option ${opt}` : `Select Option ${opt}`}
+                      >
+                        {opt}
+                      </button>
+                    );
+                  })}
+
+                  {isMulti && (
+                    <span className="text-[10px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full ml-1">
+                      {selectedKeys.length > 1 ? `${selectedKeys.length} Options Correct (${selectedKeys.join(', ')})` : 'Select ≥1 Option'}
+                    </span>
+                  )}
                 </div>
 
                 <div className="text-[11px] font-semibold text-slate-400">

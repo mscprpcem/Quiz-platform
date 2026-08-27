@@ -1,6 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Trophy, HelpCircle, Clock, ShieldAlert, Award, ChevronLeft, ChevronRight, RotateCcw, Home, Flag, CheckCircle, AlertCircle, BookOpen, Layers, ShieldCheck, ExternalLink, ArrowRight, Check, CheckSquare, XCircle, AlertTriangle } from 'lucide-react';
+import { 
+  Play, RotateCcw, Clock, Trophy, Award, CheckCircle, 
+  HelpCircle, ArrowRight, ArrowLeft, ShieldCheck, ChevronRight, 
+  ChevronLeft, Sparkles, BookOpen, Code, Database, Globe, 
+  Cpu, Layers, Target, CheckSquare, Flag, Share2, Download, AlertCircle, XCircle
+} from 'lucide-react';
+import { normalizeSelection, toggleOptionInSelection, requestAppFullscreen } from '../utils/fullscreen';
 import { useAuth } from '../context/AuthContext';
 
 // Built-in Questions database
@@ -196,9 +202,7 @@ export default function PracticeQuiz() {
   }, [inQuiz, completed]);
 
   const handleStartQuiz = () => {
-    if (document.documentElement.requestFullscreen) {
-      document.documentElement.requestFullscreen().catch(() => {});
-    }
+    requestAppFullscreen().catch(() => {});
     setAnswers({});
     setFlags({});
     setTimer(120);
@@ -210,10 +214,22 @@ export default function PracticeQuiz() {
   };
 
   const handleSelectOption = (optionKey) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [currentIdx]: optionKey
-    }));
+    const q = questions[currentIdx];
+    const isMulti = q?.question_type === 'multiple' || (q?.correct_answer && q.correct_answer.includes(','));
+
+    if (isMulti) {
+      const current = answers[currentIdx] || '';
+      const updated = toggleOptionInSelection(current, optionKey);
+      setAnswers((prev) => ({
+        ...prev,
+        [currentIdx]: updated
+      }));
+    } else {
+      setAnswers((prev) => ({
+        ...prev,
+        [currentIdx]: optionKey
+      }));
+    }
   };
 
   const toggleFlag = () => {
@@ -246,7 +262,9 @@ export default function PracticeQuiz() {
   const getScoreStats = () => {
     let correct = 0;
     questions.forEach((q, idx) => {
-      if (answers[idx] === q.correct_answer) {
+      const candidateNorm = normalizeSelection(answers[idx]);
+      const correctNorm = normalizeSelection(q.correct_answer);
+      if (candidateNorm && candidateNorm === correctNorm) {
         correct++;
       }
     });
@@ -601,7 +619,18 @@ export default function PracticeQuiz() {
               <div className={`absolute top-0 left-0 w-full h-1 bg-gradient-to-r ${meta?.themeColor || 'from-blue-500 to-indigo-500'}`}></div>
 
               <div className="flex justify-between items-center">
-                <span className="text-[10px] font-bold text-brand-textMuted uppercase tracking-widest">Question {currentIdx + 1} of {totalQ}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-bold text-brand-textMuted uppercase tracking-widest">Question {currentIdx + 1} of {totalQ}</span>
+                  {currentQ.question_type === 'true_false' ? (
+                    <span className="text-[10px] font-black text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+                      True / False
+                    </span>
+                  ) : (currentQ.question_type === 'multiple' || (currentQ.correct_answer && currentQ.correct_answer.includes(','))) ? (
+                    <span className="text-[10px] font-black text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-full">
+                      ☑ Multiple Choice (Select all correct)
+                    </span>
+                  ) : null}
+                </div>
                 <button
                   onClick={toggleFlag}
                   className={`flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
@@ -619,35 +648,78 @@ export default function PracticeQuiz() {
                 {currentQ.question}
               </h2>
 
-              <div className="grid grid-cols-1 gap-4 pt-2">
-                {[
-                  { k: 'A', text: currentQ.option_a },
-                  { k: 'B', text: currentQ.option_b },
-                  { k: 'C', text: currentQ.option_c },
-                  { k: 'D', text: currentQ.option_d }
-                ].map((opt) => {
-                  const selected = isSelected(opt.k);
-                  
-                  return (
-                    <button
-                      key={opt.k}
-                      onClick={() => handleSelectOption(opt.k)}
-                      className={`w-full text-left p-5 rounded-xl border transition-all relative flex items-center space-x-4 cursor-pointer ${
-                        selected 
-                          ? 'bg-brand-lightBlue border-brand-blue text-brand-dark ring-2 ring-brand-blue/20' 
-                          : 'bg-white border-brand-border hover:border-brand-blue/40 hover:bg-brand-bgLight/50'
-                      }`}
-                    >
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                        selected ? 'bg-brand-blue text-white' : 'bg-zinc-100 text-zinc-700'
-                      }`}>
-                        {opt.k}
-                      </div>
-                      <span className="font-semibold text-brand-textMain text-base">{opt.text}</span>
-                    </button>
-                  );
-                })}
-              </div>
+              {/* Options */}
+              {currentQ.question_type === 'true_false' ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  {[
+                    { k: 'A', text: 'True', sub: 'Correct statement' },
+                    { k: 'B', text: 'False', sub: 'Incorrect statement' }
+                  ].map(opt => {
+                    const selected = answers[currentIdx] === opt.k;
+                    return (
+                      <button
+                        key={opt.k}
+                        type="button"
+                        onClick={() => handleSelectOption(opt.k)}
+                        className={`w-full text-left p-5 rounded-2xl border transition-all relative flex items-center justify-between cursor-pointer ${
+                          selected 
+                            ? 'bg-emerald-50 border-emerald-500 text-emerald-950 ring-2 ring-emerald-500/20 shadow-sm' 
+                            : 'bg-white border-brand-border hover:bg-brand-bgLight'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3.5">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs ${
+                            selected ? 'bg-emerald-600 text-white' : 'bg-zinc-100 text-zinc-700'
+                          }`}>
+                            {opt.k}
+                          </div>
+                          <div>
+                            <div className="font-extrabold text-base">{opt.text}</div>
+                            <div className="text-xs text-slate-500">{opt.sub}</div>
+                          </div>
+                        </div>
+                        {selected && <CheckCircle className="text-emerald-600" size={20} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-3.5 pt-2">
+                  {[
+                    { k: 'A', text: currentQ.option_a },
+                    { k: 'B', text: currentQ.option_b },
+                    { k: 'C', text: currentQ.option_c },
+                    { k: 'D', text: currentQ.option_d }
+                  ].filter(opt => opt.text).map((opt) => {
+                    const isMulti = currentQ.question_type === 'multiple' || (currentQ.correct_answer && currentQ.correct_answer.includes(','));
+                    const selectedKeys = normalizeSelection(answers[currentIdx]).split(',').filter(Boolean);
+                    const selected = isMulti ? selectedKeys.includes(opt.k) : answers[currentIdx] === opt.k;
+                    
+                    return (
+                      <button
+                        key={opt.k}
+                        type="button"
+                        onClick={() => handleSelectOption(opt.k)}
+                        className={`w-full text-left p-4 sm:p-5 rounded-xl border transition-all relative flex items-center justify-between cursor-pointer ${
+                          selected 
+                            ? (isMulti ? 'bg-purple-50 border-purple-500 text-purple-950 ring-2 ring-purple-500/20' : 'bg-brand-lightBlue border-brand-blue text-brand-dark ring-2 ring-brand-blue/20') 
+                            : 'bg-white border-brand-border hover:border-brand-blue/40 hover:bg-brand-bgLight/50'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-4 min-w-0 flex-1">
+                          <div className={`w-8 h-8 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
+                            selected ? (isMulti ? 'bg-purple-600 text-white' : 'bg-brand-blue text-white') : 'bg-zinc-100 text-zinc-700'
+                          }`}>
+                            {opt.k}
+                          </div>
+                          <span className="font-semibold text-brand-textMain text-base break-words">{opt.text}</span>
+                        </div>
+                        {selected && <CheckSquare className={isMulti ? 'text-purple-600 shrink-0' : 'text-brand-blue shrink-0'} size={20} />}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="flex justify-between items-center">

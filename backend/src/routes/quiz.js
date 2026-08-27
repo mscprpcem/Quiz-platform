@@ -5,6 +5,7 @@ const ExcelJS = require('exceljs');
 const { Quiz, Question, Participant, QuizAttempt, Answer, Violation, AttemptViolation, AttemptAnswer, ScheduledOccurrence } = require('../models');
 const authMiddleware = require('../middleware/auth');
 const { Op } = require('sequelize');
+const { normalizeAnswers, determineQuestionType } = require('../utils/answerUtils');
 
 // Helper: Full Cascade Deletion for any Quiz (Live or Scheduled)
 const deleteQuizWithFullCascade = async (quizId) => {
@@ -493,7 +494,7 @@ router.put('/:id/publish', authMiddleware, async (req, res) => {
 // Add a question manually
 router.post('/:id/questions', authMiddleware, async (req, res) => {
   try {
-    const { question, option_a, option_b, option_c, option_d, correct_answer, timer, marks, difficulty } = req.body;
+    const { question, option_a, option_b, option_c, option_d, correct_answer, timer, marks, difficulty, question_type } = req.body;
     const quiz_id = req.params.id;
 
     const quiz = await Quiz.findByPk(quiz_id);
@@ -501,12 +502,25 @@ router.post('/:id/questions', authMiddleware, async (req, res) => {
       return res.status(404).json({ error: 'Quiz not found' });
     }
 
-    if (!question || !option_a || !option_b || !option_c || !option_d || !correct_answer) {
-      return res.status(400).json({ error: 'All fields except timer and marks are required' });
+    if (!question || !option_a || !option_b || !correct_answer) {
+      return res.status(400).json({ error: 'Question text, Option A, Option B, and Correct Answer are required' });
     }
 
-    if (!['A', 'B', 'C', 'D'].includes(correct_answer)) {
-      return res.status(400).json({ error: 'Correct answer must be A, B, C, or D' });
+    const normCorrect = normalizeAnswers(correct_answer);
+    if (!normCorrect) {
+      return res.status(400).json({ error: 'Valid correct answer is required (e.g. A, B, C, D or combination like A,C)' });
+    }
+
+    const qType = question_type || determineQuestionType({ option_a, option_b, option_c, option_d, correct_answer: normCorrect });
+
+    if (qType === 'true_false') {
+      if (!['A', 'B'].includes(normCorrect)) {
+        return res.status(400).json({ error: 'True/False correct answer must be True (A) or False (B)' });
+      }
+    } else if (qType === 'single') {
+      if (!['A', 'B', 'C', 'D'].includes(normCorrect)) {
+        return res.status(400).json({ error: 'Single choice correct answer must be A, B, C, or D' });
+      }
     }
 
     // Get current max order index
@@ -516,11 +530,12 @@ router.post('/:id/questions', authMiddleware, async (req, res) => {
     const newQuestion = await Question.create({
       quiz_id,
       question,
-      option_a,
-      option_b,
-      option_c,
-      option_d,
-      correct_answer,
+      option_a: option_a || 'True',
+      option_b: option_b || 'False',
+      option_c: qType === 'true_false' ? null : (option_c || ''),
+      option_d: qType === 'true_false' ? null : (option_d || ''),
+      correct_answer: normCorrect,
+      question_type: qType,
       timer: timer || 30,
       marks: marks || 500,
       difficulty: difficulty || quiz.difficulty || 'Intermediate',
@@ -537,24 +552,37 @@ router.post('/:id/questions', authMiddleware, async (req, res) => {
 // Update a question
 router.put('/questions/:id', authMiddleware, async (req, res) => {
   try {
-    const { question, option_a, option_b, option_c, option_d, correct_answer, timer, marks, difficulty } = req.body;
+    const { question, option_a, option_b, option_c, option_d, correct_answer, timer, marks, difficulty, question_type } = req.body;
     const existingQuestion = await Question.findByPk(req.params.id);
 
     if (!existingQuestion) {
       return res.status(404).json({ error: 'Question not found' });
     }
 
-    if (correct_answer && !['A', 'B', 'C', 'D'].includes(correct_answer)) {
-      return res.status(400).json({ error: 'Correct answer must be A, B, C, or D' });
+    let normCorrect = existingQuestion.correct_answer;
+    if (correct_answer) {
+      normCorrect = normalizeAnswers(correct_answer);
+      if (!normCorrect) {
+        return res.status(400).json({ error: 'Valid correct answer is required (e.g. A, B, C, D or combination like A,C)' });
+      }
     }
+
+    const qType = question_type || determineQuestionType({
+      option_a: option_a || existingQuestion.option_a,
+      option_b: option_b || existingQuestion.option_b,
+      option_c: option_c !== undefined ? option_c : existingQuestion.option_c,
+      option_d: option_d !== undefined ? option_d : existingQuestion.option_d,
+      correct_answer: normCorrect
+    });
 
     await existingQuestion.update({
       question: question || existingQuestion.question,
-      option_a: option_a || existingQuestion.option_a,
-      option_b: option_b || existingQuestion.option_b,
-      option_c: option_c || existingQuestion.option_c,
-      option_d: option_d || existingQuestion.option_d,
-      correct_answer: correct_answer || existingQuestion.correct_answer,
+      option_a: option_a !== undefined ? option_a : existingQuestion.option_a,
+      option_b: option_b !== undefined ? option_b : existingQuestion.option_b,
+      option_c: qType === 'true_false' ? null : (option_c !== undefined ? option_c : existingQuestion.option_c),
+      option_d: qType === 'true_false' ? null : (option_d !== undefined ? option_d : existingQuestion.option_d),
+      correct_answer: normCorrect,
+      question_type: qType,
       timer: timer !== undefined ? timer : existingQuestion.timer,
       marks: marks !== undefined ? marks : existingQuestion.marks,
       difficulty: difficulty || existingQuestion.difficulty || 'Intermediate'
@@ -649,34 +677,62 @@ router.post('/:id/import', authMiddleware, upload.single('file'), async (req, re
       // C (3) - Option B
       // D (4) - Option C
       // E (5) - Option D
-      // F (6) - Correct Answer (A, B, C, D)
+      // F (6) - Correct Answer (A, B, C, D or combinations or True/False)
       // G (7) - Timer (Optional)
       // H (8) - Marks (Optional)
+      // I (9) - Question Type (Optional)
 
       const questionText = row.getCell(1).text?.trim();
-      const optionA = row.getCell(2).text?.trim();
-      const optionB = row.getCell(3).text?.trim();
-      const optionC = row.getCell(4).text?.trim();
-      const optionD = row.getCell(5).text?.trim();
-      const correctAns = row.getCell(6).text?.trim()?.toUpperCase();
+      const rawOptA = row.getCell(2).text?.trim();
+      const rawOptB = row.getCell(3).text?.trim();
+      const rawOptC = row.getCell(4).text?.trim();
+      const rawOptD = row.getCell(5).text?.trim();
+      const rawCorrect = row.getCell(6).text?.trim();
       const timerVal = row.getCell(7).value;
       const marksVal = row.getCell(8).value;
+      const rawType = row.getCell(9).text?.trim();
 
       // Skip row if it's completely empty
-      if (!questionText && !optionA && !optionB && !optionC && !optionD && !correctAns) {
+      if (!questionText && !rawOptA && !rawOptB && !rawOptC && !rawOptD && !rawCorrect) {
         return;
       }
 
       const rowError = [];
       if (!questionText) rowError.push('Question text is missing');
-      if (!optionA) rowError.push('Option A is missing');
-      if (!optionB) rowError.push('Option B is missing');
-      if (!optionC) rowError.push('Option C is missing');
-      if (!optionD) rowError.push('Option D is missing');
-      if (!correctAns) {
-        rowError.push('Correct answer is missing');
-      } else if (!['A', 'B', 'C', 'D'].includes(correctAns)) {
-        rowError.push(`Correct answer must be A, B, C, or D (got '${correctAns}')`);
+
+      const normCorrect = normalizeAnswers(rawCorrect);
+      if (!normCorrect) {
+        rowError.push(`Invalid correct answer '${rawCorrect}'`);
+      }
+
+      let qType = rawType ? determineQuestionType({ question_type: rawType }) : null;
+      if (!qType) {
+        const isTFOpts = (rawOptA?.toLowerCase() === 'true' || rawOptA?.toLowerCase() === 't') || (!rawOptC && !rawOptD);
+        const isTFCorrect = ['true', 'false', 't', 'f'].includes(String(rawCorrect || '').toLowerCase());
+        if (isTFOpts && isTFCorrect) {
+          qType = 'true_false';
+        } else if (normCorrect.includes(',')) {
+          qType = 'multiple';
+        } else {
+          qType = 'single';
+        }
+      }
+
+      let optionA = rawOptA;
+      let optionB = rawOptB;
+      let optionC = rawOptC;
+      let optionD = rawOptD;
+
+      if (qType === 'true_false') {
+        optionA = optionA || 'True';
+        optionB = optionB || 'False';
+        optionC = null;
+        optionD = null;
+      } else {
+        if (!optionA) rowError.push('Option A is missing');
+        if (!optionB) rowError.push('Option B is missing');
+        if (!optionC) rowError.push('Option C is missing');
+        if (!optionD) rowError.push('Option D is missing');
       }
 
       let timer = 30;
@@ -709,7 +765,8 @@ router.post('/:id/import', authMiddleware, upload.single('file'), async (req, re
           option_b: optionB,
           option_c: optionC,
           option_d: optionD,
-          correct_answer: correctAns,
+          correct_answer: normCorrect,
+          question_type: qType,
           timer,
           marks
         });
