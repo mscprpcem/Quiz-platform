@@ -1224,13 +1224,8 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
 
       userAttempt = await QuizAttempt.findOne({
         where: {
-          [Op.or]: [
-            { occurrence_id: occ.id },
-            ...(finalQuiz?.id ? [{ quiz_id: finalQuiz.id }] : [])
-          ],
-          [Op.and]: [
-            { [Op.or]: userConditions }
-          ]
+          occurrence_id: occ.id,
+          [Op.or]: userConditions
         },
         order: [
           ['status', 'DESC'], // 'completed' or 'in_progress'
@@ -1244,10 +1239,7 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
         try {
           const allCompleted = await QuizAttempt.findAll({
             where: {
-              [Op.or]: [
-                { occurrence_id: occ.id },
-                ...(finalQuiz?.id ? [{ quiz_id: finalQuiz.id }] : [])
-              ],
+              occurrence_id: occ.id,
               status: 'completed'
             },
             order: [
@@ -1812,10 +1804,7 @@ router.get('/occurrences/:occurrenceId/leaderboard', async (req, res) => {
     let whereClause = { status: 'completed' };
     if (occurrence) {
       whereClause = {
-        [Op.or]: [
-          { occurrence_id: occurrence.id },
-          ...(occurrence.quiz_id ? [{ quiz_id: occurrence.quiz_id }] : [])
-        ],
+        occurrence_id: occurrence.id,
         status: 'completed'
       };
     } else if (quiz) {
@@ -1825,10 +1814,7 @@ router.get('/occurrences/:occurrenceId/leaderboard', async (req, res) => {
       };
     } else if (isUUID) {
       whereClause = {
-        [Op.or]: [
-          { occurrence_id: rawParam },
-          { quiz_id: rawParam }
-        ],
+        occurrence_id: rawParam,
         status: 'completed'
       };
     }

@@ -12,7 +12,7 @@ import {
   isMobileDevice, isFullscreenAPISupported, requestAppFullscreen, isNativeFullscreenActive, 
   normalizeSelection, toggleOptionInSelection 
 } from '../utils/fullscreen';
-import { formatToISTDateTimeString } from '../utils/dateUtils';
+import { formatToISTDateTimeString, formatToISTTimeString, formatToISTDateString } from '../utils/dateUtils';
 
 export default function ScheduledQuizTake() {
   const { toast } = useToast();
@@ -20,11 +20,12 @@ export default function ScheduledQuizTake() {
   const targetIdentifier = slug || occurrenceId || identifier;
   const navigate = useNavigate();
   const location = useLocation();
-  const { studentAccount, user, studentLogin, studentLogout, studentRegister } = useAuth();
+  const { studentAccount, user, studentLogin, studentLogout, studentRegister, logout } = useAuth();
 
   const [loading, setLoading] = useState(true);
   const [occData, setOccData] = useState(null);
   const [loadError, setLoadError] = useState('');
+  const [verifyingReg, setVerifyingReg] = useState(false);
   
   // Student input state
   const [name, setName] = useState('');
@@ -105,16 +106,36 @@ export default function ScheduledQuizTake() {
   };
 
   const handleSignOut = () => {
-    if (studentLogout) studentLogout();
-    if (logout) logout();
-    setEmail('');
-    setName('');
-    localStorage.removeItem('msc_student_email');
-    localStorage.removeItem('msc_student_name');
-    localStorage.removeItem('msc_participant_email');
-    localStorage.removeItem('msc_participant_name');
-    setUserAttempt(null);
-    fetchOccurrence('', '');
+    try {
+      if (studentLogout) studentLogout();
+      if (logout) logout();
+      setEmail('');
+      setName('');
+      setPassword('');
+      localStorage.removeItem('msc_student_email');
+      localStorage.removeItem('msc_student_name');
+      localStorage.removeItem('msc_participant_email');
+      localStorage.removeItem('msc_participant_name');
+      localStorage.removeItem('msc_saved_form_data');
+      setAttempt(null);
+      setStartError('');
+      fetchOccurrence('', '');
+      toast.success('Signed out successfully.');
+    } catch (err) {
+      console.warn('Sign out error:', err);
+    }
+  };
+
+  const handleVerifyRegistration = async () => {
+    try {
+      setVerifyingReg(true);
+      await fetchOccurrence();
+      toast.info('Registration status refreshed.');
+    } catch (e) {
+      toast.error('Failed to verify registration status.');
+    } finally {
+      setVerifyingReg(false);
+    }
   };
 
   const fetchOccurrence = async (overrideEmail, overrideName) => {
@@ -1084,23 +1105,56 @@ export default function ScheduledQuizTake() {
     }
 
     return (
-      <div className="max-w-md mx-auto py-10 px-4 font-segoe text-left">
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-md space-y-6">
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 bg-blue-50 text-blue-700 rounded-full inline-block">
-                Scheduled Assessment
+      <div className="w-full max-w-xl mx-auto py-8 sm:py-12 px-4 font-segoe text-left relative">
+        {/* Ambient Glows */}
+        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 sm:w-96 h-80 sm:h-96 bg-gradient-to-tr from-blue-500/10 via-indigo-500/15 to-purple-500/10 rounded-full blur-3xl pointer-events-none -z-10" />
+
+        <div className="bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-3xl p-6 sm:p-9 shadow-xl shadow-slate-200/50 space-y-6 text-left relative transition-all">
+          
+          {/* Header & Badges */}
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider px-3 py-1 bg-blue-100/80 text-blue-800 border border-blue-200 rounded-full inline-flex items-center space-x-1 shadow-2xs">
+                <Calendar size={12} className="text-blue-600" />
+                <span>Scheduled Assessment</span>
               </span>
-              <span className="text-[10px] font-bold text-slate-400">
-                {occData?.quiz?.time_limit || 30} mins limit
+
+              {occData?.occurrence?.occurrence_number && (
+                <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 bg-indigo-50 text-indigo-700 border border-indigo-200 rounded-full">
+                  Round #{occData.occurrence.occurrence_number}
+                </span>
+              )}
+
+              <span className="text-[10px] font-extrabold text-slate-600 bg-slate-100 border border-slate-200 px-2.5 py-1 rounded-full flex items-center space-x-1">
+                <Clock size={11} className="text-slate-500" />
+                <span>{occData?.quiz?.time_limit || 30} mins limit</span>
               </span>
+
+              {occData?.quiz?.questions?.length > 0 && (
+                <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full flex items-center space-x-1">
+                  <CheckCircle size={11} className="text-emerald-600" />
+                  <span>{occData.quiz.questions.length} Questions</span>
+                </span>
+              )}
             </div>
-            <h2 className="text-xl font-black text-slate-900">{occData?.quiz?.title || 'Scheduled Quiz'}</h2>
-            <p className="text-xs text-slate-500 font-medium">{occData?.quiz?.description || 'Complete the assessment questions within the active time window.'}</p>
+
+            <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-tight">
+              {occData?.quiz?.title || 'Scheduled Quiz'}
+            </h2>
+
+            {occData?.quiz?.description && (
+              <div className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-2xl text-xs font-semibold text-slate-600 leading-relaxed flex items-start gap-2.5">
+                <Sparkles size={16} className="text-indigo-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-extrabold text-slate-800 block mb-0.5">Syllabus & Topics:</span>
+                  <span>{occData.quiz.description}</span>
+                </div>
+              </div>
+            )}
           </div>
 
           {status === 'NOT_STARTED' ? (
-            <div className="p-5 bg-blue-50 border border-blue-200 text-blue-900 rounded-2xl space-y-3">
+            <div className="p-5 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 text-blue-900 rounded-3xl space-y-3 shadow-xs">
               <div className="flex items-center space-x-2 text-xs font-extrabold text-blue-700">
                 <Clock size={18} className="animate-spin text-blue-600" />
                 <span>Scheduled Start Time:</span>
@@ -1119,14 +1173,36 @@ export default function ScheduledQuizTake() {
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="p-3.5 bg-blue-50/70 border border-blue-100 rounded-2xl text-[11px] font-semibold text-blue-900 flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <Clock size={15} className="text-blue-600 flex-shrink-0" />
-                  <span>Session Window:</span>
+              
+              {/* Active Session Info Box */}
+              <div className="p-4 bg-gradient-to-r from-blue-50/90 via-indigo-50/70 to-blue-50/90 border border-blue-200/90 rounded-2xl space-y-2.5 shadow-xs">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2 text-xs font-black text-blue-950 uppercase tracking-wide">
+                    <Clock size={15} className="text-blue-600" />
+                    <span>Active Session Window</span>
+                  </div>
+                  <span className="flex items-center space-x-1.5 px-2.5 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full text-[10px] font-black">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <span>Live Now</span>
+                  </span>
                 </div>
-                <span className="font-extrabold text-blue-700">
-                  {occData?.occurrence?.end_time ? new Date(occData.occurrence.end_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Open Now'}
-                </span>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1 border-t border-blue-200/60">
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-500 block uppercase tracking-wider">Date</span>
+                    <span className="font-extrabold text-slate-800">
+                      {occData?.occurrence?.start_time ? formatToISTDateString(occData.occurrence.start_time, { month: 'short', day: 'numeric', year: 'numeric', weekday: 'short' }) : 'Today'}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-500 block uppercase tracking-wider">Time Window (IST)</span>
+                    <span className="font-extrabold text-blue-800">
+                      {occData?.occurrence?.start_time && occData?.occurrence?.end_time 
+                        ? `${formatToISTTimeString(occData.occurrence.start_time)} – ${formatToISTTimeString(occData.occurrence.end_time)}`
+                        : 'Open for Submissions'}
+                    </span>
+                  </div>
+                </div>
               </div>
 
               {startError && (
@@ -1142,37 +1218,40 @@ export default function ScheduledQuizTake() {
                 onSuccess={(u) => { 
                   setName(u.name); 
                   setEmail(u.email); 
+                  fetchOccurrence(u.email, u.name);
                 }} 
               />
 
               {isLoggedIn ? (
                 /* Authenticated State: Show verified student badge and 1-click start */
-                <div className="space-y-4 pt-2 border-t border-slate-100">
-                  <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl space-y-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2.5">
-                        <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
+                <div className="space-y-4 pt-1">
+                  
+                  {/* User Profile Card */}
+                  <div className="p-4 bg-gradient-to-r from-slate-50 via-blue-50/40 to-indigo-50/40 border border-slate-200 rounded-2xl space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center space-x-3 min-w-0">
+                        <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-black text-sm shadow-md flex-shrink-0">
                           {((displayName || 'S').charAt(0)).toUpperCase()}
                         </div>
-                        <div>
-                          <div className="text-xs font-black text-slate-900 flex items-center space-x-1.5">
-                            <span>{displayName}</span>
-                            <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded-full text-[9px] font-black uppercase flex items-center space-x-0.5">
-                              <ShieldCheck size={11} />
+                        <div className="min-w-0">
+                          <div className="text-xs sm:text-sm font-black text-slate-900 flex items-center space-x-1.5 truncate">
+                            <span className="truncate">{displayName}</span>
+                            <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-full text-[9px] font-black uppercase flex items-center space-x-1 flex-shrink-0">
+                              <ShieldCheck size={11} className="text-emerald-600" />
                               <span>Verified</span>
                             </span>
                           </div>
-                          <span className="text-[11px] text-slate-500 font-semibold">{displayEmail}</span>
+                          <span className="text-xs text-slate-500 font-semibold truncate block mt-0.5">{displayEmail}</span>
                         </div>
                       </div>
 
                       <button
                         type="button"
                         onClick={handleSignOut}
-                        className="flex items-center space-x-1 text-[11px] text-red-600 hover:text-red-800 font-bold bg-white px-2.5 py-1 rounded-lg border border-red-200 hover:bg-red-50 transition-colors cursor-pointer"
+                        className="flex items-center space-x-1.5 text-xs text-red-600 hover:text-red-700 font-extrabold bg-white hover:bg-red-50 px-3 py-2 rounded-xl border border-red-200 hover:border-red-300 transition-all cursor-pointer shadow-2xs active:scale-95 flex-shrink-0"
                         title="Sign out of current account"
                       >
-                        <LogOut size={12} />
+                        <LogOut size={13} className="text-red-600" />
                         <span>Sign Out</span>
                       </button>
                     </div>
@@ -1180,59 +1259,62 @@ export default function ScheduledQuizTake() {
 
                   {/* ════════ EVENT REGISTRATION CHECK GATE ════════ */}
                   {occData?.requiresEventRegistration && !occData?.isEventRegistered ? (
-                    <div className="p-5 bg-gradient-to-r from-amber-50/90 via-orange-50/70 to-rose-50/80 border border-amber-300 rounded-2xl space-y-3.5 animate-fade-in shadow-xs text-left">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center font-bold text-sm shadow-xs flex-shrink-0">
-                            <Ticket size={20} />
-                          </div>
-                          <div>
-                            <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-100/90 px-2.5 py-0.5 rounded-full border border-amber-200 block w-fit mb-0.5">
-                              Event Registration Required
-                            </span>
-                            <h4 className="text-xs sm:text-sm font-black text-slate-900">
-                              You Have Not Registered for This Event
-                            </h4>
-                          </div>
+                    <div className="p-5 bg-gradient-to-br from-amber-50/90 via-orange-50/60 to-amber-50/90 border border-amber-300 rounded-3xl space-y-4 shadow-sm animate-fade-in text-left">
+                      <div className="flex items-start space-x-3">
+                        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white flex items-center justify-center font-bold text-base shadow-md flex-shrink-0">
+                          <Ticket size={22} />
+                        </div>
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-100/90 px-2.5 py-0.5 rounded-full border border-amber-300/80 inline-block">
+                            Event Registration Required
+                          </span>
+                          <h4 className="text-sm sm:text-base font-black text-slate-900 pt-0.5">
+                            You Have Not Registered for This Event
+                          </h4>
                         </div>
                       </div>
 
                       <p className="text-xs text-slate-700 leading-relaxed font-semibold">
-                        This assessment is exclusively linked to <strong>{occData.linkedEvent?.name || 'VisionX Season 2'}</strong>. You must complete event registration before you can attempt this quiz.
+                        This assessment is exclusively linked to <strong>{occData.linkedEvent?.name || 'VisionX Season 2'}</strong>. Complete free registration with your student email to unlock this quiz.
                       </p>
 
-                      <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
                         <a
                           href={`https://www.mscprpcem.tech/register/${occData.linkedEvent?.slug || occData.linkedEvent?.id || 'visionx-season-2'}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="flex-1 py-3 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md transition-all cursor-pointer active:scale-98 text-center"
+                          className="py-3 px-4 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-700 hover:to-orange-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-98 text-center"
                         >
                           <ExternalLink size={14} />
-                          <span>Register for {occData.linkedEvent?.name || 'VisionX Season 2'} on MSC Website</span>
+                          <span>Register on MSC Portal</span>
                         </a>
 
                         <button
                           type="button"
-                          onClick={() => fetchOccurrence()}
-                          className="py-3 px-4 bg-white hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-xs border border-slate-200 flex items-center justify-center space-x-1.5 transition-colors cursor-pointer"
+                          onClick={handleVerifyRegistration}
+                          disabled={verifyingReg}
+                          className="py-3 px-4 bg-white hover:bg-slate-50 text-slate-800 font-extrabold rounded-xl text-xs border border-slate-200 hover:border-slate-300 flex items-center justify-center space-x-1.5 transition-all cursor-pointer shadow-2xs active:scale-98 disabled:opacity-50"
                         >
-                          <RefreshCw size={13} />
-                          <span>Verify Registration</span>
+                          <RefreshCw size={13} className={verifyingReg ? 'animate-spin text-amber-600' : 'text-slate-600'} />
+                          <span>{verifyingReg ? 'Checking Status...' : 'Verify Registration'}</span>
                         </button>
                       </div>
+
+                      <p className="text-[10px] text-amber-800 font-medium border-t border-amber-200/60 pt-2 flex items-center gap-1">
+                        <span>💡 Registered with a different email? Click <strong>Sign Out</strong> above and login with that email.</span>
+                      </p>
                     </div>
                   ) : (
                     <>
                       {occData?.requiresEventRegistration && occData?.isEventRegistered && (
-                        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-xl text-xs font-bold flex items-center space-x-2">
-                          <ShieldCheck size={16} className="text-emerald-600 flex-shrink-0" />
+                        <div className="p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-2xl text-xs font-bold flex items-center space-x-2.5 shadow-2xs">
+                          <ShieldCheck size={18} className="text-emerald-600 flex-shrink-0" />
                           <span>Event Registration Verified: <strong>{occData.linkedEvent?.name}</strong></span>
                         </div>
                       )}
 
                       {occData?.userAttempt?.status === 'in_progress' ? (
-                        <div className="p-3.5 bg-blue-50 border border-blue-200 rounded-2xl space-y-1.5 animate-pulse">
+                        <div className="p-4 bg-blue-50 border border-blue-200 rounded-2xl space-y-1.5 animate-pulse">
                           <div className="flex items-center space-x-2 text-xs font-black text-blue-900">
                             <Sparkles size={15} className="text-blue-600" />
                             <span>Active Session In Progress (Session Recovery)</span>
@@ -1242,18 +1324,18 @@ export default function ScheduledQuizTake() {
                           </p>
                         </div>
                       ) : (
-                        <div className="text-[10px] text-slate-400 font-semibold bg-slate-50 p-2.5 rounded-xl border border-slate-100 flex items-center space-x-1.5">
-                          <ShieldCheck size={13} className="text-emerald-600 flex-shrink-0" />
-                          <span>Your attempt and official certificate will be linked to your student account.</span>
+                        <div className="text-[11px] text-slate-500 font-medium bg-slate-50 p-3 rounded-2xl border border-slate-200/80 flex items-center space-x-2">
+                          <ShieldCheck size={15} className="text-emerald-600 flex-shrink-0" />
+                          <span>Your attempt and official certificate will be automatically linked to your student account.</span>
                         </div>
                       )}
 
                       <button
                         onClick={handleStartAttempt}
-                        className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all active:scale-98"
+                        className="w-full py-4 bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 hover:from-blue-700 hover:to-indigo-800 text-white font-black rounded-2xl text-sm flex items-center justify-center space-x-2 shadow-lg shadow-blue-600/30 cursor-pointer transition-all active:scale-98"
                       >
-                        <span>{occData?.userAttempt?.status === 'in_progress' ? 'Resume Quiz Attempt' : 'Start Quiz Attempt'}</span>
-                        <ArrowRight size={16} />
+                        <span>{occData?.userAttempt?.status === 'in_progress' ? 'Resume Quiz Attempt' : 'Start Assessment Now'}</span>
+                        <ArrowRight size={17} />
                       </button>
                     </>
                   )}
@@ -1261,19 +1343,19 @@ export default function ScheduledQuizTake() {
               ) : (
                 /* Unauthenticated State: Prompt for Student Login / Sign In Modal */
                 <div className="space-y-4 pt-2 border-t border-slate-100">
-                  <div className="flex items-center space-x-2 text-xs font-black text-purple-900 bg-purple-50 border border-purple-200 px-3.5 py-2.5 rounded-xl">
+                  <div className="flex items-center space-x-2.5 text-xs font-black text-purple-900 bg-purple-50 border border-purple-200 px-4 py-3 rounded-2xl">
                     <LogIn size={16} className="text-purple-600 flex-shrink-0" />
                     <span>Student Login Required to Attempt Quiz</span>
                   </div>
 
-                  <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                  <p className="text-xs text-slate-500 font-medium leading-relaxed">
                     Please sign in or create an account to verify your identity and start your scheduled quiz attempt.
                   </p>
 
                   <button
                     type="button"
                     onClick={() => setShowAuthModal(true)}
-                    className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all active:scale-98"
+                    className="w-full py-3.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold rounded-2xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all active:scale-98"
                   >
                     <User size={15} />
                     <span>Sign In / Create Account & Unlock Quiz</span>
