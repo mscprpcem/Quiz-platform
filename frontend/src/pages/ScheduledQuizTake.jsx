@@ -10,7 +10,7 @@ import {
   Square, ShieldCheck, ArrowRight, RefreshCw, User, Lock, Award, LogIn, LogOut, ExternalLink, Sparkles, Maximize, KeyRound, Timer, AlertOctagon, XCircle, Ticket, Calendar, Check
 } from 'lucide-react';
 import { 
-  isMobileDevice, isFullscreenAPISupported, requestAppFullscreen, isNativeFullscreenActive, 
+  isMobileDevice, isFullscreenAPISupported, requestAppFullscreen, isNativeFullscreenActive, exitAppFullscreen,
   normalizeSelection, toggleOptionInSelection 
 } from '../utils/fullscreen';
 import { formatToISTDateTimeString, formatToISTTimeString, formatToISTDateString } from '../utils/dateUtils';
@@ -238,20 +238,24 @@ export default function ScheduledQuizTake() {
     let blurTimer = null;
 
     const handleVisibilityChange = () => {
+      if (submittingRef.current || quizSubmitted) return;
       if (document.hidden) {
         recordViolation('TAB_SWITCH');
       }
     };
 
     const handlePageHide = () => {
+      if (submittingRef.current || quizSubmitted) return;
       recordViolation('APP_SWITCH');
     };
 
     const handleBlur = () => {
+      if (submittingRef.current || quizSubmitted) return;
       // On phones, soft keyboard open/touch can trigger a momentary blur.
       // Debounce blur so only genuine unfocus/app-switch triggers a violation.
       if (blurTimer) clearTimeout(blurTimer);
       blurTimer = setTimeout(() => {
+        if (submittingRef.current || quizSubmitted) return;
         if (document.hidden || (typeof document.hasFocus === 'function' && !document.hasFocus())) {
           recordViolation('WINDOW_BLUR');
         }
@@ -263,21 +267,25 @@ export default function ScheduledQuizTake() {
     };
 
     const handleCopy = (e) => {
+      if (submittingRef.current || quizSubmitted) return;
       e.preventDefault();
       recordViolation('COPY');
     };
 
     const handleCut = (e) => {
+      if (submittingRef.current || quizSubmitted) return;
       e.preventDefault();
       recordViolation('CUT');
     };
 
     const handlePaste = (e) => {
+      if (submittingRef.current || quizSubmitted) return;
       e.preventDefault();
       recordViolation('PASTE');
     };
 
     const handleContextMenu = (e) => {
+      if (submittingRef.current || quizSubmitted) return;
       e.preventDefault();
       recordViolation('CONTEXT_MENU');
     };
@@ -332,6 +340,8 @@ export default function ScheduledQuizTake() {
     if (!attempt || quizSubmitted) return;
 
     const handleFullscreenChange = () => {
+      if (submittingRef.current || quizSubmitted) return;
+
       // If mobile device without native fullscreen API (e.g. iOS Safari), do not falsely trigger violation
       if (isMobile() && !isFullscreenSupported()) {
         setIsFullscreen(true);
@@ -346,7 +356,7 @@ export default function ScheduledQuizTake() {
       );
       setIsFullscreen(isFull);
 
-      if (requireFullscreen && !isFull && !isMobile()) {
+      if (requireFullscreen && !isFull && !isMobile() && !submittingRef.current && !quizSubmitted) {
         recordViolation('FULLSCREEN_EXIT');
         setShowFullscreenModal(true);
       }
@@ -488,10 +498,10 @@ export default function ScheduledQuizTake() {
       submittingRef.current = true;
       setSubmittingQuiz(true);
       setShowSubmitModal(false);
+      setShowFullscreenModal(false);
 
-      if (document.fullscreenElement) {
-        document.exitFullscreen().catch(() => {});
-      }
+      // Cleanly exit fullscreen immediately
+      await exitAppFullscreen().catch(() => {});
 
       const res = await api.post(`/api/scheduled-quizzes/attempts/${attempt.id}/submit`);
       setResultData(res.data || {});
@@ -504,12 +514,8 @@ export default function ScheduledQuizTake() {
         } catch (e) {}
       }
 
-      // Cleanly exit fullscreen on finish
-      if (document.fullscreenElement) {
-        try {
-          if (document.exitFullscreen) await document.exitFullscreen();
-        } catch (e) {}
-      }
+      // Ensure fullscreen is exited after submission completes and normal screen is active
+      await exitAppFullscreen().catch(() => {});
     } catch (err) {
       console.error('Submit error:', err);
       toast.error(err.response?.data?.error || 'Failed to submit quiz attempt.', 'Submission Error');
@@ -1500,25 +1506,41 @@ export default function ScheduledQuizTake() {
       )}
 
       {/* Fullscreen Required Modal Overlay */}
-      {showFullscreenModal && requireFullscreen && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center space-y-5 shadow-2xl animate-fade-in">
+      {showFullscreenModal && requireFullscreen && !quizSubmitted && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 max-w-md w-full text-center space-y-5 shadow-2xl animate-scale-up">
             <div className="w-14 h-14 bg-amber-100 text-amber-600 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
               <AlertTriangle size={28} />
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <h3 className="text-lg font-black text-slate-900">Fullscreen Mode Required</h3>
               <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-                This quiz has anti-cheat full-screen proctoring enabled. Please re-enter full-screen mode to continue your assessment.
+                This assessment has full-screen proctoring enabled. Please re-enter full-screen mode to continue your assessment, or submit your answers now.
               </p>
             </div>
-            <button
-              onClick={enterFullscreen}
-              className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all active:scale-98"
-            >
-              <Maximize size={16} />
-              <span>Re-enter Fullscreen Mode</span>
-            </button>
+
+            <div className="space-y-2.5 pt-1">
+              <button
+                type="button"
+                onClick={enterFullscreen}
+                className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-2xl text-xs flex items-center justify-center space-x-2 shadow-md cursor-pointer transition-all active:scale-98"
+              >
+                <Maximize size={16} />
+                <span>Re-enter Fullscreen Mode</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowFullscreenModal(false);
+                  setShowSubmitModal(true);
+                }}
+                className="w-full py-3 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-extrabold rounded-2xl text-xs flex items-center justify-center space-x-1.5 border border-emerald-300 transition-all cursor-pointer shadow-2xs active:scale-98"
+              >
+                <CheckSquare size={15} className="text-emerald-600" />
+                <span>Submit Quiz Assessment ({answeredCount}/{questions.length} Answered)</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
