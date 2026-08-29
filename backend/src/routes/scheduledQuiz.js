@@ -554,8 +554,53 @@ const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, e
     }
   }
 
-  if (occurrences.length > 0) {
-    await ScheduledOccurrence.bulkCreate(occurrences);
+  // In-place occurrence persistence preserving IDs and past attempts
+  const existingOccs = await ScheduledOccurrence.findAll({ where: { quiz_id: quizId } });
+  const existingOccMap = new Map(existingOccs.map(o => [o.occurrence_number, o]));
+
+  for (const occData of occurrences) {
+    const existing = existingOccMap.get(occData.occurrence_number);
+    if (existing) {
+      await existing.update({
+        title: occData.title,
+        start_time: occData.start_time,
+        end_time: occData.end_time
+      });
+      existingOccMap.delete(occData.occurrence_number);
+    } else {
+      await ScheduledOccurrence.create(occData);
+    }
+  }
+
+  // Any remaining old occurrences not in current schedule
+  for (const [, oldOcc] of existingOccMap.entries()) {
+    const attemptsCount = await QuizAttempt.count({ where: { occurrence_id: oldOcc.id } }).catch(() => 0);
+    if (attemptsCount === 0) {
+      await oldOcc.destroy();
+    } else {
+      await oldOcc.update({ status: 'PAUSED' });
+    }
+  }
+
+  // Self-heal: Re-link any past attempts whose occurrence was lost
+  try {
+    const allCurrentOccs = await ScheduledOccurrence.findAll({ where: { quiz_id: quizId }, order: [['occurrence_number', 'ASC']] });
+    if (allCurrentOccs.length > 0) {
+      const currentIds = new Set(allCurrentOccs.map(o => o.id));
+      const occ1 = allCurrentOccs.find(o => o.occurrence_number === 1) || allCurrentOccs[0];
+      const orphanedAttempts = await QuizAttempt.findAll({
+        where: {
+          quiz_id: quizId,
+          occurrence_id: { [Op.notIn]: Array.from(currentIds) }
+        }
+      });
+      for (const att of orphanedAttempts) {
+        att.occurrence_id = occ1.id;
+        await att.save();
+      }
+    }
+  } catch (e) {
+    console.warn('Attempt self-heal notice:', e.message);
   }
 };
 
@@ -1015,11 +1060,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
       await Question.bulkCreate(qRecords);
     }
 
-    // Regenerate Occurrences with updated times
-    await ScheduledOccurrence.destroy({
-      where: { quiz_id: quiz.id }
-    });
-
+    // Sync / Update Occurrences in-place preserving IDs and student attempts
     await generateOccurrences(
       quiz.id,
       quiz.title,

@@ -45,6 +45,7 @@ import AdminEmailDispatch from './pages/AdminEmailDispatch';
 import AdminEvents from './pages/AdminEvents';
 import AdminUsers from './pages/AdminUsers';
 import EventRegister from './pages/EventRegister';
+import NotFound from './pages/NotFound';
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -289,8 +290,8 @@ export default function App() {
                   }
                 />
 
-                {/* Fallback route */}
-                <Route path="*" element={<Navigate to="/" replace />} />
+                {/* Fallback 404 route */}
+                <Route path="*" element={<NotFound />} />
               </Routes>
             </main>
 

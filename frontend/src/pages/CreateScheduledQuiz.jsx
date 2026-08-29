@@ -491,10 +491,13 @@ export default function CreateScheduledQuiz() {
           }
 
           // Section mapping:
-          // 1. If explicit Section/Week number is given in the row, use it
-          // 2. Otherwise, default to defaultSectionNum (current active tab/section)
-          let secNum = defaultSectionNum;
-          if (!overrideSectionNumber) {
+          // 1. If user clicked upload for a specific round or is filtering on a specific round tab, map imported questions to that round
+          // 2. Otherwise, read explicit Section/Occurrence column from the spreadsheet
+          let secNum = (overrideSectionNumber && overrideSectionNumber > 0)
+            ? overrideSectionNumber
+            : ((activeSectionFilter && activeSectionFilter > 0) ? activeSectionFilter : defaultSectionNum);
+
+          if (!overrideSectionNumber && (!activeSectionFilter || activeSectionFilter <= 0)) {
             const rawSec = row.Section || row.section || row.Occurrence || row.occurrence || row.Round || row.round || row.Week || row.week || row.Day || row.day || row.Session || row.session;
             if (rawSec !== undefined && String(rawSec).trim() !== '') {
               const parsedNum = parseInt(String(rawSec).replace(/[^0-9]/g, ''), 10);
