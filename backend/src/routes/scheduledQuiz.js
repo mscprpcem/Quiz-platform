@@ -1907,26 +1907,32 @@ router.get('/occurrences/:occurrenceId/leaderboard', async (req, res) => {
       );
     }
 
-    let whereClause = { status: 'completed' };
-    if (occurrence) {
-      whereClause = {
-        occurrence_id: occurrence.id,
-        status: 'completed'
-      };
-    } else if (quiz) {
-      whereClause = {
-        quiz_id: quiz.id,
-        status: 'completed'
-      };
-    } else if (isUUID) {
-      whereClause = {
-        occurrence_id: rawParam,
-        status: 'completed'
-      };
+    let targetOccId = occurrence ? occurrence.id : (isUUID ? rawParam : null);
+    let targetQuizId = occurrence ? occurrence.quiz_id : (quiz ? quiz.id : null);
+
+    const statusConditions = [
+      { status: 'completed' },
+      { status: 'COMPLETED' },
+      { status: 'submitted' },
+      { status: 'SUBMITTED' },
+      sequelize.where(sequelize.fn('LOWER', sequelize.col('status')), 'completed')
+    ];
+
+    const matchConditions = [];
+    if (targetOccId) {
+      matchConditions.push({ occurrence_id: targetOccId });
+    }
+    if (targetQuizId) {
+      matchConditions.push({ quiz_id: targetQuizId });
     }
 
     const attempts = await QuizAttempt.findAll({
-      where: whereClause,
+      where: {
+        [Op.and]: [
+          { [Op.or]: statusConditions },
+          ...(matchConditions.length > 0 ? [{ [Op.or]: matchConditions }] : [])
+        ]
+      },
       order: [
         ['attempt_number', 'DESC'],
         ['submitted_at', 'DESC'],

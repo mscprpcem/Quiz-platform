@@ -1151,9 +1151,127 @@ export default function ScheduledQuizTake() {
               </p>
             </div>
           ) : status !== 'AVAILABLE' ? (
-            <div className="p-4 bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl text-xs font-semibold flex items-center space-x-3">
-              <AlertTriangle size={20} className="flex-shrink-0" />
-              <span>{message}</span>
+            <div className="space-y-6">
+              <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 text-amber-900 rounded-2xl text-xs font-semibold flex items-center space-x-3 text-left shadow-xs">
+                <AlertTriangle size={20} className="text-amber-600 flex-shrink-0" />
+                <div className="space-y-0.5">
+                  <div className="font-extrabold text-amber-950">Quiz Session Concluded</div>
+                  <div>{message}</div>
+                </div>
+              </div>
+
+              {/* Show Leaderboard for Concluded Quiz */}
+              {occData?.quiz?.show_leaderboard !== false && (
+                <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-md space-y-5 text-left">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                    <div className="flex items-center space-x-2.5">
+                      <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center font-black">
+                        <Trophy size={20} />
+                      </div>
+                      <div>
+                        <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">Official Standings & Leaderboard</h3>
+                        <p className="text-[11px] font-semibold text-slate-500">Ranked by: 1. Total Score  2. Time Taken (Speed)  3. Accuracy</p>
+                      </div>
+                    </div>
+                    
+                    <button
+                      type="button"
+                      onClick={fetchLeaderboard}
+                      disabled={loadingLeaderboard}
+                      className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-xl transition-all cursor-pointer"
+                      title="Refresh Leaderboard Standings"
+                    >
+                      <RefreshCw size={15} className={loadingLeaderboard ? 'animate-spin' : ''} />
+                    </button>
+                  </div>
+
+                  {loadingLeaderboard ? (
+                    <div className="py-8 text-center space-y-2">
+                      <RefreshCw size={24} className="text-blue-600 animate-spin mx-auto" />
+                      <p className="text-xs text-slate-500 font-bold">Loading official standings...</p>
+                    </div>
+                  ) : leaderboardList.length === 0 ? (
+                    <div className="py-6 text-center text-xs text-slate-500 font-semibold">
+                      No attempts recorded for this session yet.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {leaderboardList.slice(0, 15).map((player, idx) => {
+                        const userEmail = email || studentAccount?.email || user?.email || localStorage.getItem('msc_student_email') || '';
+                        const userName = name || studentAccount?.name || user?.name || localStorage.getItem('msc_student_name') || '';
+                        const isCurrentPlayer = (userEmail && (player.email?.toLowerCase() === userEmail.toLowerCase() || player.participant_email?.toLowerCase() === userEmail.toLowerCase())) || (userName && (player.participant_name?.toLowerCase() === userName.toLowerCase() || player.name?.toLowerCase() === userName.toLowerCase()));
+                        
+                        let rankBadge = (
+                          <span className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-black text-xs border border-slate-200">
+                            {player.rank || (idx + 1)}
+                          </span>
+                        );
+
+                        let cardStyle = "bg-white hover:bg-slate-50/80 border-slate-200";
+
+                        if (player.rank === 1 || idx === 0) {
+                          rankBadge = (
+                            <span className="w-7 h-7 rounded-full bg-amber-400 text-amber-950 flex items-center justify-center font-black text-xs shadow-xs">
+                              🥇
+                            </span>
+                          );
+                          cardStyle = "bg-amber-50/40 border-amber-200";
+                        } else if (player.rank === 2 || idx === 1) {
+                          rankBadge = (
+                            <span className="w-7 h-7 rounded-full bg-slate-300 text-slate-800 flex items-center justify-center font-black text-xs">
+                              🥈
+                            </span>
+                          );
+                          cardStyle = "bg-slate-50 border-slate-300";
+                        } else if (player.rank === 3 || idx === 2) {
+                          rankBadge = (
+                            <span className="w-7 h-7 rounded-full bg-amber-200 text-amber-900 flex items-center justify-center font-black text-xs">
+                              🥉
+                            </span>
+                          );
+                          cardStyle = "bg-amber-50/20 border-amber-200/60";
+                        }
+
+                        if (isCurrentPlayer) {
+                          cardStyle += " ring-2 ring-blue-500 bg-blue-50/70 border-blue-300 font-bold";
+                        }
+
+                        return (
+                          <div
+                            key={player.id || idx}
+                            className={`p-3 sm:p-3.5 rounded-2xl border flex items-center justify-between gap-3 transition-all ${cardStyle}`}
+                          >
+                            <div className="flex items-center space-x-3 truncate">
+                              {rankBadge}
+                              <div className="truncate text-left">
+                                <div className="flex items-center gap-1.5 truncate">
+                                  <span className="font-extrabold text-xs sm:text-sm text-slate-900 truncate">
+                                    {player.participant_name || player.name || 'Participant'}
+                                  </span>
+                                  {isCurrentPlayer && (
+                                    <span className="text-[9px] font-black uppercase tracking-wider bg-blue-600 text-white px-2 py-0.5 rounded-md">
+                                      You
+                                    </span>
+                                  )}
+                                </div>
+                                <p className="text-[10px] font-semibold text-slate-500 truncate">
+                                  {player.correct_count || player.correctAnswers || 0} Correct • {Math.floor((player.time_taken_seconds || 0) / 60)}m {(player.time_taken_seconds || 0) % 60}s
+                                </p>
+                              </div>
+                            </div>
+
+                            <div className="flex items-center space-x-2 flex-shrink-0">
+                              <span className="font-black text-xs sm:text-sm text-blue-700 bg-blue-50 border border-blue-200 px-3 py-1 rounded-full whitespace-nowrap">
+                                {player.score || 0} <span className="text-[9px] font-bold text-slate-500 uppercase">pts</span>
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ) : (
             <div className="space-y-4">
