@@ -1757,7 +1757,9 @@ router.post('/attempts/:attemptId/violation', async (req, res) => {
   try {
     const { violationType } = req.body;
     const attempt = await QuizAttempt.findByPk(req.params.attemptId);
-    if (!attempt) return res.status(404).json({ error: 'Attempt not found.' });
+    if (!attempt || attempt.status !== 'in_progress') {
+      return res.json({ violationCount: 0, autoSubmit: false });
+    }
 
     await AttemptViolation.create({
       attempt_id: attempt.id,

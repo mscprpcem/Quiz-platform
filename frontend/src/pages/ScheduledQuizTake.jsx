@@ -233,29 +233,29 @@ export default function ScheduledQuizTake() {
 
   // Anti-Cheat Violations Event Listeners (Desktop & Mobile safe)
   useEffect(() => {
-    if (!attempt || quizSubmitted) return;
+    if (!attempt || quizSubmitted || showAuthModal) return;
 
     let blurTimer = null;
 
     const handleVisibilityChange = () => {
-      if (submittingRef.current || quizSubmitted) return;
+      if (submittingRef.current || quizSubmitted || showAuthModal) return;
       if (document.hidden) {
         recordViolation('TAB_SWITCH');
       }
     };
 
     const handlePageHide = () => {
-      if (submittingRef.current || quizSubmitted) return;
+      if (submittingRef.current || quizSubmitted || showAuthModal) return;
       recordViolation('APP_SWITCH');
     };
 
     const handleBlur = () => {
-      if (submittingRef.current || quizSubmitted) return;
+      if (submittingRef.current || quizSubmitted || showAuthModal) return;
       // On phones, soft keyboard open/touch can trigger a momentary blur.
       // Debounce blur so only genuine unfocus/app-switch triggers a violation.
       if (blurTimer) clearTimeout(blurTimer);
       blurTimer = setTimeout(() => {
-        if (submittingRef.current || quizSubmitted) return;
+        if (submittingRef.current || quizSubmitted || showAuthModal) return;
         if (document.hidden || (typeof document.hasFocus === 'function' && !document.hasFocus())) {
           recordViolation('WINDOW_BLUR');
         }
@@ -267,25 +267,25 @@ export default function ScheduledQuizTake() {
     };
 
     const handleCopy = (e) => {
-      if (submittingRef.current || quizSubmitted) return;
+      if (submittingRef.current || quizSubmitted || showAuthModal) return;
       e.preventDefault();
       recordViolation('COPY');
     };
 
     const handleCut = (e) => {
-      if (submittingRef.current || quizSubmitted) return;
+      if (submittingRef.current || quizSubmitted || showAuthModal) return;
       e.preventDefault();
       recordViolation('CUT');
     };
 
     const handlePaste = (e) => {
-      if (submittingRef.current || quizSubmitted) return;
+      if (submittingRef.current || quizSubmitted || showAuthModal) return;
       e.preventDefault();
       recordViolation('PASTE');
     };
 
     const handleContextMenu = (e) => {
-      if (submittingRef.current || quizSubmitted) return;
+      if (submittingRef.current || quizSubmitted || showAuthModal) return;
       e.preventDefault();
       recordViolation('CONTEXT_MENU');
     };
@@ -319,7 +319,7 @@ export default function ScheduledQuizTake() {
       document.removeEventListener('contextmenu', handleContextMenu);
       document.removeEventListener('selectstart', handleSelectStart);
     };
-  }, [attempt, quizSubmitted]);
+  }, [attempt, quizSubmitted, showAuthModal]);
 
   const requireFullscreen = Boolean(occData?.quiz?.require_fullscreen);
 
@@ -337,10 +337,10 @@ export default function ScheduledQuizTake() {
 
   // Fullscreen Change & Violation Detection
   useEffect(() => {
-    if (!attempt || quizSubmitted) return;
+    if (!attempt || quizSubmitted || showAuthModal) return;
 
     const handleFullscreenChange = () => {
-      if (submittingRef.current || quizSubmitted) return;
+      if (submittingRef.current || quizSubmitted || showAuthModal) return;
 
       // If mobile device without native fullscreen API (e.g. iOS Safari), do not falsely trigger violation
       if (isMobile() && !isFullscreenSupported()) {
@@ -356,7 +356,7 @@ export default function ScheduledQuizTake() {
       );
       setIsFullscreen(isFull);
 
-      if (requireFullscreen && !isFull && !isMobile() && !submittingRef.current && !quizSubmitted) {
+      if (requireFullscreen && !isFull && !isMobile() && !submittingRef.current && !quizSubmitted && !showAuthModal) {
         recordViolation('FULLSCREEN_EXIT');
         setShowFullscreenModal(true);
       }
@@ -373,10 +373,10 @@ export default function ScheduledQuizTake() {
       document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
       document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
     };
-  }, [attempt, quizSubmitted, requireFullscreen]);
+  }, [attempt, quizSubmitted, requireFullscreen, showAuthModal]);
 
   const recordViolation = async (type) => {
-    if (!attempt || quizSubmitted || submittingRef.current) return;
+    if (!attempt || quizSubmitted || submittingRef.current || showAuthModal) return;
     try {
       const res = await api.post(`/api/scheduled-quizzes/attempts/${attempt.id}/violation`, {
         violationType: type
