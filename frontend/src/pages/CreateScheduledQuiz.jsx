@@ -347,7 +347,8 @@ export default function CreateScheduledQuiz() {
   };
 
   // CSV / Excel File Upload & Parser with dynamic Section Name mapping
-  const handleFileUpload = (e) => {
+  // CSV / Excel File Upload & Parser with dynamic Section Name mapping
+  const handleFileUpload = (e, overrideSectionNumber = null) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -366,6 +367,11 @@ export default function CreateScheduledQuiz() {
 
         const sections = calculateScheduleOccurrences();
         const extractedSections = { ...customSections };
+
+        // Determine default section target (e.g. Week 2 if user is on Week 2 tab or clicked section import)
+        const defaultSectionNum = (overrideSectionNumber && overrideSectionNumber > 0)
+          ? overrideSectionNumber
+          : ((activeSectionFilter && activeSectionFilter > 0) ? activeSectionFilter : 1);
 
         const parsedQuestions = rawData.map((row, idx) => {
           // Normalize column names flexibly
@@ -420,12 +426,17 @@ export default function CreateScheduledQuiz() {
             optD = optD || 'Option D';
           }
 
-          let secNum = 1;
-          const rawSec = row.Section || row.section || row.Occurrence || row.occurrence || row.Round || row.round || row.Week || row.week || row.Day || row.day || row.Session || row.session;
-          if (rawSec !== undefined && rawSec !== '') {
-            const parsedNum = parseInt(String(rawSec).replace(/[^0-9]/g, ''), 10);
-            if (!isNaN(parsedNum) && parsedNum > 0) {
-              secNum = parsedNum;
+          // Section mapping:
+          // 1. If explicit Section/Week number is given in the row, use it
+          // 2. Otherwise, default to defaultSectionNum (current active tab/section)
+          let secNum = defaultSectionNum;
+          if (!overrideSectionNumber) {
+            const rawSec = row.Section || row.section || row.Occurrence || row.occurrence || row.Round || row.round || row.Week || row.week || row.Day || row.day || row.Session || row.session;
+            if (rawSec !== undefined && String(rawSec).trim() !== '') {
+              const parsedNum = parseInt(String(rawSec).replace(/[^0-9]/g, ''), 10);
+              if (!isNaN(parsedNum) && parsedNum > 0) {
+                secNum = parsedNum;
+              }
             }
           }
 
@@ -473,7 +484,16 @@ export default function CreateScheduledQuiz() {
           questions: [...prev.questions, ...parsedQuestions]
         }));
 
-        toast.success(`Successfully imported ${parsedQuestions.length} questions across sections from ${file.name}!`, 'Import Complete');
+        const secCounts = {};
+        parsedQuestions.forEach(q => {
+          secCounts[q.occurrence_number] = (secCounts[q.occurrence_number] || 0) + 1;
+        });
+        const summary = Object.entries(secCounts).map(([s, count]) => {
+          const sName = customSections[s]?.name || sections.find(x => x.number === Number(s))?.name || `Section ${s}`;
+          return `${count} → ${sName}`;
+        }).join(', ');
+
+        toast.success(`Imported ${parsedQuestions.length} questions (${summary})!`, 'Import Complete');
       } catch (err) {
         console.error('CSV/Excel parse error:', err);
         toast.error('Failed to parse spreadsheet. Please ensure standard column headers: Section, Section Name, Question, Option A, Option B, Option C, Option D, Correct Answer.', 'Import Error');
@@ -693,29 +713,183 @@ export default function CreateScheduledQuiz() {
   };
 
   // Download Dynamic CSV or Excel Template tailored to schedule type (Weekly, Biweekly, Monthly, Daily, One-Time, Custom)
-  const handleDownloadTemplate = (format = 'xlsx') => {
+  const handleDownloadTemplate = (format = 'xlsx', targetSectionNum = null) => {
     const scheduleType = formData.schedule_type || 'ONE_TIME';
-    const headers = [
-      'Section',
-      'Section Name',
-      'Question',
-      'Option A',
-      'Option B',
-      'Option C',
-      'Option D',
-      'Correct Answer',
-      'Question Type',
-      'Timer',
-      'Marks',
-      'Explanation'
-    ];
+    const sections = calculateScheduleOccurrences();
+    const sampleData = [];
 
-    const baseFileName = `${(formData.title || 'scheduled_quiz').toLowerCase().replace(/[^a-z0-9]+/g, '_')}_${scheduleType.toLowerCase()}_template`;
-    const ws = XLSX.utils.aoa_to_sheet([headers]);
+    if (targetSectionNum && targetSectionNum > 0) {
+      const secInfo = sections.find(s => s.number === targetSectionNum) || { number: targetSectionNum, name: `Section ${targetSectionNum}` };
+      const secName = customSections[targetSectionNum]?.name || secInfo.name || `Section ${targetSectionNum}`;
+      
+      // Sample questions tailored specifically for this section
+      sampleData.push({
+        'Section': targetSectionNum,
+        'Section Name': secName,
+        'Question': `[${secName} - Single Choice Example] What is a primary benefit of cloud scalability?`,
+        'Option A': 'Elastic scaling and on-demand resource allocation',
+        'Option B': 'Fixed hardware lifecycle constraints',
+        'Option C': 'Manual physical cabling requirement',
+        'Option D': 'Static infrastructure limits',
+        'Correct Answer': 'A',
+        'Question Type': 'Single Choice',
+        'Timer': 30,
+        'Marks': 1,
+        'Explanation': 'Cloud scalability delivers elastic, automatic resource allocation on-demand.'
+      });
+
+      sampleData.push({
+        'Section': targetSectionNum,
+        'Section Name': secName,
+        'Question': `[${secName} - True/False Example] HTTPS encrypts web communications with TLS/SSL.`,
+        'Option A': 'True',
+        'Option B': 'False',
+        'Option C': '',
+        'Option D': '',
+        'Correct Answer': 'A',
+        'Question Type': 'True/False',
+        'Timer': 20,
+        'Marks': 1,
+        'Explanation': 'True. HTTPS uses Transport Layer Security (TLS) to encrypt HTTP traffic.'
+      });
+
+      sampleData.push({
+        'Section': targetSectionNum,
+        'Section Name': secName,
+        'Question': `[${secName} - Multi-Choice Example] Which of the following are cloud service models? (Select all that apply)`,
+        'Option A': 'IaaS (Infrastructure as a Service)',
+        'Option B': 'PaaS (Platform as a Service)',
+        'Option C': 'SaaS (Software as a Service)',
+        'Option D': 'HaaS (Hardware as a Script)',
+        'Correct Answer': 'A, B, C',
+        'Question Type': 'Multiple Choice',
+        'Timer': 45,
+        'Marks': 1,
+        'Explanation': 'IaaS, PaaS, and SaaS are the three standardized cloud service models.'
+      });
+    } else if (sections.length > 1) {
+      // Multi-Section Template: Demonstrate clearly how Week 1 and Week 2 map via the 'Section' column
+      const sec1 = sections[0] || { number: 1, name: 'Week 1' };
+      const sec1Name = customSections[1]?.name || sec1.name || 'Week 1';
+      const sec2 = sections[1] || { number: 2, name: 'Week 2' };
+      const sec2Name = customSections[2]?.name || sec2.name || 'Week 2';
+
+      // Week 1 questions (Section: 1)
+      sampleData.push({
+        'Section': 1,
+        'Section Name': sec1Name,
+        'Question': `[${sec1Name} Sample 1] What does CPU stand for in computer systems?`,
+        'Option A': 'Central Processing Unit',
+        'Option B': 'Central Program Utility',
+        'Option C': 'Computer Personal Unit',
+        'Option D': 'Central Processor Unifier',
+        'Correct Answer': 'A',
+        'Question Type': 'Single Choice',
+        'Timer': 30,
+        'Marks': 1,
+        'Explanation': 'CPU is the Central Processing Unit that executes instructions.'
+      });
+
+      sampleData.push({
+        'Section': 1,
+        'Section Name': sec1Name,
+        'Question': `[${sec1Name} Sample 2] HTTP transmits data in cleartext without encryption by default.`,
+        'Option A': 'True',
+        'Option B': 'False',
+        'Option C': '',
+        'Option D': '',
+        'Correct Answer': 'A',
+        'Question Type': 'True/False',
+        'Timer': 20,
+        'Marks': 1,
+        'Explanation': 'True. HTTP is unencrypted; HTTPS provides TLS encryption.'
+      });
+
+      // Week 2 questions (Section: 2) -> Shows how setting Section to 2 puts questions into Week 2
+      sampleData.push({
+        'Section': 2,
+        'Section Name': sec2Name,
+        'Question': `[${sec2Name} Sample 1] Which of the following are cloud compute services? (Select all that apply)`,
+        'Option A': 'Amazon EC2',
+        'Option B': 'AWS Lambda',
+        'Option C': 'Amazon S3',
+        'Option D': 'Amazon ECS',
+        'Correct Answer': 'A, B, D',
+        'Question Type': 'Multiple Choice',
+        'Timer': 45,
+        'Marks': 1,
+        'Explanation': 'EC2, Lambda, and ECS provide compute capacity. S3 is object storage.'
+      });
+
+      sampleData.push({
+        'Section': 2,
+        'Section Name': sec2Name,
+        'Question': `[${sec2Name} Sample 2] Relational databases only support unstructured JSON documents.`,
+        'Option A': 'True',
+        'Option B': 'False',
+        'Option C': '',
+        'Option D': '',
+        'Correct Answer': 'B',
+        'Question Type': 'True/False',
+        'Timer': 20,
+        'Marks': 1,
+        'Explanation': 'False. Relational databases use structured tables with schemas.'
+      });
+    } else {
+      // Single Section / One-Time Template
+      sampleData.push({
+        'Section': 1,
+        'Section Name': customSections[1]?.name || 'Round 1',
+        'Question': 'What does CPU stand for in computer systems?',
+        'Option A': 'Central Processing Unit',
+        'Option B': 'Central Program Utility',
+        'Option C': 'Computer Personal Unit',
+        'Option D': 'Central Processor Unifier',
+        'Correct Answer': 'A',
+        'Question Type': 'Single Choice',
+        'Timer': 30,
+        'Marks': 1,
+        'Explanation': 'CPU is the Central Processing Unit that executes instructions.'
+      });
+
+      sampleData.push({
+        'Section': 1,
+        'Section Name': customSections[1]?.name || 'Round 1',
+        'Question': 'HTTP transmits data in cleartext without encryption by default.',
+        'Option A': 'True',
+        'Option B': 'False',
+        'Option C': '',
+        'Option D': '',
+        'Correct Answer': 'A',
+        'Question Type': 'True/False',
+        'Timer': 20,
+        'Marks': 1,
+        'Explanation': 'True. HTTP is unencrypted; HTTPS provides TLS encryption.'
+      });
+
+      sampleData.push({
+        'Section': 1,
+        'Section Name': customSections[1]?.name || 'Round 1',
+        'Question': 'Which of the following are primitive data types in JavaScript? (Select all that apply)',
+        'Option A': 'String',
+        'Option B': 'Number',
+        'Option C': 'Object',
+        'Option D': 'Boolean',
+        'Correct Answer': 'A, B, D',
+        'Question Type': 'Multiple Choice',
+        'Timer': 30,
+        'Marks': 1,
+        'Explanation': 'String, Number, and Boolean are primitives; Object is a reference type.'
+      });
+    }
+
+    const sectionSuffix = (targetSectionNum && targetSectionNum > 0) ? `_section_${targetSectionNum}` : '';
+    const baseFileName = `${(formData.title || 'scheduled_quiz').toLowerCase().replace(/[^a-z0-9]+/g, '_')}_${scheduleType.toLowerCase()}${sectionSuffix}_template`;
+    const ws = XLSX.utils.json_to_sheet(sampleData);
     ws['!cols'] = [
       { wch: 10 }, // Section
       { wch: 22 }, // Section Name
-      { wch: 45 }, // Question
+      { wch: 55 }, // Question
       { wch: 32 }, // Option A
       { wch: 32 }, // Option B
       { wch: 32 }, // Option C
@@ -1800,7 +1974,7 @@ export default function CreateScheduledQuiz() {
                       Excel & CSV Bulk Question Import
                     </h4>
                     <p className="text-[11px] text-slate-500 font-medium">
-                      First download the tailored spreadsheet template, fill in your questions, then upload below.
+                      Download the tailored template with illustrative section examples, enter your questions, then upload below.
                     </p>
                   </div>
                 </div>
@@ -1809,6 +1983,21 @@ export default function CreateScheduledQuiz() {
                   {formData.schedule_type} Pattern • {sections.length} Round{sections.length > 1 ? 's' : ''}
                 </span>
               </div>
+
+              {/* Informational Guidance on Excel Section Routing */}
+              {isMultiSection && (
+                <div className="p-3 bg-blue-50/80 border border-blue-200/90 rounded-2xl flex items-start gap-2.5 text-xs text-blue-900 leading-relaxed">
+                  <span className="text-sm select-none">💡</span>
+                  <div>
+                    <strong className="font-extrabold text-blue-950">How Week/Section Mapping Works in Excel:</strong>
+                    <p className="text-[11px] text-blue-800 mt-0.5">
+                      • In your spreadsheet, specify the round number in the <strong><code>Section</code></strong> column (e.g. <code>1</code> for Week 1, <code>2</code> for Week 2, <code>3</code> for Week 3). All questions with <code>2</code> will automatically route to Week 2.
+                      <br />
+                      • If you upload a file while viewing a specific Week tab below, any rows without a section number will automatically be assigned to that Week!
+                    </p>
+                  </div>
+                </div>
+              )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
                 {/* STEP 1: Download Template */}
@@ -1828,7 +2017,7 @@ export default function CreateScheduledQuiz() {
                       type="button"
                       onClick={() => handleDownloadTemplate('xlsx')}
                       className="px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 font-extrabold rounded-xl text-xs flex items-center space-x-1.5 cursor-pointer transition-all active:scale-98 shadow-2xs"
-                      title="Download Microsoft Excel (.xlsx) template"
+                      title="Download Microsoft Excel (.xlsx) template with sample questions"
                     >
                       <FileSpreadsheet size={14} className="text-emerald-600" />
                       <span>Excel Template (.xlsx)</span>
@@ -1935,22 +2124,45 @@ export default function CreateScheduledQuiz() {
                           Scheduled Date: <strong>{currentSection.dateLabel}</strong>
                         </span>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center flex-wrap gap-1.5">
                         <button
                           type="button"
                           onClick={() => handleAddQuestion(activeSectionFilter, 1)}
-                          className="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg cursor-pointer shadow-xs inline-flex items-center space-x-1"
+                          className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg cursor-pointer shadow-xs inline-flex items-center space-x-1"
                         >
-                          <Plus size={13} />
-                          <span>+1 Question</span>
+                          <Plus size={12} />
+                          <span>+1 Q</span>
                         </button>
                         <button
                           type="button"
                           onClick={() => handleAddQuestion(activeSectionFilter, 5)}
-                          className="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg cursor-pointer shadow-xs inline-flex items-center space-x-1"
+                          className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold rounded-lg cursor-pointer shadow-xs inline-flex items-center space-x-1"
                         >
-                          <Plus size={13} />
-                          <span>+5 Questions</span>
+                          <Plus size={12} />
+                          <span>+5 Qs</span>
+                        </button>
+
+                        {/* Direct Section Import */}
+                        <label className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg cursor-pointer shadow-xs inline-flex items-center space-x-1">
+                          <Upload size={12} />
+                          <span>Import to {secDisplayName}</span>
+                          <input
+                            type="file"
+                            accept=".csv, .xlsx, .xls"
+                            onChange={(e) => handleFileUpload(e, activeSectionFilter)}
+                            className="hidden"
+                          />
+                        </label>
+
+                        {/* Direct Section Template */}
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadTemplate('xlsx', activeSectionFilter)}
+                          className="px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 text-xs font-bold rounded-lg cursor-pointer shadow-2xs inline-flex items-center space-x-1"
+                          title={`Download Template tailored for ${secDisplayName}`}
+                        >
+                          <FileSpreadsheet size={12} className="text-emerald-600" />
+                          <span>Template</span>
                         </button>
                       </div>
                     </div>
@@ -1987,11 +2199,11 @@ export default function CreateScheduledQuiz() {
                         <h4 className="text-sm font-black text-slate-800">
                           No Questions Added for {secDisplayName} Yet
                         </h4>
-                        <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                          Add one or multiple questions directly to this round.
+                        <p className="text-xs text-slate-500 max-w-md mx-auto">
+                          Add questions manually or upload your spreadsheet for this week.
                         </p>
                       </div>
-                      <div className="flex justify-center items-center gap-2 pt-2">
+                      <div className="flex flex-wrap justify-center items-center gap-2 pt-2">
                         <button
                           type="button"
                           onClick={() => handleAddQuestion(activeSectionFilter, 1)}
@@ -2007,6 +2219,24 @@ export default function CreateScheduledQuiz() {
                         >
                           <Plus size={14} />
                           <span>Add 5 Questions</span>
+                        </button>
+                        <label className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold rounded-xl text-xs cursor-pointer shadow-sm inline-flex items-center space-x-1.5">
+                          <Upload size={14} />
+                          <span>Import File to {secDisplayName}</span>
+                          <input
+                            type="file"
+                            accept=".csv, .xlsx, .xls"
+                            onChange={(e) => handleFileUpload(e, activeSectionFilter)}
+                            className="hidden"
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadTemplate('xlsx', activeSectionFilter)}
+                          className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold rounded-xl text-xs cursor-pointer shadow-2xs inline-flex items-center space-x-1.5 border border-slate-300"
+                        >
+                          <Download size={14} className="text-emerald-600" />
+                          <span>Download {secDisplayName} Template</span>
                         </button>
                       </div>
                     </div>
