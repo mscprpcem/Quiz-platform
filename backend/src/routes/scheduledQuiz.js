@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { 
-  Quiz, Question, ScheduledOccurrence, QuizAttempt, AttemptAnswer, AttemptViolation, Event, EventRegistration, Participant 
+  Quiz, Question, ScheduledOccurrence, QuizAttempt, AttemptAnswer, AttemptViolation, Event, EventRegistration, Participant, Answer, Violation 
 } = require('../models');
 const authMiddleware = require('../middleware/auth');
 const { Op } = require('sequelize');
@@ -917,24 +917,56 @@ router.get('/:id', authMiddleware, async (req, res) => {
       }).catch(() => []);
 
       if (participants.length > 0) {
+        const pIds = participants.map(p => p.id);
+        const [liveAnswers, liveViolations] = await Promise.all([
+          Answer.findAll({ where: { participant_id: { [Op.in]: pIds } } }).catch(() => []),
+          Violation.findAll({ where: { [Op.or]: [{ quiz_id: quiz.id }, { participant_id: { [Op.in]: pIds } }] } }).catch(() => [])
+        ]);
+
+        const answersByParticipant = new Map();
+        for (const ans of liveAnswers) {
+          const pid = String(ans.participant_id);
+          if (!answersByParticipant.has(pid)) answersByParticipant.set(pid, []);
+          answersByParticipant.get(pid).push(ans);
+        }
+
+        const violationsByParticipant = new Map();
+        for (const v of liveViolations) {
+          const pid = String(v.participant_id);
+          violationsByParticipant.set(pid, (violationsByParticipant.get(pid) || 0) + 1);
+        }
+
         const firstOcc = (quiz.occurrences && quiz.occurrences[0]) || null;
-        attempts = participants.map((p) => ({
-          id: p.id,
-          occurrence_id: firstOcc ? firstOcc.id : null,
-          quiz_id: quiz.id,
-          participant_name: p.name,
-          participant_email: p.email,
-          sso_user_id: p.sso_user_id,
-          score: 0,
-          correct_count: 0,
-          incorrect_count: 0,
-          unanswered_count: 0,
-          time_taken_seconds: 0,
-          status: 'completed',
-          submitted_at: p.updatedAt || p.createdAt,
-          createdAt: p.createdAt,
-          violation_count: p.tab_switch_count || 0
-        }));
+        attempts = participants.map((p) => {
+          const pAns = answersByParticipant.get(String(p.id)) || [];
+          const correctCount = pAns.filter(a => Boolean(a.is_correct)).length;
+          const incorrectCount = pAns.filter(a => !a.is_correct).length;
+          const pointsSum = pAns.reduce((sum, a) => sum + (Number(a.points) || 0), 0);
+          const computedScore = pointsSum > 0 
+            ? pointsSum 
+            : (correctCount * (quiz.positive_marks || 1) - incorrectCount * (quiz.negative_marks || 0));
+          const totalV = (violationsByParticipant.get(String(p.id)) || 0) + (p.tab_switch_count || 0);
+
+          return {
+            id: p.id,
+            occurrence_id: firstOcc ? firstOcc.id : null,
+            quiz_id: quiz.id,
+            participant_name: p.name,
+            participant_email: p.email,
+            sso_user_id: p.sso_user_id,
+            score: Math.max(0, computedScore),
+            correct_count: correctCount,
+            incorrect_count: incorrectCount,
+            unanswered_count: Math.max(0, (quiz.questions?.length || 0) - pAns.length),
+            time_taken_seconds: pAns.reduce((sum, a) => sum + Math.round((Number(a.response_time) || 0) / 1000), 0),
+            status: 'completed',
+            submitted_at: p.updatedAt || p.createdAt,
+            createdAt: p.createdAt,
+            violation_count: totalV,
+            violationsCount: totalV,
+            violationCount: totalV
+          };
+        });
       }
     }
 
@@ -953,13 +985,11 @@ router.get('/:id', authMiddleware, async (req, res) => {
       }
     }
 
-    const totalViolationCount = allViolations.length;
-
     // Attach attempt-specific violation count
     const enrichedAttempts = attempts.map(a => {
       const aJson = a.toJSON ? a.toJSON() : { ...a };
       const aId = String(aJson.id);
-      const vCount = attemptViolationsMap.get(aId) || 0;
+      const vCount = (attemptViolationsMap.get(aId) || 0) + (aJson.violation_count || 0);
       return {
         ...aJson,
         violation_count: vCount,
@@ -967,6 +997,10 @@ router.get('/:id', authMiddleware, async (req, res) => {
         violationCount: vCount
       };
     });
+
+    const totalViolationCount = allViolations.length > 0 
+      ? allViolations.length 
+      : enrichedAttempts.reduce((sum, a) => sum + (a.violation_count || 0), 0);
 
     // Compute total violations per unique student across all their attempts
     const userTotalViolationsMap = new Map();

@@ -38,7 +38,7 @@ router.get('/quiz/:id/results', authMiddleware, async (req, res) => {
       const occurrences = await ScheduledOccurrence.findAll({ where: { quiz_id: quizId } }).catch(() => []);
       const occurrenceIds = occurrences.map(o => o.id);
 
-      const attempts = await QuizAttempt.findAll({
+      let attempts = await QuizAttempt.findAll({
         where: {
           [Op.or]: [
             { quiz_id: quizId },
@@ -52,17 +52,73 @@ router.get('/quiz/:id/results', authMiddleware, async (req, res) => {
         ]
       }).catch(() => []);
 
-      const attemptIds = attempts.map(a => a.id);
       let violationsMap = new Map();
 
-      if (attemptIds.length > 0) {
-        const violations = await AttemptViolation.findAll({
-          where: { attempt_id: { [Op.in]: attemptIds } }
+      if (attempts.length === 0) {
+        const liveParticipants = await Participant.findAll({
+          where: { quiz_id: quizId }
         }).catch(() => []);
-        violations.forEach(v => {
-          const aId = String(v.attempt_id);
-          violationsMap.set(aId, (violationsMap.get(aId) || 0) + 1);
-        });
+
+        if (liveParticipants.length > 0) {
+          const pIds = liveParticipants.map(p => p.id);
+          const [liveAnswers, liveViolations] = await Promise.all([
+            Answer.findAll({ where: { participant_id: { [Op.in]: pIds } } }).catch(() => []),
+            Violation.findAll({ where: { [Op.or]: [{ quiz_id: quizId }, { participant_id: { [Op.in]: pIds } }] } }).catch(() => [])
+          ]);
+
+          const answersByParticipant = new Map();
+          for (const ans of liveAnswers) {
+            const pid = String(ans.participant_id);
+            if (!answersByParticipant.has(pid)) answersByParticipant.set(pid, []);
+            answersByParticipant.get(pid).push(ans);
+          }
+
+          for (const v of liveViolations) {
+            const pid = String(v.participant_id);
+            violationsMap.set(pid, (violationsMap.get(pid) || 0) + 1);
+          }
+
+          const firstOcc = occurrences[0] || null;
+          attempts = liveParticipants.map(p => {
+            const pAns = answersByParticipant.get(String(p.id)) || [];
+            const correctCount = pAns.filter(a => Boolean(a.is_correct)).length;
+            const incorrectCount = pAns.filter(a => !a.is_correct).length;
+            const pointsSum = pAns.reduce((sum, a) => sum + (Number(a.points) || 0), 0);
+            const computedScore = pointsSum > 0 
+              ? pointsSum 
+              : (correctCount * (quiz.positive_marks || 1) - incorrectCount * (quiz.negative_marks || 0));
+
+            return {
+              id: p.id,
+              occurrence_id: firstOcc ? firstOcc.id : null,
+              quiz_id: quizId,
+              participant_name: p.name,
+              participant_email: p.email,
+              sso_user_id: p.sso_user_id,
+              attempt_number: 1,
+              score: Math.max(0, computedScore),
+              correct_count: correctCount,
+              incorrect_count: incorrectCount,
+              unanswered_count: 0,
+              time_taken_seconds: pAns.reduce((sum, a) => sum + Math.round((Number(a.response_time) || 0) / 1000), 0),
+              status: 'completed',
+              submitted_at: p.updatedAt || p.createdAt,
+              createdAt: p.createdAt,
+              violation_count: (violationsMap.get(String(p.id)) || 0) + (p.tab_switch_count || 0)
+            };
+          });
+        }
+      } else {
+        const attemptIds = attempts.map(a => a.id);
+        if (attemptIds.length > 0) {
+          const violations = await AttemptViolation.findAll({
+            where: { attempt_id: { [Op.in]: attemptIds } }
+          }).catch(() => []);
+          violations.forEach(v => {
+            const aId = String(v.attempt_id);
+            violationsMap.set(aId, (violationsMap.get(aId) || 0) + 1);
+          });
+        }
       }
 
       // Group by unique student (taking latest completed attempt or active attempt)
