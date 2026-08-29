@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext';
 import { Loader2, Users, HelpCircle, Calendar } from 'lucide-react';
+import { formatToISTDateTimeString } from '../utils/dateUtils';
 
 export default function WaitingRoom() {
   const navigate = useNavigate();
@@ -146,7 +147,7 @@ export default function WaitingRoom() {
           {initialData.scheduledStart && (
             <div className="bg-brand-lightBlue text-brand-dark rounded-lg px-3 py-2 text-xs font-semibold flex items-center space-x-1.5 mt-2 border border-brand-blue/10">
               <Calendar size={14} />
-              <span>Starts at: {new Date(initialData.scheduledStart).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })}</span>
+              <span>Starts at: {formatToISTDateTimeString(initialData.scheduledStart)} IST</span>
             </div>
           )}
         </div>

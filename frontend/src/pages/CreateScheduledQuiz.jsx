@@ -1669,13 +1669,18 @@ export default function CreateScheduledQuiz() {
 
             {/* Time Window with Seconds & 12h / 24h Toggle */}
             <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-xs font-black text-slate-800 uppercase tracking-wider">
-                  {formData.schedule_type === 'ONE_TIME' ? 'Quiz Slot Time Window' : 'Daily Time Window (HH:MM:SS)'}
-                </span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center space-x-2">
+                  <span className="text-xs font-black text-slate-800 uppercase tracking-wider">
+                    {formData.schedule_type === 'ONE_TIME' ? 'Quiz Slot Time Window' : 'Daily Time Window (HH:MM:SS)'}
+                  </span>
+                  <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-md text-[10px] font-black">
+                    IST (UTC+5:30)
+                  </span>
+                </div>
                 
                 <div className="flex items-center space-x-2 text-xs font-bold">
-                  <span className="text-slate-400">Format:</span>
+                  <span className="text-slate-400">Time Format:</span>
                   <button
                     type="button"
                     onClick={() => setTimeFormat12(!timeFormat12)}
@@ -2779,7 +2784,7 @@ export default function CreateScheduledQuiz() {
             <div><strong>Title:</strong> {formData.title}</div>
             <div><strong>Schedule Pattern:</strong> {formData.schedule_type}</div>
             <div><strong>Date Window:</strong> {formData.start_date} to {formData.end_date}</div>
-            <div><strong>Daily Time Window:</strong> {buildTimeString(formData.start_time_hh, formData.start_time_mm, formData.start_time_ss, formData.start_time_ampm)} to {buildTimeString(formData.end_time_hh, formData.end_time_mm, formData.end_time_ss, formData.end_time_ampm)} ({formData.timezone})</div>
+            <div><strong>Daily Time Window:</strong> {buildTimeString(formData.start_time_hh, formData.start_time_mm, formData.start_time_ss, formData.start_time_ampm)} to {buildTimeString(formData.end_time_hh, formData.end_time_mm, formData.end_time_ss, formData.end_time_ampm)} IST (Indian Standard Time)</div>
             <div><strong>Total Questions:</strong> {formData.questions.length} Questions</div>
             <div><strong>Time Limit:</strong> {formData.time_limit} Mins</div>
             <div><strong>Proctoring:</strong> {formData.anti_cheat_enabled ? 'Anti-Cheat Enabled' : 'Standard'}</div>

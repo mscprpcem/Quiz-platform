@@ -12,6 +12,7 @@ import {
   isMobileDevice, isFullscreenAPISupported, requestAppFullscreen, isNativeFullscreenActive, 
   normalizeSelection, toggleOptionInSelection 
 } from '../utils/fullscreen';
+import { formatToISTDateTimeString } from '../utils/dateUtils';
 
 export default function ScheduledQuizTake() {
   const { toast } = useToast();
@@ -852,7 +853,7 @@ export default function ScheduledQuizTake() {
     const isQuizEnded = status === 'CLOSED' || (endTime && endTime < new Date());
 
     if (isQuizEnded) {
-      const formattedEndTime = endTime ? endTime.toLocaleString([], { dateStyle: 'full', timeStyle: 'short' }) : 'Scheduled timeframe has expired';
+      const formattedEndTime = endTime ? `${formatToISTDateTimeString(endTime)} IST` : 'Scheduled timeframe has expired';
       const userAttempt = occData?.userAttempt;
       const totalQuestions = occData?.quiz?.questions?.length || (userAttempt ? ((userAttempt.correct_count || 0) + (userAttempt.incorrect_count || 0) + (userAttempt.unanswered_count || 0)) : 0) || 10;
       const accuracyPercent = userAttempt ? Math.round(((userAttempt.correct_count || 0) / Math.max(1, totalQuestions)) * 100) : 0;
@@ -1105,7 +1106,7 @@ export default function ScheduledQuizTake() {
                 <span>Scheduled Start Time:</span>
               </div>
               <div className="text-sm font-black text-slate-900">
-                {occData?.occurrence?.start_time ? new Date(occData.occurrence.start_time).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'Upcoming Session'}
+                {occData?.occurrence?.start_time ? `${formatToISTDateTimeString(occData.occurrence.start_time)} IST` : 'Upcoming Session'}
               </div>
               <p className="text-[11px] text-blue-700 font-medium leading-relaxed">
                 This scheduled session will automatically open for attempts at the start time above. Please stay on this page!

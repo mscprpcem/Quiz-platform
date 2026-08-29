@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { QRCodeSVG } from 'qrcode.react';
+import { formatToISTDateTimeString } from '../utils/dateUtils';
 import {
   Plus,
   Edit2,
@@ -714,12 +715,12 @@ export default function QuizManagement() {
                         <div className="space-y-1 text-[11px] text-brand-textMuted bg-slate-50/80 p-2 rounded-xl border border-slate-100">
                           <div className="flex items-center gap-1.5">
                             <Calendar size={12} className="flex-shrink-0 text-brand-blue" />
-                            <span className="truncate"><strong>Start:</strong> {quiz.scheduled_start ? new Date(quiz.scheduled_start).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : 'Flexible'}</span>
+                            <span className="truncate"><strong>Start:</strong> {quiz.scheduled_start ? `${formatToISTDateTimeString(quiz.scheduled_start)} IST` : 'Flexible'}</span>
                           </div>
                           {quiz.scheduled_end && (
                             <div className="flex items-center gap-1.5 text-slate-500">
                               <Clock size={12} className="flex-shrink-0 text-emerald-600" />
-                              <span className="truncate"><strong>End:</strong> {new Date(quiz.scheduled_end).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}</span>
+                              <span className="truncate"><strong>End:</strong> {formatToISTDateTimeString(quiz.scheduled_end)} IST</span>
                             </div>
                           )}
                         </div>
