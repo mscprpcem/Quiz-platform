@@ -26,6 +26,7 @@ export default function ScheduledQuizDetails() {
   const [sendingMail, setSendingMail] = useState(false);
   const [mailSentMessage, setMailSentMessage] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
+  const [selectedOccurrenceFilter, setSelectedOccurrenceFilter] = useState('all');
 
   // Dropdown states
   const [activeExportDropdown, setActiveExportDropdown] = useState(null); // 'results' | 'responses' | null
@@ -152,6 +153,9 @@ export default function ScheduledQuizDetails() {
   const allAttempts = quizData?.allAttempts || quizData?.attempts || [];
   const completedAttempts = allAttempts.filter(a => a.status === 'completed');
   const validAttempts = completedAttempts.length > 0 ? completedAttempts : allAttempts;
+  const displayAttempts = selectedOccurrenceFilter === 'all'
+    ? attempts
+    : attempts.filter(a => String(a.occurrence_id) === String(selectedOccurrenceFilter));
 
   // Real-time computed metrics
   const totalAttemptsCount = analyticsData?.totalAttempts || allAttempts.length;
@@ -582,7 +586,9 @@ export default function ScheduledQuizDetails() {
       <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-2xs space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div>
-            <h3 className="text-base font-black text-slate-900">Participant Attempts & Leaderboard ({attempts.length})</h3>
+            <h3 className="text-base font-black text-slate-900">
+              Participant Attempts & Leaderboard ({displayAttempts.length}{selectedOccurrenceFilter !== 'all' ? ` in selected round` : ''})
+            </h3>
             <p className="text-xs text-slate-500 font-medium">Rankings computed strictly by score, correct answers, and response speed.</p>
           </div>
 
@@ -606,8 +612,42 @@ export default function ScheduledQuizDetails() {
           </div>
         </div>
 
-        {attempts.length === 0 ? (
-          <p className="text-xs text-slate-400 py-6 text-center">No attempts submitted for this scheduled quiz yet.</p>
+        {/* Occurrence / Week Selector Pills */}
+        {occurrences.length > 1 && (
+          <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100/80 rounded-2xl border border-slate-200">
+            <button
+              type="button"
+              onClick={() => setSelectedOccurrenceFilter('all')}
+              className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                selectedOccurrenceFilter === 'all'
+                  ? 'bg-white text-blue-700 shadow-xs ring-1 ring-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              All Rounds ({attempts.length})
+            </button>
+            {occurrences.map((occ) => {
+              const occAttempts = attempts.filter(a => String(a.occurrence_id) === String(occ.id));
+              return (
+                <button
+                  key={occ.id}
+                  type="button"
+                  onClick={() => setSelectedOccurrenceFilter(occ.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                    selectedOccurrenceFilter === occ.id
+                      ? 'bg-white text-blue-700 shadow-xs ring-1 ring-slate-200'
+                      : 'text-slate-600 hover:text-slate-900'
+                  }`}
+                >
+                  {occ.title || `Round ${occ.occurrence_number}`} ({occAttempts.length})
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {displayAttempts.length === 0 ? (
+          <p className="text-xs text-slate-400 py-6 text-center">No attempts submitted for this selection yet.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs font-medium">
@@ -623,7 +663,7 @@ export default function ScheduledQuizDetails() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {attempts.map((att, idx) => (
+                {displayAttempts.map((att, idx) => (
                   <tr key={att.id} className="hover:bg-slate-50">
                     <td className="py-3.5 px-4 font-black text-blue-600">#{idx + 1}</td>
                     <td className="py-3.5 px-4 font-bold text-slate-900">{att.participant_name}</td>

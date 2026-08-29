@@ -629,10 +629,12 @@ router.get('/', authMiddleware, async (req, res) => {
     const enriched = await Promise.all(
       quizzes.map(async (quiz) => {
         const questionCount = await Question.count({ where: { quiz_id: quiz.id } });
-        const [attemptCount, attempts] = await Promise.all([
-          QuizAttempt.count({ where: { quiz_id: quiz.id } }),
+        const [attemptCount, liveParticipantCount, attempts] = await Promise.all([
+          QuizAttempt.count({ where: { quiz_id: quiz.id } }).catch(() => 0),
+          Participant.count({ where: { quiz_id: quiz.id } }).catch(() => 0),
           QuizAttempt.findAll({ where: { quiz_id: quiz.id }, attributes: ['id'] }).catch(() => [])
         ]);
+        const totalParticipantCount = Math.max(attemptCount, liveParticipantCount);
         const attemptIds = attempts.map(a => a.id);
         const violationCount = attemptIds.length > 0
           ? await AttemptViolation.count({ where: { attempt_id: { [Op.in]: attemptIds } } }).catch(() => 0)
@@ -646,7 +648,7 @@ router.get('/', authMiddleware, async (req, res) => {
 
         let computedStatus = quiz.status;
         if (!activeOccurrence && !nextOccurrence && occurrences.length > 0) {
-          computedStatus = attemptCount > 0 ? 'completed' : 'expired';
+          computedStatus = totalParticipantCount > 0 ? 'completed' : 'expired';
           if (quiz.status !== computedStatus) {
             await quiz.update({ status: computedStatus }).catch(() => {});
           }
@@ -656,7 +658,7 @@ router.get('/', authMiddleware, async (req, res) => {
           ...quiz.toJSON(),
           status: computedStatus,
           questionCount,
-          participantCount: attemptCount,
+          participantCount: totalParticipantCount,
           violationCount,
           activeOccurrence,
           nextOccurrence,
@@ -900,7 +902,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 
     if (!quiz) return res.status(404).json({ error: 'Scheduled Quiz not found.' });
 
-    const attempts = await QuizAttempt.findAll({
+    let attempts = await QuizAttempt.findAll({
       where: { quiz_id: quiz.id },
       order: [
         ['attempt_number', 'DESC'],
@@ -908,6 +910,33 @@ router.get('/:id', authMiddleware, async (req, res) => {
         ['createdAt', 'DESC']
       ]
     });
+
+    if (attempts.length === 0) {
+      const participants = await Participant.findAll({
+        where: { quiz_id: quiz.id }
+      }).catch(() => []);
+
+      if (participants.length > 0) {
+        const firstOcc = (quiz.occurrences && quiz.occurrences[0]) || null;
+        attempts = participants.map((p) => ({
+          id: p.id,
+          occurrence_id: firstOcc ? firstOcc.id : null,
+          quiz_id: quiz.id,
+          participant_name: p.name,
+          participant_email: p.email,
+          sso_user_id: p.sso_user_id,
+          score: 0,
+          correct_count: 0,
+          incorrect_count: 0,
+          unanswered_count: 0,
+          time_taken_seconds: 0,
+          status: 'completed',
+          submitted_at: p.updatedAt || p.createdAt,
+          createdAt: p.createdAt,
+          violation_count: p.tab_switch_count || 0
+        }));
+      }
+    }
 
     const attemptIds = attempts.map(a => a.id);
     let allViolations = [];
