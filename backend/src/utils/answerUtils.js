@@ -78,14 +78,14 @@ function determineQuestionType(question) {
 
   // Explicit question_type property if provided
   if (question.question_type) {
-    const qt = String(question.question_type).toLowerCase().trim();
-    if (qt === 'true_false' || qt === 'tf' || qt === 'truefalse' || qt === 'boolean') {
+    const qt = String(question.question_type).toLowerCase().trim().replace(/[\s\-_/]+/g, '');
+    if (qt.includes('truefalse') || qt === 'tf' || qt === 'boolean' || qt === 'bool' || qt === 'tof') {
       return 'true_false';
     }
-    if (qt === 'multiple' || qt === 'multi' || qt === 'multiple_choice') {
+    if (qt.includes('multi') || qt.includes('checkbox') || qt.includes('many') || qt.includes('allthatapply')) {
       return 'multiple';
     }
-    if (qt === 'single') {
+    if (qt.includes('single') || qt.includes('radio') || qt === 'mcq') {
       return 'single';
     }
   }
@@ -96,8 +96,14 @@ function determineQuestionType(question) {
   const optC = String(question.option_c || '').trim();
   const optD = String(question.option_d || '').trim();
 
-  const isTFOpts = (optA === 'true' || optA === 't') && (optB === 'false' || optB === 'f') && (!optC || optC === '-') && (!optD || optD === '-');
+  const isTFOpts = (optA === 'true' || optA === 't') && (optB === 'false' || optB === 'f') && (!optC || optC === '-' || optC === 'n/a') && (!optD || optD === '-' || optD === 'n/a');
   if (isTFOpts) {
+    return 'true_false';
+  }
+
+  // Check if answer itself is explicitly True / False word
+  const rawCorrect = String(question.correct_answer || '').trim().toLowerCase();
+  if (['true', 'false', 't', 'f'].includes(rawCorrect) && (!optC || optC === '-') && (!optD || optD === '-')) {
     return 'true_false';
   }
 

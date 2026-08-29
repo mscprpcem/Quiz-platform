@@ -32,6 +32,7 @@ export default function QuestionManagement() {
   const [quiz, setQuiz] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [importing, setImporting] = useState(false);
 
   // Modal states
   const [showModal, setShowModal] = useState(false);
@@ -175,9 +176,66 @@ export default function QuestionManagement() {
 
   const handleDownloadTemplate = (format = 'xlsx') => {
     const sampleData = [
-      { 'Question': 'What does CPU stand for?', 'Option A': 'Central Processing Unit', 'Option B': 'Central Program Utility', 'Option C': 'Computer Personal Unit', 'Option D': 'Central Processor Unifier', 'Correct Answer': 'A', 'Explanation': 'CPU is the Central Processing Unit.' },
-      { 'Question': 'Which data structure uses FIFO?', 'Option A': 'Stack', 'Option B': 'Queue', 'Option C': 'Tree', 'Option D': 'Graph', 'Correct Answer': 'B', 'Explanation': 'Queue operates on First In First Out.' },
-      { 'Question': 'HTML stands for?', 'Option A': 'Hyper Trainer Marking Language', 'Option B': 'Hyper Text Marketing Language', 'Option C': 'Hyper Text Markup Language', 'Option D': 'Hyper Text Markup Leveler', 'Correct Answer': 'C', 'Explanation': 'HTML is Hyper Text Markup Language.' }
+      {
+        'Question': 'What does CPU stand for in computer systems?',
+        'Option A': 'Central Processing Unit',
+        'Option B': 'Central Program Utility',
+        'Option C': 'Computer Personal Unit',
+        'Option D': 'Central Processor Unifier',
+        'Correct Answer': 'A',
+        'Question Type': 'Single Choice',
+        'Timer': 30,
+        'Marks': 500,
+        'Explanation': 'CPU is the Central Processing Unit that executes instructions.'
+      },
+      {
+        'Question': 'HTTP transmits data in cleartext without encryption by default.',
+        'Option A': 'True',
+        'Option B': 'False',
+        'Option C': '',
+        'Option D': '',
+        'Correct Answer': 'A',
+        'Question Type': 'True/False',
+        'Timer': 20,
+        'Marks': 500,
+        'Explanation': 'True. HTTP is unencrypted; HTTPS provides TLS/SSL encryption.'
+      },
+      {
+        'Question': 'Relational databases only support unstructured JSON documents.',
+        'Option A': 'True',
+        'Option B': 'False',
+        'Option C': '',
+        'Option D': '',
+        'Correct Answer': 'B',
+        'Question Type': 'True/False',
+        'Timer': 20,
+        'Marks': 500,
+        'Explanation': 'False. Relational databases are structured around schema-defined tables.'
+      },
+      {
+        'Question': 'Which of the following are valid NoSQL database models? (Select all that apply)',
+        'Option A': 'Document Stores (e.g. MongoDB)',
+        'Option B': 'Key-Value Stores (e.g. Redis)',
+        'Option C': 'Relational Tables (e.g. MySQL)',
+        'Option D': 'Wide-Column Stores (e.g. Cassandra)',
+        'Correct Answer': 'A, B, D',
+        'Question Type': 'Multiple Choice',
+        'Timer': 45,
+        'Marks': 500,
+        'Explanation': 'Document, Key-Value, and Wide-Column are NoSQL models. MySQL is relational.'
+      },
+      {
+        'Question': 'Which of the following are primitive data types in JavaScript? (Select all that apply)',
+        'Option A': 'String',
+        'Option B': 'Number',
+        'Option C': 'Object',
+        'Option D': 'Boolean',
+        'Correct Answer': 'A, B, D',
+        'Question Type': 'Multiple Choice',
+        'Timer': 30,
+        'Marks': 500,
+        'Explanation': 'String, Number, and Boolean are primitives; Object is a reference type.'
+      }
     ];
     
     if (format === 'csv') {
@@ -196,58 +254,50 @@ export default function QuestionManagement() {
       const ws = XLSX.utils.json_to_sheet(sampleData);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Questions');
-      ws['!cols'] = [{ wch: 40 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 15 }, { wch: 35 }];
+      ws['!cols'] = [
+        { wch: 45 }, // Question
+        { wch: 32 }, // Option A
+        { wch: 32 }, // Option B
+        { wch: 32 }, // Option C
+        { wch: 32 }, // Option D
+        { wch: 18 }, // Correct Answer
+        { wch: 18 }, // Question Type
+        { wch: 10 }, // Timer
+        { wch: 10 }, // Marks
+        { wch: 45 }  // Explanation
+      ];
       XLSX.writeFile(wb, 'live_quiz_questions_template.xlsx');
     }
   };
 
-  const handleExcelUpload = (e) => {
+  const handleExcelUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = async (evt) => {
-      try {
-        const bstr = evt.target.result;
-        const wb = XLSX.read(bstr, { type: 'binary' });
-        const wsName = wb.SheetNames[0];
-        const ws = wb.Sheets[wsName];
-        const rawData = XLSX.utils.sheet_to_json(ws);
+    try {
+      setImporting(true);
+      const formData = new FormData();
+      formData.append('file', file);
 
-        if (!rawData || rawData.length === 0) {
-          toast.warning('No question rows found in uploaded file.', 'Empty File');
-          return;
-        }
+      const res = await api.post(`/api/quizzes/${id}/import`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
 
-        const parsed = rawData.map(row => ({
-          question: row.Question || row.question || '',
-          option_a: row['Option A'] || row.option_a || row.A || '',
-          option_b: row['Option B'] || row.option_b || row.B || '',
-          option_c: row['Option C'] || row.option_c || row.C || '',
-          option_d: row['Option D'] || row.option_d || row.D || '',
-          correct_answer: (row['Correct Answer'] || row.correct_answer || row.Answer || 'A').toString().trim().toUpperCase(),
-          timer: 30,
-          marks: 1
-        })).filter(q => q.question);
-
-        let successCount = 0;
-        for (const q of parsed) {
-          try {
-            await api.post(`/api/quizzes/${id}/questions`, q);
-            successCount++;
-          } catch (err) {
-            console.error('Failed to add question:', q.question, err);
-          }
-        }
-        toast.success(`Successfully imported ${successCount} of ${parsed.length} questions!`, 'Import Complete');
-        loadQuizDetails();
-      } catch (err) {
-        console.error('Excel parse error:', err);
-        toast.error('Failed to parse spreadsheet. Please use the template format.', 'Import Error');
+      toast.success(res.data?.message || 'Questions successfully imported!', 'Import Complete');
+      await loadQuizDetails();
+    } catch (err) {
+      console.error('Import error:', err);
+      const details = err.response?.data?.details;
+      const errorMsg = err.response?.data?.error || 'Failed to import spreadsheet.';
+      if (details && Array.isArray(details)) {
+        toast.error(`${errorMsg}: ${details.slice(0, 3).join(', ')}${details.length > 3 ? '...' : ''}`, 'Import Error');
+      } else {
+        toast.error(errorMsg, 'Import Error');
       }
-    };
-    reader.readAsBinaryString(file);
-    e.target.value = '';
+    } finally {
+      setImporting(false);
+      e.target.value = '';
+    }
   };
 
   return (
@@ -280,7 +330,7 @@ export default function QuestionManagement() {
               onClick={() => handleDownloadTemplate('xlsx')}
               type="button"
               className="flex items-center justify-center gap-1.5 border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-3 py-2 rounded-xl text-xs font-extrabold shadow-2xs transition-all active:scale-95 cursor-pointer"
-              title="Download Microsoft Excel (.xlsx) Template"
+              title="Download Microsoft Excel (.xlsx) Template with Single Choice, True/False & Multi-Choice Examples"
             >
               <FileSpreadsheet size={13} className="text-emerald-600" />
               <span>Excel Template</span>
@@ -297,10 +347,18 @@ export default function QuestionManagement() {
           </div>
 
           {/* Upload Excel / CSV */}
-          <label className="flex items-center justify-center gap-1.5 border border-emerald-600 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer">
-            <Upload size={14} />
-            <span>Import (.xlsx / .csv)</span>
-            <input type="file" accept=".csv,.xlsx,.xls" onChange={handleExcelUpload} className="hidden" />
+          <label className={`flex items-center justify-center gap-1.5 border border-emerald-600 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-all active:scale-95 cursor-pointer ${
+            importing ? 'opacity-70 pointer-events-none' : ''
+          }`}>
+            <Upload size={14} className={importing ? 'animate-spin' : ''} />
+            <span>{importing ? 'Importing...' : 'Import (.xlsx / .csv)'}</span>
+            <input
+              type="file"
+              accept=".csv,.xlsx,.xls"
+              onChange={handleExcelUpload}
+              disabled={importing}
+              className="hidden"
+            />
           </label>
 
           {quiz?.questions?.length > 0 && (

@@ -27,7 +27,7 @@ export const colorToRgba = (hex, alpha = 1, fallback = '#0078d4') => {
  */
 export const DEFAULT_BRANDING = {
   club_name: 'Microsoft Student Club',
-  chapter_name: 'PRPCEM Chapter',
+  chapter_name: 'PRPCEM',
   logo_path: 'logo.png',
   primary_color: '#0078d4',
   footer_text: 'Powered by Microsoft Student Club PRPCEM Quiz Platform',
@@ -58,8 +58,8 @@ export const fetchBrandingConfig = async () => {
  * Resolves full logo URL
  */
 export const getLogoUrl = (logoPath) => {
-  if (!logoPath) return '/logo.png';
-  if (logoPath.startsWith('http://') || logoPath.startsWith('https://') || logoPath.startsWith('data:')) {
+  if (!logoPath) return '/msc-logo.png';
+  if (logoPath.startsWith('http://') || logoPath.startsWith('https://') || logoPath.startsWith('blob:') || logoPath.startsWith('data:')) {
     return logoPath;
   }
   return logoPath.startsWith('/') ? logoPath : `/${logoPath}`;
@@ -70,22 +70,20 @@ export const getLogoUrl = (logoPath) => {
  */
 export const formatClubAndChapter = (branding) => {
   const rawClub = (branding?.club_name || 'Microsoft Student Club').trim();
-  const rawChapter = (branding?.chapter_name || 'PRPCEM Chapter').trim();
+  const rawChapter = (branding?.chapter_name || 'PRPCEM').trim();
 
   // Normalize club name: strip redundant trailing chapter names (e.g. "Microsoft Student Club PRPCEM")
   let clubName = rawClub.replace(/\s+PRPCEM$/i, '').trim();
   if (!clubName) clubName = 'Microsoft Student Club';
 
-  // Normalize chapter name: remove redundant "Microsoft Student Club", "MSC-", "MSC ", etc.
+  // Normalize chapter name: remove redundant "Microsoft Student Club", "MSC-", "MSC ", and remove "Chapter" / "CHAPTER"
   let chapterName = rawChapter
     .replace(/^Microsoft\s+Student\s+Club\s*/i, '')
     .replace(/^MSC[-\s]*/i, '')
+    .replace(/\s*chapter\s*/gi, '')
     .trim();
 
   if (!chapterName) chapterName = 'PRPCEM';
-  if (!chapterName.toLowerCase().includes('chapter')) {
-    chapterName = `${chapterName} CHAPTER`;
-  }
 
   return {
     clubName: clubName.toUpperCase(),

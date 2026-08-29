@@ -25,11 +25,13 @@ const Question = sequelize.define('Question', {
   },
   option_c: {
     type: DataTypes.STRING,
-    allowNull: true
+    allowNull: true,
+    defaultValue: ''
   },
   option_d: {
     type: DataTypes.STRING,
-    allowNull: true
+    allowNull: true,
+    defaultValue: ''
   },
   correct_answer: {
     type: DataTypes.STRING,

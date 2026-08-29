@@ -7,6 +7,7 @@ import {
   Edit2,
   Trash2,
   FileSpreadsheet,
+  FileText,
   BarChart2,
   ListCollapse,
   Calendar,
@@ -28,6 +29,7 @@ import {
   Award,
   ExternalLink
 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import EventSelector from '../components/EventSelector';
 
 /* ── Status badge helper ── */
@@ -323,7 +325,7 @@ export default function QuizManagement() {
 
     const primaryColor = getValidColor(branding?.primary_color);
     const rawClub = (branding?.club_name || 'Microsoft Student Club').trim();
-    const rawChap = (branding?.chapter_name || 'PRPCEM Chapter').trim();
+    const rawChap = (branding?.chapter_name || 'PRPCEM').trim();
 
     let clubName = rawClub.replace(/\s+PRPCEM$/i, '').trim();
     if (!clubName) clubName = 'Microsoft Student Club';
@@ -331,12 +333,10 @@ export default function QuizManagement() {
     let chapterName = rawChap
       .replace(/^Microsoft\s+Student\s+Club\s*/i, '')
       .replace(/^MSC[-\s]*/i, '')
+      .replace(/\s*chapter\s*/gi, '')
       .trim();
 
     if (!chapterName) chapterName = 'PRPCEM';
-    if (!chapterName.toLowerCase().includes('chapter')) {
-      chapterName = `${chapterName} CHAPTER`;
-    }
 
     clubName = clubName.toUpperCase();
     chapterName = chapterName.toUpperCase();
@@ -529,6 +529,102 @@ export default function QuizManagement() {
     setShowImportModal(true);
   };
 
+  const handleDownloadTemplate = (format = 'xlsx') => {
+    const sampleData = [
+      {
+        'Question': 'What does CPU stand for in computer systems?',
+        'Option A': 'Central Processing Unit',
+        'Option B': 'Central Program Utility',
+        'Option C': 'Computer Personal Unit',
+        'Option D': 'Central Processor Unifier',
+        'Correct Answer': 'A',
+        'Question Type': 'Single Choice',
+        'Timer': 30,
+        'Marks': 500,
+        'Explanation': 'CPU is the Central Processing Unit that executes instructions.'
+      },
+      {
+        'Question': 'HTTP transmits data in cleartext without encryption by default.',
+        'Option A': 'True',
+        'Option B': 'False',
+        'Option C': '',
+        'Option D': '',
+        'Correct Answer': 'A',
+        'Question Type': 'True/False',
+        'Timer': 20,
+        'Marks': 500,
+        'Explanation': 'True. HTTP is unencrypted; HTTPS provides TLS/SSL encryption.'
+      },
+      {
+        'Question': 'Relational databases only support unstructured JSON documents.',
+        'Option A': 'True',
+        'Option B': 'False',
+        'Option C': '',
+        'Option D': '',
+        'Correct Answer': 'B',
+        'Question Type': 'True/False',
+        'Timer': 20,
+        'Marks': 500,
+        'Explanation': 'False. Relational databases are structured around schema-defined tables.'
+      },
+      {
+        'Question': 'Which of the following are valid NoSQL database models? (Select all that apply)',
+        'Option A': 'Document Stores (e.g. MongoDB)',
+        'Option B': 'Key-Value Stores (e.g. Redis)',
+        'Option C': 'Relational Tables (e.g. MySQL)',
+        'Option D': 'Wide-Column Stores (e.g. Cassandra)',
+        'Correct Answer': 'A, B, D',
+        'Question Type': 'Multiple Choice',
+        'Timer': 45,
+        'Marks': 500,
+        'Explanation': 'Document, Key-Value, and Wide-Column are NoSQL models. MySQL is relational.'
+      },
+      {
+        'Question': 'Which of the following are primitive data types in JavaScript? (Select all that apply)',
+        'Option A': 'String',
+        'Option B': 'Number',
+        'Option C': 'Object',
+        'Option D': 'Boolean',
+        'Correct Answer': 'A, B, D',
+        'Question Type': 'Multiple Choice',
+        'Timer': 30,
+        'Marks': 500,
+        'Explanation': 'String, Number, and Boolean are primitives; Object is a reference type.'
+      }
+    ];
+
+    if (format === 'csv') {
+      const ws = XLSX.utils.json_to_sheet(sampleData);
+      const csvOutput = XLSX.utils.sheet_to_csv(ws);
+      const blob = new Blob([csvOutput], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', 'quiz_questions_template.csv');
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } else {
+      const ws = XLSX.utils.json_to_sheet(sampleData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Questions');
+      ws['!cols'] = [
+        { wch: 45 },
+        { wch: 32 },
+        { wch: 32 },
+        { wch: 32 },
+        { wch: 32 },
+        { wch: 18 },
+        { wch: 18 },
+        { wch: 10 },
+        { wch: 10 },
+        { wch: 45 }
+      ];
+      XLSX.writeFile(wb, 'quiz_questions_template.xlsx');
+    }
+  };
+
   const handleFileChange = (e) => {
     setUploadFile(e.target.files[0]);
     setUploadErrors([]);
@@ -537,19 +633,22 @@ export default function QuizManagement() {
 
   const handleUploadExcel = async (e) => {
     e.preventDefault();
-    if (!uploadFile) { setUploadErrors(['Please select an Excel file first.']); return; }
+    if (!uploadFile) { setUploadErrors(['Please select an Excel or CSV file first.']); return; }
     const formData = new FormData();
     formData.append('file', uploadFile);
     try {
       setLoading(true);
       const res = await api.post(`/api/quizzes/${selectedQuiz.id}/import`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
-      setUploadSuccess(res.data.message);
+      setUploadSuccess(res.data.message || 'Questions imported successfully!');
       setUploadFile(null);
-      loadQuizzes();
+      await loadQuizzes();
     } catch (err) {
       const errRes = err.response?.data;
-      if (errRes?.details) { setUploadErrors(errRes.details); }
-      else { setUploadErrors([errRes?.error || 'Failed to upload spreadsheet.']); }
+      if (errRes?.details && Array.isArray(errRes.details)) {
+        setUploadErrors(errRes.details);
+      } else {
+        setUploadErrors([errRes?.error || 'Failed to upload spreadsheet.']);
+      }
     } finally {
       setLoading(false);
     }
@@ -959,10 +1058,10 @@ export default function QuizManagement() {
         </Modal>
       )}
 
-      {/* â”€â”€ EXCEL IMPORT MODAL â”€â”€ */}
+      {/* ── EXCEL IMPORT MODAL ── */}
       {showImportModal && (
         <Modal onClose={() => setShowImportModal(false)}>
-          <div className="max-w-lg mx-auto bg-white rounded-2xl shadow-2xl border border-zinc-150 overflow-hidden text-zinc-750">
+          <div className="max-w-xl mx-auto bg-white rounded-2xl shadow-2xl border border-zinc-150 overflow-hidden text-zinc-750">
             {/* Modal header */}
             <div className="relative bg-gradient-to-r from-emerald-650 to-emerald-700 px-6 py-5 text-white">
               <div className="flex items-start gap-3">
@@ -971,14 +1070,14 @@ export default function QuizManagement() {
                 </div>
                 <div>
                   <h2 className="text-lg font-extrabold text-white leading-tight">Import Questions</h2>
-                  <p className="text-xs text-white/70 mt-0.5 line-clamp-1">
-                    For: <span className="font-semibold">{selectedQuiz?.title}</span>
+                  <p className="text-xs text-white/80 mt-0.5 line-clamp-1">
+                    For: <span className="font-semibold text-white">{selectedQuiz?.title}</span>
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setShowImportModal(false)}
-                className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all"
+                className="absolute top-4 right-4 w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-all cursor-pointer"
                 aria-label="Close"
               >
                 <X size={16} />
@@ -986,14 +1085,42 @@ export default function QuizManagement() {
             </div>
 
             {/* Modal body */}
-            <div className="px-6 py-5 space-y-4">
+            <div className="px-6 py-5 space-y-4 max-h-[75vh] overflow-y-auto">
+              {/* Template Download Section */}
+              <div className="bg-emerald-50/70 border border-emerald-200 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5">
+                <div>
+                  <p className="text-xs font-bold text-emerald-900">Need the official spreadsheet template?</p>
+                  <p className="text-[11px] text-emerald-700">Pre-formatted with Single Choice, True/False, and Multi-Select examples.</p>
+                </div>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadTemplate('xlsx')}
+                    className="flex items-center gap-1 bg-white border border-emerald-300 text-emerald-800 hover:bg-emerald-100 px-2.5 py-1.5 rounded-lg text-xs font-extrabold shadow-2xs transition-all cursor-pointer active:scale-95"
+                    title="Download Excel Template (.xlsx)"
+                  >
+                    <FileSpreadsheet size={13} className="text-emerald-600" />
+                    <span>.XLSX</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadTemplate('csv')}
+                    className="flex items-center gap-1 bg-white border border-blue-300 text-blue-800 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg text-xs font-extrabold shadow-2xs transition-all cursor-pointer active:scale-95"
+                    title="Download CSV Template (.csv)"
+                  >
+                    <FileText size={13} className="text-blue-600" />
+                    <span>.CSV</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Error panel */}
               {uploadErrors.length > 0 && (
                 <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-xl text-xs space-y-1 max-h-36 overflow-y-auto">
                   <p className="font-bold flex items-center gap-1.5 mb-2">
                     <AlertCircle size={14} /> Validation Errors ({uploadErrors.length})
                   </p>
-                  {uploadErrors.map((err, i) => <p key={i} className="leading-relaxed">â€¢ {err}</p>)}
+                  {uploadErrors.map((err, i) => <p key={i} className="leading-relaxed">• {err}</p>)}
                 </div>
               )}
 
@@ -1018,7 +1145,7 @@ export default function QuizManagement() {
                   <input
                     type="file"
                     id="excelFile"
-                    accept=".xlsx,.xls"
+                    accept=".xlsx,.xls,.csv"
                     onChange={handleFileChange}
                     className="hidden"
                   />
@@ -1031,38 +1158,35 @@ export default function QuizManagement() {
                   ) : (
                     <>
                       <FileUp size={32} className="mx-auto mb-2 text-zinc-450" />
-                      <p className="text-sm font-semibold text-zinc-650">Drop your Excel file here</p>
+                      <p className="text-sm font-semibold text-zinc-650">Drop your Excel or CSV file here</p>
                       <p className="text-xs text-zinc-450 mt-1">or <span className="text-brand-blue font-bold underline">browse to upload</span></p>
-                      <p className="text-[10px] text-brand-textMuted mt-2">Supports .xlsx and .xls files</p>
+                      <p className="text-[10px] text-brand-textMuted mt-2">Supports .xlsx, .xls, and .csv files</p>
                     </>
                   )}
                 </label>
 
-                {/* Column format guide */}
-                <div className="bg-brand-bgLight border border-brand-border rounded-xl p-4">
-                  <p className="text-xs font-bold text-zinc-650 uppercase tracking-wider mb-3">
-                    Required Column Format (Row 2 onwards)
+                {/* Supported Question Types Guide */}
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
+                  <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                    Supported Question Formats in Spreadsheet
                   </p>
-                  <div className="grid grid-cols-4 gap-1.5 text-center">
-                    {[
-                      { col: 'A', label: 'Question' },
-                      { col: 'B', label: 'Option A' },
-                      { col: 'C', label: 'Option B' },
-                      { col: 'D', label: 'Option C' },
-                      { col: 'E', label: 'Option D' },
-                      { col: 'F', label: 'Correct Ans' },
-                      { col: 'G', label: 'Timer (s)' },
-                      { col: 'H', label: 'Marks' },
-                    ].map(({ col, label }) => (
-                      <div key={col} className="bg-white border border-brand-border rounded-lg py-1.5 px-1">
-                        <span className="block text-[10px] font-extrabold text-brand-blue">{col}</span>
-                        <span className="block text-[9px] text-brand-textMuted font-medium leading-tight mt-0.5">{label}</span>
-                      </div>
-                    ))}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-left text-[11px]">
+                    <div className="bg-white border border-slate-200 p-2.5 rounded-lg">
+                      <span className="font-extrabold text-blue-700 block">Single Choice</span>
+                      <span className="text-slate-500 block text-[10px] mt-0.5">Option A–D filled</span>
+                      <span className="text-slate-700 font-bold block text-[10px] mt-0.5">Answer: A (or B, C, D)</span>
+                    </div>
+                    <div className="bg-white border border-slate-200 p-2.5 rounded-lg">
+                      <span className="font-extrabold text-emerald-700 block">True / False</span>
+                      <span className="text-slate-500 block text-[10px] mt-0.5">Option A: True, B: False</span>
+                      <span className="text-slate-700 font-bold block text-[10px] mt-0.5">Answer: True or False (or A/B)</span>
+                    </div>
+                    <div className="bg-white border border-slate-200 p-2.5 rounded-lg">
+                      <span className="font-extrabold text-purple-700 block">Multi-Select</span>
+                      <span className="text-slate-500 block text-[10px] mt-0.5">Multiple correct keys</span>
+                      <span className="text-slate-700 font-bold block text-[10px] mt-0.5">Answer: A, C or A, B, D</span>
+                    </div>
                   </div>
-                  <p className="text-[10px] text-brand-textMuted mt-2.5">
-                    âš  Correct Answer column must contain: <strong>A</strong>, <strong>B</strong>, <strong>C</strong>, or <strong>D</strong>
-                  </p>
                 </div>
 
                 {/* Actions */}
@@ -1070,7 +1194,7 @@ export default function QuizManagement() {
                   <button
                     type="button"
                     onClick={() => setShowImportModal(false)}
-                    className="flex-1 py-2.5 rounded-xl border border-brand-border text-zinc-650 font-semibold text-sm hover:bg-brand-bgLight transition-all"
+                    className="flex-1 py-2.5 rounded-xl border border-brand-border text-zinc-650 font-semibold text-sm hover:bg-brand-bgLight transition-all cursor-pointer"
                   >
                     Cancel
                   </button>

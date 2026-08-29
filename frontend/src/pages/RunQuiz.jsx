@@ -182,7 +182,7 @@ export default function RunQuiz() {
 
     const primaryColor = getValidColor(brandData?.primary_color);
     const rawClub = (brandData?.club_name || 'Microsoft Student Club').trim();
-    const rawChap = (brandData?.chapter_name || 'PRPCEM Chapter').trim();
+    const rawChap = (brandData?.chapter_name || 'PRPCEM').trim();
 
     let clubName = rawClub.replace(/\s+PRPCEM$/i, '').trim();
     if (!clubName) clubName = 'Microsoft Student Club';
@@ -190,12 +190,10 @@ export default function RunQuiz() {
     let chapterName = rawChap
       .replace(/^Microsoft\s+Student\s+Club\s*/i, '')
       .replace(/^MSC[-\s]*/i, '')
+      .replace(/\s*chapter\s*/gi, '')
       .trim();
 
     if (!chapterName) chapterName = 'PRPCEM';
-    if (!chapterName.toLowerCase().includes('chapter')) {
-      chapterName = `${chapterName} CHAPTER`;
-    }
 
     clubName = clubName.toUpperCase();
     chapterName = chapterName.toUpperCase();

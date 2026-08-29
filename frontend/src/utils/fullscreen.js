@@ -106,21 +106,46 @@ export const exitAppFullscreen = async () => {
 };
 
 /**
- * Normalizes multi-selection strings and arrays into sorted unique comma-separated strings (e.g. 'A,C').
+ * Normalizes multi-selection strings, arrays, and True/False inputs into sorted unique comma-separated strings (e.g. 'A,C', 'A', 'B').
  */
 export const normalizeSelection = (raw) => {
-  if (!raw) return '';
-  if (Array.isArray(raw)) {
-    return raw.map(x => String(x).trim().toUpperCase()).filter(Boolean).sort().join(',');
+  if (raw === null || raw === undefined) return '';
+
+  if (typeof raw === 'boolean') {
+    return raw ? 'A' : 'B';
   }
-  return String(raw)
-    .toUpperCase()
-    .split(/[,\s]+/)
-    .map(x => x.trim())
-    .filter(x => ['A', 'B', 'C', 'D'].includes(x))
-    .filter((v, i, a) => a.indexOf(v) === i)
-    .sort()
-    .join(',');
+
+  let str = '';
+  if (Array.isArray(raw)) {
+    str = raw.map(x => String(x || '').trim()).join(',');
+  } else {
+    str = String(raw).trim();
+  }
+
+  const upperTrimmed = str.toUpperCase().trim();
+  if (upperTrimmed === 'TRUE' || upperTrimmed === 'T' || upperTrimmed === 'CORRECT') {
+    return 'A';
+  }
+  if (upperTrimmed === 'FALSE' || upperTrimmed === 'F' || upperTrimmed === 'INCORRECT') {
+    return 'B';
+  }
+
+  // Extract all valid uppercase option letters A, B, C, D
+  const tokens = upperTrimmed
+    .replace(/OPTION\s*/gi, '')
+    .split(/[^A-D]+/)
+    .filter(t => t.length > 0 && /^[A-D]+$/.test(t));
+
+  const letters = new Set();
+  tokens.forEach(token => {
+    for (const char of token) {
+      if (['A', 'B', 'C', 'D'].includes(char)) {
+        letters.add(char);
+      }
+    }
+  });
+
+  return Array.from(letters).sort().join(',');
 };
 
 /**

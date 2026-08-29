@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const ExcelJS = require('exceljs');
+const { Readable } = require('stream');
 const { Quiz, Question, Participant, QuizAttempt, Answer, Violation, AttemptViolation, AttemptAnswer, ScheduledOccurrence } = require('../models');
 const authMiddleware = require('../middleware/auth');
 const { Op } = require('sequelize');
@@ -65,7 +66,7 @@ const deleteQuizWithFullCascade = async (quizId) => {
 };
 
 
-// Multer memory storage configuration for Excel uploads (5 MB max limit)
+// Multer memory storage configuration for Excel and CSV uploads (5 MB max limit)
 const storage = multer.memoryStorage();
 const upload = multer({
   storage,
@@ -73,13 +74,19 @@ const upload = multer({
     fileSize: 5 * 1024 * 1024 // 5 MB max file upload to prevent memory exhaustion
   },
   fileFilter: (req, file, cb) => {
-    if (
+    const isExcelOrCsv =
       file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
-      file.mimetype === 'application/vnd.ms-excel'
-    ) {
+      file.mimetype === 'application/vnd.ms-excel' ||
+      file.mimetype === 'text/csv' ||
+      file.mimetype === 'application/csv' ||
+      file.mimetype === 'text/plain' ||
+      file.mimetype === 'application/octet-stream' ||
+      /\.(xlsx|xls|csv)$/i.test(file.originalname || '');
+
+    if (isExcelOrCsv) {
       cb(null, true);
     } else {
-      cb(new Error('Only Excel files (.xlsx, .xls) are allowed'));
+      cb(new Error('Only Excel (.xlsx, .xls) and CSV (.csv) files are allowed'));
     }
   }
 });
@@ -532,8 +539,8 @@ router.post('/:id/questions', authMiddleware, async (req, res) => {
       question,
       option_a: option_a || 'True',
       option_b: option_b || 'False',
-      option_c: qType === 'true_false' ? null : (option_c || ''),
-      option_d: qType === 'true_false' ? null : (option_d || ''),
+      option_c: qType === 'true_false' ? '' : (option_c || ''),
+      option_d: qType === 'true_false' ? '' : (option_d || ''),
       correct_answer: normCorrect,
       question_type: qType,
       timer: timer || 30,
@@ -579,8 +586,8 @@ router.put('/questions/:id', authMiddleware, async (req, res) => {
       question: question || existingQuestion.question,
       option_a: option_a !== undefined ? option_a : existingQuestion.option_a,
       option_b: option_b !== undefined ? option_b : existingQuestion.option_b,
-      option_c: qType === 'true_false' ? null : (option_c !== undefined ? option_c : existingQuestion.option_c),
-      option_d: qType === 'true_false' ? null : (option_d !== undefined ? option_d : existingQuestion.option_d),
+      option_c: qType === 'true_false' ? '' : (option_c !== undefined ? option_c : existingQuestion.option_c),
+      option_d: qType === 'true_false' ? '' : (option_d !== undefined ? option_d : existingQuestion.option_d),
       correct_answer: normCorrect,
       question_type: qType,
       timer: timer !== undefined ? timer : existingQuestion.timer,
@@ -653,70 +660,113 @@ router.post('/:id/import', authMiddleware, upload.single('file'), async (req, re
     }
 
     if (!req.file) {
-      return res.status(400).json({ error: 'Excel file is required' });
+      return res.status(400).json({ error: 'Excel or CSV file is required' });
     }
 
+    const isCsv =
+      req.file.mimetype === 'text/csv' ||
+      req.file.mimetype === 'application/csv' ||
+      /\.csv$/i.test(req.file.originalname || '');
+
     const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(req.file.buffer);
+    if (isCsv) {
+      const stream = Readable.from(req.file.buffer);
+      await workbook.csv.read(stream);
+    } else {
+      try {
+        await workbook.xlsx.load(req.file.buffer);
+      } catch (xlsxErr) {
+        // Fallback to CSV parser in case of csv/xlsx extension mismatch
+        const stream = Readable.from(req.file.buffer);
+        await workbook.csv.read(stream);
+      }
+    }
 
     const worksheet = workbook.worksheets[0];
     if (!worksheet) {
-      return res.status(400).json({ error: 'Excel file is empty' });
+      return res.status(400).json({ error: 'Spreadsheet is empty' });
     }
+
+    // Dynamic header discovery from Row 1
+    const headerMap = {};
+    const headerRow = worksheet.getRow(1);
+    headerRow.eachCell((cell, colNumber) => {
+      const raw = (cell.text || cell.value || '').toString().toLowerCase().trim();
+      const clean = raw.replace(/[^a-z0-9]/g, '');
+
+      if (clean.includes('question') && !clean.includes('type')) headerMap.question = colNumber;
+      else if (clean === 'optiona' || clean === 'a' || clean === 'choicea' || clean === 'opta') headerMap.option_a = colNumber;
+      else if (clean === 'optionb' || clean === 'b' || clean === 'choiceb' || clean === 'optb') headerMap.option_b = colNumber;
+      else if (clean === 'optionc' || clean === 'c' || clean === 'choicec' || clean === 'optc') headerMap.option_c = colNumber;
+      else if (clean === 'optiond' || clean === 'd' || clean === 'choiced' || clean === 'optd') headerMap.option_d = colNumber;
+      else if (clean.includes('correct') || clean === 'answer' || clean === 'ans' || clean === 'correctans' || clean === 'correctanswer') headerMap.correct_answer = colNumber;
+      else if (clean.includes('type') || clean.includes('format')) headerMap.question_type = colNumber;
+      else if (clean.includes('timer') || clean.includes('timelimit') || clean.includes('duration') || clean.includes('seconds')) headerMap.timer = colNumber;
+      else if (clean.includes('mark') || clean.includes('point') || clean.includes('score')) headerMap.marks = colNumber;
+      else if (clean.includes('diffic') || clean.includes('level')) headerMap.difficulty = colNumber;
+      else if (clean.includes('explain') || clean.includes('rationale') || clean.includes('solution')) headerMap.explanation = colNumber;
+      else if (clean.includes('sectionname') || clean.includes('roundname')) headerMap.section_name = colNumber;
+      else if (clean === 'section' || clean === 'round' || clean === 'occurrence') headerMap.occurrence_number = colNumber;
+    });
+
+    // Default positional fallbacks if headers weren't named with standard words
+    if (!headerMap.question) headerMap.question = 1;
+    if (!headerMap.option_a) headerMap.option_a = 2;
+    if (!headerMap.option_b) headerMap.option_b = 3;
+    if (!headerMap.option_c) headerMap.option_c = 4;
+    if (!headerMap.option_d) headerMap.option_d = 5;
+    if (!headerMap.correct_answer) headerMap.correct_answer = 6;
 
     const parsedQuestions = [];
     const errors = [];
 
-    // Skip row 1 (headers) and read questions starting from row 2
+    // Helper to safely extract cell text
+    const getCellString = (row, colIndex) => {
+      if (!colIndex) return '';
+      const c = row.getCell(colIndex);
+      if (c.value === null || c.value === undefined) return '';
+      if (typeof c.value === 'object') {
+        if (c.value.text) return String(c.value.text).trim();
+        if (c.value.result !== undefined) return String(c.value.result).trim();
+        if (c.value.richText) return c.value.richText.map(t => t.text).join('').trim();
+      }
+      return String(c.text || c.value || '').trim();
+    };
+
     worksheet.eachRow((row, rowNumber) => {
       if (rowNumber === 1) return; // Skip headers
 
-      // Expected Column Layout:
-      // A (1) - Question
-      // B (2) - Option A
-      // C (3) - Option B
-      // D (4) - Option C
-      // E (5) - Option D
-      // F (6) - Correct Answer (A, B, C, D or combinations or True/False)
-      // G (7) - Timer (Optional)
-      // H (8) - Marks (Optional)
-      // I (9) - Question Type (Optional)
+      const questionText = getCellString(row, headerMap.question);
+      const rawOptA = getCellString(row, headerMap.option_a);
+      const rawOptB = getCellString(row, headerMap.option_b);
+      const rawOptC = getCellString(row, headerMap.option_c);
+      const rawOptD = getCellString(row, headerMap.option_d);
+      const rawCorrect = getCellString(row, headerMap.correct_answer);
+      const rawType = headerMap.question_type ? getCellString(row, headerMap.question_type) : '';
+      const timerCell = headerMap.timer ? row.getCell(headerMap.timer).value : null;
+      const marksCell = headerMap.marks ? row.getCell(headerMap.marks).value : null;
+      const diffVal = headerMap.difficulty ? getCellString(row, headerMap.difficulty) : '';
 
-      const questionText = row.getCell(1).text?.trim();
-      const rawOptA = row.getCell(2).text?.trim();
-      const rawOptB = row.getCell(3).text?.trim();
-      const rawOptC = row.getCell(4).text?.trim();
-      const rawOptD = row.getCell(5).text?.trim();
-      const rawCorrect = row.getCell(6).text?.trim();
-      const timerVal = row.getCell(7).value;
-      const marksVal = row.getCell(8).value;
-      const rawType = row.getCell(9).text?.trim();
-
-      // Skip row if it's completely empty
+      // Skip row if completely blank
       if (!questionText && !rawOptA && !rawOptB && !rawOptC && !rawOptD && !rawCorrect) {
         return;
       }
 
       const rowError = [];
-      if (!questionText) rowError.push('Question text is missing');
-
-      const normCorrect = normalizeAnswers(rawCorrect);
-      if (!normCorrect) {
-        rowError.push(`Invalid correct answer '${rawCorrect}'`);
+      if (!questionText) {
+        rowError.push('Question text is required');
       }
 
-      let qType = rawType ? determineQuestionType({ question_type: rawType }) : null;
-      if (!qType) {
-        const isTFOpts = (rawOptA?.toLowerCase() === 'true' || rawOptA?.toLowerCase() === 't') || (!rawOptC && !rawOptD);
-        const isTFCorrect = ['true', 'false', 't', 'f'].includes(String(rawCorrect || '').toLowerCase());
-        if (isTFOpts && isTFCorrect) {
-          qType = 'true_false';
-        } else if (normCorrect.includes(',')) {
-          qType = 'multiple';
-        } else {
-          qType = 'single';
-        }
-      }
+      // Determine question type (Single Choice, True/False, Multiple Choice)
+      let normCorrect = normalizeAnswers(rawCorrect);
+      let qType = determineQuestionType({
+        question_type: rawType,
+        option_a: rawOptA,
+        option_b: rawOptB,
+        option_c: rawOptC,
+        option_d: rawOptD,
+        correct_answer: rawCorrect
+      });
 
       let optionA = rawOptA;
       let optionB = rawOptB;
@@ -724,33 +774,45 @@ router.post('/:id/import', authMiddleware, upload.single('file'), async (req, re
       let optionD = rawOptD;
 
       if (qType === 'true_false') {
-        optionA = optionA || 'True';
-        optionB = optionB || 'False';
-        optionC = null;
-        optionD = null;
+        optionA = 'True';
+        optionB = 'False';
+        optionC = '';
+        optionD = '';
+
+        if (!normCorrect || !['A', 'B'].includes(normCorrect)) {
+          const upperAns = rawCorrect.toUpperCase().trim();
+          if (upperAns === 'TRUE' || upperAns === 'T') normCorrect = 'A';
+          else if (upperAns === 'FALSE' || upperAns === 'F') normCorrect = 'B';
+          else normCorrect = 'A'; // fallback
+        }
       } else {
-        if (!optionA) rowError.push('Option A is missing');
-        if (!optionB) rowError.push('Option B is missing');
-        if (!optionC) rowError.push('Option C is missing');
-        if (!optionD) rowError.push('Option D is missing');
+        if (!optionA) rowError.push('Option A is required');
+        if (!optionB) rowError.push('Option B is required');
+        if (qType === 'single') {
+          if (!optionC) optionC = '';
+          if (!optionD) optionD = '';
+          if (!normCorrect || !['A', 'B', 'C', 'D'].includes(normCorrect)) {
+            normCorrect = 'A';
+          }
+        } else if (qType === 'multiple') {
+          if (!normCorrect) {
+            normCorrect = 'A';
+          }
+        }
       }
 
       let timer = 30;
-      if (timerVal !== null && timerVal !== undefined) {
-        const parsedTimer = parseInt(timerVal, 10);
-        if (isNaN(parsedTimer) || parsedTimer <= 0) {
-          rowError.push(`Timer must be a positive integer (got '${timerVal}')`);
-        } else {
+      if (timerCell !== null && timerCell !== undefined && timerCell !== '') {
+        const parsedTimer = parseInt(timerCell, 10);
+        if (!isNaN(parsedTimer) && parsedTimer >= 5 && parsedTimer <= 300) {
           timer = parsedTimer;
         }
       }
 
       let marks = 500;
-      if (marksVal !== null && marksVal !== undefined) {
-        const parsedMarks = parseInt(marksVal, 10);
-        if (isNaN(parsedMarks) || parsedMarks <= 0) {
-          rowError.push(`Marks must be a positive integer (got '${marksVal}')`);
-        } else {
+      if (marksCell !== null && marksCell !== undefined && marksCell !== '') {
+        const parsedMarks = parseInt(marksCell, 10);
+        if (!isNaN(parsedMarks) && parsedMarks > 0) {
           marks = parsedMarks;
         }
       }
@@ -768,38 +830,88 @@ router.post('/:id/import', authMiddleware, upload.single('file'), async (req, re
           correct_answer: normCorrect,
           question_type: qType,
           timer,
-          marks
+          marks,
+          difficulty: diffVal || quiz.difficulty || 'Intermediate'
         });
       }
     });
 
-    if (errors.length > 0) {
-      return res.status(400).json({ error: 'Validation failed', details: errors });
+    if (errors.length > 0 && parsedQuestions.length === 0) {
+      return res.status(400).json({ error: 'Spreadsheet validation failed', details: errors });
     }
 
     if (parsedQuestions.length === 0) {
-      return res.status(400).json({ error: 'No questions found in Excel file' });
+      return res.status(400).json({ error: 'No valid questions found in spreadsheet.' });
     }
 
     // Get current max order index
     const maxOrder = await Question.max('order_index', { where: { quiz_id } });
     let currentOrderIndex = (maxOrder || 0) + 1;
 
-    // Assign order indices
     parsedQuestions.forEach((q) => {
       q.order_index = currentOrderIndex++;
     });
 
-    // Bulk create questions
+    // Atomic bulk insert
     const createdQuestions = await Question.bulkCreate(parsedQuestions);
 
     return res.json({
-      message: `Successfully imported ${createdQuestions.length} questions`,
-      count: createdQuestions.length
+      success: true,
+      message: `Successfully imported ${createdQuestions.length} questions!`,
+      count: createdQuestions.length,
+      warnings: errors.length > 0 ? errors : undefined
     });
   } catch (error) {
     console.error('Import questions error:', error);
-    return res.status(500).json({ error: 'Server error during question import' });
+    return res.status(500).json({ error: error.message || 'Server error during question import' });
+  }
+});
+
+// Bulk add questions via JSON array
+router.post('/:id/questions/bulk', authMiddleware, async (req, res) => {
+  try {
+    const quiz_id = req.params.id;
+    const quiz = await Quiz.findByPk(quiz_id);
+    if (!quiz) {
+      return res.status(404).json({ error: 'Quiz not found' });
+    }
+
+    const { questions } = req.body;
+    if (!Array.isArray(questions) || questions.length === 0) {
+      return res.status(400).json({ error: 'Questions array is required' });
+    }
+
+    const maxOrder = await Question.max('order_index', { where: { quiz_id } });
+    let currentOrderIndex = (maxOrder || 0) + 1;
+
+    const formatted = questions.map((q) => {
+      const normCorrect = normalizeAnswers(q.correct_answer) || 'A';
+      const qType = q.question_type || determineQuestionType({ ...q, correct_answer: normCorrect });
+      return {
+        quiz_id,
+        question: q.question,
+        option_a: qType === 'true_false' ? 'True' : (q.option_a || 'Option A'),
+        option_b: qType === 'true_false' ? 'False' : (q.option_b || 'Option B'),
+        option_c: qType === 'true_false' ? '' : (q.option_c || ''),
+        option_d: qType === 'true_false' ? '' : (q.option_d || ''),
+        correct_answer: normCorrect,
+        question_type: qType,
+        timer: parseInt(q.timer, 10) || 30,
+        marks: parseInt(q.marks, 10) || 500,
+        difficulty: q.difficulty || quiz.difficulty || 'Intermediate',
+        order_index: currentOrderIndex++
+      };
+    });
+
+    const created = await Question.bulkCreate(formatted);
+    return res.status(201).json({
+      success: true,
+      message: `Successfully added ${created.length} questions`,
+      count: created.length
+    });
+  } catch (error) {
+    console.error('Bulk add questions error:', error);
+    return res.status(500).json({ error: 'Server error bulk adding questions' });
   }
 });
 

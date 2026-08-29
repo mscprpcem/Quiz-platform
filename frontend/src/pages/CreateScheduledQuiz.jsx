@@ -703,31 +703,53 @@ export default function CreateScheduledQuiz() {
       const secNum = sec.number;
       const secName = customSections[secNum]?.name || sec.name || `Section ${secNum}`;
       
-      let q1 = {
+      // 1. Single Choice Question
+      sampleData.push({
         'Section': secNum,
         'Section Name': secName,
-        'Question': `What is a core benefit of cloud computing featured in ${secName}?`,
-        'Option A': 'High availability and on-demand scalability',
-        'Option B': 'Fixed hardware maintenance costs',
-        'Option C': 'Manual operating system patching',
-        'Option D': 'Physical server room requirement',
+        'Question': `What is a primary benefit of cloud scalability featured in ${secName}?`,
+        'Option A': 'Elastic scaling and on-demand resource allocation',
+        'Option B': 'Fixed hardware lifecycle requirements',
+        'Option C': 'Manual physical cabling and maintenance',
+        'Option D': 'Static infrastructure constraints',
         'Correct Answer': 'A',
-        'Explanation': 'Cloud computing delivers elastic scalability and high availability on-demand.'
-      };
+        'Question Type': 'Single Choice',
+        'Timer': 30,
+        'Marks': 1,
+        'Explanation': 'Cloud scalability delivers elastic, automatic resource allocation on-demand.'
+      });
 
-      let q2 = {
+      // 2. True / False Question
+      sampleData.push({
         'Section': secNum,
         'Section Name': secName,
-        'Question': `Which protocol is primarily used for secure web traffic in ${secName}?`,
-        'Option A': 'HTTP',
-        'Option B': 'HTTPS',
-        'Option C': 'FTP',
-        'Option D': 'Telnet',
-        'Correct Answer': 'B',
-        'Explanation': 'HTTPS encrypts communication between the client browser and the server using TLS/SSL.'
-      };
+        'Question': `HTTPS encrypts web communications with TLS/SSL encryption.`,
+        'Option A': 'True',
+        'Option B': 'False',
+        'Option C': '',
+        'Option D': '',
+        'Correct Answer': 'A',
+        'Question Type': 'True/False',
+        'Timer': 20,
+        'Marks': 1,
+        'Explanation': 'True. HTTPS uses Transport Layer Security (TLS) to encrypt HTTP traffic.'
+      });
 
-      sampleData.push(q1, q2);
+      // 3. Multi-Select Question
+      sampleData.push({
+        'Section': secNum,
+        'Section Name': secName,
+        'Question': `Which of the following are cloud service models? (Select all that apply)`,
+        'Option A': 'IaaS (Infrastructure as a Service)',
+        'Option B': 'PaaS (Platform as a Service)',
+        'Option C': 'SaaS (Software as a Service)',
+        'Option D': 'HaaS (Hardware as a Script)',
+        'Correct Answer': 'A, B, C',
+        'Question Type': 'Multiple Choice',
+        'Timer': 45,
+        'Marks': 1,
+        'Explanation': 'IaaS, PaaS, and SaaS are the three standardized cloud service delivery models.'
+      });
     });
 
     // Fallback if no sections
@@ -741,6 +763,9 @@ export default function CreateScheduledQuiz() {
         'Option C': 'Computer Personal Unit',
         'Option D': 'Central Processor Unifier',
         'Correct Answer': 'A',
+        'Question Type': 'Single Choice',
+        'Timer': 30,
+        'Marks': 1,
         'Explanation': 'CPU is the Central Processing Unit.'
       });
     }
@@ -764,7 +789,18 @@ export default function CreateScheduledQuiz() {
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Questions');
       ws['!cols'] = [
-        { wch: 10 }, { wch: 28 }, { wch: 45 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 30 }, { wch: 15 }, { wch: 45 }
+        { wch: 10 }, // Section
+        { wch: 22 }, // Section Name
+        { wch: 45 }, // Question
+        { wch: 32 }, // Option A
+        { wch: 32 }, // Option B
+        { wch: 32 }, // Option C
+        { wch: 32 }, // Option D
+        { wch: 18 }, // Correct Answer
+        { wch: 18 }, // Question Type
+        { wch: 10 }, // Timer
+        { wch: 10 }, // Marks
+        { wch: 45 }  // Explanation
       ];
       XLSX.writeFile(wb, `${baseFileName}.xlsx`);
     }
