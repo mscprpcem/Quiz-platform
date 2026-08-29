@@ -1328,10 +1328,14 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
         userConditions.push({ participant_name: cleanName });
       }
 
+      const occMatch = occ.quiz_id ? [{ occurrence_id: occ.id }, { quiz_id: occ.quiz_id }] : [{ occurrence_id: occ.id }];
+
       userAttempt = await QuizAttempt.findOne({
         where: {
-          occurrence_id: occ.id,
-          [Op.or]: userConditions
+          [Op.and]: [
+            { [Op.or]: occMatch },
+            { [Op.or]: userConditions }
+          ]
         },
         order: [
           ['status', 'DESC'], // 'completed' or 'in_progress'
@@ -1345,8 +1349,8 @@ router.get('/occurrences/:occurrenceId', async (req, res) => {
         try {
           const allCompleted = await QuizAttempt.findAll({
             where: {
-              occurrence_id: occ.id,
-              status: 'completed'
+              status: 'completed',
+              [Op.or]: occMatch
             },
             order: [
               ['attempt_number', 'DESC'],
@@ -1871,12 +1875,22 @@ router.post('/attempts/:attemptId/submit', async (req, res) => {
 router.get('/occurrences/:occurrenceId/leaderboard', async (req, res) => {
   try {
     const rawParam = req.params.occurrenceId ? req.params.occurrenceId.trim() : '';
+    if (!rawParam) return res.json([]);
+
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawParam);
 
     let occurrence = null;
     let quiz = null;
 
-    if (isUUID) {
+    try {
+      occurrence = await resolveOccurrence(rawParam);
+    } catch (resolveErr) {
+      console.warn('resolveOccurrence fallback:', resolveErr.message);
+    }
+
+    if (occurrence) {
+      quiz = occurrence.quiz;
+    } else if (isUUID) {
       occurrence = await ScheduledOccurrence.findByPk(rawParam);
       if (!occurrence) {
         quiz = await Quiz.findByPk(rawParam);
@@ -1898,23 +1912,20 @@ router.get('/occurrences/:occurrenceId/leaderboard', async (req, res) => {
 
     if (!occurrence && !quiz) {
       const allQuizzes = await Quiz.findAll();
-      quiz = allQuizzes.find(q =>
-        (q.custom_slug && q.custom_slug.toLowerCase() === rawParam.toLowerCase()) ||
-        (q.join_code && q.join_code.toLowerCase() === rawParam.toLowerCase()) ||
-        (q.id === rawParam)
-      );
+      quiz = allQuizzes.find(q => {
+        const qSlug = q.title ? q.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : '';
+        const rawSlug = rawParam.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+        return (
+          (q.custom_slug && q.custom_slug.toLowerCase() === rawParam.toLowerCase()) ||
+          qSlug === rawSlug ||
+          (q.join_code && q.join_code.toLowerCase() === rawParam.toLowerCase()) ||
+          (q.id === rawParam)
+        );
+      });
     }
 
     let targetOccId = occurrence ? occurrence.id : (isUUID ? rawParam : null);
     let targetQuizId = occurrence ? occurrence.quiz_id : (quiz ? quiz.id : null);
-
-    const statusConditions = [
-      { status: 'completed' },
-      { status: 'COMPLETED' },
-      { status: 'submitted' },
-      { status: 'SUBMITTED' },
-      sequelize.where(sequelize.fn('LOWER', sequelize.col('status')), 'completed')
-    ];
 
     const matchConditions = [];
     if (targetOccId) {
@@ -1926,10 +1937,8 @@ router.get('/occurrences/:occurrenceId/leaderboard', async (req, res) => {
 
     const attempts = await QuizAttempt.findAll({
       where: {
-        [Op.and]: [
-          { [Op.or]: statusConditions },
-          ...(matchConditions.length > 0 ? [{ [Op.or]: matchConditions }] : [])
-        ]
+        status: 'completed',
+        ...(matchConditions.length > 0 ? { [Op.or]: matchConditions } : {})
       },
       order: [
         ['attempt_number', 'DESC'],

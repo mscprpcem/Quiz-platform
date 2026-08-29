@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAuth } from '../context/AuthContext';
 import { Mail, Lock, User, CheckCircle2, AlertCircle, Loader2, Eye, EyeOff, KeyRound, ArrowLeft, X, Check } from 'lucide-react';
 
@@ -245,7 +246,7 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
     }
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 animate-fade-in font-segoe">
       <div className="relative w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl p-6 sm:p-7 space-y-5 text-left">
         
@@ -686,6 +687,7 @@ export default function StudentAuthModal({ isOpen, onClose, onSuccess, initialTa
         )}
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

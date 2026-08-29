@@ -87,14 +87,14 @@ export default function ScheduledQuizTake() {
 
   useEffect(() => {
     if (quizSubmitted) {
-      fetchLeaderboard();
+      fetchLeaderboard(occData?.occurrence?.id || targetIdentifier);
     }
-  }, [quizSubmitted]);
+  }, [quizSubmitted, occData?.occurrence?.id]);
 
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = async (overrideOccId) => {
     try {
       setLoadingLeaderboard(true);
-      const targetOccId = occData?.occurrence?.id || targetIdentifier;
+      const targetOccId = (typeof overrideOccId === 'string' ? overrideOccId : null) || occData?.occurrence?.id || occData?.quiz?.id || targetIdentifier;
       const res = await api.get(`/api/scheduled-quizzes/occurrences/${targetOccId}/leaderboard`);
       if (Array.isArray(res.data)) {
         setLeaderboardList(res.data);
@@ -162,9 +162,9 @@ export default function ScheduledQuizTake() {
           totalQuestions: res.data.totalQuestions || res.data.quiz?.questions?.length || 10
         });
         setQuizSubmitted(true);
-        fetchLeaderboard();
+        fetchLeaderboard(res.data?.occurrence?.id || targetIdentifier);
       } else if (res.data?.status === 'CLOSED' || (res.data?.occurrence?.end_time && new Date(res.data.occurrence.end_time) < new Date())) {
-        fetchLeaderboard();
+        fetchLeaderboard(res.data?.occurrence?.id || targetIdentifier);
       }
     } catch (err) {
       console.error('Fetch occurrence error:', err);
