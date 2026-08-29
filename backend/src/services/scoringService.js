@@ -80,13 +80,18 @@ function calculateLiveQuestionScore({ marks = 500, difficulty = 'Intermediate', 
 
 /**
  * Calculate scheduled quiz question score
+ * Uses exact question marks / positive_marks without unexpected difficulty multipliers.
  */
-function calculateScheduledQuestionScore({ positiveMarks = 1, negativeMarks = 0, difficulty = 'Intermediate', isCorrect = false }) {
-  const diffConf = getDifficultyConfig(difficulty);
-  if (isCorrect) {
-    return Math.round((positiveMarks > 0 ? positiveMarks : 1) * diffConf.weight * 10) / 10;
+function calculateScheduledQuestionScore({ positiveMarks = 1, negativeMarks = 0, difficulty = 'Intermediate', isCorrect = false, applyDifficultyWeight = false }) {
+  if (!isCorrect) {
+    return -Math.abs(Number(negativeMarks) || 0);
   }
-  return -Math.abs(Number(negativeMarks) || 0);
+  const baseMarks = Number(positiveMarks) > 0 ? Number(positiveMarks) : 1;
+  if (applyDifficultyWeight) {
+    const diffConf = getDifficultyConfig(difficulty);
+    return Math.round(baseMarks * diffConf.weight * 10) / 10;
+  }
+  return baseMarks;
 }
 
 /**

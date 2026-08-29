@@ -1787,24 +1787,22 @@ router.post('/attempts/:attemptId/submit', async (req, res) => {
     let incorrectCount = 0;
 
     questions.forEach(q => {
-      const qDifficulty = q.difficulty || quiz.difficulty || 'Intermediate';
+      const qMarks = (q.marks !== undefined && q.marks !== null && Number(q.marks) > 0)
+        ? Number(q.marks)
+        : (Number(quiz.positive_marks) > 0 ? Number(quiz.positive_marks) : 1);
+      const qNegMarks = (q.negative_marks !== undefined && q.negative_marks !== null)
+        ? Number(q.negative_marks)
+        : (Number(quiz.negative_marks) || 0);
+
       const ans = answers.find(a => a.question_id === q.id);
-      if (ans) {
+      if (ans && ans.selected_option) {
         const isCorrect = isAnswerCorrect(ans.selected_option, q.correct_answer);
         if (isCorrect) {
           correctCount++;
-          totalScore += calculateScheduledQuestionScore({
-            positiveMarks: quiz.positive_marks,
-            difficulty: qDifficulty,
-            isCorrect: true
-          });
+          totalScore += qMarks;
         } else {
           incorrectCount++;
-          totalScore += calculateScheduledQuestionScore({
-            negativeMarks: quiz.negative_marks,
-            difficulty: qDifficulty,
-            isCorrect: false
-          });
+          totalScore -= Math.abs(qNegMarks);
         }
       }
     });
