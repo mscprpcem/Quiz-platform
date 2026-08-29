@@ -175,71 +175,34 @@ export default function QuestionManagement() {
   }
 
   const handleDownloadTemplate = (format = 'xlsx') => {
-    const sampleData = [
-      {
-        'Question': 'What does CPU stand for in computer systems?',
-        'Option A': 'Central Processing Unit',
-        'Option B': 'Central Program Utility',
-        'Option C': 'Computer Personal Unit',
-        'Option D': 'Central Processor Unifier',
-        'Correct Answer': 'A',
-        'Question Type': 'Single Choice',
-        'Timer': 30,
-        'Marks': 500,
-        'Explanation': 'CPU is the Central Processing Unit that executes instructions.'
-      },
-      {
-        'Question': 'HTTP transmits data in cleartext without encryption by default.',
-        'Option A': 'True',
-        'Option B': 'False',
-        'Option C': '',
-        'Option D': '',
-        'Correct Answer': 'A',
-        'Question Type': 'True/False',
-        'Timer': 20,
-        'Marks': 500,
-        'Explanation': 'True. HTTP is unencrypted; HTTPS provides TLS/SSL encryption.'
-      },
-      {
-        'Question': 'Relational databases only support unstructured JSON documents.',
-        'Option A': 'True',
-        'Option B': 'False',
-        'Option C': '',
-        'Option D': '',
-        'Correct Answer': 'B',
-        'Question Type': 'True/False',
-        'Timer': 20,
-        'Marks': 500,
-        'Explanation': 'False. Relational databases are structured around schema-defined tables.'
-      },
-      {
-        'Question': 'Which of the following are valid NoSQL database models? (Select all that apply)',
-        'Option A': 'Document Stores (e.g. MongoDB)',
-        'Option B': 'Key-Value Stores (e.g. Redis)',
-        'Option C': 'Relational Tables (e.g. MySQL)',
-        'Option D': 'Wide-Column Stores (e.g. Cassandra)',
-        'Correct Answer': 'A, B, D',
-        'Question Type': 'Multiple Choice',
-        'Timer': 45,
-        'Marks': 500,
-        'Explanation': 'Document, Key-Value, and Wide-Column are NoSQL models. MySQL is relational.'
-      },
-      {
-        'Question': 'Which of the following are primitive data types in JavaScript? (Select all that apply)',
-        'Option A': 'String',
-        'Option B': 'Number',
-        'Option C': 'Object',
-        'Option D': 'Boolean',
-        'Correct Answer': 'A, B, D',
-        'Question Type': 'Multiple Choice',
-        'Timer': 30,
-        'Marks': 500,
-        'Explanation': 'String, Number, and Boolean are primitives; Object is a reference type.'
-      }
+    const headers = [
+      'Question',
+      'Option A',
+      'Option B',
+      'Option C',
+      'Option D',
+      'Correct Answer',
+      'Question Type',
+      'Timer',
+      'Marks',
+      'Explanation'
     ];
     
+    const ws = XLSX.utils.aoa_to_sheet([headers]);
+    ws['!cols'] = [
+      { wch: 45 }, // Question
+      { wch: 32 }, // Option A
+      { wch: 32 }, // Option B
+      { wch: 32 }, // Option C
+      { wch: 32 }, // Option D
+      { wch: 18 }, // Correct Answer
+      { wch: 18 }, // Question Type
+      { wch: 10 }, // Timer
+      { wch: 10 }, // Marks
+      { wch: 45 }  // Explanation
+    ];
+
     if (format === 'csv') {
-      const ws = XLSX.utils.json_to_sheet(sampleData);
       const csvOutput = XLSX.utils.sheet_to_csv(ws);
       const blob = new Blob([csvOutput], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -251,21 +214,8 @@ export default function QuestionManagement() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } else {
-      const ws = XLSX.utils.json_to_sheet(sampleData);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Questions');
-      ws['!cols'] = [
-        { wch: 45 }, // Question
-        { wch: 32 }, // Option A
-        { wch: 32 }, // Option B
-        { wch: 32 }, // Option C
-        { wch: 32 }, // Option D
-        { wch: 18 }, // Correct Answer
-        { wch: 18 }, // Question Type
-        { wch: 10 }, // Timer
-        { wch: 10 }, // Marks
-        { wch: 45 }  // Explanation
-      ];
       XLSX.writeFile(wb, 'live_quiz_questions_template.xlsx');
     }
   };
@@ -330,7 +280,7 @@ export default function QuestionManagement() {
               onClick={() => handleDownloadTemplate('xlsx')}
               type="button"
               className="flex items-center justify-center gap-1.5 border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-3 py-2 rounded-xl text-xs font-extrabold shadow-2xs transition-all active:scale-95 cursor-pointer"
-              title="Download Microsoft Excel (.xlsx) Template with Single Choice, True/False & Multi-Choice Examples"
+              title="Download Microsoft Excel (.xlsx) Question Template"
             >
               <FileSpreadsheet size={13} className="text-emerald-600" />
               <span>Excel Template</span>

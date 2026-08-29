@@ -694,86 +694,40 @@ export default function CreateScheduledQuiz() {
 
   // Download Dynamic CSV or Excel Template tailored to schedule type (Weekly, Biweekly, Monthly, Daily, One-Time, Custom)
   const handleDownloadTemplate = (format = 'xlsx') => {
-    const sections = calculateScheduleOccurrences();
     const scheduleType = formData.schedule_type || 'ONE_TIME';
-    const sampleData = [];
-
-    // Define rich, educational sample questions tailored per section / occurrence
-    sections.slice(0, Math.min(sections.length, 12)).forEach((sec) => {
-      const secNum = sec.number;
-      const secName = customSections[secNum]?.name || sec.name || `Section ${secNum}`;
-      
-      // 1. Single Choice Question
-      sampleData.push({
-        'Section': secNum,
-        'Section Name': secName,
-        'Question': `What is a primary benefit of cloud scalability featured in ${secName}?`,
-        'Option A': 'Elastic scaling and on-demand resource allocation',
-        'Option B': 'Fixed hardware lifecycle requirements',
-        'Option C': 'Manual physical cabling and maintenance',
-        'Option D': 'Static infrastructure constraints',
-        'Correct Answer': 'A',
-        'Question Type': 'Single Choice',
-        'Timer': 30,
-        'Marks': 1,
-        'Explanation': 'Cloud scalability delivers elastic, automatic resource allocation on-demand.'
-      });
-
-      // 2. True / False Question
-      sampleData.push({
-        'Section': secNum,
-        'Section Name': secName,
-        'Question': `HTTPS encrypts web communications with TLS/SSL encryption.`,
-        'Option A': 'True',
-        'Option B': 'False',
-        'Option C': '',
-        'Option D': '',
-        'Correct Answer': 'A',
-        'Question Type': 'True/False',
-        'Timer': 20,
-        'Marks': 1,
-        'Explanation': 'True. HTTPS uses Transport Layer Security (TLS) to encrypt HTTP traffic.'
-      });
-
-      // 3. Multi-Select Question
-      sampleData.push({
-        'Section': secNum,
-        'Section Name': secName,
-        'Question': `Which of the following are cloud service models? (Select all that apply)`,
-        'Option A': 'IaaS (Infrastructure as a Service)',
-        'Option B': 'PaaS (Platform as a Service)',
-        'Option C': 'SaaS (Software as a Service)',
-        'Option D': 'HaaS (Hardware as a Script)',
-        'Correct Answer': 'A, B, C',
-        'Question Type': 'Multiple Choice',
-        'Timer': 45,
-        'Marks': 1,
-        'Explanation': 'IaaS, PaaS, and SaaS are the three standardized cloud service delivery models.'
-      });
-    });
-
-    // Fallback if no sections
-    if (sampleData.length === 0) {
-      sampleData.push({
-        'Section': 1,
-        'Section Name': 'Round 1',
-        'Question': 'What does CPU stand for?',
-        'Option A': 'Central Processing Unit',
-        'Option B': 'Central Program Utility',
-        'Option C': 'Computer Personal Unit',
-        'Option D': 'Central Processor Unifier',
-        'Correct Answer': 'A',
-        'Question Type': 'Single Choice',
-        'Timer': 30,
-        'Marks': 1,
-        'Explanation': 'CPU is the Central Processing Unit.'
-      });
-    }
+    const headers = [
+      'Section',
+      'Section Name',
+      'Question',
+      'Option A',
+      'Option B',
+      'Option C',
+      'Option D',
+      'Correct Answer',
+      'Question Type',
+      'Timer',
+      'Marks',
+      'Explanation'
+    ];
 
     const baseFileName = `${(formData.title || 'scheduled_quiz').toLowerCase().replace(/[^a-z0-9]+/g, '_')}_${scheduleType.toLowerCase()}_template`;
+    const ws = XLSX.utils.aoa_to_sheet([headers]);
+    ws['!cols'] = [
+      { wch: 10 }, // Section
+      { wch: 22 }, // Section Name
+      { wch: 45 }, // Question
+      { wch: 32 }, // Option A
+      { wch: 32 }, // Option B
+      { wch: 32 }, // Option C
+      { wch: 32 }, // Option D
+      { wch: 18 }, // Correct Answer
+      { wch: 18 }, // Question Type
+      { wch: 10 }, // Timer
+      { wch: 10 }, // Marks
+      { wch: 45 }  // Explanation
+    ];
 
     if (format === 'csv') {
-      const ws = XLSX.utils.json_to_sheet(sampleData);
       const csvOutput = XLSX.utils.sheet_to_csv(ws);
       const blob = new Blob([csvOutput], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
@@ -785,23 +739,8 @@ export default function CreateScheduledQuiz() {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
     } else {
-      const ws = XLSX.utils.json_to_sheet(sampleData);
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Questions');
-      ws['!cols'] = [
-        { wch: 10 }, // Section
-        { wch: 22 }, // Section Name
-        { wch: 45 }, // Question
-        { wch: 32 }, // Option A
-        { wch: 32 }, // Option B
-        { wch: 32 }, // Option C
-        { wch: 32 }, // Option D
-        { wch: 18 }, // Correct Answer
-        { wch: 18 }, // Question Type
-        { wch: 10 }, // Timer
-        { wch: 10 }, // Marks
-        { wch: 45 }  // Explanation
-      ];
       XLSX.writeFile(wb, `${baseFileName}.xlsx`);
     }
   };
