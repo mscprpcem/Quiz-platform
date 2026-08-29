@@ -1081,19 +1081,15 @@ export default function CreateScheduledQuiz() {
     const startTimeStr = buildTimeString(formData.start_time_hh, formData.start_time_mm, formData.start_time_ss, formData.start_time_ampm);
     const endTimeStr = buildTimeString(formData.end_time_hh, formData.end_time_mm, formData.end_time_ss, formData.end_time_ampm);
 
-    // Compute exact local ISO strings
+    // Compute exact IST ISO strings (+05:30)
     let startIso = null;
     let endIso = null;
     try {
-      const [sY, sM, sD] = formData.start_date.split('-').map(Number);
-      const [sH, sMin, sSec] = startTimeStr.split(':').map(Number);
-      const sDateObj = new Date(sY, sM - 1, sD, sH, sMin, sSec);
-      startIso = sDateObj.toISOString();
+      const sDateObj = new Date(`${formData.start_date}T${startTimeStr}+05:30`);
+      startIso = !isNaN(sDateObj.getTime()) ? sDateObj.toISOString() : null;
 
-      const [eY, eM, eD] = (formData.end_date || formData.start_date).split('-').map(Number);
-      const [eH, eMin, eSec] = endTimeStr.split(':').map(Number);
-      const eDateObj = new Date(eY, eM - 1, eD, eH, eMin, eSec);
-      endIso = eDateObj.toISOString();
+      const eDateObj = new Date(`${formData.end_date || formData.start_date}T${endTimeStr}+05:30`);
+      endIso = !isNaN(eDateObj.getTime()) ? eDateObj.toISOString() : null;
     } catch(e) {
       console.warn('ISO date calculation warning:', e);
     }

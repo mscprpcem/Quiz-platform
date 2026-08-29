@@ -347,45 +347,79 @@ const shuffleArray = (array) => {
   return arr;
 };
 
-// Helper: Generate occurrence slots based on schedule configuration
+// Helper: Parse date and time string into exact IST Date (+05:30)
+const parseISTDateTime = (dateInput, timeStr = '00:00:00') => {
+  if (!dateInput) return new Date();
+  
+  if (dateInput instanceof Date && isNaN(dateInput.getTime())) return new Date();
+
+  // If already an ISO string with explicit timezone (+ or Z)
+  if (typeof dateInput === 'string' && (dateInput.endsWith('Z') || (dateInput.includes('T') && dateInput.includes('+')))) {
+    const d = new Date(dateInput);
+    if (!isNaN(d.getTime())) return d;
+  }
+
+  let y, m, d;
+  if (dateInput instanceof Date) {
+    y = dateInput.getFullYear();
+    m = String(dateInput.getMonth() + 1).padStart(2, '0');
+    d = String(dateInput.getDate()).padStart(2, '0');
+  } else {
+    const str = String(dateInput).trim().split('T')[0];
+    const parts = str.split('-').map(Number);
+    if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+      y = parts[0];
+      m = String(parts[1]).padStart(2, '0');
+      d = String(parts[2]).padStart(2, '0');
+    } else {
+      const parsed = new Date(dateInput);
+      y = parsed.getFullYear();
+      m = String(parsed.getMonth() + 1).padStart(2, '0');
+      d = String(parsed.getDate()).padStart(2, '0');
+    }
+  }
+
+  const tParts = String(timeStr || '00:00:00').trim().split(':').map(Number);
+  const hour = String(tParts[0] || 0).padStart(2, '0');
+  const min = String(tParts[1] || 0).padStart(2, '0');
+  const sec = String(tParts[2] || 0).padStart(2, '0');
+
+  const istCombined = `${y}-${m}-${d}T${hour}:${min}:${sec}+05:30`;
+  const result = new Date(istCombined);
+  return isNaN(result.getTime()) ? new Date() : result;
+};
+
+// Helper: Generate occurrence slots based on schedule configuration with strict IST timezone calculation
 const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, endDate, startTimeStr, endTimeStr, config = {}) => {
   const parseDateParts = (dateInput) => {
-    if (!dateInput) return new Date();
-    if (dateInput instanceof Date) return isNaN(dateInput.getTime()) ? new Date() : new Date(dateInput);
-    const str = String(dateInput).trim();
-    const dateStr = str.split('T')[0];
-    const parts = dateStr.split('-').map(Number);
-    if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
-      return new Date(parts[0], parts[1] - 1, parts[2]);
+    if (!dateInput) return { year: new Date().getFullYear(), month: new Date().getMonth(), date: new Date().getDate() };
+    if (dateInput instanceof Date) {
+      return { year: dateInput.getFullYear(), month: dateInput.getMonth(), date: dateInput.getDate() };
     }
-    const d = new Date(str);
-    return isNaN(d.getTime()) ? new Date() : d;
+    const str = String(dateInput).trim().split('T')[0];
+    const parts = str.split('-').map(Number);
+    if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+      return { year: parts[0], month: parts[1] - 1, date: parts[2] };
+    }
+    const d = new Date(dateInput);
+    return { year: d.getFullYear(), month: d.getMonth(), date: d.getDate() };
   };
 
-  const start = parseDateParts(startDate);
-  const end = parseDateParts(endDate || startDate);
+  const startP = parseDateParts(startDate);
+  const endP = parseDateParts(endDate || startDate);
+
+  const startObj = new Date(startP.year, startP.month, startP.date);
+  const endObj = new Date(endP.year, endP.month, endP.date);
   const occurrences = [];
-
-  // Parse time strings HH:MM:SS or HH:MM safely into baseDate
-  const parseTime = (timeStr, baseDate) => {
-    const d = new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), 0, 0, 0, 0);
-    if (!timeStr) return d;
-    const parts = String(timeStr).split(':').map(Number);
-    const h = parts[0] || 0;
-    const m = parts[1] || 0;
-    const s = parts[2] || 0;
-    d.setHours(h, m, s, 0);
-    return d;
-  };
 
   const dayMap = { 'SUN': 0, 'MON': 1, 'TUE': 2, 'WED': 3, 'THU': 4, 'FRI': 5, 'SAT': 6 };
 
-  let curr = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+  let curr = new Date(startObj.getFullYear(), startObj.getMonth(), startObj.getDate());
   let count = 1;
 
   if (scheduleType === 'ONE_TIME') {
-    let oStart = (config?.start_iso) ? new Date(config.start_iso) : parseTime(startTimeStr || '00:00:00', start);
-    let oEnd = (config?.end_iso) ? new Date(config.end_iso) : parseTime(endTimeStr || '23:59:59', end);
+    let oStart = (config?.start_iso) ? new Date(config.start_iso) : parseISTDateTime(startDate, startTimeStr || '00:00:00');
+    let oEnd = (config?.end_iso) ? new Date(config.end_iso) : parseISTDateTime(endDate || startDate, endTimeStr || '23:59:59');
     if (oEnd <= oStart) {
       oEnd = new Date(oStart.getTime() + 60 * 60 * 1000);
     }
@@ -398,9 +432,13 @@ const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, e
       status: 'SCHEDULED'
     });
   } else if (scheduleType === 'DAILY') {
-    while (curr <= end && count <= 60) {
-      const oStart = parseTime(startTimeStr || '00:00:00', curr);
-      const oEnd = parseTime(endTimeStr || '23:59:59', curr);
+    while (curr <= endObj && count <= 60) {
+      const y = curr.getFullYear();
+      const m = String(curr.getMonth() + 1).padStart(2, '0');
+      const d = String(curr.getDate()).padStart(2, '0');
+      const dStr = `${y}-${m}-${d}`;
+      const oStart = parseISTDateTime(dStr, startTimeStr || '00:00:00');
+      const oEnd = parseISTDateTime(dStr, endTimeStr || '23:59:59');
       occurrences.push({
         quiz_id: quizId,
         occurrence_number: count,
@@ -417,11 +455,15 @@ const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, e
       ? config.daysOfWeek.map(d => typeof d === 'string' ? dayMap[d.toUpperCase()] : d).filter(d => d !== undefined)
       : null;
 
-    while (curr <= end && count <= 52) {
+    while (curr <= endObj && count <= 52) {
       const dayOfWeek = curr.getDay();
       if (!targetDays || targetDays.includes(dayOfWeek)) {
-        const oStart = parseTime(startTimeStr || '00:00:00', curr);
-        const oEnd = parseTime(endTimeStr || '23:59:59', curr);
+        const y = curr.getFullYear();
+        const m = String(curr.getMonth() + 1).padStart(2, '0');
+        const d = String(curr.getDate()).padStart(2, '0');
+        const dStr = `${y}-${m}-${d}`;
+        const oStart = parseISTDateTime(dStr, startTimeStr || '00:00:00');
+        const oEnd = parseISTDateTime(dStr, endTimeStr || '23:59:59');
         occurrences.push({
           quiz_id: quizId,
           occurrence_number: count,
@@ -440,7 +482,7 @@ const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, e
       : null;
     const weeksPattern = config.weeksPattern || '1_3';
 
-    while (curr <= end && count <= 30) {
+    while (curr <= endObj && count <= 30) {
       const dayOfWeek = curr.getDay();
       const dayOfMonth = curr.getDate();
       const weekOfMonth = Math.ceil(dayOfMonth / 7);
@@ -449,8 +491,12 @@ const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, e
                             (weeksPattern === '2_4' && (weekOfMonth === 2 || weekOfMonth === 4));
 
       if (isMatchingWeek && (!targetDays || targetDays.includes(dayOfWeek))) {
-        const oStart = parseTime(startTimeStr || '00:00:00', curr);
-        const oEnd = parseTime(endTimeStr || '23:59:59', curr);
+        const y = curr.getFullYear();
+        const m = String(curr.getMonth() + 1).padStart(2, '0');
+        const d = String(curr.getDate()).padStart(2, '0');
+        const dStr = `${y}-${m}-${d}`;
+        const oStart = parseISTDateTime(dStr, startTimeStr || '00:00:00');
+        const oEnd = parseISTDateTime(dStr, endTimeStr || '23:59:59');
         occurrences.push({
           quiz_id: quizId,
           occurrence_number: count,
@@ -465,10 +511,14 @@ const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, e
     }
   } else if (scheduleType === 'MONTHLY') {
     const targetDayOfMonth = parseInt(config.dayOfMonth || 1, 10);
-    while (curr <= end && count <= 24) {
+    while (curr <= endObj && count <= 24) {
       if (curr.getDate() === targetDayOfMonth || (targetDayOfMonth >= 28 && curr.getDate() === new Date(curr.getFullYear(), curr.getMonth() + 1, 0).getDate())) {
-        const oStart = parseTime(startTimeStr || '00:00:00', curr);
-        const oEnd = parseTime(endTimeStr || '23:59:59', curr);
+        const y = curr.getFullYear();
+        const m = String(curr.getMonth() + 1).padStart(2, '0');
+        const d = String(curr.getDate()).padStart(2, '0');
+        const dStr = `${y}-${m}-${d}`;
+        const oStart = parseISTDateTime(dStr, startTimeStr || '00:00:00');
+        const oEnd = parseISTDateTime(dStr, endTimeStr || '23:59:59');
         occurrences.push({
           quiz_id: quizId,
           occurrence_number: count,
@@ -484,9 +534,13 @@ const generateOccurrences = async (quizId, quizTitle, scheduleType, startDate, e
   } else {
     // CUSTOM
     const step = parseInt(config.customIntervalDays || 3, 10);
-    while (curr <= end && count <= 30) {
-      const oStart = parseTime(startTimeStr || '00:00:00', curr);
-      const oEnd = parseTime(endTimeStr || '23:59:59', curr);
+    while (curr <= endObj && count <= 30) {
+      const y = curr.getFullYear();
+      const m = String(curr.getMonth() + 1).padStart(2, '0');
+      const d = String(curr.getDate()).padStart(2, '0');
+      const dStr = `${y}-${m}-${d}`;
+      const oStart = parseISTDateTime(dStr, startTimeStr || '00:00:00');
+      const oEnd = parseISTDateTime(dStr, endTimeStr || '23:59:59');
       occurrences.push({
         quiz_id: quizId,
         occurrence_number: count,
@@ -609,8 +663,8 @@ router.post('/', authMiddleware, async (req, res) => {
       mode: 'SCHEDULED',
       status: 'draft',
       schedule_type,
-      scheduled_start: start_iso ? new Date(start_iso) : new Date(start_date),
-      scheduled_end: end_iso ? new Date(end_iso) : new Date(end_date),
+      scheduled_start: start_iso ? new Date(start_iso) : parseISTDateTime(start_date, start_time || '00:00:00'),
+      scheduled_end: end_iso ? new Date(end_iso) : parseISTDateTime(end_date, end_time || '23:59:59'),
       timezone: timezone || 'Asia/Kolkata',
       time_limit: parseInt(time_limit || 30, 10),
       max_attempts: parseInt(max_attempts || 1, 10),
@@ -916,8 +970,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
       subject: category || quiz.subject,
       custom_slug: cleanSlug,
       badge_title: badge_title !== undefined ? badge_title : quiz.badge_title,
-      scheduled_start: start_iso ? new Date(start_iso) : (start_date ? new Date(`${start_date}T${start_time || '00:00:00'}`) : quiz.scheduled_start),
-      scheduled_end: end_iso ? new Date(end_iso) : (end_date ? new Date(`${end_date}T${end_time || '23:59:59'}`) : quiz.scheduled_end),
+      scheduled_start: start_iso ? new Date(start_iso) : (start_date ? parseISTDateTime(start_date, start_time || '00:00:00') : quiz.scheduled_start),
+      scheduled_end: end_iso ? new Date(end_iso) : (end_date ? parseISTDateTime(end_date, end_time || '23:59:59') : quiz.scheduled_end),
       mode: 'SCHEDULED',
       schedule_type: schedule_type || quiz.schedule_type,
       timezone: timezone || quiz.timezone,
