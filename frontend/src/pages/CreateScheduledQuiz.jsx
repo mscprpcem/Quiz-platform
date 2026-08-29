@@ -194,33 +194,86 @@ export default function CreateScheduledQuiz() {
           let sConf = {};
           try { sConf = typeof q.schedule_config === 'string' ? JSON.parse(q.schedule_config) : (q.schedule_config || {}); } catch(e){}
 
-          const occurrences = q.occurrences || [];
-          const firstOcc = occurrences.length > 0 ? occurrences[0] : null;
-          const startDateRaw = firstOcc?.start_time || q.scheduled_start;
-          const endDateRaw = firstOcc?.end_time || q.scheduled_end;
+          const startDateStr = sConf.start_date || (q.scheduled_start ? formatLocalDate(q.scheduled_start) : today);
+          const endDateStr = sConf.end_date || (q.scheduled_end ? formatLocalDate(q.scheduled_end) : startDateStr);
 
-          let sHh = '10', sMm = '00', sSs = '00', sAmpm = 'AM';
-          let eHh = '11', eMm = '00', eSs = '00', eAmpm = 'AM';
+          // Helper to parse 24-hr time string (HH:MM:SS or HH:MM) into 12-hr AM/PM
+          const parseTimeStrTo12Hr = (timeStr, defHh, defMm, defAmpm) => {
+            if (!timeStr || !String(timeStr).includes(':')) {
+              return { hh: defHh, mm: defMm, ss: '00', ampm: defAmpm };
+            }
+            const parts = String(timeStr).split(':');
+            let h = parseInt(parts[0], 10);
+            if (isNaN(h)) return { hh: defHh, mm: defMm, ss: '00', ampm: defAmpm };
+            const ampm = h >= 12 ? 'PM' : 'AM';
+            const hh = String((h % 12) || 12).padStart(2, '0');
+            const mm = String(parseInt(parts[1] || '0', 10)).padStart(2, '0');
+            const ss = String(parseInt(parts[2] || '0', 10)).padStart(2, '0');
+            return { hh, mm, ss, ampm };
+          };
 
-          if (startDateRaw) {
-            const sD = new Date(startDateRaw);
-            if (!isNaN(sD.getTime())) {
-              const h = sD.getHours();
-              sAmpm = h >= 12 ? 'PM' : 'AM';
-              sHh = String((h % 12) || 12).padStart(2, '0');
-              sMm = String(sD.getMinutes()).padStart(2, '0');
-              sSs = String(sD.getSeconds()).padStart(2, '0');
+          let sHh = sConf.start_time_hh || '';
+          let sMm = sConf.start_time_mm || '';
+          let sSs = sConf.start_time_ss || '00';
+          let sAmpm = sConf.start_time_ampm || '';
+
+          if (!sHh || !sAmpm) {
+            const parsedStart = parseTimeStrTo12Hr(sConf.start_time || q.start_time, '10', '00', 'AM');
+            if (sConf.start_time || q.start_time) {
+              sHh = parsedStart.hh;
+              sMm = parsedStart.mm;
+              sSs = parsedStart.ss;
+              sAmpm = parsedStart.ampm;
+            } else if (q.scheduled_start) {
+              const sD = new Date(q.scheduled_start);
+              if (!isNaN(sD.getTime())) {
+                const h = sD.getHours();
+                const m = sD.getMinutes();
+                const s = sD.getSeconds();
+                // Check if this is the UTC midnight artifact (5:30:00 AM)
+                if (h === 5 && m === 30 && s === 0) {
+                  sHh = '10'; sMm = '00'; sSs = '00'; sAmpm = 'AM';
+                } else {
+                  sAmpm = h >= 12 ? 'PM' : 'AM';
+                  sHh = String((h % 12) || 12).padStart(2, '0');
+                  sMm = String(m).padStart(2, '0');
+                  sSs = String(s).padStart(2, '0');
+                }
+              }
+            } else {
+              sHh = '10'; sMm = '00'; sSs = '00'; sAmpm = 'AM';
             }
           }
 
-          if (endDateRaw) {
-            const eD = new Date(endDateRaw);
-            if (!isNaN(eD.getTime())) {
-              const h = eD.getHours();
-              eAmpm = h >= 12 ? 'PM' : 'AM';
-              eHh = String((h % 12) || 12).padStart(2, '0');
-              eMm = String(eD.getMinutes()).padStart(2, '0');
-              eSs = String(eD.getSeconds()).padStart(2, '0');
+          let eHh = sConf.end_time_hh || '';
+          let eMm = sConf.end_time_mm || '';
+          let eSs = sConf.end_time_ss || '00';
+          let eAmpm = sConf.end_time_ampm || '';
+
+          if (!eHh || !eAmpm) {
+            const parsedEnd = parseTimeStrTo12Hr(sConf.end_time || q.end_time, '11', '00', 'AM');
+            if (sConf.end_time || q.end_time) {
+              eHh = parsedEnd.hh;
+              eMm = parsedEnd.mm;
+              eSs = parsedEnd.ss;
+              eAmpm = parsedEnd.ampm;
+            } else if (q.scheduled_end) {
+              const eD = new Date(q.scheduled_end);
+              if (!isNaN(eD.getTime())) {
+                const h = eD.getHours();
+                const m = eD.getMinutes();
+                const s = eD.getSeconds();
+                if (h === 5 && m === 30 && s === 0) {
+                  eHh = '11'; eMm = '00'; eSs = '00'; eAmpm = 'AM';
+                } else {
+                  eAmpm = h >= 12 ? 'PM' : 'AM';
+                  eHh = String((h % 12) || 12).padStart(2, '0');
+                  eMm = String(m).padStart(2, '0');
+                  eSs = String(s).padStart(2, '0');
+                }
+              }
+            } else {
+              eHh = '11'; eMm = '00'; eSs = '00'; eAmpm = 'AM';
             }
           }
 
@@ -234,16 +287,16 @@ export default function CreateScheduledQuiz() {
             difficulty: q.difficulty || 'Intermediate',
             instructions: q.instructions || '',
             schedule_type: q.schedule_type || 'ONE_TIME',
-            start_date: startDateRaw ? formatLocalDate(startDateRaw) : today,
-            end_date: endDateRaw ? formatLocalDate(endDateRaw) : (startDateRaw ? formatLocalDate(startDateRaw) : today),
-            start_time_hh: sHh,
-            start_time_mm: sMm,
-            start_time_ss: sSs,
-            start_time_ampm: sAmpm,
-            end_time_hh: eHh,
-            end_time_mm: eMm,
-            end_time_ss: eSs,
-            end_time_ampm: eAmpm,
+            start_date: startDateStr,
+            end_date: endDateStr,
+            start_time_hh: sHh || '10',
+            start_time_mm: sMm || '00',
+            start_time_ss: sSs || '00',
+            start_time_ampm: sAmpm || 'AM',
+            end_time_hh: eHh || '11',
+            end_time_mm: eMm || '00',
+            end_time_ss: eSs || '00',
+            end_time_ampm: eAmpm || 'AM',
             timezone: q.timezone || 'Asia/Kolkata',
             days_of_week: sConf.daysOfWeek || ['MON'],
             weeks_pattern: sConf.weeksPattern || '1_3',
@@ -479,10 +532,19 @@ export default function CreateScheduledQuiz() {
           setCustomSections(extractedSections);
         }
 
-        setFormData(prev => ({
-          ...prev,
-          questions: [...prev.questions, ...parsedQuestions]
-        }));
+        setFormData(prev => {
+          // Remove empty placeholder questions in the target imported sections so they do not bloat the count
+          const targetSectionNumbers = new Set(parsedQuestions.map(q => q.occurrence_number));
+          const cleanedPrev = prev.questions.filter(q => {
+            const isEmpty = !q.question || !q.question.trim();
+            const isTargetSec = targetSectionNumbers.has(q.occurrence_number || 1);
+            return !(isEmpty && isTargetSec);
+          });
+          return {
+            ...prev,
+            questions: [...cleanedPrev, ...parsedQuestions]
+          };
+        });
 
         const secCounts = {};
         parsedQuestions.forEach(q => {
@@ -700,6 +762,80 @@ export default function CreateScheduledQuiz() {
       ...prev,
       questions: prev.questions.filter((_, idx) => idx !== index)
     }));
+  };
+
+  const handleRemoveEmptyQuestions = () => {
+    const filtered = formData.questions.filter(q => q.question && q.question.trim().length > 0);
+    const removedCount = formData.questions.length - filtered.length;
+    if (removedCount === 0) {
+      toast.info('No empty questions found.');
+      return;
+    }
+    setFormData(prev => ({ ...prev, questions: filtered }));
+    toast.success(`Removed ${removedCount} empty placeholder question(s).`, 'Cleaned');
+  };
+
+  const handleRemoveDuplicateQuestions = () => {
+    const seen = new Set();
+    const deduped = [];
+    formData.questions.forEach(q => {
+      const qClean = (q.question || '').trim().toLowerCase();
+      const key = `${q.occurrence_number || 1}::${qClean}`;
+      if (!qClean || !seen.has(key)) {
+        if (qClean) seen.add(key);
+        deduped.push(q);
+      }
+    });
+    const removedCount = formData.questions.length - deduped.length;
+    if (removedCount === 0) {
+      toast.info('No duplicate questions found.');
+      return;
+    }
+    setFormData(prev => ({ ...prev, questions: deduped }));
+    toast.success(`Removed ${removedCount} duplicate question(s).`, 'Deduplicated');
+  };
+
+  const handleFixOutOfBoundsQuestions = () => {
+    const sections = calculateScheduleOccurrences();
+    const maxSec = sections.length;
+    if (maxSec === 0) return;
+    const updated = formData.questions.map(q => {
+      const occ = q.occurrence_number || 1;
+      if (occ > maxSec || occ < 1) {
+        const clamped = Math.min(maxSec, Math.max(1, occ));
+        const secInfo = sections.find(s => s.number === clamped) || sections[0];
+        return {
+          ...q,
+          occurrence_number: clamped,
+          section_name: customSections[clamped]?.name || secInfo.name,
+          section_description: customSections[clamped]?.description || secInfo.description
+        };
+      }
+      return q;
+    });
+    setFormData(prev => ({ ...prev, questions: updated }));
+    toast.success(`Reassigned out-of-range questions into your ${maxSec} active round(s).`, 'Reassigned');
+  };
+
+  const handleDeleteOutOfBoundsQuestions = () => {
+    const sections = calculateScheduleOccurrences();
+    const validSectionNumbers = new Set(sections.map(s => s.number));
+    const filtered = formData.questions.filter(q => validSectionNumbers.has(q.occurrence_number || 1));
+    const removedCount = formData.questions.length - filtered.length;
+    setFormData(prev => ({ ...prev, questions: filtered }));
+    toast.success(`Removed ${removedCount} out-of-range question(s).`, 'Deleted');
+  };
+
+  const handleClearSectionQuestions = (secNumber) => {
+    const sections = calculateScheduleOccurrences();
+    const secName = customSections[secNumber]?.name || sections.find(s => s.number === secNumber)?.name || `Round ${secNumber}`;
+    if (window.confirm(`Are you sure you want to remove all questions in ${secName}?`)) {
+      setFormData(prev => ({
+        ...prev,
+        questions: prev.questions.filter(q => (q.occurrence_number || 1) !== secNumber)
+      }));
+      toast.info(`Cleared all questions in ${secName}.`);
+    }
   };
 
   const handleToggleDayOfWeek = (dayCode) => {
@@ -977,6 +1113,18 @@ export default function CreateScheduledQuiz() {
         weeksPattern: formData.weeks_pattern,
         dayOfMonth: formData.day_of_month,
         customIntervalDays: formData.custom_interval_days,
+        start_date: formData.start_date,
+        end_date: formData.end_date,
+        start_time: startTimeStr,
+        end_time: endTimeStr,
+        start_time_hh: formData.start_time_hh,
+        start_time_mm: formData.start_time_mm,
+        start_time_ss: formData.start_time_ss,
+        start_time_ampm: formData.start_time_ampm,
+        end_time_hh: formData.end_time_hh,
+        end_time_mm: formData.end_time_mm,
+        end_time_ss: formData.end_time_ss,
+        end_time_ampm: formData.end_time_ampm,
         start_iso: startIso,
         end_iso: endIso
       }
@@ -1913,6 +2061,10 @@ export default function CreateScheduledQuiz() {
           );
         };
 
+        const validSectionNumbers = new Set(sections.map(s => s.number));
+        const outOfRangeQuestions = formData.questions.filter(q => !validSectionNumbers.has(q.occurrence_number || 1));
+        const emptyQuestions = formData.questions.filter(q => !q.question || !q.question.trim());
+
         return (
           <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 space-y-6 shadow-2xs">
             
@@ -1937,6 +2089,45 @@ export default function CreateScheduledQuiz() {
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
+                {/* Clean Empty Questions */}
+                {emptyQuestions.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveEmptyQuestions}
+                    className="px-3 py-2 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-extrabold rounded-xl text-xs flex items-center space-x-1.5 cursor-pointer transition-all active:scale-95 shadow-2xs"
+                    title="Remove empty placeholder questions"
+                  >
+                    <Trash2 size={13} className="text-red-600" />
+                    <span>Clean {emptyQuestions.length} Empty</span>
+                  </button>
+                )}
+
+                {/* Fix Out of Range Questions */}
+                {outOfRangeQuestions.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleFixOutOfBoundsQuestions}
+                    className="px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300 font-extrabold rounded-xl text-xs flex items-center space-x-1.5 cursor-pointer transition-all active:scale-95 shadow-2xs animate-pulse"
+                    title="Reassign questions assigned to non-existent rounds"
+                  >
+                    <AlertTriangle size={13} className="text-amber-600" />
+                    <span>Fix {outOfRangeQuestions.length} Out-of-Range</span>
+                  </button>
+                )}
+
+                {/* Deduplicate Questions */}
+                {formData.questions.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveDuplicateQuestions}
+                    className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs flex items-center space-x-1.5 cursor-pointer transition-all active:scale-95 shadow-2xs"
+                    title="Remove duplicate questions across rounds"
+                  >
+                    <Sparkles size={13} className="text-slate-500" />
+                    <span>Deduplicate</span>
+                  </button>
+                )}
+
                 {/* Distribute Evenly Button */}
                 {isMultiSection && formData.questions.length > 0 && (
                   <button
@@ -1954,13 +2145,46 @@ export default function CreateScheduledQuiz() {
                 <button
                   type="button"
                   onClick={() => handleAddQuestion(activeSectionFilter > 0 ? activeSectionFilter : 1, 1)}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center space-x-1.5 cursor-pointer shadow-sm"
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center space-x-1.5 cursor-pointer shadow-sm active:scale-95"
                 >
                   <Plus size={14} />
                   <span>Add Question</span>
                 </button>
               </div>
             </div>
+
+            {/* Out of Bounds Questions Warning Card */}
+            {outOfRangeQuestions.length > 0 && (
+              <div className="p-4 bg-amber-50 border border-amber-300 rounded-2xl space-y-2.5 shadow-2xs">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <div className="flex items-center space-x-2 text-amber-900 font-extrabold text-xs">
+                    <AlertTriangle size={17} className="text-amber-600 flex-shrink-0" />
+                    <span>
+                      ⚠️ Notice: {outOfRangeQuestions.length} questions are assigned to rounds outside your active {sections.length}-round schedule (e.g. Round #{[...new Set(outOfRangeQuestions.map(q => q.occurrence_number))].join(', #')})
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={handleFixOutOfBoundsQuestions}
+                      className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-black shadow-xs cursor-pointer active:scale-95"
+                    >
+                      Reassign into {sections.length} Active Rounds
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleDeleteOutOfBoundsQuestions}
+                      className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white rounded-xl text-xs font-black shadow-xs cursor-pointer active:scale-95"
+                    >
+                      Delete Extra
+                    </button>
+                  </div>
+                </div>
+                <p className="text-[11px] text-amber-800 leading-relaxed pl-6">
+                  This happens when schedule dates or frequency are changed after importing questions. Click <strong>"Reassign"</strong> to fit them into your active {sections.length} weeks, or <strong>"Delete Extra"</strong> to clean up.
+                </p>
+              </div>
+            )}
 
             {/* ════════ 2-STEP SPREADSHEET TEMPLATE & BULK IMPORT HUB ════════ */}
             <div className="p-5 bg-gradient-to-r from-slate-50 via-blue-50/40 to-indigo-50/40 border border-slate-200 rounded-3xl space-y-4">
@@ -2164,6 +2388,19 @@ export default function CreateScheduledQuiz() {
                           <FileSpreadsheet size={12} className="text-emerald-600" />
                           <span>Template</span>
                         </button>
+
+                        {/* Clear Section Questions */}
+                        {currentSectionQuestions.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => handleClearSectionQuestions(activeSectionFilter)}
+                            className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold rounded-lg cursor-pointer shadow-2xs inline-flex items-center space-x-1"
+                            title={`Clear all questions in ${secDisplayName}`}
+                          >
+                            <Trash2 size={12} className="text-red-600" />
+                            <span>Clear ({currentSectionQuestions.length})</span>
+                          </button>
+                        )}
                       </div>
                     </div>
 

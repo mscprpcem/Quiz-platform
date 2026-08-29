@@ -268,6 +268,27 @@ export default function AdminEvents() {
     const resolvedRegStart = ev.registration_start_date || ev.registrationStartDate || null;
     const resolvedRegEnd = ev.registration_end_date || ev.registrationEndDate || null;
 
+    const startTimeHint = ev.startTimeIST || ev.start_time || '10:00';
+    const endTimeHint = ev.endTimeIST || ev.end_time || '16:30';
+
+    const parseToTimeStr = (tHint, defaultTime) => {
+      if (!tHint) return defaultTime;
+      const str = String(tHint).trim();
+      const match = str.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+      if (match) {
+        let h = parseInt(match[1], 10);
+        const m = match[2];
+        const ampm = (match[3] || '').toUpperCase();
+        if (ampm === 'PM' && h < 12) h += 12;
+        if (ampm === 'AM' && h === 12) h = 0;
+        return `${String(h).padStart(2, '0')}:${m}`;
+      }
+      return defaultTime;
+    };
+
+    const sTime = parseToTimeStr(startTimeHint, '10:00');
+    const eTime = parseToTimeStr(endTimeHint, '16:30');
+
     const startDateObj = resolvedStartDate ? new Date(resolvedStartDate) : null;
     const isFuture = Boolean(startDateObj && !isNaN(startDateObj.getTime()) && startDateObj > new Date());
 
@@ -283,10 +304,10 @@ export default function AdminEvents() {
       venue: ev.venue || venueSuggestions[0] || 'PRPCEM Main Auditorium',
       poster_url: ev.poster_url || ev.poster || ev.banner || ev.image || DEFAULT_SPARK_POSTER,
       description: ev.description || '',
-      start_date: formatToDateTimeLocal(resolvedStartDate),
-      end_date: formatToDateTimeLocal(resolvedEndDate),
-      registration_start_date: formatToDateTimeLocal(resolvedRegStart),
-      registration_end_date: formatToDateTimeLocal(resolvedRegEnd),
+      start_date: formatToDateTimeLocal(resolvedStartDate, sTime),
+      end_date: formatToDateTimeLocal(resolvedEndDate, eTime),
+      registration_start_date: formatToDateTimeLocal(resolvedRegStart, '09:00'),
+      registration_end_date: formatToDateTimeLocal(resolvedRegEnd, '09:00'),
       max_registrations: (ev.max_registrations !== null && ev.max_registrations !== undefined && ev.max_registrations !== '')
         ? String(ev.max_registrations)
         : (ev.maxRegistrations !== null && ev.maxRegistrations !== undefined ? String(ev.maxRegistrations) : ''),

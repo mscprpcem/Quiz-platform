@@ -110,8 +110,21 @@ export function formatToIST_YYYYMMDD(dateVal) {
 /**
  * Convert ISO / Date / datetime string to value for <input type="datetime-local" /> in IST
  */
-export function formatToIST_DateTimeLocal(dateVal) {
+export function formatToIST_DateTimeLocal(dateVal, defaultTime = '10:00') {
   if (!dateVal) return '';
+
+  if (typeof dateVal === 'string') {
+    const str = dateVal.trim();
+    // If it's a date-only string like YYYY-MM-DD
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+      return `${str}T${defaultTime}`;
+    }
+    // If it's already in YYYY-MM-DDTHH:mm format
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(str)) {
+      return str;
+    }
+  }
+
   const d = dateVal instanceof Date ? dateVal : new Date(dateVal);
   if (isNaN(d.getTime())) return '';
 
