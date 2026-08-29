@@ -300,7 +300,7 @@ const resolveOccurrence = async (identifier) => {
       matchedOcc = occurrences.find(o => o.status !== 'CANCELLED' && new Date(o.start_time) > now);
     }
     if (!matchedOcc && occurrences.length > 0) {
-      matchedOcc = occurrences[occurrences.length - 1];
+      matchedOcc = occurrences[0];
     }
 
     if (!matchedOcc) {
@@ -629,16 +629,18 @@ router.get('/', authMiddleware, async (req, res) => {
     const enriched = await Promise.all(
       quizzes.map(async (quiz) => {
         const questionCount = await Question.count({ where: { quiz_id: quiz.id } });
-        const [attemptCount, liveParticipantCount, attempts] = await Promise.all([
+        const [attemptCount, liveParticipantCount, liveViolations, attempts] = await Promise.all([
           QuizAttempt.count({ where: { quiz_id: quiz.id } }).catch(() => 0),
           Participant.count({ where: { quiz_id: quiz.id } }).catch(() => 0),
+          Violation.count({ where: { quiz_id: quiz.id } }).catch(() => 0),
           QuizAttempt.findAll({ where: { quiz_id: quiz.id }, attributes: ['id'] }).catch(() => [])
         ]);
         const totalParticipantCount = Math.max(attemptCount, liveParticipantCount);
         const attemptIds = attempts.map(a => a.id);
-        const violationCount = attemptIds.length > 0
+        const attemptViolationCount = attemptIds.length > 0
           ? await AttemptViolation.count({ where: { attempt_id: { [Op.in]: attemptIds } } }).catch(() => 0)
           : 0;
+        const violationCount = Math.max(liveViolations, attemptViolationCount);
 
         const occurrences = quiz.occurrences || [];
 
