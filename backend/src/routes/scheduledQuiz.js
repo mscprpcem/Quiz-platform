@@ -241,30 +241,38 @@ function getLatestAttemptsLeaderboard(attempts, options = {}) {
 const resolveOccurrence = async (identifier) => {
   if (!identifier) return null;
   const rawClean = String(identifier).trim();
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(rawClean);
   
-  // 1. Try finding ScheduledOccurrence directly by ID
-  try {
-    let occ = await ScheduledOccurrence.findByPk(rawClean, {
-      include: [{ model: Quiz, as: 'quiz', include: [{ model: Question, as: 'questions' }] }]
-    });
-    if (occ) return occ;
-  } catch (e) {
-    // If not a valid UUID, fallback to lookup
+  // 1. Try finding ScheduledOccurrence directly by ID if valid UUID
+  if (isUUID) {
+    try {
+      let occ = await ScheduledOccurrence.findByPk(rawClean, {
+        include: [{ model: Quiz, as: 'quiz', include: [{ model: Question, as: 'questions' }] }]
+      });
+      if (occ) return occ;
+    } catch (e) {
+      // If error, fallback to quiz lookup
+    }
   }
 
   const slugClean = rawClean.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 
+  const quizWhereConditions = [
+    { custom_slug: rawClean },
+    { custom_slug: { [Op.like]: rawClean } },
+    { join_code: rawClean },
+    { join_code: rawClean.toUpperCase() },
+    sequelize.where(sequelize.fn('LOWER', sequelize.col('title')), rawClean.toLowerCase()),
+    sequelize.where(sequelize.fn('LOWER', sequelize.fn('REPLACE', sequelize.col('title'), ' ', '-')), slugClean)
+  ];
+
+  if (isUUID) {
+    quizWhereConditions.unshift({ id: rawClean });
+  }
+
   let quiz = await Quiz.findOne({
     where: {
-      [Op.or]: [
-        { id: rawClean },
-        { custom_slug: rawClean },
-        { custom_slug: { [Op.like]: rawClean } },
-        { join_code: rawClean },
-        { join_code: rawClean.toUpperCase() },
-        sequelize.where(sequelize.fn('LOWER', sequelize.col('title')), rawClean.toLowerCase()),
-        sequelize.where(sequelize.fn('LOWER', sequelize.fn('REPLACE', sequelize.col('title'), ' ', '-')), slugClean)
-      ]
+      [Op.or]: quizWhereConditions
     },
     order: [['updatedAt', 'DESC']],
     include: [
