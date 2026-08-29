@@ -315,7 +315,7 @@ export default function CreateScheduledQuiz() {
             show_leaderboard: q.show_leaderboard !== undefined ? q.show_leaderboard : true,
             issue_badge: Boolean(q.badge_title),
             badge_title: q.badge_title || 'Microsoft Azure & Cloud Fundamentals Master',
-            questions: q.questions || []
+            questions: sortQuestionsBySection(q.questions || [])
           });
 
           // Populate custom sections from loaded questions if present
@@ -343,6 +343,17 @@ export default function CreateScheduledQuiz() {
 
     fetchQuizDetails();
   }, [id]);
+
+  // Helper to ensure questions are always organized sequentially by section/occurrence
+  const sortQuestionsBySection = (questions) => {
+    if (!Array.isArray(questions)) return [];
+    return [...questions].sort((a, b) => {
+      const secA = parseInt(a.occurrence_number || 1, 10);
+      const secB = parseInt(b.occurrence_number || 1, 10);
+      if (secA !== secB) return secA - secB;
+      return 0;
+    });
+  };
 
   // Helper to format start/end time into 24-hour HH:mm:ss string for API payload
   const buildTimeString = (hh, mm, ss, ampm) => {
@@ -542,7 +553,7 @@ export default function CreateScheduledQuiz() {
           });
           return {
             ...prev,
-            questions: [...cleanedPrev, ...parsedQuestions]
+            questions: sortQuestionsBySection([...cleanedPrev, ...parsedQuestions])
           };
         });
 
@@ -695,7 +706,7 @@ export default function CreateScheduledQuiz() {
 
     setFormData(prev => ({
       ...prev,
-      questions: [...prev.questions, ...newQuestions]
+      questions: sortQuestionsBySection([...prev.questions, ...newQuestions])
     }));
   };
 
@@ -717,8 +728,17 @@ export default function CreateScheduledQuiz() {
       };
     });
 
-    setFormData(prev => ({ ...prev, questions: updated }));
+    setFormData(prev => ({ ...prev, questions: sortQuestionsBySection(updated) }));
     alert(`Successfully distributed ${formData.questions.length} questions across ${sections.length} sections (${Math.ceil(formData.questions.length / sections.length)} questions per section)!`);
+  };
+
+  const handleSortAndRenumber = () => {
+    const sorted = sortQuestionsBySection(formData.questions);
+    setFormData(prev => ({
+      ...prev,
+      questions: sorted
+    }));
+    toast.success(`Organized all ${sorted.length} questions in sequential order across rounds!`, 'Sequential Order');
   };
 
   const handleUpdateSectionMeta = (secNumber, field, value) => {
@@ -1818,8 +1838,8 @@ export default function CreateScheduledQuiz() {
         const isMultiSection = sections.length > 1;
         const currentSection = activeSectionFilter > 0 ? sections.find(s => s.number === activeSectionFilter) : null;
         
-        // Helper to render a question card
-        const renderQuestionCard = (q, origIdx) => {
+        // Helper to render a question card with sequential continuous question numbering
+        const renderQuestionCard = (q, origIdx, displayIndex = null, localIdx = null) => {
           const currentOccNum = q.occurrence_number || 1;
           const secInfo = sections.find(s => s.number === currentOccNum) || sections[0];
           const secDisplayName = customSections[currentOccNum]?.name || secInfo?.name || `Section ${currentOccNum}`;
@@ -1827,6 +1847,7 @@ export default function CreateScheduledQuiz() {
           const isTF = currentQType === 'true_false';
           const isMulti = currentQType === 'multiple';
           const selectedKeys = normalizeSelection(q.correct_answer).split(',').filter(Boolean);
+          const qNum = displayIndex !== null ? displayIndex : (origIdx + 1);
 
           const handleTypeChange = (newType) => {
             handleQuestionChange(origIdx, 'question_type', newType);
@@ -1860,9 +1881,15 @@ export default function CreateScheduledQuiz() {
             <div key={origIdx} className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-4 text-left shadow-2xs hover:border-slate-300 transition-colors">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-200 pb-3">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-xs font-black text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200">
-                    Q #{origIdx + 1}
+                  <span className="text-xs font-black text-blue-700 bg-blue-100/90 px-3 py-1 rounded-lg border border-blue-300 shadow-2xs">
+                    Question #{qNum}
                   </span>
+
+                  {isMultiSection && (
+                    <span className="text-[10px] font-bold text-slate-600 bg-white border border-slate-200 px-2 py-0.5 rounded-md">
+                      {secDisplayName}{localIdx !== null ? ` • Q ${localIdx + 1}` : ''}
+                    </span>
+                  )}
 
                   {/* Question Type Selector */}
                   <div className="flex items-center bg-white border border-slate-200 rounded-lg p-0.5 shadow-2xs">
@@ -2125,6 +2152,19 @@ export default function CreateScheduledQuiz() {
                   >
                     <Sparkles size={13} className="text-slate-500" />
                     <span>Deduplicate</span>
+                  </button>
+                )}
+
+                {/* Sequential Order & Re-number Button */}
+                {isMultiSection && formData.questions.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={handleSortAndRenumber}
+                    className="px-3.5 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 font-extrabold rounded-xl text-xs flex items-center space-x-1.5 cursor-pointer transition-all active:scale-95 shadow-2xs"
+                    title="Organize all questions into a continuous sequence (Week 1 -> Week 2 -> Week 3...)"
+                  >
+                    <Sparkles size={13} className="text-indigo-600" />
+                    <span>Sequential Order</span>
                   </button>
                 )}
 
@@ -2480,7 +2520,12 @@ export default function CreateScheduledQuiz() {
                   ) : (
                     <div className="space-y-5">
                       <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
-                        {currentSectionQuestions.map(q => renderQuestionCard(q, q.origIdx))}
+                        {(() => {
+                          const priorCount = formData.questions.filter(q => (q.occurrence_number || 1) < activeSectionFilter).length;
+                          return currentSectionQuestions.map((q, lIdx) => 
+                            renderQuestionCard(q, q.origIdx, priorCount + lIdx + 1, lIdx)
+                          );
+                        })()}
                       </div>
 
                       {/* Prominent Add Question Buttons at Bottom of Section */}
@@ -2573,7 +2618,12 @@ export default function CreateScheduledQuiz() {
                         </div>
                       ) : (
                         <div className="space-y-4">
-                          {secQuestions.map(q => renderQuestionCard(q, q.origIdx))}
+                          {(() => {
+                            const priorCount = formData.questions.filter(q => (q.occurrence_number || 1) < sec.number).length;
+                            return secQuestions.map((q, lIdx) => 
+                              renderQuestionCard(q, q.origIdx, priorCount + lIdx + 1, lIdx)
+                            );
+                          })()}
 
                           <div className="flex items-center gap-2 pt-1">
                             <button
