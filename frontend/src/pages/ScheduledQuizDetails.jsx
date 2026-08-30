@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import { useParams, useNavigate } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 import api from '../services/api';
-import EventCombinedLeaderboard from '../components/EventCombinedLeaderboard';
 import { formatToISTDateTimeString } from '../utils/dateUtils';
 import { downloadBrandedQRCard, fetchBrandingConfig, getLogoUrl } from '../utils/qrCardGenerator';
 import {
@@ -14,7 +12,7 @@ import {
   Calendar, Clock, CheckCircle, ArrowLeft, Users, Trophy, Pause, 
   Play, ExternalLink, ShieldCheck, HelpCircle, Layers, QrCode, Mail,
   Send, Copy, Check, Trash2, Download, AlertTriangle, FileSpreadsheet,
-  BarChart2, ChevronDown, Award, TrendingUp, Percent, Loader2, Sparkles, X
+  BarChart2, ChevronDown, Award, TrendingUp, Percent, Loader2
 } from 'lucide-react';
 
 export default function ScheduledQuizDetails() {
@@ -29,7 +27,6 @@ export default function ScheduledQuizDetails() {
   const [mailSentMessage, setMailSentMessage] = useState('');
   const [copiedLink, setCopiedLink] = useState(false);
   const [selectedOccurrenceFilter, setSelectedOccurrenceFilter] = useState('all');
-  const [showEventLeaderboardModal, setShowEventLeaderboardModal] = useState(false);
 
   // Dropdown states
   const [activeExportDropdown, setActiveExportDropdown] = useState(null); // 'results' | 'responses' | null
@@ -353,17 +350,6 @@ export default function ScheduledQuizDetails() {
               </div>
             )}
           </div>
-
-          {quiz?.event_name && (
-            <button
-              onClick={() => setShowEventLeaderboardModal(true)}
-              className="px-4 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center space-x-1.5 shadow-md cursor-pointer transition-all"
-              title={`View combined leaderboard across all weeks of ${quiz.event_name}`}
-            >
-              <Sparkles size={15} className="text-amber-300" />
-              <span>Combined Event Scores ({quiz.event_name})</span>
-            </button>
-          )}
 
           <button
             onClick={() => navigate(`/admin/email-dispatch?quizId=${id}`)}
@@ -709,46 +695,6 @@ export default function ScheduledQuizDetails() {
           </div>
         )}
       </div>
-
-      {/* Combined Event Leaderboard Modal for Admin */}
-      {showEventLeaderboardModal && quiz?.event_name && createPortal(
-        <div className="fixed inset-0 z-[9999] bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
-          <div className="bg-slate-50 rounded-3xl p-6 sm:p-8 max-w-4xl w-full shadow-2xl border border-slate-200 space-y-6 my-8 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center font-black">
-                  <Sparkles size={20} />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black text-slate-900">{quiz.event_name}</h3>
-                  <p className="text-xs text-slate-500 font-bold">Multi-Week Cumulative Scoreboard & Quiz Series Breakdown</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowEventLeaderboardModal(false)}
-                className="w-8 h-8 rounded-full hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700 cursor-pointer"
-              >
-                <X size={18} />
-              </button>
-            </div>
-
-            <EventCombinedLeaderboard
-              eventIdOrSlug={quiz.event_id || quiz.event_name}
-              showQuizSeriesHeader={true}
-            />
-
-            <div className="flex justify-end pt-4 border-t border-slate-200">
-              <button
-                onClick={() => setShowEventLeaderboardModal(false)}
-                className="px-6 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded-xl text-xs cursor-pointer"
-              >
-                Close Window
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
 
     </div>
   );

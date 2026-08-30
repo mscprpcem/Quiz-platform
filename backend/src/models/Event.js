@@ -73,10 +73,6 @@ const Event = sequelize.define('Event', {
     type: DataTypes.STRING,
     defaultValue: 'Certificates & Swags'
   },
-  leaderboard_default_view: {
-    type: DataTypes.STRING,
-    defaultValue: 'all' // 'all' (combined) | 'first_quiz' (week 1) | 'current_quiz' (latest) | specific quizId
-  },
   status: {
     type: DataTypes.STRING,
     defaultValue: 'upcoming'

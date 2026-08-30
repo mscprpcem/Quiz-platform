@@ -11,7 +11,6 @@ import {
   QrCode, Download, X
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import EventCombinedLeaderboard from '../components/EventCombinedLeaderboard';
 import {
   downloadBrandedQRCard,
   fetchBrandingConfig,
@@ -31,7 +30,6 @@ export default function EventRegister() {
   const [qrModalOpen, setQrModalOpen] = useState(false);
   const [qrCopied, setQrCopied] = useState(false);
   const [branding, setBranding] = useState(null);
-  const [activeTab, setActiveTab] = useState('overview'); // 'overview' | 'leaderboard'
 
   useEffect(() => {
     fetchBrandingConfig().then(b => setBranding(b)).catch(err => console.error(err));
@@ -266,44 +264,6 @@ export default function EventRegister() {
           </div>
         </div>
 
-        {/* Tab Switcher: Overview vs Combined Leaderboard */}
-        <div className="flex items-center justify-center p-1.5 bg-slate-100 rounded-2xl border border-slate-200 max-w-md mx-auto shadow-2xs">
-          <button
-            type="button"
-            onClick={() => setActiveTab('overview')}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer ${
-              activeTab === 'overview'
-                ? 'bg-white text-purple-700 shadow-sm ring-1 ring-slate-200'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            📝 Overview & Registration
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab('leaderboard')}
-            className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
-              activeTab === 'leaderboard'
-                ? 'bg-purple-600 text-white shadow-sm'
-                : 'text-slate-600 hover:text-purple-700'
-            }`}
-          >
-            <Sparkles size={13} className={activeTab === 'leaderboard' ? 'text-amber-300' : 'text-purple-600'} />
-            <span>🏆 Combined Leaderboard</span>
-          </button>
-        </div>
-
-        {activeTab === 'leaderboard' ? (
-          <div className="animate-fade-in">
-            <EventCombinedLeaderboard
-              eventIdOrSlug={event.slug || slug || event.id}
-              currentUserEmail={formData.email}
-              currentUserName={formData.fullName}
-              showQuizSeriesHeader={true}
-            />
-          </div>
-        ) : (
-          <>
         {/* Hero Event Banner Card */}
         <div className="bg-white border border-slate-200 rounded-3xl overflow-hidden shadow-sm grid grid-cols-1 lg:grid-cols-12">
           
@@ -675,8 +635,6 @@ export default function EventRegister() {
               </div>
             </form>
           </div>
-        )}
-        </>
         )}
 
       </div>

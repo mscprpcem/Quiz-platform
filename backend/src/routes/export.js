@@ -6,7 +6,6 @@ const {
   ScheduledOccurrence, QuizAttempt, AttemptAnswer, AttemptViolation 
 } = require('../models');
 const authMiddleware = require('../middleware/auth');
-const { getEventCombinedLeaderboard } = require('../services/eventLeaderboardService');
 const { Op } = require('sequelize');
 
 // Helper: Sanitize filename for headers
@@ -439,113 +438,6 @@ router.get('/quiz/:id/responses', authMiddleware, async (req, res) => {
     console.error('Export responses error:', error);
     return res.status(500).json({ error: 'Server error generating responses export' });
   }
-});
-
-// ----------------------------------------------------
-// 3. Export Combined Event Leaderboard (Multi-Week / Multi-Quiz Score Matrix)
-// ----------------------------------------------------
-router.get('/event/:idOrSlug/leaderboard', async (req, res) => {
-  try {
-    const { idOrSlug } = req.params;
-    const format = req.query.format === 'csv' ? 'csv' : 'xlsx';
-
-    const result = await getEventCombinedLeaderboard(idOrSlug);
-    if (!result.success || !result.event) {
-      return res.status(404).json({ error: result.error || 'Event not found' });
-    }
-
-    const { event, quizzes, leaderboard } = result;
-    const workbook = new ExcelJS.Workbook();
-    const sheet = workbook.addWorksheet('Combined Leaderboard');
-
-    // Build dynamic columns
-    const columns = [
-      { header: 'Rank', key: 'rank', width: 8 },
-      { header: 'Participant Name', key: 'name', width: 26 },
-      { header: 'Email Address', key: 'email', width: 30 },
-      { header: 'Total Combined Score (pts)', key: 'totalScore', width: 24 },
-      { header: 'Quizzes Completed', key: 'quizzesCompleted', width: 18 },
-      { header: 'Total Correct Answers', key: 'totalCorrect', width: 20 },
-      { header: 'Total Time Taken (s)', key: 'totalTime', width: 18 },
-      { header: 'Violations Logged', key: 'violations', width: 16 }
-    ];
-
-    // Add a column for each quiz in the event series
-    quizzes.forEach((q, idx) => {
-      columns.push({
-        header: `[Week ${idx + 1}] ${q.title} (Score)`,
-        key: `quiz_${q.id}_score`,
-        width: 25
-      });
-      columns.push({
-        header: `[Week ${idx + 1}] ${q.title} (Time s)`,
-        key: `quiz_${q.id}_time`,
-        width: 22
-      });
-    });
-
-    sheet.columns = columns;
-
-    // Add rows for each ranked participant
-    leaderboard.forEach((p) => {
-      const rowData = {
-        rank: p.rank,
-        name: p.name || p.participant_name,
-        email: p.email || p.participant_email || 'N/A',
-        totalScore: p.total_score || 0,
-        quizzesCompleted: `${p.quizzes_attempted || 0} / ${quizzes.length}`,
-        totalCorrect: p.total_correct || 0,
-        totalTime: p.total_time_taken || 0,
-        violations: p.total_violations || 0
-      };
-
-      // Populate per-quiz score and time
-      const breakdownMap = new Map((p.breakdown || []).map(b => [b.quiz_id, b]));
-      quizzes.forEach((q) => {
-        const b = breakdownMap.get(q.id);
-        if (b && b.attempted) {
-          rowData[`quiz_${q.id}_score`] = b.score;
-          rowData[`quiz_${q.id}_time`] = b.time_taken_seconds;
-        } else {
-          rowData[`quiz_${q.id}_score`] = 0;
-          rowData[`quiz_${q.id}_time`] = 'Not Attempted';
-        }
-      });
-
-      sheet.addRow(rowData);
-    });
-
-    // Style the header row
-    const headerRow = sheet.getRow(1);
-    headerRow.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-    headerRow.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'FF4338CA' } // Indigo 700
-    };
-    headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
-
-    const filename = getCleanFilename(event.name, 'Combined_Leaderboard');
-
-    if (format === 'csv') {
-      res.setHeader('Content-Type', 'text/csv');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}.csv"`);
-      await workbook.csv.write(res);
-    } else {
-      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}.xlsx"`);
-      await workbook.xlsx.write(res);
-    }
-  } catch (error) {
-    console.error('Export event combined leaderboard error:', error);
-    return res.status(500).json({ error: 'Server error generating event leaderboard export: ' + error.message });
-  }
-});
-
-// Alias for event results export
-router.get('/event/:idOrSlug/results', async (req, res, next) => {
-  req.url = req.url.replace('/results', '/leaderboard');
-  return router.handle(req, res, next);
 });
 
 module.exports = router;

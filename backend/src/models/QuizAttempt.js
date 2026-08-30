@@ -71,26 +71,6 @@ const QuizAttempt = sequelize.define('QuizAttempt', {
     type: DataTypes.TEXT, // JSON stringified map of question ID -> shuffled options
     allowNull: true
   },
-  user_id: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-  user_name: {
-    type: DataTypes.STRING,
-    allowNull: true
-  },
-  league_id: {
-    type: DataTypes.UUID,
-    allowNull: true
-  },
-  league_week_id: {
-    type: DataTypes.UUID,
-    allowNull: true
-  },
-  violation_count: {
-    type: DataTypes.INTEGER,
-    defaultValue: 0
-  },
   status: {
     type: DataTypes.ENUM('in_progress', 'completed', 'expired', 'disqualified'),
     defaultValue: 'in_progress'

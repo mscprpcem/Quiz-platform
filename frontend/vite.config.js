@@ -11,10 +11,7 @@ export default defineConfig({
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-icons': ['lucide-react'],
           'vendor-socket': ['socket.io-client'],
-          'vendor-qrcode': ['html5-qrcode', 'qrcode.react'],
-          'vendor-motion': ['framer-motion'],
-          'vendor-charts': ['recharts'],
-          'vendor-excel': ['xlsx']
+          'vendor-[#qrcode]': ['html5-qrcode', 'qrcode.react']
         }
       }
     }

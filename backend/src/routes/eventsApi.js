@@ -11,7 +11,6 @@ const { sendCustomBroadcastEmail } = require('../services/emailService');
 const { uploadImageToAzureBlob } = require('../services/azureBlobService');
 const { Op } = require('sequelize');
 const authMiddleware = require('../middleware/auth');
-const { getEventCombinedLeaderboard } = require('../services/eventLeaderboardService');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'msc_quiz_secret_key_2026';
 
@@ -622,7 +621,6 @@ router.get('/details/:idOrSlug', async (req, res) => {
         is_registration_pending: statusObj.isRegPending,
         is_capacity_full: statusObj.isCapacityFull,
         rewards: event.rewards,
-        leaderboard_default_view: event.leaderboard_default_view || 'all',
         status: statusObj.eventStatus,
         event_status: statusObj.eventStatus,
         registration_status: statusObj.regStatus,
@@ -642,72 +640,6 @@ router.get('/details/:idOrSlug', async (req, res) => {
   } catch (err) {
     console.error('Error fetching single event details:', err);
     res.status(500).json({ error: 'Failed to fetch event details: ' + err.message });
-  }
-});
-
-// ----------------------------------------------------
-// GET /api/events/:idOrSlug/leaderboard (Combined Event Multi-Quiz Leaderboard)
-// ----------------------------------------------------
-router.get('/:idOrSlug/leaderboard', async (req, res) => {
-  try {
-    const { idOrSlug } = req.params;
-    const filterAuthOnly = req.query.authenticated === 'true';
-    const result = await getEventCombinedLeaderboard(idOrSlug, {
-      filterAuthenticatedOnly: filterAuthOnly
-    });
-
-    if (!result.success && !result.event) {
-      return res.status(404).json({ error: result.error || `Event "${idOrSlug}" not found.` });
-    }
-
-    return res.json(result);
-  } catch (err) {
-    console.error('Error in event leaderboard route:', err);
-    return res.status(500).json({ error: 'Failed to compute event leaderboard: ' + err.message });
-  }
-});
-
-// Alias for combined leaderboard
-router.get('/:idOrSlug/combined-leaderboard', async (req, res) => {
-  try {
-    const { idOrSlug } = req.params;
-    const filterAuthOnly = req.query.authenticated === 'true';
-    const result = await getEventCombinedLeaderboard(idOrSlug, {
-      filterAuthenticatedOnly: filterAuthOnly
-    });
-
-    if (!result.success && !result.event) {
-      return res.status(404).json({ error: result.error || `Event "${idOrSlug}" not found.` });
-    }
-
-    return res.json(result);
-  } catch (err) {
-    console.error('Error in combined event leaderboard route:', err);
-    return res.status(500).json({ error: 'Failed to compute event leaderboard: ' + err.message });
-  }
-});
-
-// ----------------------------------------------------
-// GET /api/events/:idOrSlug/quizzes (All Quizzes part of this Event Series)
-// ----------------------------------------------------
-router.get('/:idOrSlug/quizzes', async (req, res) => {
-  try {
-    const { idOrSlug } = req.params;
-    const result = await getEventCombinedLeaderboard(idOrSlug);
-
-    if (!result.success && !result.event) {
-      return res.status(404).json({ error: result.error || `Event "${idOrSlug}" not found.` });
-    }
-
-    return res.json({
-      success: true,
-      event: result.event,
-      quizzes: result.quizzes,
-      total_quizzes: result.quizzes.length
-    });
-  } catch (err) {
-    console.error('Error fetching event quizzes:', err);
-    return res.status(500).json({ error: 'Failed to fetch event quizzes: ' + err.message });
   }
 });
 
@@ -794,7 +726,6 @@ router.post('/', adminAuth, async (req, res) => {
       fee,
       is_registration_open,
       rewards,
-      leaderboard_default_view,
       status
     } = req.body;
 
@@ -844,7 +775,6 @@ router.post('/', adminAuth, async (req, res) => {
         fee: fee || 'Free',
         is_registration_open: is_registration_open !== false,
         rewards: rewards || 'Certificates & Swags',
-        leaderboard_default_view: leaderboard_default_view || 'all',
         status: cleanStatus
       });
     } catch (createErr) {
@@ -868,7 +798,6 @@ router.post('/', adminAuth, async (req, res) => {
           fee: fee || 'Free',
           is_registration_open: is_registration_open !== false,
           rewards: rewards || 'Certificates & Swags',
-          leaderboard_default_view: leaderboard_default_view || 'all',
           status: cleanStatus === 'past' ? 'completed' : cleanStatus
         });
       } else {
@@ -924,7 +853,6 @@ router.put('/:id', adminAuth, async (req, res) => {
             start_date: initialDate,
             end_date: initialEndDate,
             rewards: staticMatch.rewards || 'Certificates & Swags',
-            leaderboard_default_view: 'all',
             status: initialStatus
           });
         } catch (staticCreateErr) {
@@ -941,7 +869,6 @@ router.put('/:id', adminAuth, async (req, res) => {
               start_date: initialDate,
               end_date: initialEndDate,
               rewards: staticMatch.rewards || 'Certificates & Swags',
-              leaderboard_default_view: 'all',
               status: initialStatus === 'past' ? 'completed' : initialStatus
             });
           } else {
@@ -970,7 +897,6 @@ router.put('/:id', adminAuth, async (req, res) => {
       fee,
       is_registration_open,
       rewards,
-      leaderboard_default_view,
       status
     } = req.body;
 
@@ -1016,7 +942,6 @@ router.put('/:id', adminAuth, async (req, res) => {
     if (fee !== undefined) event.fee = fee || 'Free';
     if (is_registration_open !== undefined) event.is_registration_open = Boolean(is_registration_open);
     if (rewards !== undefined) event.rewards = rewards;
-    if (leaderboard_default_view !== undefined) event.leaderboard_default_view = leaderboard_default_view;
     if (status !== undefined) {
       event.status = sanitizeEventStatus(status);
     }

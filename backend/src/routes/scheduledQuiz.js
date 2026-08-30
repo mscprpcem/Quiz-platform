@@ -1868,23 +1868,12 @@ router.post('/attempts/:attemptId/submit', async (req, res) => {
 
     const myRank = myEntry ? myEntry.rank : 1;
 
-    let linkedEvent = null;
-    if (quiz.event_id || quiz.event_name) {
-      const { resolveEvent } = require('../services/eventLeaderboardService');
-      linkedEvent = await resolveEvent(quiz.event_id || quiz.event_name).catch(() => null);
-    }
-
     return res.json({
       message: 'Quiz submitted successfully.',
       attempt,
       rank: myRank,
       totalParticipants,
-      totalQuestions: questions.length,
-      linkedEvent: linkedEvent ? {
-        id: linkedEvent.id,
-        name: linkedEvent.name,
-        slug: linkedEvent.slug || (linkedEvent.name ? linkedEvent.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') : '')
-      } : null
+      totalQuestions: questions.length
     });
   } catch (error) {
     console.error('Submit attempt error:', error);
