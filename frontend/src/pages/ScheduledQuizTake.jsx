@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext';
 import api from '../services/api';
 import StudentAuthModal from '../components/StudentAuthModal';
 import NotFoundCard from '../components/NotFoundCard';
+import EventCombinedLeaderboard from '../components/EventCombinedLeaderboard';
 import {
   Clock, CheckSquare, AlertTriangle, Trophy, CheckCircle, 
   Square, ShieldCheck, ArrowRight, RefreshCw, User, Lock, Award, LogIn, LogOut, ExternalLink, Sparkles, Maximize, KeyRound, Timer, AlertOctagon, XCircle, Ticket, Calendar, Check
@@ -52,6 +53,7 @@ export default function ScheduledQuizTake() {
   const [submittingQuiz, setSubmittingQuiz] = useState(false);
   const [leaderboardList, setLeaderboardList] = useState([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+  const [activeLeaderboardTab, setActiveLeaderboardTab] = useState('single'); // 'single' | 'event_combined'
 
   const timerRef = useRef(null);
   const submittingRef = useRef(false);
@@ -574,8 +576,10 @@ export default function ScheduledQuizTake() {
       (userName && (p.participant_name?.toLowerCase() === userName.toLowerCase() || p.name?.toLowerCase() === userName.toLowerCase()))
     );
 
+    const linkedEv = occData?.linkedEvent || resultData?.linkedEvent || (occData?.quiz?.event_id ? { id: occData.quiz.event_id, name: occData.quiz.event_name } : null) || (occData?.quiz?.event_name ? { name: occData.quiz.event_name, slug: occData.quiz.event_name } : null);
+
     return (
-      <div className="max-w-2xl mx-auto py-10 px-4 text-center space-y-7 font-segoe animate-fade-in">
+      <div className="max-w-3xl mx-auto py-10 px-4 text-center space-y-7 font-segoe animate-fade-in">
         
         {/* Already Attempted Alert Banner */}
         <div className="p-4 bg-gradient-to-r from-blue-50 via-indigo-50 to-emerald-50 border border-blue-200 rounded-3xl flex items-center justify-between text-left shadow-2xs">
@@ -584,9 +588,9 @@ export default function ScheduledQuizTake() {
               <CheckCircle size={20} />
             </div>
             <div>
-              <h4 className="text-xs sm:text-sm font-black text-slate-900">Assessment Already Attempted</h4>
+              <h4 className="text-xs sm:text-sm font-black text-slate-900">Assessment Attempt Recorded</h4>
               <p className="text-[11px] text-slate-600 font-semibold">
-                You have completed your attempt for this session. Below is your official scorecard and the top 10 participants leaderboard.
+                You have completed your attempt for this session. Review your individual performance and combined event standings below.
               </p>
             </div>
           </div>
@@ -595,8 +599,75 @@ export default function ScheduledQuizTake() {
           </span>
         </div>
 
-        {/* 1. Official Score Board & Matrix Card */}
-        <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-md space-y-6 text-left">
+        {/* Event Series Switcher Pill Bar (if linked to an event) */}
+        {linkedEv && (
+          <div className="flex items-center justify-center p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/90 max-w-xl mx-auto shadow-2xs">
+            <button
+              type="button"
+              onClick={() => setActiveLeaderboardTab('single')}
+              className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeLeaderboardTab === 'single'
+                  ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              📋 This Quiz Standings
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveLeaderboardTab('event_combined')}
+              className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                activeLeaderboardTab === 'event_combined'
+                  ? 'bg-purple-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-purple-700'
+              }`}
+            >
+              <Sparkles size={13} className={activeLeaderboardTab === 'event_combined' ? 'text-amber-300' : 'text-purple-600'} />
+              <span>🏆 Combined Standings ({linkedEv.name || 'Event'})</span>
+            </button>
+          </div>
+        )}
+
+        {/* ════════ RENDER EVENT COMBINED LEADERBOARD VIEW ════════ */}
+        {activeLeaderboardTab === 'event_combined' && linkedEv ? (
+          <div className="space-y-6 animate-fade-in">
+            <EventCombinedLeaderboard
+              eventIdOrSlug={linkedEv.slug || linkedEv.id || linkedEv.name}
+              currentUserEmail={userEmail}
+              currentUserName={userName}
+              showQuizSeriesHeader={true}
+            />
+          </div>
+        ) : (
+          /* ════════ RENDER SINGLE QUIZ SCORECARD & TOP 10 VIEW ════════ */
+          <div className="space-y-7 animate-fade-in">
+            
+            {/* Event Series Notice Banner */}
+            {linkedEv && (
+              <div className="p-3.5 bg-purple-50/80 border border-purple-200 rounded-2xl flex items-center justify-between gap-3 text-left">
+                <div className="flex items-center space-x-2.5">
+                  <div className="w-7 h-7 rounded-lg bg-purple-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                    <Sparkles size={14} />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase text-purple-900 block">Part of Event Series</span>
+                    <span className="text-xs font-bold text-slate-800">
+                      This quiz is linked to <strong>{linkedEv.name}</strong>. See your cumulative multi-week rank!
+                    </span>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveLeaderboardTab('event_combined')}
+                  className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-extrabold rounded-xl shrink-0 cursor-pointer shadow-2xs"
+                >
+                  View Combined Score
+                </button>
+              </div>
+            )}
+
+            {/* 1. Official Score Board & Matrix Card */}
+            <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-md space-y-6 text-left">
           
           <div className="flex items-center justify-between border-b border-slate-100 pb-4">
             <div className="flex items-center space-x-3">
@@ -832,6 +903,8 @@ export default function ScheduledQuizTake() {
           )}
 
         </div>
+      </div>
+    )}
 
         {/* Action Buttons */}
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
@@ -871,12 +944,79 @@ export default function ScheduledQuizTake() {
       const top10List = leaderboardList.slice(0, 10);
       const userEmail = displayEmail || email || studentAccount?.email || user?.email || localStorage.getItem('msc_student_email') || '';
       const userName = displayName || name || studentAccount?.name || user?.name || localStorage.getItem('msc_student_name') || '';
+      const linkedEv = occData?.linkedEvent || (occData?.quiz?.event_id ? { id: occData.quiz.event_id, name: occData.quiz.event_name } : null) || (occData?.quiz?.event_name ? { name: occData.quiz.event_name, slug: occData.quiz.event_name } : null);
 
       return (
-        <div className="max-w-2xl mx-auto py-10 px-4 font-segoe text-center space-y-7 animate-fade-in">
-          {/* Main Already Ended Banner Card */}
-          <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-md space-y-6 text-left">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-5">
+        <div className="max-w-3xl mx-auto py-10 px-4 font-segoe text-center space-y-7 animate-fade-in">
+          
+          {/* Event Series Switcher Pill Bar (if linked to an event) */}
+          {linkedEv && (
+            <div className="flex items-center justify-center p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/90 max-w-xl mx-auto shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setActiveLeaderboardTab('single')}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                  activeLeaderboardTab === 'single'
+                    ? 'bg-white text-blue-700 shadow-sm ring-1 ring-slate-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                📋 This Round Standings
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveLeaderboardTab('event_combined')}
+                className={`flex-1 py-2 px-3 rounded-xl text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  activeLeaderboardTab === 'event_combined'
+                    ? 'bg-purple-600 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-purple-700'
+                }`}
+              >
+                <Sparkles size={13} className={activeLeaderboardTab === 'event_combined' ? 'text-amber-300' : 'text-purple-600'} />
+                <span>🏆 Combined Standings ({linkedEv.name || 'Event'})</span>
+              </button>
+            </div>
+          )}
+
+          {activeLeaderboardTab === 'event_combined' && linkedEv ? (
+            <div className="space-y-6 animate-fade-in">
+              <EventCombinedLeaderboard
+                eventIdOrSlug={linkedEv.slug || linkedEv.id || linkedEv.name}
+                currentUserEmail={userEmail}
+                currentUserName={userName}
+                showQuizSeriesHeader={true}
+              />
+            </div>
+          ) : (
+            <div className="space-y-7 animate-fade-in">
+              
+              {/* Event Series Notice Banner */}
+              {linkedEv && (
+                <div className="p-3.5 bg-purple-50/80 border border-purple-200 rounded-2xl flex items-center justify-between gap-3 text-left">
+                  <div className="flex items-center space-x-2.5">
+                    <div className="w-7 h-7 rounded-lg bg-purple-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
+                      <Sparkles size={14} />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-black uppercase text-purple-900 block">Event Series Standings</span>
+                      <span className="text-xs font-bold text-slate-800">
+                        This session is part of <strong>{linkedEv.name}</strong>. Check overall standings!
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveLeaderboardTab('event_combined')}
+                    className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-[11px] font-extrabold rounded-xl shrink-0 cursor-pointer shadow-2xs"
+                  >
+                    Combined Standings
+                  </button>
+                </div>
+              )}
+
+              {/* Main Already Ended Banner Card */}
+              <div className="bg-white border border-slate-200 rounded-3xl p-6 sm:p-8 shadow-md space-y-6 text-left">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-5">
               <div className="flex items-center space-x-3.5">
                 <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center font-black shadow-xs flex-shrink-0">
                   <AlertOctagon size={26} />
@@ -1074,6 +1214,8 @@ export default function ScheduledQuizTake() {
               </div>
             )}
           </div>
+        </div>
+      )}
 
           {/* Action CTAs */}
           <div className="flex flex-col sm:flex-row gap-3 pt-2">

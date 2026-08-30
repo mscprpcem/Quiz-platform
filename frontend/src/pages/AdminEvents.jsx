@@ -8,9 +8,10 @@ import {
   Trash2, Edit3, ExternalLink, Mail, ArrowRight, ShieldCheck,
   AlertCircle, RefreshCw, X, Radio, BookOpen, Image, Check, Download, FileText,
   Copy, Link as LinkIcon, Upload, CloudUpload, CheckCircle2, Clock, Timer,
-  Lock, Unlock, Tag, AlertTriangle, QrCode
+  Lock, Unlock, Tag, AlertTriangle, QrCode, Trophy
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import EventCombinedLeaderboard from '../components/EventCombinedLeaderboard';
 import {
   downloadBrandedQRCard,
   fetchBrandingConfig,
@@ -52,6 +53,7 @@ export default function AdminEvents() {
   const [search, setSearch] = useState('');
   const [selectedFilter, setSelectedFilter] = useState('ALL');
   const [venueSuggestions, setVenueSuggestions] = useState(DEFAULT_VENUES);
+  const [leaderboardModalEvent, setLeaderboardModalEvent] = useState(null);
   
   // Create / Edit Modal State
   const [modalOpen, setModalOpen] = useState(false);
@@ -74,6 +76,7 @@ export default function AdminEvents() {
     feeNumeric: 0,
     is_registration_open: true,
     rewards: 'Certificates, Prizes & Swags',
+    leaderboard_default_view: 'all',
     status: 'upcoming'
   });
   const [submitting, setSubmitting] = useState(false);
@@ -253,6 +256,7 @@ export default function AdminEvents() {
       feeNumeric: 0,
       is_registration_open: true,
       rewards: 'Certificates, Prizes & Swags',
+      leaderboard_default_view: 'all',
       status: 'upcoming'
     });
     setErrorMsg('');
@@ -318,6 +322,7 @@ export default function AdminEvents() {
       feeNumeric: numFee,
       is_registration_open: ev.is_registration_open !== false && ev.isRegistrationOpen !== false,
       rewards: ev.rewards || ev.prizes || 'Certificates & Swags',
+      leaderboard_default_view: ev.leaderboard_default_view || 'all',
       status: isFuture ? 'upcoming' : ((ev.status === 'past' || ev.status === 'completed' || ev.event_status === 'completed') ? 'completed' : (ev.status || ev.event_status || 'upcoming'))
     });
     setErrorMsg('');
@@ -745,7 +750,7 @@ export default function AdminEvents() {
         </div>
 
         {/* Footer Action Buttons */}
-        <div className="p-5 pt-0 grid grid-cols-3 gap-2 text-xs font-bold mt-2">
+        <div className="p-5 pt-0 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-bold mt-2">
           <button
             onClick={() => navigate(`/admin/scheduled-quizzes/create?event=${encodeURIComponent(ev.name)}`)}
             className="py-2 px-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
@@ -753,6 +758,15 @@ export default function AdminEvents() {
           >
             <Plus size={13} />
             <span className="truncate">Quiz</span>
+          </button>
+
+          <button
+            onClick={() => setLeaderboardModalEvent(ev)}
+            className="py-2 px-2 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-xl text-center flex items-center justify-center gap-1 transition-colors cursor-pointer"
+            title="View Combined Multi-Week Leaderboard"
+          >
+            <Sparkles size={13} className="text-amber-600" />
+            <span className="truncate">Scores</span>
           </button>
 
           <button
@@ -1619,6 +1633,94 @@ export default function AdminEvents() {
                 </div>
               </div>
 
+              {/* ════════ SECTION: LEADERBOARD DEFAULT DISPLAY VIEW ════════ */}
+              <div className="p-4 bg-purple-50/50 border border-purple-200 rounded-2xl space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Trophy size={16} className="text-purple-600" />
+                    <span className="text-xs font-black text-purple-950 uppercase tracking-wide">
+                      Leaderboard Default Display View
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
+                    Initial Student View
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-600 font-medium">
+                  Select what participants and students see by default upon opening the event standings:
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <label
+                    className={`p-3 rounded-xl border flex flex-col justify-between gap-1.5 cursor-pointer transition-all ${
+                      formData.leaderboard_default_view === 'all'
+                        ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                        : 'bg-white text-slate-800 border-slate-200 hover:border-purple-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black">All Weeks Combined</span>
+                      <input
+                        type="radio"
+                        name="leaderboard_default_view"
+                        value="all"
+                        checked={formData.leaderboard_default_view === 'all'}
+                        onChange={() => setFormData({ ...formData, leaderboard_default_view: 'all' })}
+                        className="accent-purple-600"
+                      />
+                    </div>
+                    <span className={`text-[10px] font-medium leading-tight ${formData.leaderboard_default_view === 'all' ? 'text-purple-100' : 'text-slate-500'}`}>
+                      Cumulative total points across all quiz weeks
+                    </span>
+                  </label>
+
+                  <label
+                    className={`p-3 rounded-xl border flex flex-col justify-between gap-1.5 cursor-pointer transition-all ${
+                      formData.leaderboard_default_view === 'first_quiz'
+                        ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                        : 'bg-white text-slate-800 border-slate-200 hover:border-purple-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black">First Quiz (Week 1)</span>
+                      <input
+                        type="radio"
+                        name="leaderboard_default_view"
+                        value="first_quiz"
+                        checked={formData.leaderboard_default_view === 'first_quiz'}
+                        onChange={() => setFormData({ ...formData, leaderboard_default_view: 'first_quiz' })}
+                        className="accent-purple-600"
+                      />
+                    </div>
+                    <span className={`text-[10px] font-medium leading-tight ${formData.leaderboard_default_view === 'first_quiz' ? 'text-purple-100' : 'text-slate-500'}`}>
+                      Display Week 1 standings directly
+                    </span>
+                  </label>
+
+                  <label
+                    className={`p-3 rounded-xl border flex flex-col justify-between gap-1.5 cursor-pointer transition-all ${
+                      formData.leaderboard_default_view === 'current_quiz'
+                        ? 'bg-purple-600 text-white border-purple-600 shadow-xs'
+                        : 'bg-white text-slate-800 border-slate-200 hover:border-purple-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black">Current / Latest Quiz</span>
+                      <input
+                        type="radio"
+                        name="leaderboard_default_view"
+                        value="current_quiz"
+                        checked={formData.leaderboard_default_view === 'current_quiz'}
+                        onChange={() => setFormData({ ...formData, leaderboard_default_view: 'current_quiz' })}
+                        className="accent-purple-600"
+                      />
+                    </div>
+                    <span className={`text-[10px] font-medium leading-tight ${formData.leaderboard_default_view === 'current_quiz' ? 'text-purple-100' : 'text-slate-500'}`}>
+                      Auto-focus latest active quiz as rounds progress
+                    </span>
+                  </label>
+                </div>
+              </div>
+
               <div>
                 <label className="block text-[11px] font-bold text-slate-700 mb-1">Description</label>
                 <textarea
@@ -1755,6 +1857,46 @@ export default function AdminEvents() {
                 className="py-2.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs cursor-pointer"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Combined Event Leaderboard Modal */}
+      {leaderboardModalEvent && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-fade-in">
+          <div className="bg-slate-50 rounded-3xl p-6 sm:p-8 max-w-4xl w-full shadow-2xl border border-slate-200 space-y-6 my-8 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-200 pb-4">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-700 flex items-center justify-center font-black">
+                  <Sparkles size={20} />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">{leaderboardModalEvent.name}</h3>
+                  <p className="text-xs text-slate-500 font-bold">Official Event Series Standings across all Quizzes</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setLeaderboardModalEvent(null)}
+                className="w-8 h-8 rounded-full hover:bg-slate-200 flex items-center justify-center text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <EventCombinedLeaderboard
+              eventIdOrSlug={leaderboardModalEvent.slug || leaderboardModalEvent.id || leaderboardModalEvent.name}
+              showQuizSeriesHeader={true}
+            />
+
+            <div className="flex justify-end pt-4 border-t border-slate-200">
+              <button
+                onClick={() => setLeaderboardModalEvent(null)}
+                className="px-6 py-2.5 bg-slate-200 hover:bg-slate-300 text-slate-800 font-bold rounded-xl text-xs cursor-pointer"
+              >
+                Close Window
               </button>
             </div>
           </div>

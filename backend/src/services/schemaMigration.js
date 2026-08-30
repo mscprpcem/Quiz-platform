@@ -118,6 +118,7 @@ async function runAutoMigrations(sequelize) {
     `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}fee${quote} VARCHAR(255) DEFAULT 'Free';`,
     `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}is_registration_open${quote} ${boolType} DEFAULT ${boolTrue};`,
     `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}rewards${quote} VARCHAR(255) DEFAULT 'Certificates & Swags';`,
+    `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}leaderboard_default_view${quote} VARCHAR(255) DEFAULT 'all';`,
     `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}status${quote} VARCHAR(255) DEFAULT 'upcoming';`,
 
     // PostgreSQL Enum Self-Healing for enum_Events_status
@@ -242,6 +243,14 @@ async function runAutoMigrations(sequelize) {
     }
   }
 
+  // Ensure Vision X Week 1 attempts data is safely seeded if missing
+  try {
+    const { seedVisionXWeek1 } = require('./visionXWeek1Seeder');
+    await seedVisionXWeek1(false);
+  } catch (seedErr) {
+    // Non-blocking
+  }
+
   console.log("✅ Database Schema Auto-Migrated & High-Performance Indexes Ready");
 }
 
@@ -273,6 +282,7 @@ async function ensureEventsTableSchema(sequelize) {
     `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}fee${quote} VARCHAR(255) DEFAULT 'Free';`,
     `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}is_registration_open${quote} ${boolType} DEFAULT ${boolTrue};`,
     `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}rewards${quote} VARCHAR(255) DEFAULT 'Certificates & Swags';`,
+    `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}leaderboard_default_view${quote} VARCHAR(255) DEFAULT 'all';`,
     `ALTER TABLE ${quote}Events${quote} ADD COLUMN ${ifNotExists}${quote}status${quote} VARCHAR(255) DEFAULT 'upcoming';`,
     ...(isPostgres ? [
       `ALTER TYPE "enum_Events_status" ADD VALUE IF NOT EXISTS 'past';`,
