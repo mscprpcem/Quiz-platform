@@ -897,35 +897,54 @@ export default function PracticeQuiz() {
           </p>
         </div>
 
-        <div className="p-4 bg-amber-50/70 border border-amber-200/80 rounded-2xl space-y-2 text-xs text-amber-900">
-          <div className="flex items-center space-x-2 font-black text-xs text-amber-800">
-            <Clock size={16} className="text-amber-600 flex-shrink-0" />
-            <span>Under Active Development</span>
+        {category === 'dbms' ? (
+          <div className="p-5 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-2xl space-y-3 text-xs text-blue-950">
+            <div className="flex items-center space-x-2 font-black text-xs text-blue-800">
+              <Code size={16} className="text-blue-600 flex-shrink-0" />
+              <span>⚡ Hands-on SQL Lab is LIVE!</span>
+            </div>
+            <p className="text-[11px] leading-relaxed font-medium text-blue-900">
+              Practice writing real SQL queries with multi-table JOINs, aggregations, and placement challenges with real-time feedback.
+            </p>
+            <button
+              onClick={() => navigate('/practice/sql')}
+              className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-black shadow-sm cursor-pointer active:scale-98 transition-all flex items-center justify-center space-x-2"
+            >
+              <span>Launch Interactive SQL Lab</span>
+              <ArrowRight size={14} />
+            </button>
           </div>
-          <p className="text-[11px] leading-relaxed font-medium text-amber-800/90">
-            Practice questions, timer evaluations, and auto-synced certificates for <strong>{meta?.title || 'this track'}</strong> are currently being curated by the MSC-PRPCEM technical team.
-          </p>
-        </div>
+        ) : (
+          <div className="p-4 bg-amber-50/70 border border-amber-200/80 rounded-2xl space-y-2 text-xs text-amber-900">
+            <div className="flex items-center space-x-2 font-black text-xs text-amber-800">
+              <Clock size={16} className="text-amber-600 flex-shrink-0" />
+              <span>Under Active Development</span>
+            </div>
+            <p className="text-[11px] leading-relaxed font-medium text-amber-800/90">
+              Practice questions, timer evaluations, and auto-synced certificates for <strong>{meta?.title || 'this track'}</strong> are currently being curated by the MSC-PRPCEM technical team.
+            </p>
+          </div>
+        )}
 
         <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2 text-xs">
           <div className="flex justify-between text-slate-600 font-bold">
             <span>Question Bank:</span>
-            <span className="text-amber-700 font-extrabold">In Curation</span>
+            <span className="text-amber-700 font-extrabold">{category === 'dbms' ? '16 Placement Queries' : 'In Curation'}</span>
           </div>
           <div className="flex justify-between text-slate-600 font-bold">
-            <span>Certification:</span>
-            <span className="text-emerald-700 font-extrabold">Auto-Synced to verify.mscprpcem.tech</span>
+            <span>Platform Engine:</span>
+            <span className="text-emerald-700 font-extrabold">{category === 'dbms' ? 'Real-Time SQL Environment' : 'Interactive'}</span>
           </div>
           <div className="flex justify-between text-slate-600 font-bold">
-            <span>Passing Grade:</span>
-            <span className="text-purple-700 font-extrabold">60% or higher</span>
+            <span>Interview Topics:</span>
+            <span className="text-purple-700 font-extrabold">JOINs, Aggregations, LeetCode</span>
           </div>
         </div>
 
         <div className="space-y-3 pt-2">
           <button
             onClick={() => navigate('/courses')}
-            className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-black shadow-md cursor-pointer active:scale-98 transition-all flex items-center justify-center space-x-2"
+            className="w-full py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold shadow-xs cursor-pointer active:scale-98 transition-all flex items-center justify-center space-x-2"
           >
             <span>Explore All Courses & Curriculums</span>
             <ArrowRight size={15} />

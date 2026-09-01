@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { BookOpen, Sparkles, Clock, ArrowRight, CheckCircle2, Maximize2, Shuffle, ShieldCheck, Loader2 } from 'lucide-react';
+import { BookOpen, Sparkles, Clock, ArrowRight, CheckCircle2, Maximize2, Shuffle, ShieldCheck, Loader2, Code2, Zap } from 'lucide-react';
 import api from '../services/api';
 
 const FALLBACK_COURSES = [
@@ -38,11 +38,12 @@ const FALLBACK_COURSES = [
     title: 'Database (SQL)',
     slug: 'dbms',
     category: 'Database Systems',
-    desc: 'Learn relational database design, SQL querying, indexing, normalized schema design, and transaction management.',
+    desc: 'Master relational queries, multi-table JOINs, aggregations, and placement challenges with real-time query validation.',
     imageSrc: '/database.svg',
     color: 'from-emerald-50/80 to-teal-50/50 border-emerald-200/80',
-    status: 'coming_soon',
-    badge: 'Coming Soon'
+    status: 'published',
+    badge: 'Interactive Lab Active',
+    hasInteractiveLab: true
   },
   {
     title: 'Git & GitHub',
@@ -199,11 +200,13 @@ export default function Courses() {
                       </div>
 
                       <span className={`text-[10px] font-extrabold px-3 py-0.5 rounded-full uppercase tracking-wider ${
-                        isPublished
+                        course.slug === 'dbms'
+                          ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                          : isPublished
                           ? 'bg-emerald-100 text-emerald-800 border border-emerald-300 animate-pulse'
                           : 'bg-amber-100/80 text-amber-800 border border-amber-200'
                       }`}>
-                        {isPublished ? 'Quiz Available' : 'Coming Soon'}
+                        {course.slug === 'dbms' ? '⚡ Interactive Lab' : isPublished ? 'Quiz Available' : 'Coming Soon'}
                       </span>
                     </div>
 
@@ -215,8 +218,23 @@ export default function Courses() {
                       </p>
                     </div>
 
+                    {/* SQL Lab Feature Badges */}
+                    {course.slug === 'dbms' && (
+                      <div className="flex flex-wrap gap-2 pt-1 text-[10px] font-bold text-slate-600">
+                        <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/80 flex items-center gap-1">
+                          <Code2 size={10} /> 66+ Practice Challenges
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/80 flex items-center gap-1">
+                          <CheckCircle2 size={10} /> Live Query Runner
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200/80 flex items-center gap-1">
+                          <BookOpen size={10} /> Relational JOINs
+                        </span>
+                      </div>
+                    )}
+
                     {/* Quiz parameters overview */}
-                    {isPublished && (
+                    {isPublished && course.slug !== 'dbms' && (
                       <div className="flex flex-wrap gap-2 pt-1 text-[10px] font-bold text-slate-600">
                         {qs.requireFullScreen && (
                           <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-100 flex items-center gap-1">
@@ -236,7 +254,25 @@ export default function Courses() {
                   <div className="pt-2 border-t border-slate-200/60 flex justify-between items-center text-xs font-bold text-slate-500">
                     <span>Includes verified certificate</span>
                     
-                    {isPublished ? (
+                    {course.slug === 'dbms' ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <button
+                          onClick={() => navigate('/practice/sql')}
+                          className="px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-extrabold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 text-xs"
+                        >
+                          <Code2 size={13} />
+                          <span>SQL Lab</span>
+                          <ArrowRight size={13} />
+                        </button>
+                        <button
+                          onClick={() => navigate('/practice/dbms')}
+                          className="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl font-bold transition-all flex items-center gap-1 cursor-pointer active:scale-95 text-[11px]"
+                          title="10-Minute DBMS Theory MCQ Quiz"
+                        >
+                          <span>Theory</span>
+                        </button>
+                      </div>
+                    ) : isPublished ? (
                       <button
                         onClick={() => {
                           const slug = course.slug || 'dbms';
