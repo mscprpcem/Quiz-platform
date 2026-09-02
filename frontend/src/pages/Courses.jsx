@@ -222,13 +222,16 @@ export default function Courses() {
                     {course.slug === 'dbms' && (
                       <div className="flex flex-wrap gap-2 pt-1 text-[10px] font-bold text-slate-600">
                         <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/80 flex items-center gap-1">
-                          <Code2 size={10} /> 66+ Practice Challenges
+                          <BookOpen size={10} /> 21 Modules & Concepts
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200/80 flex items-center gap-1">
+                          <Clock size={10} /> 30-Day Roadmap
                         </span>
                         <span className="px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/80 flex items-center gap-1">
-                          <CheckCircle2 size={10} /> Live Query Runner
+                          <Code2 size={10} /> In-Browser SQL Lab
                         </span>
                         <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200/80 flex items-center gap-1">
-                          <BookOpen size={10} /> Relational JOINs
+                          <ShieldCheck size={10} /> FAANG Interview Prep
                         </span>
                       </div>
                     )}
@@ -257,19 +260,20 @@ export default function Courses() {
                     {course.slug === 'dbms' ? (
                       <div className="flex flex-wrap items-center gap-2">
                         <button
-                          onClick={() => navigate('/practice/sql')}
+                          onClick={() => navigate('/courses/sql')}
                           className="px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-extrabold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 text-xs"
                         >
-                          <Code2 size={13} />
-                          <span>SQL Lab</span>
+                          <BookOpen size={13} />
+                          <span>SQL Course Hub</span>
                           <ArrowRight size={13} />
                         </button>
                         <button
-                          onClick={() => navigate('/practice/dbms')}
+                          onClick={() => navigate('/practice/sql/lab')}
                           className="px-2.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 rounded-xl font-bold transition-all flex items-center gap-1 cursor-pointer active:scale-95 text-[11px]"
-                          title="10-Minute DBMS Theory MCQ Quiz"
+                          title="Interactive In-Browser SQL Lab"
                         >
-                          <span>Theory</span>
+                          <Code2 size={12} />
+                          <span>Code Lab</span>
                         </button>
                       </div>
                     ) : isPublished ? (

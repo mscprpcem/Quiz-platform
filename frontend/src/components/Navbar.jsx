@@ -84,7 +84,7 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="sticky top-0 z-40 border-b transition-all duration-200 bg-white/90 backdrop-blur-xl border-brand-border text-brand-textMain shadow-[0_2px_8px_rgba(0,120,212,0.06)]">
+      <nav className="fixed top-0 left-0 right-0 z-[100] border-b transition-all duration-200 bg-white border-slate-200/80 text-brand-textMain shadow-[0_2px_8px_rgba(0,120,212,0.06)]">
         {/* Microsoft Signature 4-Quadrant Color Strip */}
         <div className="ms-quadrant-bar"></div>
 
@@ -332,6 +332,9 @@ export default function Navbar() {
           </div>
         )}
       </nav>
+
+      {/* Spacer to prevent page content from hiding under fixed navbar */}
+      <div className="h-[63px] w-full shrink-0" aria-hidden="true" />
 
       {/* Student Account Email & Password Auth Modal */}
       <StudentAuthModal 
