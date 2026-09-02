@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   BookOpen, Copy, Check, Table, CheckCircle2, ChevronRight,
   ChevronUp, ChevronDown, ArrowRight, ArrowLeft, Lightbulb, Code2, Menu, X
@@ -279,8 +279,68 @@ DROP COLUMN temp_notes;`,
     ],
     prevTopicName: 'Constraints in CREATE',
     prevTopicId: 'top-create-constraints',
-    nextTopicName: 'DROP TABLE',
-    nextTopicId: 'top-drop-table'
+    nextTopicName: 'Add & Drop Columns',
+    nextTopicId: 'top-alter-columns'
+  },
+  'top-alter-columns': {
+    id: 'top-alter-columns',
+    moduleId: 'mod-02',
+    title: 'Add & Drop Columns',
+    subtitle: 'Add new columns or remove obsolete columns using ALTER TABLE.',
+    intro: 'The ALTER TABLE ADD and DROP COLUMN statements allow you to append new attributes with constraints or remove unused columns from a live table schema.',
+    syntax: `-- Add a new column:
+ALTER TABLE table_name ADD column_name datatype [constraints];
+
+-- Drop an existing column:
+ALTER TABLE table_name DROP COLUMN column_name;`,
+    example: `ALTER TABLE customers
+ADD loyalty_points INT DEFAULT 0,
+ADD is_verified BOOLEAN DEFAULT FALSE;
+
+ALTER TABLE customers
+DROP COLUMN legacy_fax;`,
+    note: 'Dropping a column permanently deletes all data contained in that column across all rows.',
+    mistakes: [
+      {
+        title: 'Missing data type on ADD',
+        badCode: 'ALTER TABLE users ADD email;',
+        explanation: 'Every new column must specify a valid data type.'
+      },
+      {
+        title: 'Dropping referenced foreign key column',
+        badCode: 'ALTER TABLE departments DROP COLUMN dept_id;',
+        explanation: 'Cannot drop columns referenced by active Foreign Keys in child tables.'
+      }
+    ],
+    keyPoints: [
+      'Adds new fields to existing tables without downtime',
+      'Supports setting DEFAULT values on new fields',
+      'DROP COLUMN permanently purges column data'
+    ]
+  },
+  'top-alter-modify': {
+    id: 'top-alter-modify',
+    moduleId: 'mod-02',
+    title: 'Modify Column Definitions',
+    subtitle: 'Change data types, sizes, or constraints of existing columns.',
+    intro: 'Use ALTER TABLE with MODIFY (or ALTER COLUMN) to change column data types, size limits, or nullability rules in existing tables.',
+    syntax: `-- Modify column data type or capacity:
+ALTER TABLE table_name MODIFY column_name new_datatype [constraints];`,
+    example: `ALTER TABLE employees MODIFY salary DECIMAL(12,2) NOT NULL;
+ALTER TABLE employees MODIFY phone_number VARCHAR(25);`,
+    note: 'Changing data types requires that existing row values are safely convertible to the new data type.',
+    mistakes: [
+      {
+        title: 'Shrinking length below existing data',
+        badCode: 'ALTER TABLE users MODIFY name VARCHAR(5);',
+        explanation: 'Fails with truncation error if existing records exceed the new length.'
+      }
+    ],
+    keyPoints: [
+      'Expands column capacity safely',
+      'Alters nullability (NOT NULL / NULL) constraints',
+      'Auto-committed immediately in standard SQL'
+    ]
   },
   'top-drop-table': {
     id: 'top-drop-table',
@@ -302,11 +362,29 @@ DROP COLUMN temp_notes;`,
       'Destroys both table schema and all data records',
       'Releases allocated storage back to the database engine',
       'Use CASCADE if supported to drop dependent foreign key constraints'
+    ]
+  },
+  'top-drop-db': {
+    id: 'top-drop-db',
+    moduleId: 'mod-02',
+    title: 'DROP DATABASE',
+    subtitle: 'Permanently delete an entire database and all contained tables.',
+    intro: 'The DROP DATABASE statement permanently destroys the database catalog, including all tables, views, stored procedures, and data.',
+    syntax: `DROP DATABASE [IF EXISTS] database_name;`,
+    example: `DROP DATABASE IF EXISTS staging_test_db;`,
+    note: 'DROP DATABASE is irreversible. Always verify database name before executing drop statements in production.',
+    mistakes: [
+      {
+        title: 'Executing DROP DATABASE on active production database',
+        badCode: 'DROP DATABASE prod_company_db;',
+        explanation: 'Always double-check the database name and take a backup before dropping.'
+      }
     ],
-    prevTopicName: 'ALTER TABLE',
-    prevTopicId: 'top-alter-table',
-    nextTopicName: 'TRUNCATE TABLE',
-    nextTopicId: 'top-truncate-table'
+    keyPoints: [
+      'Destroys the entire database catalog and all contained tables',
+      'Frees server disk space immediately',
+      'Use IF EXISTS for idempotency in automated migration scripts'
+    ]
   },
   'top-truncate-table': {
     id: 'top-truncate-table',
@@ -328,11 +406,7 @@ DROP COLUMN temp_notes;`,
       'Much faster than DELETE because it deallocates data pages',
       'Preserves table structure, columns, and indexes',
       'Resets AUTO_INCREMENT counter back to 1'
-    ],
-    prevTopicName: 'DROP TABLE',
-    prevTopicId: 'top-drop-table',
-    nextTopicName: 'RENAME TABLE',
-    nextTopicId: 'top-rename-table'
+    ]
   },
   'top-rename-table': {
     id: 'top-rename-table',
@@ -356,15 +430,11 @@ RENAME TABLE old_name TO new_name;`,
       'Changes table identifier in catalog metadata',
       'Preserves all data, constraints, and indexes',
       'Quick schema update with zero data downtime'
-    ],
-    prevTopicName: 'TRUNCATE TABLE',
-    prevTopicId: 'top-truncate-table',
-    nextTopicName: 'DML Fundamentals',
-    nextTopicId: 'top-03-01'
+    ]
   }
 };
 
-// Curriculum Hierarchy Structure with Sub-groups
+// Curriculum Hierarchy Structure with Sub-groups (Proper 5-Part DDL Level Hierarchy)
 const SIDEBAR_MODULES = [
   {
     id: 'mod-01',
@@ -394,13 +464,16 @@ const SIDEBAR_MODULES = [
       {
         name: 'ALTER',
         topics: [
-          { id: 'top-alter-table', title: 'ALTER TABLE' }
+          { id: 'top-alter-table', title: 'ALTER TABLE' },
+          { id: 'top-alter-columns', title: 'Add & Drop Columns' },
+          { id: 'top-alter-modify', title: 'Modify Column Types' }
         ]
       },
       {
         name: 'DROP',
         topics: [
-          { id: 'top-drop-table', title: 'DROP TABLE' }
+          { id: 'top-drop-table', title: 'DROP TABLE' },
+          { id: 'top-drop-db', title: 'DROP DATABASE' }
         ]
       },
       {
@@ -515,14 +588,35 @@ export default function SqlLearningView({
   // Active topic state (defaults to top-create-table)
   const [currentActiveTopicId, setCurrentActiveTopicId] = useState(selectedTopicId || 'top-create-table');
 
+  // Synchronized completed topics
+  const [localCompletedTopics, setLocalCompletedTopics] = useState(() => {
+    if (completedTopics && completedTopics.length > 0) return completedTopics;
+    try {
+      const saved = localStorage.getItem('msc_sql_completed_topics');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    if (completedTopics && completedTopics.length > 0) {
+      setLocalCompletedTopics(completedTopics);
+    }
+  }, [completedTopics]);
+
   // Accordion state for modules
   const [expandedModules, setExpandedModules] = useState({
     'mod-02': true // DDL expanded by default
   });
 
-  // Accordion state for DDL subcategories
+  // Accordion state for DDL subcategories (5 parts: CREATE, ALTER, DROP, TRUNCATE, RENAME)
   const [expandedSubgroups, setExpandedSubgroups] = useState({
-    CREATE: true
+    CREATE: true,
+    ALTER: true,
+    DROP: true,
+    TRUNCATE: true,
+    RENAME: true
   });
 
   const toggleModule = (modId) => {
@@ -546,6 +640,20 @@ export default function SqlLearningView({
     setMobileMenuOpen(false);
   };
 
+  const handleToggleRead = (topId) => {
+    const targetId = topId || currentActiveTopicId;
+    if (onToggleCompleted) {
+      onToggleCompleted(targetId);
+    }
+    setLocalCompletedTopics((prev) => {
+      const next = prev.includes(targetId) ? prev.filter(t => t !== targetId) : [...prev, targetId];
+      try {
+        localStorage.setItem('msc_sql_completed_topics', JSON.stringify(next));
+      } catch (_) {}
+      return next;
+    });
+  };
+
   // Get active topic data
   const topicData = useMemo(() => {
     if (TOPIC_DETAILS_MAP[currentActiveTopicId]) {
@@ -554,6 +662,10 @@ export default function SqlLearningView({
     // Fallback default
     return TOPIC_DETAILS_MAP['top-create-table'];
   }, [currentActiveTopicId]);
+
+  const isCurrentTopicRead = localCompletedTopics.includes(topicData.id);
+  const totalTopicsCount = TOTAL_TOPICS_COUNT || 66;
+  const progressPercent = Math.min(100, Math.round((localCompletedTopics.length / totalTopicsCount) * 100));
 
   const handleCopyCode = (code, sectionKey) => {
     navigator.clipboard.writeText(code);
@@ -572,92 +684,111 @@ export default function SqlLearningView({
          ========================================================================= */}
       <aside className="hidden lg:flex flex-col w-72 xl:w-80 shrink-0 bg-white border-r border-slate-200 select-none">
         
-        {/* ── TOP: Progress bar (pinned, never scrolls) ── */}
-        <div className="pt-3 pb-2.5 px-3.5 border-b border-slate-100 space-y-2 shrink-0">
-          <div className="flex items-center space-x-2.5">
-            <div>
-            </div>
-          </div>
-
-          <div className="bg-slate-50 border border-slate-100 rounded-xl p-2 space-y-1">
+        {/* ── TOP: Clean Progress bar only (pinned, never scrolls) ── */}
+        <div className="p-3 border-b border-slate-100 shrink-0 bg-white">
+          <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 space-y-1.5 shadow-2xs">
             <div className="flex items-center justify-between text-[11px]">
               <span className="font-bold text-slate-700">Your Progress</span>
-              <span className="font-bold text-indigo-600">28% Completed</span>
+              <span className="font-bold text-blue-600 font-mono">
+                {progressPercent}% Completed ({localCompletedTopics.length}/{totalTopicsCount})
+              </span>
             </div>
             <div className="w-full h-1.5 bg-slate-200/80 rounded-full overflow-hidden">
               <div
-                className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full"
-                style={{ width: '28%' }}
+                className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full transition-all duration-300"
+                style={{
+                  width: `${Math.max(localCompletedTopics.length > 0 ? 5 : 0, progressPercent)}%`
+                }}
               />
             </div>
           </div>
         </div>
 
-        {/* ── MIDDLE: Course topics (scrollable) ── */}
-        <div className="flex-1 overflow-y-auto p-2.5 space-y-0.5 divide-y divide-slate-50">
+        {/* ── MIDDLE: Course topics with proper multi-level hierarchy (scrollable) ── */}
+        <div className="flex-1 overflow-y-auto p-2.5 space-y-1.5">
           {SIDEBAR_MODULES.map((mod) => {
             const isExpanded = Boolean(expandedModules[mod.id]);
 
             return (
-              <div key={mod.id} className="py-0.5 first:pt-0 last:pb-0">
+              <div key={mod.id} className="pb-2.5 mb-1 border-b-2 border-slate-200/90 last:border-b-0 last:mb-0 last:pb-0">
+                {/* Level 1: Module / Chapter Header (e.g. 2. DDL) */}
                 <button
                   type="button"
                   onClick={() => toggleModule(mod.id)}
-                  className={`w-full text-left px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-between transition-all cursor-pointer ${
-                    mod.id === 'mod-02' ? 'text-indigo-950 font-black' : 'text-slate-700 hover:bg-slate-50'
+                  className={`w-full text-left px-3 py-2 rounded-xl text-xs sm:text-[13px] font-black flex items-center justify-between transition-all cursor-pointer ${
+                    mod.id === 'mod-02' ? 'text-indigo-950 font-black' : 'text-slate-800 hover:bg-slate-50'
                   }`}
                 >
                   <span className="truncate">
                     {mod.number}. {mod.title}
                   </span>
                   {isExpanded ? (
-                    <ChevronUp size={14} className="text-indigo-600 shrink-0 ml-1.5" />
+                    <ChevronUp size={15} className="text-indigo-600 shrink-0 ml-1.5" strokeWidth={2.2} />
                   ) : (
-                    <ChevronRight size={14} className="text-slate-400 shrink-0 ml-1.5" />
+                    <ChevronRight size={15} className="text-slate-400 shrink-0 ml-1.5" strokeWidth={2.2} />
                   )}
                 </button>
 
                 {isExpanded && (
-                  <div className="pl-3 pr-1 py-1 space-y-1 mt-0.5">
+                  <div className="pl-1.5 pr-1 py-1 space-y-1.5 mt-0.5">
                     {mod.hasSubgroups ? (
                       mod.subgroups.map((sub) => {
-                        const isSubExpanded = Boolean(expandedSubgroups[sub.name]);
-                        const isSubActive = sub.name === 'CREATE';
+                        const isSubExpanded = expandedSubgroups[sub.name] !== false;
+                        const isSubActive = sub.topics?.some(t => t.id === currentActiveTopicId);
 
                         return (
-                          <div key={sub.name} className="space-y-0.5">
+                          <div key={sub.name} className="space-y-1">
+                            {/* Level 2: Category Part Header (CREATE, ALTER, DROP, TRUNCATE, RENAME - less small, clean uppercase, no count) */}
                             <button
                               type="button"
                               onClick={() => toggleSubgroup(sub.name)}
-                              className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-bold flex items-center justify-between transition-all cursor-pointer ${
-                                isSubActive ? 'text-slate-900 font-extrabold' : 'text-slate-600 hover:bg-slate-50'
+                              className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-black flex items-center justify-between transition-all cursor-pointer ${
+                                isSubActive
+                                  ? 'bg-slate-100 text-slate-900 border border-slate-200/90'
+                                  : 'text-slate-700 hover:bg-slate-50'
                               }`}
                             >
-                              <span className="uppercase text-[11px] tracking-wide font-black">{sub.name}</span>
+                              <div className="flex items-center space-x-1.5 truncate">
+                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />
+                                <span className="uppercase text-xs tracking-wide font-black">{sub.name}</span>
+                              </div>
+
                               {isSubExpanded ? (
-                                <ChevronUp size={12} className="text-slate-400 shrink-0" />
+                                <ChevronUp size={13} className="text-slate-500 shrink-0" strokeWidth={2.2} />
                               ) : (
-                                <ChevronRight size={12} className="text-slate-400 shrink-0" />
+                                <ChevronRight size={13} className="text-slate-400 shrink-0" strokeWidth={2.2} />
                               )}
                             </button>
 
+                            {/* Level 3: Sub-Parts (Topics) underneath each part (a little more small) */}
                             {isSubExpanded && sub.topics && (
-                              <div className="pl-2 space-y-0.5 pb-1">
+                              <div className="ml-3 pl-2.5 border-l-2 border-slate-200/80 space-y-0.5 pb-0.5">
                                 {sub.topics.map((t) => {
                                   const isSelected = currentActiveTopicId === t.id;
+                                  const isCompleted = localCompletedTopics.includes(t.id);
+
                                   return (
                                     <button
                                       key={t.id}
                                       type="button"
                                       onClick={() => handleSelectTopic(t.id, mod.id)}
-                                      className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-all cursor-pointer ${
+                                      className={`w-full text-left px-2 py-1.5 rounded-lg text-[11px] font-semibold flex items-center justify-between transition-all cursor-pointer leading-snug ${
                                         isSelected
-                                          ? 'bg-indigo-50/90 text-indigo-700 font-extrabold border border-indigo-100 shadow-2xs'
+                                          ? 'bg-blue-50 text-blue-700 font-black border border-blue-200/80 shadow-2xs'
                                           : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                                       }`}
                                     >
-                                      <span className={`text-sm leading-none shrink-0 ${isSelected ? 'text-indigo-600 font-bold' : 'text-slate-400'}`}>•</span>
-                                      <span className="truncate">{t.title}</span>
+                                      <div className="flex items-center space-x-1.5 truncate">
+                                        {isCompleted ? (
+                                          <CheckCircle2 size={12} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
+                                        ) : (
+                                          <span className={`text-xs leading-none shrink-0 ${isSelected ? 'text-blue-600 font-bold' : 'text-slate-300'}`}>•</span>
+                                        )}
+                                        <span className="truncate">{t.title}</span>
+                                      </div>
+                                      {isCompleted && (
+                                        <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded-xs shrink-0">Done</span>
+                                      )}
                                     </button>
                                   );
                                 })}
@@ -669,19 +800,30 @@ export default function SqlLearningView({
                     ) : (
                       mod.topics.map((t) => {
                         const isSelected = currentActiveTopicId === t.id;
+                        const isCompleted = localCompletedTopics.includes(t.id);
+
                         return (
                           <button
                             key={t.id}
                             type="button"
                             onClick={() => handleSelectTopic(t.id, mod.id)}
-                            className={`w-full text-left px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-2 transition-all cursor-pointer ${
+                            className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-all cursor-pointer ${
                               isSelected
-                                ? 'bg-indigo-50/90 text-indigo-700 font-extrabold border border-indigo-100 shadow-2xs'
+                                ? 'bg-blue-50 text-blue-700 font-extrabold border border-blue-100 shadow-2xs'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                             }`}
                           >
-                            <span className="text-slate-400 shrink-0">•</span>
-                            <span className="truncate">{t.title}</span>
+                            <div className="flex items-center space-x-2 truncate">
+                              {isCompleted ? (
+                                <CheckCircle2 size={13} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
+                              ) : (
+                                <span className="text-slate-400 shrink-0">•</span>
+                              )}
+                              <span className="truncate">{t.title}</span>
+                            </div>
+                            {isCompleted && (
+                              <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-sm shrink-0">Done</span>
+                            )}
                           </button>
                         );
                       })
@@ -719,24 +861,65 @@ export default function SqlLearningView({
       {/* =========================================================================
           RIGHT MAIN CONTENT — independently scrollable
          ========================================================================= */}
-      <div className="flex-1 min-w-0 overflow-y-auto">
-        <main className="w-full pt-4 pb-16 px-4 sm:px-6 lg:px-8 xl:px-10 space-y-5 max-w-[1600px] mx-auto">
+      <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
+        
+        {/* ── MOBILE / TABLET TOP SUBHEADER BAR (<1024px) ── */}
+        <div className="lg:hidden flex items-center justify-between px-4 py-2.5 bg-white border-b border-slate-200 shrink-0 shadow-2xs">
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(true)}
+            className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-black rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 shadow-2xs active:scale-95"
+          >
+            <BookOpen size={14} className="text-blue-600" />
+            <span>Course Syllabus</span>
+            <ChevronRight size={12} className="text-slate-400" />
+          </button>
+
+          <div className="flex items-center space-x-2 text-xs font-bold text-slate-600">
+            <span className="text-[11px] font-mono text-blue-600 font-black">
+              {progressPercent}% Done
+            </span>
+          </div>
+        </div>
+
+        <main className="flex-1 overflow-y-auto w-full pt-4 pb-16 px-4 sm:px-6 lg:px-8 xl:px-10 space-y-5 max-w-[1600px] mx-auto">
           
-          {/* Topic Title Header */}
-          <div className="space-y-1.5 pb-0.5">
-            <div className="flex items-center space-x-3.5">
-              <div className="w-11 h-11 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shadow-xs shrink-0">
-                <Table size={22} strokeWidth={2.2} />
+          {/* Topic Title Header with Mark as Read Toggle */}
+          <div className="space-y-2 pb-1">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center space-x-3.5">
+                <div className="w-10 sm:w-11 h-10 sm:h-11 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shadow-xs shrink-0">
+                  <Table size={20} className="sm:w-[22px] sm:h-[22px]" strokeWidth={2.2} />
+                </div>
+                <div>
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight leading-tight">
+                    {topicData.title}
+                  </h1>
+                  <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                    {topicData.subtitle}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-tight">
-                  {topicData.title}
-                </h1>
-                <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                  {topicData.subtitle}
-                </p>
-              </div>
+
+              {/* MARK AS READ TOGGLE BUTTON */}
+              <button
+                type="button"
+                onClick={() => handleToggleRead(topicData.id)}
+                className={`inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer border ${
+                  isCurrentTopicRead
+                    ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200 font-extrabold'
+                    : 'bg-white hover:bg-slate-50 text-slate-700 hover:text-blue-600 border-slate-200/90'
+                }`}
+              >
+                <CheckCircle2
+                  size={16}
+                  className={isCurrentTopicRead ? 'text-emerald-600' : 'text-slate-400'}
+                  strokeWidth={isCurrentTopicRead ? 2.5 : 2}
+                />
+                <span>{isCurrentTopicRead ? 'Marked as Read' : 'Mark as Read'}</span>
+              </button>
             </div>
+
             <p className="text-xs sm:text-sm text-slate-600 leading-relaxed pt-0.5 max-w-5xl">
               {topicData.intro}
             </p>
@@ -864,39 +1047,178 @@ export default function SqlLearningView({
             </div>
           </div>
 
-          {/* BOTTOM PAGINATION */}
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs flex items-center justify-between gap-4 mt-4">
-            {topicData.prevTopicName ? (
-              <button
-                type="button"
-                onClick={() => { if (topicData.prevTopicId) handleSelectTopic(topicData.prevTopicId); }}
-                className="flex items-center space-x-2.5 text-left group cursor-pointer"
-              >
-                <ArrowLeft size={16} className="text-slate-400 group-hover:text-indigo-600 group-hover:-translate-x-1 transition-all" />
-                <div>
-                  <div className="text-[10px] uppercase font-bold text-slate-400">Previous Topic</div>
-                  <div className="text-xs sm:text-sm font-black text-slate-800 group-hover:text-indigo-600 transition-colors">{topicData.prevTopicName}</div>
-                </div>
-              </button>
-            ) : <div />}
-
-            {topicData.nextTopicName ? (
-              <button
-                type="button"
-                onClick={() => { if (topicData.nextTopicId) handleSelectTopic(topicData.nextTopicId); }}
-                className="flex items-center space-x-2.5 text-right group cursor-pointer ml-auto"
-              >
-                <div>
-                  <div className="text-[10px] uppercase font-bold text-slate-400">Next Topic</div>
-                  <div className="text-xs sm:text-sm font-black text-slate-800 group-hover:text-indigo-600 transition-colors">{topicData.nextTopicName}</div>
-                </div>
-                <ArrowRight size={16} className="text-slate-400 group-hover:text-indigo-600 group-hover:translate-x-1 transition-all" />
-              </button>
-            ) : <div />}
-          </div>
-
         </main>
       </div>
+
+      {/* =========================================================================
+          MOBILE / TABLET SLIDE-OUT SYLLABUS DRAWER (< 1024px)
+         ========================================================================= */}
+      {mobileMenuOpen && (
+        <div className="lg:hidden absolute inset-0 z-50 flex">
+          {/* Backdrop */}
+          <div
+            onClick={() => setMobileMenuOpen(false)}
+            className="absolute inset-0 bg-slate-900/30 backdrop-blur-xs transition-opacity"
+          />
+
+          {/* Drawer Panel */}
+          <div className="relative w-full sm:w-84 h-full bg-white shadow-2xl flex flex-col z-10 animate-in slide-in-from-left duration-200">
+            {/* Drawer Header */}
+            <div className="p-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center space-x-2">
+                <BookOpen size={16} className="text-blue-600" />
+                <span className="text-sm font-black text-slate-900">Course Syllabus</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMobileMenuOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Progress bar in mobile drawer */}
+            <div className="p-3 border-b border-slate-100 bg-white">
+              <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 space-y-1.5 shadow-2xs">
+                <div className="flex items-center justify-between text-[11px]">
+                  <span className="font-bold text-slate-700">Progress</span>
+                  <span className="font-bold text-blue-600 font-mono">
+                    {progressPercent}% ({localCompletedTopics.length}/{totalTopicsCount})
+                  </span>
+                </div>
+                <div className="w-full h-1.5 bg-slate-200/80 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full transition-all duration-300"
+                    style={{ width: `${Math.max(localCompletedTopics.length > 0 ? 5 : 0, progressPercent)}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Topics Hierarchy List */}
+            <div className="flex-1 overflow-y-auto p-2.5 space-y-1.5">
+              {SIDEBAR_MODULES.map((mod) => {
+                const isExpanded = Boolean(expandedModules[mod.id]);
+
+                return (
+                  <div key={mod.id} className="pb-2.5 mb-1 border-b-2 border-slate-200/90 last:border-b-0 last:mb-0 last:pb-0">
+                    <button
+                      type="button"
+                      onClick={() => toggleModule(mod.id)}
+                      className="w-full text-left px-3 py-2 rounded-xl text-xs sm:text-[13px] font-black flex items-center justify-between transition-all cursor-pointer text-slate-800 hover:bg-slate-50"
+                    >
+                      <span className="truncate">{mod.number}. {mod.title}</span>
+                      {isExpanded ? (
+                        <ChevronUp size={15} className="text-indigo-600 shrink-0 ml-1.5" strokeWidth={2.2} />
+                      ) : (
+                        <ChevronRight size={15} className="text-slate-400 shrink-0 ml-1.5" strokeWidth={2.2} />
+                      )}
+                    </button>
+
+                    {isExpanded && (
+                      <div className="pl-1.5 pr-1 py-1 space-y-1.5 mt-0.5">
+                        {mod.hasSubgroups ? (
+                          mod.subgroups.map((sub) => {
+                            const isSubExpanded = expandedSubgroups[sub.name] !== false;
+                            const isSubActive = sub.topics?.some(t => t.id === currentActiveTopicId);
+
+                            return (
+                              <div key={sub.name} className="space-y-1">
+                                <button
+                                  type="button"
+                                  onClick={() => toggleSubgroup(sub.name)}
+                                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-black flex items-center justify-between transition-all cursor-pointer ${
+                                    isSubActive ? 'bg-slate-100 text-slate-900 border border-slate-200/90' : 'text-slate-700 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  <div className="flex items-center space-x-1.5 truncate">
+                                    <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 shrink-0" />
+                                    <span className="uppercase text-xs tracking-wide font-black">{sub.name}</span>
+                                  </div>
+                                  {isSubExpanded ? (
+                                    <ChevronUp size={13} className="text-slate-500 shrink-0" strokeWidth={2.2} />
+                                  ) : (
+                                    <ChevronRight size={13} className="text-slate-400 shrink-0" strokeWidth={2.2} />
+                                  )}
+                                </button>
+
+                                {isSubExpanded && sub.topics && (
+                                  <div className="ml-3 pl-2.5 border-l-2 border-slate-200/80 space-y-0.5 pb-0.5">
+                                    {sub.topics.map((t) => {
+                                      const isSelected = currentActiveTopicId === t.id;
+                                      const isCompleted = localCompletedTopics.includes(t.id);
+
+                                      return (
+                                        <button
+                                          key={t.id}
+                                          type="button"
+                                          onClick={() => handleSelectTopic(t.id, mod.id)}
+                                          className={`w-full text-left px-2 py-1.5 rounded-lg text-[11px] font-semibold flex items-center justify-between transition-all cursor-pointer leading-snug ${
+                                            isSelected
+                                              ? 'bg-blue-50 text-blue-700 font-black border border-blue-200/80 shadow-2xs'
+                                              : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                                          }`}
+                                        >
+                                          <div className="flex items-center space-x-1.5 truncate">
+                                            {isCompleted ? (
+                                              <CheckCircle2 size={12} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
+                                            ) : (
+                                              <span className={`text-xs leading-none shrink-0 ${isSelected ? 'text-blue-600 font-bold' : 'text-slate-300'}`}>•</span>
+                                            )}
+                                            <span className="truncate">{t.title}</span>
+                                          </div>
+                                          {isCompleted && (
+                                            <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 px-1 py-0.5 rounded-xs shrink-0">Done</span>
+                                          )}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })
+                        ) : (
+                          mod.topics.map((t) => {
+                            const isSelected = currentActiveTopicId === t.id;
+                            const isCompleted = localCompletedTopics.includes(t.id);
+
+                            return (
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => handleSelectTopic(t.id, mod.id)}
+                                className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-between transition-all cursor-pointer ${
+                                  isSelected
+                                    ? 'bg-blue-50 text-blue-700 font-extrabold border border-blue-100 shadow-2xs'
+                                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                                }`}
+                              >
+                                <div className="flex items-center space-x-2 truncate">
+                                  {isCompleted ? (
+                                    <CheckCircle2 size={13} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
+                                  ) : (
+                                    <span className="text-slate-400 shrink-0">•</span>
+                                  )}
+                                  <span className="truncate">{t.title}</span>
+                                </div>
+                                {isCompleted && (
+                                  <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-sm shrink-0">Done</span>
+                                )}
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

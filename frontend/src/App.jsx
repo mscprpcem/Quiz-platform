@@ -138,7 +138,10 @@ export default function App() {
                 <Route path="/results/:participantId" element={<Results />} />
                 <Route path="/leaderboard" element={<Navigate to="/courses" replace />} />
                 <Route path="/courses/sql" element={<SqlCourseHub />} />
+                <Route path="/courses/sql/:tab" element={<SqlCourseHub />} />
                 <Route path="/sql" element={<SqlCourseHub />} />
+                <Route path="/sql/learn" element={<SqlCourseHub />} />
+                <Route path="/sql/:tab" element={<SqlCourseHub />} />
                 <Route path="/practice/sql" element={<SqlCourseHub />} />
                 <Route path="/practice/sql/lab" element={<SqlPractice />} />
                 <Route path="/practice/sql/:challengeId" element={<SqlPractice />} />

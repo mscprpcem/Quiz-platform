@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import {
   BookOpen, Code2, CheckCircle2, Play, ArrowRight, ArrowLeft,
   Search, Copy, Check, Sparkles, Database, Table, HelpCircle,
@@ -12,9 +12,10 @@ import { SQL_MODULES, TOTAL_MODULES_COUNT, TOTAL_TOPICS_COUNT } from '../data/sq
 import { SQL_CHALLENGES } from '../data/sqlChallenges';
 import { SQL_30_DAY_ROADMAP } from '../data/sqlRoadmapData';
 import { SQL_INTERVIEW_PROBLEMS } from '../data/sqlInterviewData';
-import { executeSqlQuery, getTablesPreview } from '../services/sqlEngine';
 import SqlLandingPage from './SqlLandingPage';
 import SqlLearningView from './SqlLearningView';
+import SqlPracticeView from './SqlPracticeView';
+import SqlRoadmapView from './SqlRoadmapView';
 
 /**
  * Rich Text & Markdown Parser
@@ -85,20 +86,38 @@ function RichMarkdown({ content, className = '' }) {
 
 export default function SqlCourseHub() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
+  const params = useParams();
+  const [searchParams] = useSearchParams();
 
   // Active Mode: 'overview' | 'learn' | 'practice' | 'roadmap' | 'interview' | 'quiz'
-  const currentMode = searchParams.get('mode') || 'overview';
+  const currentMode = useMemo(() => {
+    if (params.tab) return params.tab;
+    const path = location.pathname.toLowerCase();
+    if (path.endsWith('/learn') || path === '/sql/learn' || path === '/courses/sql/learn') return 'learn';
+    if (path.endsWith('/practice') || path === '/sql/practice' || path === '/courses/sql/practice') return 'practice';
+    if (path.endsWith('/roadmap') || path === '/sql/roadmap' || path === '/courses/sql/roadmap') return 'roadmap';
+    if (path.endsWith('/interview') || path === '/sql/interview' || path === '/courses/sql/interview') return 'interview';
+    if (path.endsWith('/quiz') || path === '/sql/quiz' || path === '/courses/sql/quiz') return 'quiz';
+    return searchParams.get('mode') || 'overview';
+  }, [params.tab, location.pathname, searchParams]);
+
   const setMode = (modeName) => {
-    setSearchParams(prev => {
-      const next = new URLSearchParams(prev);
-      if (modeName === 'overview') {
-        next.delete('mode');
-      } else {
-        next.set('mode', modeName);
-      }
-      return next;
-    });
+    if (modeName === 'overview') {
+      navigate('/courses/sql');
+    } else if (modeName === 'learn') {
+      navigate('/courses/sql/learn');
+    } else if (modeName === 'practice') {
+      navigate('/courses/sql/practice');
+    } else if (modeName === 'roadmap') {
+      navigate('/courses/sql/roadmap');
+    } else if (modeName === 'interview') {
+      navigate('/courses/sql/interview');
+    } else if (modeName === 'quiz') {
+      navigate('/courses/sql/quiz');
+    } else {
+      navigate(`/courses/sql/${modeName}`);
+    }
   };
 
   // Accordion state for modules in sidebar
@@ -328,166 +347,35 @@ export default function SqlCourseHub() {
     <div className="min-h-[calc(100vh-60px)] bg-slate-50 text-slate-800 font-segoe w-full flex flex-col">
       
       {/* =========================================================================
-          INNER MODES TOP BREADCRUMB / CONTROLS (ONLY SHOWN IN WORKSPACE VIEWS)
-         ========================================================================= */}
-      {currentMode !== 'overview' && currentMode !== 'learn' && (
-        <div className="bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-4 sm:px-6 lg:px-8 py-2.5 flex items-center justify-between gap-4 sticky top-[60px] z-30 shadow-2xs">
-          
-          {/* Back to Overview */}
-          <button
-            onClick={() => setMode('overview')}
-            className="inline-flex items-center space-x-2 text-xs font-bold text-slate-600 hover:text-blue-600 bg-slate-50 hover:bg-blue-50 px-3 py-1.5 rounded-lg border border-slate-200/80 transition-all cursor-pointer"
-          >
-            <ArrowLeft size={14} />
-            <span>Back to SQL Overview</span>
-          </button>
-
-          {/* Quick Mode Toggle Pills */}
-          <div className="flex items-center space-x-1.5 text-xs font-bold bg-slate-100 p-1 rounded-xl border border-slate-200 overflow-x-auto no-scrollbar">
-            <button
-              onClick={() => setMode('learn')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                currentMode === 'learn' ? 'bg-white text-blue-700 shadow-2xs font-extrabold' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Learn Topics ({completedTopics.length}/{TOTAL_TOPICS_COUNT})
-            </button>
-            <button
-              onClick={() => setMode('practice')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                currentMode === 'practice' ? 'bg-blue-600 text-white shadow-2xs font-extrabold' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Practice Lab ({solvedChallenges.length}/{SQL_CHALLENGES.length})
-            </button>
-            <button
-              onClick={() => setMode('roadmap')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                currentMode === 'roadmap' ? 'bg-white text-blue-700 shadow-2xs font-extrabold' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Roadmap
-            </button>
-            <button
-              onClick={() => setMode('interview')}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                currentMode === 'interview' || currentMode === 'quiz' ? 'bg-white text-blue-700 shadow-2xs font-extrabold' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              Interview Questions
-            </button>
-          </div>
-
-        </div>
-      )}
-
-      {/* =========================================================================
           VIEW 1: LANDING OVERVIEW PAGE (DEFAULT VIEW - ZERO EXTRA TOP BARS!)
          ========================================================================= */}
       {currentMode === 'overview' && (
         <SqlLandingPage
           onSelectMode={setMode}
+          onSelectTopic={(modId, topId) => {
+            if (modId) setSelectedModuleId(modId);
+            if (topId) setSelectedTopicId(topId);
+            setMode('learn');
+          }}
           completedTopicsCount={completedTopics.length}
           solvedChallengesCount={solvedChallenges.length}
         />
       )}
 
       {/* =========================================================================
-          VIEW 2: ROADMAP VIEW (30-DAY GUIDED TIMELINE)
+          VIEW 2: ROADMAP VIEW (DEDICATED 30-DAY INTERACTIVE ROADMAP PAGE)
          ========================================================================= */}
       {currentMode === 'roadmap' && (
-        <div className="max-w-5xl mx-auto w-full px-4 sm:px-6 py-8 space-y-6">
-          
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 bg-blue-50 border border-blue-200 text-blue-700 rounded-md text-[11px] font-black">
-                <Sparkles size={12} />
-                <span>30-Day Step-by-Step Pathway</span>
-              </div>
-              <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                SQL Mastery Roadmap
-              </h1>
-              <p className="text-xs text-slate-500 max-w-xl">
-                From relational schema fundamentals to advanced query optimization, CTEs, and window functions.
-              </p>
-            </div>
-
-            <div className="flex items-center space-x-3 bg-slate-50 border border-slate-200 rounded-xl p-3 shrink-0">
-              <div className="text-center">
-                <div className="text-lg font-black text-blue-600">{completedTopics.length}</div>
-                <div className="text-[9px] font-bold text-slate-400 uppercase">Topics Done</div>
-              </div>
-              <div className="w-px h-6 bg-slate-200" />
-              <div className="text-center">
-                <div className="text-lg font-black text-emerald-600">{solvedChallenges.length}</div>
-                <div className="text-[9px] font-bold text-slate-400 uppercase">Solved</div>
-              </div>
-              <div className="w-px h-6 bg-slate-200" />
-              <div className="text-center">
-                <div className="text-lg font-black text-purple-600">30</div>
-                <div className="text-[9px] font-bold text-slate-400 uppercase">Days</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Timeline Days */}
-          <div className="space-y-3">
-            {SQL_30_DAY_ROADMAP.map((item) => {
-              const isTopicDone = completedTopics.includes(item.topicId);
-
-              return (
-                <div
-                  key={item.day}
-                  className={`bg-white border rounded-xl p-4 transition-all shadow-2xs hover:shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                    isTopicDone ? 'border-emerald-200 bg-emerald-50/20' : 'border-slate-200'
-                  }`}
-                >
-                  <div className="flex items-start space-x-3">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-black text-xs shrink-0 ${
-                      isTopicDone ? 'bg-emerald-500 text-white' : 'bg-blue-600 text-white'
-                    }`}>
-                      {isTopicDone ? '✓' : `D${item.day}`}
-                    </div>
-
-                    <div className="space-y-0.5">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.2 rounded bg-slate-100 text-slate-600">
-                          Week {item.week} • {item.phase}
-                        </span>
-                        <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-blue-50 text-blue-700">
-                          {item.difficulty}
-                        </span>
-                      </div>
-
-                      <h3 className="text-xs sm:text-sm font-black text-slate-900">
-                        {item.title}
-                      </h3>
-
-                      <p className="text-[11px] text-slate-500 leading-relaxed max-w-xl">
-                        {item.summary}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2 sm:self-center shrink-0">
-                    <button
-                      onClick={() => {
-                        setSelectedModuleId(item.moduleId);
-                        setSelectedTopicId(item.topicId);
-                        setMode('learn');
-                      }}
-                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-lg flex items-center space-x-1 transition-all cursor-pointer shadow-2xs"
-                    >
-                      <span>Study Day {item.day}</span>
-                      <ArrowRight size={12} />
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-        </div>
+        <SqlRoadmapView
+          onSelectTopic={(modId, topId) => {
+            if (modId) setSelectedModuleId(modId);
+            if (topId) setSelectedTopicId(topId);
+            setMode('learn');
+          }}
+          onSelectMode={setMode}
+          onBackToOverview={() => setMode('overview')}
+          completedTopics={completedTopics}
+        />
       )}
 
       {/* =========================================================================
@@ -510,357 +398,10 @@ export default function SqlCourseHub() {
           5. VIEW 4: PRACTICE LAB (CHALLENGES WORKSPACE)
          ========================================================================= */}
       {currentMode === 'practice' && (
-        <div className="flex-1 flex w-full relative">
-          <aside className="w-80 xl:w-96 shrink-0 bg-white border-r border-slate-200 sticky top-[108px] h-[calc(100vh-108px)] overflow-y-auto z-20 flex flex-col shadow-2xs">
-            <div className="p-3.5 space-y-3 flex-1 flex flex-col">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                    Challenges ({SQL_CHALLENGES.length})
-                  </span>
-                  <span className="text-[11px] font-extrabold text-emerald-600">
-                    {solvedChallenges.length} Solved
-                  </span>
-                </div>
-
-                <div className="relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    value={practiceSearch}
-                    onChange={(e) => setPracticeSearch(e.target.value)}
-                    placeholder="Search challenges..."
-                    className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
-                  />
-                </div>
-
-                <div className="flex items-center space-x-1">
-                  {['all', 'easy', 'medium', 'hard'].map(d => (
-                    <button
-                      key={d}
-                      onClick={() => setPracticeDifficulty(d)}
-                      className={`px-2 py-0.5 rounded-lg text-[10px] font-bold capitalize transition-all cursor-pointer ${
-                        practiceDifficulty === d
-                          ? 'bg-slate-900 text-white'
-                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                      }`}
-                    >
-                      {d}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="divide-y divide-slate-100 flex-1 overflow-y-auto border border-slate-200/80 rounded-xl">
-                {filteredChallenges.map((ch) => {
-                  const isSelected = ch.originalIndex === selectedChallengeIndex;
-                  const isSolved = solvedChallenges.includes(ch.id);
-
-                  return (
-                    <button
-                      key={ch.id}
-                      onClick={() => setSelectedChallengeIndex(ch.originalIndex)}
-                      className={`w-full text-left p-3 flex items-center justify-between transition-all cursor-pointer ${
-                        isSelected ? 'bg-blue-50/80 text-blue-900 font-bold' : 'hover:bg-slate-50 text-slate-700'
-                      }`}
-                    >
-                      <div className="flex items-center space-x-2.5 min-w-0">
-                        <div className={`w-5 h-5 rounded-md flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                          isSolved
-                            ? 'bg-emerald-500 text-white'
-                            : isSelected
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-slate-100 text-slate-600'
-                        }`}>
-                          {isSolved ? '✓' : ch.originalIndex + 1}
-                        </div>
-                        <div className="truncate">
-                          <div className="text-xs font-bold truncate">#{ch.originalIndex + 1}: {ch.title}</div>
-                          <div className="text-[10px] text-slate-400 font-medium">{ch.difficulty} • {ch.moduleTitle}</div>
-                        </div>
-                      </div>
-
-                      <ChevronRight size={13} className={`text-slate-400 shrink-0 ${isSelected ? 'text-blue-600' : ''}`} />
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          </aside>
-
-          {/* MAIN PRACTICE LAB AREA */}
-          <main className="flex-1 min-w-0 p-4 sm:p-6 lg:p-8 space-y-6">
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-5 w-full items-start">
-              
-              <div className="xl:col-span-5 space-y-4 w-full">
-                <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-2xs space-y-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-black bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 rounded-md">
-                        #{selectedChallengeIndex + 1} • {activeChallenge?.difficulty}
-                      </span>
-                      <span className="text-xs text-slate-500 font-bold">{activeChallenge?.moduleTitle}</span>
-                    </div>
-
-                    <div className="flex items-center space-x-1">
-                      <button
-                        disabled={selectedChallengeIndex === 0}
-                        onClick={() => setSelectedChallengeIndex(prev => prev - 1)}
-                        className="p-1 bg-slate-100 hover:bg-slate-200 rounded-md text-slate-700 disabled:opacity-30 cursor-pointer"
-                        title="Previous Problem"
-                      >
-                        <ArrowLeft size={13} />
-                      </button>
-                      <button
-                        disabled={selectedChallengeIndex === SQL_CHALLENGES.length - 1}
-                        onClick={() => setSelectedChallengeIndex(prev => prev + 1)}
-                        className="p-1 bg-slate-100 hover:bg-slate-200 rounded-md text-slate-700 disabled:opacity-30 cursor-pointer"
-                        title="Next Problem"
-                      >
-                        <ArrowRight size={13} />
-                      </button>
-                    </div>
-                  </div>
-
-                  <h2 className="text-base font-black text-slate-900 tracking-tight">
-                    {activeChallenge?.title}
-                  </h2>
-                  
-                  <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-4">
-                    <RichMarkdown content={activeChallenge?.description} />
-                  </div>
-
-                  {activeChallenge?.hints?.length > 0 && (
-                    <div className="pt-2 border-t border-slate-100">
-                      <button
-                        onClick={() => setShowHint(prev => !prev)}
-                        className="text-xs font-extrabold text-amber-700 hover:text-amber-800 flex items-center space-x-1 cursor-pointer"
-                      >
-                        <Lightbulb size={13} />
-                        <span>{showHint ? 'Hide Problem Hint' : 'View Problem Hint'}</span>
-                      </button>
-                      {showHint && (
-                        <div className="mt-2 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-950 font-semibold">
-                          <ul className="list-disc list-inside space-y-1">
-                            {activeChallenge.hints.map((h, i) => <li key={i}>{h}</li>)}
-                          </ul>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                {/* Schemas */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs space-y-3">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                    <div className="text-xs font-black text-slate-900 flex items-center space-x-1.5">
-                      <Database size={14} className="text-blue-600" />
-                      <span>Database Tables & Data</span>
-                    </div>
-
-                    <div className="flex items-center space-x-1 bg-slate-100 p-0.5 rounded-lg text-[10px] font-bold">
-                      <button
-                        onClick={() => setSchemaViewTab('data')}
-                        className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
-                          schemaViewTab === 'data' ? 'bg-white text-blue-700 shadow-2xs font-extrabold' : 'text-slate-500 hover:text-slate-800'
-                        }`}
-                      >
-                        Sample Records
-                      </button>
-                      <button
-                        onClick={() => setSchemaViewTab('structure')}
-                        className={`px-2 py-0.5 rounded-md transition-all cursor-pointer ${
-                          schemaViewTab === 'structure' ? 'bg-white text-blue-700 shadow-2xs font-extrabold' : 'text-slate-500 hover:text-slate-800'
-                        }`}
-                      >
-                        Columns & Types
-                      </button>
-                    </div>
-                  </div>
-
-                  {loadingSchemas ? (
-                    <div className="py-6 text-center text-xs text-slate-400">Loading table schemas...</div>
-                  ) : tableSchemas.length === 0 ? (
-                    <div className="py-6 text-center text-xs text-slate-400">No tables defined for this challenge.</div>
-                  ) : (
-                    <div className="space-y-3 max-h-84 overflow-y-auto pr-1">
-                      {tableSchemas.map((tbl, tIdx) => {
-                        const tableName = tbl.tableName || tbl.name || `Table ${tIdx + 1}`;
-                        const columnObjects = Array.isArray(tbl.columns) ? tbl.columns : [];
-                        const dataRows = tbl.sampleRows || tbl.rows || tbl.values || [];
-
-                        return (
-                          <div key={tIdx} className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2">
-                            <div className="flex items-center justify-between">
-                              <div className="text-xs font-mono font-black text-blue-900 flex items-center space-x-1.5">
-                                <Table size={12} className="text-blue-600" />
-                                <span>Table: {tableName}</span>
-                              </div>
-                              <span className="text-[10px] text-slate-400 font-mono font-bold">
-                                {columnObjects.length} cols • {dataRows.length} rows
-                              </span>
-                            </div>
-
-                            {schemaViewTab === 'data' && (
-                              <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white">
-                                <table className="min-w-full divide-y divide-slate-200 text-[11px] text-left">
-                                  <thead className="bg-slate-50 font-extrabold text-slate-700">
-                                    <tr>
-                                      <th className="px-2 py-1 text-slate-400 font-mono text-[10px] border-r border-slate-100">#</th>
-                                      {columnObjects.map((c, cIdx) => (
-                                        <th key={cIdx} className="px-2.5 py-1 border-r border-slate-100 last:border-r-0 whitespace-nowrap">
-                                          {typeof c === 'object' ? (c.name || c.column_name) : c}
-                                        </th>
-                                      ))}
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-slate-100 font-mono text-slate-700">
-                                    {dataRows.slice(0, 5).map((r, rIdx) => (
-                                      <tr key={rIdx} className="hover:bg-slate-50/70">
-                                        <td className="px-2 py-1 text-slate-400 text-[10px] border-r border-slate-100">{rIdx + 1}</td>
-                                        {Array.isArray(r) ? (
-                                          r.map((val, vIdx) => (
-                                            <td key={vIdx} className="px-2.5 py-1 border-r border-slate-100 last:border-r-0 whitespace-nowrap">
-                                              {val === null ? <span className="text-slate-400 italic">NULL</span> : String(val)}
-                                            </td>
-                                          ))
-                                        ) : (
-                                          <td className="px-2.5 py-1">{String(r)}</td>
-                                        )}
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
-
-                            {schemaViewTab === 'structure' && (
-                              <div className="overflow-x-auto border border-slate-200 rounded-lg bg-white">
-                                <table className="min-w-full divide-y divide-slate-200 text-[11px] text-left">
-                                  <thead className="bg-slate-50 font-extrabold text-slate-700">
-                                    <tr>
-                                      <th className="px-2.5 py-1">Column Name</th>
-                                      <th className="px-2.5 py-1">Data Type</th>
-                                    </tr>
-                                  </thead>
-                                  <tbody className="divide-y divide-slate-100 text-slate-700 font-mono">
-                                    {columnObjects.map((c, cIdx) => (
-                                      <tr key={cIdx} className="hover:bg-slate-50/70">
-                                        <td className="px-2.5 py-1 font-bold text-slate-900">{typeof c === 'object' ? (c.name || c.column_name) : c}</td>
-                                        <td className="px-2.5 py-1 text-blue-600">{typeof c === 'object' ? (c.type || 'TEXT') : 'TEXT'}</td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Code Editor */}
-              <div className="xl:col-span-7 space-y-4 w-full">
-                <div className="bg-white border border-slate-200 rounded-2xl shadow-2xs overflow-hidden">
-                  <div className="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <Terminal size={14} className="text-slate-600" />
-                      <span className="text-xs font-black text-slate-700 font-mono">SQL Solution Editor</span>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => setUserSql(activeChallenge?.starterSql || '')}
-                        className="text-xs font-bold text-slate-500 hover:text-slate-800 cursor-pointer"
-                      >
-                        Reset
-                      </button>
-                      <button
-                        onClick={handleRunQuery}
-                        disabled={runningQuery}
-                        className="bg-blue-600 hover:bg-blue-700 text-white font-black text-xs px-4 py-1.5 rounded-lg flex items-center space-x-1.5 transition-all cursor-pointer shadow-xs"
-                      >
-                        <Play size={12} className="fill-white" />
-                        <span>{runningQuery ? 'Running...' : 'Run Query (Ctrl+Enter)'}</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  <textarea
-                    value={userSql}
-                    onChange={(e) => setUserSql(e.target.value)}
-                    onKeyDown={(e) => {
-                      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-                        e.preventDefault();
-                        handleRunQuery();
-                      }
-                    }}
-                    rows={9}
-                    className="w-full bg-white text-slate-900 font-mono text-xs sm:text-sm p-4 focus:outline-none resize-y border-none font-semibold leading-relaxed"
-                    placeholder="-- Type your SQL query solution here..."
-                  />
-                </div>
-
-                {/* Output visualizer */}
-                <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-2xs space-y-2">
-                  <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                    <span>Query Execution Output</span>
-                    {queryResult && (
-                      <span className="text-[11px] text-slate-500 font-mono font-bold bg-slate-100 px-2 py-0.5 rounded">
-                        {queryResult.rowCount} row(s) • {queryResult.executionTimeMs} ms
-                      </span>
-                    )}
-                  </div>
-
-                  {queryResult ? (
-                    queryResult.success ? (
-                      <div className="overflow-x-auto max-h-72 border border-slate-200 rounded-xl bg-white">
-                        <table className="min-w-full divide-y divide-slate-200 text-xs text-left">
-                          <thead className="bg-slate-50 font-black text-slate-800">
-                            <tr>
-                              <th className="px-2.5 py-2 text-slate-400 font-mono text-[10px] border-r border-slate-100">#</th>
-                              {(queryResult.columns || []).map((col, idx) => (
-                                <th key={idx} className="px-3 py-2 border-r border-slate-100 last:border-r-0 whitespace-nowrap">{col}</th>
-                              ))}
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100 font-mono text-slate-700">
-                            {(queryResult.values || []).map((row, rIdx) => (
-                              <tr key={rIdx} className="hover:bg-slate-50/70">
-                                <td className="px-2.5 py-1.5 text-slate-400 text-[10px] border-r border-slate-100">{rIdx + 1}</td>
-                                {Array.isArray(row) ? (
-                                  row.map((val, cIdx) => (
-                                    <td key={cIdx} className="px-3 py-1.5 border-r border-slate-100 last:border-r-0 whitespace-nowrap font-medium">
-                                      {val === null ? <span className="text-slate-400 italic">NULL</span> : String(val)}
-                                    </td>
-                                  ))
-                                ) : (
-                                  <td className="px-3 py-1.5">{String(row)}</td>
-                                )}
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    ) : (
-                      <div className="bg-rose-50 border border-rose-200 rounded-xl p-3.5 text-xs text-rose-800 font-mono">
-                        {queryResult.error}
-                      </div>
-                    )
-                  ) : (
-                    <div className="bg-slate-50 border border-dashed border-slate-200 rounded-xl p-8 text-center text-xs text-slate-400 font-medium">
-                      Press "Run Query" or Ctrl+Enter to execute query in in-browser SQLite WebAssembly.
-                    </div>
-                  )}
-                </div>
-              </div>
-
-            </div>
-          </main>
-        </div>
+        <SqlPracticeView
+          onJumpToLearn={() => setMode('learn')}
+          initialChallengeIndex={selectedChallengeIndex}
+        />
       )}
 
       {/* =========================================================================
@@ -879,13 +420,14 @@ export default function SqlCourseHub() {
                 </div>
 
                 <div className="relative">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   <input
                     type="text"
                     value={interviewSearch}
                     onChange={(e) => setInterviewSearch(e.target.value)}
                     placeholder="Search interview questions..."
-                    className="w-full pl-8 pr-3 py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
+                    style={{ paddingLeft: '34px', paddingRight: '12px' }}
+                    className="w-full py-1.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white"
                   />
                 </div>
 
