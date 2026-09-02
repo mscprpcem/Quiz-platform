@@ -5,16 +5,18 @@ export const SQL_30_DAY_ROADMAP = [
     day: 1,
     week: 1,
     phase: 'Foundations & Database Concepts',
-    title: 'Introduction to Databases & Relational Models',
+    title: 'DBMS + SQL + Setup',
     moduleId: 'mod-01',
     topicId: 'top-01-01',
-    estimatedMinutes: 25,
+    estimatedMinutes: 45,
     difficulty: 'Beginner',
-    summary: 'Understand database principles, DBMS vs RDBMS, tables, rows, columns, and relational concepts.',
+    summary: 'Master DBMS vs RDBMS, Tables, Rows, Columns, Schema, SQL command types (DDL, DML, DQL, DCL, TCL), and step-by-step setup of MySQL & MySQL Workbench.',
     goals: [
-      'Learn what a database is and why we use RDBMS',
-      'Understand primary concepts: Tables, Rows, Columns, Schemas, Records',
-      'Difference between Flat DBMS and Relational DBMS'
+      'Understand Database Fundamentals: DBMS vs RDBMS, ACID properties & relational concepts',
+      'Master the relational structure: Tables, Rows (Records), Columns (Attributes), and Schema blueprint',
+      'Categorize SQL commands: DDL, DML, DQL, DCL, and TCL with real-world examples',
+      'Install and configure MySQL Community Server and MySQL Workbench on your system',
+      'Connect on Port 3306 and execute handshake verification queries'
     ],
     milestone: false
   },

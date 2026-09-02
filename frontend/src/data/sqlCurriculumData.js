@@ -7,74 +7,101 @@ export const SQL_MODULES = [
   // =========================================================================
   {
     id: 'mod-01',
-    number: 1,
-    title: 'SQL Fundamentals',
+    number: 0,
+    title: 'Fundamentals',
     icon: 'Database',
     difficulty: 'Beginner',
     difficultyColor: 'emerald',
     badge: 'Core Foundation',
     estimatedHours: 2.5,
-    summary: 'Master database fundamentals, relational database principles (RDBMS vs DBMS), SQL syntax rules, keywords, comments, and the 5 command families (DDL, DML, DQL, DCL, TCL).',
+    summary: 'Master database fundamentals, DBMS vs RDBMS, Tables, Rows, Columns, Schema, SQL command types (DDL, DML, DQL, DCL, TCL), and complete step-by-step setup of MySQL & MySQL Workbench.',
     topics: [
       {
         id: 'top-01-01',
-        title: 'Introduction to Databases & RDBMS',
-        subtopics: ['What is a Database?', 'DBMS vs RDBMS', 'Database vs Table', 'Rows, Columns & Records', 'Schema Architecture', 'Relational Core Concepts'],
-        conceptText: `A **Database** is an organized collection of structured information stored electronically. A **DBMS** (Database Management System) manages data in flat files or hierarchical structures, whereas an **RDBMS** (Relational Database Management System) organizes data into interrelated **Tables** connected by Keys (Primary and Foreign keys).`,
-        syntaxGuide: `-- Typical Relational Concept Mapping:
--- Table   -> Entity (e.g. employees)
--- Row     -> Record / Tuple (e.g. Vikram Aditya, $145,000)
--- Column  -> Field / Attribute (e.g. first_name, salary)
--- Schema  -> Structural blueprint defining tables, columns, data types & constraints`,
+        title: 'DBMS vs RDBMS',
+        subtopics: ['What is a Database?', 'Limitations of File Systems', 'DBMS vs RDBMS Core Differences', 'Relational Model Principles', 'ACID Properties Compliance', 'Normalization & Referential Integrity'],
+        conceptText: `A **Database** is a structured electronic repository designed to store, retrieve, and manage data efficiently. While a generic **DBMS** manages data in flat files or hierarchical structures with limited relational integrity, an **RDBMS** (Relational Database Management System) organizes data into interrelated **Tables** connected by Primary and Foreign Keys, strictly enforcing ACID properties and eliminating redundancy through normalization.`,
+        syntaxGuide: `-- Relational Model: Parent and Child Tables connected by Keys
+CREATE TABLE departments (
+    department_id INT PRIMARY KEY AUTO_INCREMENT,
+    department_name VARCHAR(50) NOT NULL UNIQUE
+);
+
+CREATE TABLE employees (
+    employee_id INT PRIMARY KEY AUTO_INCREMENT,
+    full_name VARCHAR(100) NOT NULL,
+    department_id INT,
+    FOREIGN KEY (department_id) REFERENCES departments(department_id)
+);`,
         exampleSnippet: {
-          title: 'Viewing Table Records & Columns',
-          query: `SELECT id, first_name, last_name, salary, department_id \nFROM employees \nLIMIT 5;`,
+          title: 'Relational Integrity & Interconnected Tables',
+          query: `SELECT e.employee_id, e.full_name, d.department_name \nFROM employees e \nINNER JOIN departments d ON e.department_id = d.department_id \nLIMIT 5;`,
           setupSql: COMMON_SCHEMAS.hrCompany
         },
-        keyTakeaway: 'RDBMS ensures relational integrity, eliminates data redundancy through normalization, and provides ACID compliance.',
-        commonPitfall: 'Confusing a Schema (the blueprint/structure) with a Database (the storage container holding schemas and tables).'
+        keyTakeaway: 'RDBMS ensures relational integrity, eliminates data redundancy through normalization, and provides ACID compliance for enterprise applications.',
+        commonPitfall: 'Treating RDBMS like a flat spreadsheet by putting all unnormalized data into a single table.'
       },
       {
         id: 'top-01-02',
-        title: 'Introduction to SQL & Syntax Rules',
-        subtopics: ['What is SQL?', 'Why SQL is Used', 'Syntax Basics & Semicolons', 'Keywords & Casing Conventions', 'Single & Multi-line Comments', 'Naming Conventions'],
-        conceptText: `**SQL** (Structured Query Language) is the universal standard declarative language for interacting with relational databases. SQL is **case-insensitive** for keywords, but best practice writes keywords in UPPERCASE (e.g. \`SELECT\`, \`FROM\`) and identifiers (tables, columns) in \`snake_case\`. Statements terminate with a semicolon (\`;\`).`,
-        syntaxGuide: `-- Single-line comment starts with two dashes
-/* Multi-line comment 
-   spans across multiple lines */
-SELECT column_name_1, column_name_2
-FROM table_name
-WHERE condition_is_met;`,
+        title: 'Tables, Rows, Columns & Schema',
+        subtopics: ['Database Container vs Schema Blueprint', 'Tables as Real-World Entities', 'Columns as Attributes & Data Types', 'Rows as Unique Records (Tuples)', 'Primary Keys & Unique Constraints', 'Inspecting Tables (DESCRIBE & SHOW)'],
+        conceptText: `In relational databases, data is organized into a clean structural hierarchy: A **Database** is the physical storage container; a **Schema** is the structural blueprint defining all rules; a **Table** (Entity) contains 2D data; **Columns** (Fields / Attributes) define data types and constraints; and **Rows** (Tuples / Records) represent individual real-world instances.`,
+        syntaxGuide: `-- Inspecting table structure and schema definitions:
+DESCRIBE employees;
+SHOW CREATE TABLE employees;
+SHOW TABLES;`,
         exampleSnippet: {
-          title: 'Clean Formatted SQL Query',
-          query: `-- Query active department records\nSELECT department_name, location, budget\nFROM departments\nORDER BY budget DESC;`,
+          title: 'Querying Columns and Records from a Table',
+          query: `-- Inspect column attributes and filter records\nSELECT employee_id, full_name, salary, department_id \nFROM employees \nWHERE salary > 60000 \nORDER BY salary DESC;`,
           setupSql: COMMON_SCHEMAS.hrCompany
         },
-        keyTakeaway: 'SQL is declarative: you specify WHAT data you want, and the database query optimizer figures out HOW to retrieve it.',
-        commonPitfall: 'Omitting commas between column projections or placing a trailing comma before the FROM clause.'
+        keyTakeaway: 'The Schema specifies the architectural rules (columns, types, constraints); the Database holds the physical records (rows).',
+        commonPitfall: 'Confusing a Schema (the blueprint) with a Database (the storage container), or storing non-atomic comma-separated values inside a single column cell.'
       },
       {
         id: 'top-01-03',
-        title: 'SQL Command Categories (DDL, DML, DQL, DCL, TCL)',
-        subtopics: ['DDL (Data Definition Language)', 'DML (Data Manipulation Language)', 'DQL (Data Query Language)', 'DCL (Data Control Language)', 'TCL (Transaction Control Language)'],
+        title: 'SQL Command Types (DDL, DML, DQL, DCL, TCL)',
+        subtopics: ['DDL (Data Definition Language)', 'DML (Data Manipulation Language)', 'DQL (Data Query Language)', 'DCL (Data Control Language)', 'TCL (Transaction Control Language)', 'Rollback Capabilities & Auto-commit Rules'],
         conceptText: `SQL commands are divided into 5 distinct categories based on their operational scope:
-1. **DDL**: Defines/modifies schema structure (\`CREATE\`, \`ALTER\`, \`DROP\`, \`TRUNCATE\`, \`RENAME\`). Auto-committed in most engines.
+1. **DDL**: Defines/modifies schema structure (\`CREATE\`, \`ALTER\`, \`DROP\`, \`TRUNCATE\`, \`RENAME\`). Auto-committed.
 2. **DML**: Manages data rows (\`INSERT\`, \`UPDATE\`, \`DELETE\`). Can be rolled back.
-3. **DQL**: Queries & retrieves data records (\`SELECT\`).
+3. **DQL**: Queries & retrieves data records (\`SELECT\`). Read-only.
 4. **DCL**: Manages security permissions & user access privileges (\`GRANT\`, \`REVOKE\`).
 5. **TCL**: Manages transaction integrity boundaries (\`COMMIT\`, \`ROLLBACK\`, \`SAVEPOINT\`).`,
-        syntaxGuide: `-- DDL: CREATE, ALTER, DROP, TRUNCATE, RENAME
--- DML: INSERT, UPDATE, DELETE
--- DQL: SELECT
--- DCL: GRANT, REVOKE
--- TCL: COMMIT, ROLLBACK, SAVEPOINT`,
+        syntaxGuide: `-- DDL: Structure (CREATE, ALTER, DROP, TRUNCATE, RENAME)
+-- DML: Data Rows (INSERT, UPDATE, DELETE)
+-- DQL: Query (SELECT)
+-- DCL: Security (GRANT, REVOKE)
+-- TCL: Transactions (COMMIT, ROLLBACK, SAVEPOINT)`,
         exampleSnippet: {
-          title: 'Inspecting DQL Query Output',
+          title: 'Demonstrating Transaction Safety with DML and TCL',
           query: `SELECT 'DQL Query' AS command_type, COUNT(*) AS total_staff FROM employees;`,
           setupSql: COMMON_SCHEMAS.hrCompany
         },
-        keyTakeaway: 'DDL works on structure; DML works on data rows; DQL retrieves; DCL secures; TCL ensures transaction safety.',
-        commonPitfall: 'Assuming TRUNCATE is DML—TRUNCATE is actually DDL because it resets table storage and cannot be rolled back in standard MySQL.'
+        keyTakeaway: 'DDL builds the schema structure; DML modifies records; DQL queries; DCL secures access; TCL guarantees ACID transaction boundaries.',
+        commonPitfall: 'Assuming TRUNCATE is DML—TRUNCATE is DDL because it resets table storage at the schema level and cannot be rolled back in standard MySQL.'
+      },
+      {
+        id: 'top-01-04',
+        title: 'Install MySQL & Workbench Setup',
+        subtopics: ['Client-Server Architecture', 'MySQL Community Server Installation', 'Setting Root Password & Port 3306', 'MySQL Workbench GUI Setup', 'Configuring Localhost Connection', 'First Handshake Verification Queries'],
+        conceptText: `MySQL operates on a **Client-Server Architecture**. The **MySQL Server** runs in the background listening on Port 3306, while **MySQL Workbench** is the official desktop graphical user interface (GUI) client used to write queries, create schemas, and inspect data. Setting up involves installing the server, configuring the root password, connecting Workbench to localhost:3306, and executing initial handshake verification queries.`,
+        syntaxGuide: `-- Handshake verification query in MySQL Workbench
+SELECT VERSION() AS mysql_version, CURRENT_TIMESTAMP AS server_time, USER() AS current_user;
+
+-- Create test database and table
+CREATE DATABASE IF NOT EXISTS day1_setup;
+USE day1_setup;
+CREATE TABLE IF NOT EXISTS status (id INT PRIMARY KEY, message VARCHAR(100));
+INSERT INTO status VALUES (1, 'MySQL Server & Workbench Connected Successfully!');
+SELECT * FROM status;`,
+        exampleSnippet: {
+          title: 'Verifying Server Handshake and Version Info',
+          query: `SELECT 'MySQL 8.0' AS database_engine, '3306' AS default_port, 'root' AS default_admin;`,
+          setupSql: COMMON_SCHEMAS.hrCompany
+        },
+        keyTakeaway: 'MySQL Server manages data storage on port 3306; MySQL Workbench is the visual workbench client where you design and execute queries.',
+        commonPitfall: 'Forgetting the MySQL root password during installation or failing to start the MySQL background service (MySQL80) in Windows Services.'
       }
     ],
     questions: [
@@ -82,16 +109,16 @@ WHERE condition_is_met;`,
         id: 'q-01-01',
         type: 'Concept',
         difficulty: 'Beginner',
-        question: 'What does DDL stand for in SQL, and what is its primary responsibility?',
+        question: 'What is the key difference between a traditional DBMS and an RDBMS?',
         options: [
-          'Data Definition Language — defines, alters, and drops database structures & schemas',
-          'Data Development Language — compiles procedural SQL functions',
-          'Database Direction Logic — optimizes relational join execution paths',
-          'Data Description List — stores metadata catalogs'
+          'RDBMS organizes data into interrelated tables with Primary/Foreign keys and enforces ACID properties, whereas DBMS stores data in flat files or hierarchies',
+          'DBMS supports SQL queries while RDBMS only supports procedural C++ code',
+          'RDBMS can only store text while DBMS can store numbers and images',
+          'There is no technical difference; they are exact synonyms'
         ],
         correctAnswer: 'A',
-        explanation: 'DDL (Data Definition Language) commands like CREATE, ALTER, DROP, and TRUNCATE define and modify the schema structure of database objects.',
-        hint: 'Think about commands that build the structural blueprint (tables, columns).'
+        explanation: 'RDBMS (Relational Database Management System) organizes data into 2D tables connected via keys and guarantees ACID compliance, eliminating data redundancy.',
+        hint: 'Think about relationships, tables, and ACID compliance.'
       },
       {
         id: 'q-01-02',
@@ -105,115 +132,157 @@ WHERE condition_is_met;`,
           'REVOKE → TCL, SAVEPOINT → DCL'
         ],
         correctAnswer: 'B',
-        explanation: 'INSERT is DML (modifies data), COMMIT is TCL (controls transactions), and GRANT is DCL (controls privileges).',
+        explanation: 'INSERT is DML (modifies data rows), COMMIT is TCL (controls transaction boundaries), and GRANT is DCL (manages security permissions).',
         hint: 'Review the 5 command families: DDL, DML, DQL, DCL, TCL.'
       },
       {
         id: 'q-01-03',
-        type: 'Error-Finding',
+        type: 'Concept',
         difficulty: 'Beginner',
-        question: 'Identify the syntax error in this SQL statement:\n```sql\nSELECT first_name, last_name, salary,\nFROM employees\nWHERE salary > 50000\n```',
+        question: 'What is the default TCP/IP port used by MySQL Server for client connections?',
         options: [
-          'The WHERE clause requires single quotes around 50000',
-          'There is an illegal trailing comma after `salary` before the `FROM` keyword',
-          'The `SELECT` keyword must be written in lowercase',
-          'The table name must be wrapped in square brackets'
+          '8080',
+          '3306',
+          '5432',
+          '1521'
         ],
         correctAnswer: 'B',
-        explanation: 'In SQL, column lists cannot have a trailing comma before the `FROM` clause. Doing so causes a syntax error.',
-        hint: 'Look closely at the punctuation after salary.'
+        explanation: 'MySQL Server listens on default TCP/IP port 3306 (PostgreSQL uses 5432, Oracle uses 1521).',
+        hint: 'Standard MySQL port starts with 33.'
+      },
+      {
+        id: 'q-01-04',
+        type: 'Concept',
+        difficulty: 'Beginner',
+        question: 'In relational database terminology, what represents an Entity, an Attribute, and a Tuple?',
+        options: [
+          'Entity = Table, Attribute = Column, Tuple = Row',
+          'Entity = Row, Attribute = Table, Tuple = Column',
+          'Entity = Database, Attribute = Schema, Tuple = Server',
+          'Entity = Column, Attribute = Row, Tuple = Table'
+        ],
+        correctAnswer: 'A',
+        explanation: 'In the relational model, an Entity maps to a Table, an Attribute maps to a Column, and a Tuple maps to a Row (Record).',
+        hint: 'Think about rows as tuples and columns as attributes.'
       }
     ]
   },
 
   // =========================================================================
-  // MODULE 2: DDL (DATA DEFINITION LANGUAGE)
+  // MODULE 2: DDL DEEP DIVE (CREATE, ALTER, DROP, TRUNCATE, RENAME)
   // =========================================================================
   {
     id: 'mod-02',
-    number: 2,
-    title: 'DDL (Data Definition Language)',
+    number: 1,
+    title: 'DDL Deep Dive',
     icon: 'Layers',
     difficulty: 'Beginner',
     difficultyColor: 'emerald',
-    badge: 'Schema Design',
-    estimatedHours: 3.0,
-    summary: 'Master creating, altering, renaming, dropping, and truncating databases and tables. Understand constraints, data types, and DROP vs TRUNCATE vs DELETE.',
+    badge: 'Schema Architecture',
+    estimatedHours: 3.5,
+    summary: 'Deep dive into DDL commands: CREATE, ALTER, DROP, TRUNCATE, and RENAME. Understand what physically happens under the hood inside the database engine, data dictionary catalog, and physical disk tablespace.',
     topics: [
       {
-        id: 'top-02-01',
-        title: 'CREATE DATABASE & CREATE TABLE',
-        subtopics: ['CREATE DATABASE syntax', 'CREATE TABLE syntax', 'Defining Columns & Data Types (INT, VARCHAR, DATE, DECIMAL)', 'DEFAULT Values', 'AUTO_INCREMENT / PRIMARY KEY', 'Table Constraints'],
-        conceptText: `\`CREATE TABLE\` creates a new table structure. Each column is specified with a **name**, a **data type** (e.g. \`INT\`, \`VARCHAR(100)\`, \`DECIMAL(10,2)\`), and optional **column constraints** such as \`PRIMARY KEY\`, \`NOT NULL\`, \`UNIQUE\`, and \`DEFAULT\`.`,
-        syntaxGuide: `CREATE TABLE students (
-  student_id INT PRIMARY KEY AUTO_INCREMENT,
-  first_name VARCHAR(50) NOT NULL,
-  last_name VARCHAR(50) NOT NULL,
-  email VARCHAR(100) UNIQUE,
-  admission_date DATE DEFAULT (CURRENT_DATE),
-  cgpa DECIMAL(3, 2) DEFAULT 0.00
+        id: 'top-create-table',
+        title: 'CREATE',
+        subtopics: ['What Happens in DB (Under the Hood)', 'CREATE DATABASE & Storage Catalogs', 'CREATE TABLE Syntax & Column Definitions', 'Primary Keys & Clustered Indexes (B+ Tree)', 'Constraints (NOT NULL, UNIQUE, CHECK, DEFAULT, FK)', 'Physical .ibd Tablespace Allocation'],
+        conceptText: `In SQL, \`CREATE\` is the foundational Data Definition command used to establish new database instances and tables. When you execute \`CREATE TABLE\`, the database engine does far more than save text: it verifies security privileges, acquires an exclusive Metadata Lock (MDL), writes structural schemas into the internal System Data Dictionary, allocates physical 16KB storage pages on your hard drive (e.g. users.ibd in MySQL InnoDB), builds the root node of the Clustered Index (B+ Tree), and prepares in-memory Buffer Pool slots for high-speed writes.`,
+        syntaxGuide: `-- 1. CREATE DATABASE
+CREATE DATABASE IF NOT EXISTS company_db;
+USE company_db;
+
+-- 2. CREATE TABLE with Core Constraints
+CREATE TABLE IF NOT EXISTS employees (
+    employee_id INT PRIMARY KEY AUTO_INCREMENT,  -- Physical Clustered Index
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    email VARCHAR(120) NOT NULL UNIQUE,
+    salary DECIMAL(10,2) DEFAULT 0.00,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CHECK (salary >= 0.00)
 );`,
         exampleSnippet: {
-          title: 'Create and Query New Table',
-          query: `CREATE TABLE projects (
-  id INTEGER PRIMARY KEY,
-  project_name TEXT NOT NULL,
-  budget INTEGER DEFAULT 50000
-);
-INSERT INTO projects (id, project_name) VALUES (1, 'Cloud Migration');
-SELECT * FROM projects;`,
+          title: 'Creating Relational Tables with Referential Integrity',
+          query: `CREATE TABLE categories (\n    category_id INT PRIMARY KEY AUTO_INCREMENT,\n    category_name VARCHAR(60) NOT NULL UNIQUE\n);\n\nCREATE TABLE products (\n    product_id INT PRIMARY KEY AUTO_INCREMENT,\n    product_name VARCHAR(120) NOT NULL,\n    price DECIMAL(10,2) NOT NULL DEFAULT 0.00,\n    category_id INT NOT NULL,\n    FOREIGN KEY (category_id) REFERENCES categories(category_id)\n);`,
           setupSql: ``
         },
-        keyTakeaway: 'Always specify PRIMARY KEY and appropriate NOT NULL constraints to protect data integrity at the database layer.',
-        commonPitfall: 'Using VARCHAR without specifying maximum length in dialects like MySQL/Oracle.'
+        keyTakeaway: 'CREATE allocates physical disk space (.ibd file), registers schema in the data dictionary, and creates the Clustered B+ Tree index for the primary key.',
+        commonPitfall: 'Forgetting to select an active database (USE database_name) or creating tables without a primary key, causing InnoDB to create hidden fallback row IDs.'
       },
       {
-        id: 'top-02-02',
-        title: 'ALTER TABLE (ADD, MODIFY, CHANGE, DROP Column)',
-        subtopics: ['ADD column', 'MODIFY column data type', 'CHANGE column name & type', 'Rename column', 'DROP column', 'Add/Drop Constraints'],
-        conceptText: `\`ALTER TABLE\` changes the schema of an existing table without dropping its existing records. Common operations include adding new columns (\`ADD\`), modifying column definitions (\`MODIFY\`), renaming columns (\`RENAME COLUMN\`), or dropping columns (\`DROP COLUMN\`).`,
-        syntaxGuide: `-- Add a new column:
-ALTER TABLE employees ADD phone_number VARCHAR(20);
+        id: 'top-alter-table',
+        title: 'ALTER',
+        subtopics: ['What Happens in DB (Under the Hood)', 'Metadata Lock (MDL) Acquisition', 'Online DDL Algorithms (INSTANT, INPLACE, COPY)', 'ADD & DROP Columns', 'MODIFY vs CHANGE Column', 'Adding/Dropping Foreign Key Constraints'],
+        conceptText: `\`ALTER TABLE\` evolves a live table schema without losing existing records. Under the hood, modern RDBMS engines acquire an exclusive Metadata Lock (MDL) to prevent write conflicts, and select an Online DDL algorithm: \`ALGORITHM=INSTANT\` updates metadata in milliseconds without touching rows, \`INPLACE\` modifies pages directly on disk, and \`COPY\` builds a temporary shadow table.`,
+        syntaxGuide: `-- Add Column
+ALTER TABLE employees ADD COLUMN phone VARCHAR(20) DEFAULT NULL;
 
--- Rename a column:
-ALTER TABLE employees RENAME COLUMN phone_number TO contact_number;
+-- Modify Column Definition (Data type / Nullability)
+ALTER TABLE employees MODIFY COLUMN salary DECIMAL(12,2) NOT NULL;
 
--- Drop a column:
-ALTER TABLE employees DROP COLUMN contact_number;`,
+-- Rename Column
+ALTER TABLE employees RENAME COLUMN phone TO mobile_phone;
+
+-- Drop Column (Permanently purges column data)
+ALTER TABLE employees DROP COLUMN temp_notes;`,
         exampleSnippet: {
-          title: 'Altering Table Schema',
-          query: `ALTER TABLE departments ADD country TEXT DEFAULT 'USA';
-SELECT * FROM departments LIMIT 3;`,
+          title: 'Evolving Production Schemas Safely',
+          query: `ALTER TABLE departments ADD location VARCHAR(80) DEFAULT 'Remote';\nSELECT * FROM departments LIMIT 3;`,
           setupSql: COMMON_SCHEMAS.hrCompany
         },
-        keyTakeaway: 'ALTER TABLE modifies schemas in-place. Adding columns with DEFAULT values is safe; dropping columns permanently removes that column’s data.',
-        commonPitfall: 'Dropping a column that is referenced by a Foreign Key in another table causes foreign key constraint violations.'
+        keyTakeaway: 'ALTER modifies schemas safely. Modern MySQL 8.0+ uses ALGORITHM=INSTANT for zero-downtime column additions.',
+        commonPitfall: 'Dropping a column referenced by an active Foreign Key, or shrinking column length below existing data values causing truncation errors.'
       },
       {
-        id: 'top-02-03',
-        title: 'DROP vs TRUNCATE vs DELETE Comparison',
-        subtopics: ['DROP TABLE & DROP DATABASE', 'TRUNCATE TABLE behavior', 'High-stakes differences', 'Speed & log generation', 'Auto-increment counter reset'],
-        conceptText: `Understanding the exact differences between DROP, TRUNCATE, and DELETE is one of the most frequently tested interview concepts:
-- **DROP** (DDL): Deletes table structure + all data + indexes + constraints permanently.
-- **TRUNCATE** (DDL): Empties all rows, deallocates data pages, resets AUTO_INCREMENT counters. Cannot specify a WHERE clause. Faster than DELETE.
-- **DELETE** (DML): Removes specific rows row-by-row using a WHERE filter. Can be rolled back in a transaction. Does NOT reset AUTO_INCREMENT.`,
-        syntaxGuide: `-- DROP: Destroys table schema & data
-DROP TABLE employees;
+        id: 'top-drop-table',
+        title: 'DROP',
+        subtopics: ['What Happens in DB (Under the Hood)', 'Foreign Key Referential Checks', 'Buffer Pool Memory Eviction', 'Unlinking Physical .ibd Files', 'Purging Catalog Metadata', 'DROP TABLE vs DROP DATABASE'],
+        conceptText: `The \`DROP\` statement permanently destroys a table or database. Under the hood, MySQL verifies foreign key dependencies (blocking if child records exist), acquires an exclusive lock, evicts cached dirty pages from the in-memory Buffer Pool, unlinks (deletes) the physical \`.ibd\` storage file from disk, and erases all catalog metadata from the Data Dictionary.`,
+        syntaxGuide: `-- Drop a specific table safely:
+DROP TABLE IF EXISTS audit_logs_2021;
 
--- TRUNCATE: Empties all rows, keeps schema, resets ID counters
-TRUNCATE TABLE employees;
-
--- DELETE: Deletes filtered rows row-by-row (DML)
-DELETE FROM employees WHERE department_id = 5;`,
+-- Drop an entire database container:
+DROP DATABASE IF EXISTS staging_test_db;`,
         exampleSnippet: {
-          title: 'Safe Deletion vs Schema Preservation',
-          query: `SELECT COUNT(*) AS count_before FROM departments;
-DELETE FROM departments WHERE id = 5;
-SELECT COUNT(*) AS count_after FROM departments;`,
-          setupSql: COMMON_SCHEMAS.hrCompany
+          title: 'Clean Idempotent Drop',
+          query: `DROP TABLE IF EXISTS temporary_order_calculations;`,
+          setupSql: ``
         },
-        keyTakeaway: 'DELETE removes rows with WHERE filter; TRUNCATE resets the table entirely; DROP deletes the entire table definition from the catalog.',
-        commonPitfall: 'Using DELETE without a WHERE clause when TRUNCATE was intended—DELETE generates massive undo transaction logs.'
+        keyTakeaway: 'DROP permanently deletes both table structure and data from disk, returning disk space back to the operating system.',
+        commonPitfall: 'Running DROP TABLE without IF EXISTS in automated migration scripts, or attempting to drop a parent table before child tables.'
+      },
+      {
+        id: 'top-truncate-table',
+        title: 'TRUNCATE',
+        subtopics: ['What Happens in DB (Under the Hood)', 'Page-Level Deallocation (No Row-by-Row Scan)', 'Resetting AUTO_INCREMENT Counter to 1', 'Implicit Auto-Commit Behavior', 'DROP vs TRUNCATE vs DELETE Master Comparison'],
+        conceptText: `\`TRUNCATE TABLE\` empties all records in milliseconds. Unlike \`DELETE\` (which scans each row and writes to Undo Logs for rollback), \`TRUNCATE\` is a DDL command that deallocates existing data pages as a whole unit, allocates a fresh empty root page, resets \`AUTO_INCREMENT\` counters to 1, and issues an implicit commit.`,
+        syntaxGuide: `-- Fast wipe while keeping table structure and resetting AUTO_INCREMENT:
+TRUNCATE TABLE staging_orders;`,
+        exampleSnippet: {
+          title: 'Truncate vs Delete Behavior',
+          query: `TRUNCATE TABLE staging_orders;`,
+          setupSql: ``
+        },
+        keyTakeaway: 'TRUNCATE deallocates storage pages directly, resets AUTO_INCREMENT to 1, and issues an implicit commit (cannot be rolled back).',
+        commonPitfall: 'Expecting ROLLBACK to restore truncated data, or trying to use a WHERE clause with TRUNCATE.'
+      },
+      {
+        id: 'top-rename-table',
+        title: 'RENAME',
+        subtopics: ['What Happens in DB (Under the Hood)', 'Dual Exclusive Metadata Lock', 'Data Dictionary Pointer Swap', 'Instant Physical .ibd File Rename', 'Zero Row Copying / Zero Downtime', 'Atomic Multi-Table Swapping'],
+        conceptText: `\`RENAME TABLE\` modifies table identifiers in catalog metadata. Because data rows are tied to internal tablespace identifiers rather than human-readable names, renaming a table requires zero row copying or re-indexing: the engine updates the table name string in the Data Dictionary and renames the physical \`.ibd\` file in microseconds.`,
+        syntaxGuide: `-- Dedicated RENAME syntax:
+RENAME TABLE old_name TO new_name;
+
+-- Zero-Downtime Blue/Green Table Swap:
+RENAME TABLE active_orders TO orders_backup, staging_orders TO active_orders;`,
+        exampleSnippet: {
+          title: 'Atomic Multi-Table Renaming',
+          query: `RENAME TABLE clients TO customers;`,
+          setupSql: ``
+        },
+        keyTakeaway: 'RENAME executes in microseconds because it only swaps metadata pointers and renames the physical storage file with zero row copying.',
+        commonPitfall: 'Renaming a table without updating dependent views, stored procedures, or application queries that reference the old table name.'
       }
     ],
     questions: [

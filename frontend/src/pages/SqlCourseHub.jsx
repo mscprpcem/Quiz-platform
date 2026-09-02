@@ -12,6 +12,7 @@ import { SQL_MODULES, TOTAL_MODULES_COUNT, TOTAL_TOPICS_COUNT } from '../data/sq
 import { SQL_CHALLENGES } from '../data/sqlChallenges';
 import { SQL_30_DAY_ROADMAP } from '../data/sqlRoadmapData';
 import { SQL_INTERVIEW_PROBLEMS } from '../data/sqlInterviewData';
+import { executeSqlQuery, getTablesPreview } from '../services/sqlEngine';
 import SqlLandingPage from './SqlLandingPage';
 import SqlLearningView from './SqlLearningView';
 import SqlPracticeView from './SqlPracticeView';
@@ -326,6 +327,14 @@ export default function SqlCourseHub() {
   };
 
   const handleJumpToPractice = (topic) => {
+    if (topic && topic.id) {
+      const directMatch = SQL_CHALLENGES.findIndex(c => c.id === topic.id);
+      if (directMatch !== -1) {
+        setSelectedChallengeIndex(directMatch);
+        setMode('practice');
+        return;
+      }
+    }
     const matchIdx = SQL_CHALLENGES.findIndex(c => 
       c.moduleId?.includes(activeModule.id.replace('mod-', '')) || 
       c.moduleTitle?.toLowerCase().includes(activeModule.title.toLowerCase().split(' ')[0])
@@ -523,14 +532,14 @@ export default function SqlCourseHub() {
                     </button>
 
                     {showInterviewSolution && (
-                      <div className="bg-slate-900 text-slate-100 p-4 rounded-xl space-y-3 font-mono text-xs">
-                        <div className="text-[11px] font-bold text-emerald-400 font-sans uppercase">Expected Query Solution:</div>
-                        <pre className="bg-slate-950 p-3 rounded-lg border border-slate-800 overflow-x-auto text-emerald-300">
+                      <div className="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3 font-mono text-xs shadow-2xs">
+                        <div className="text-[11px] font-bold text-emerald-700 font-sans uppercase">Expected Query Solution:</div>
+                        <pre className="bg-white p-3 rounded-lg border border-slate-200 overflow-x-auto text-blue-700 font-bold">
                           {activeInterviewProblem?.expectedSql}
                         </pre>
                         {activeInterviewProblem?.tips && (
-                          <div className="pt-2 border-t border-slate-800 text-amber-300 text-[11px] font-sans">
-                            <strong>Interview Tip:</strong> {activeInterviewProblem.tips}
+                          <div className="pt-2 border-t border-slate-200 text-slate-700 text-[11px] font-sans">
+                            <strong className="text-amber-800">Interview Tip:</strong> {activeInterviewProblem.tips}
                           </div>
                         )}
                       </div>

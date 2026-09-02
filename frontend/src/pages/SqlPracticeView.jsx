@@ -344,6 +344,7 @@ export default function SqlPracticeView({
   const [showDrawer, setShowDrawer] = useState(false);
   const [drawerSearch, setDrawerSearch] = useState('');
   const [drawerDifficulty, setDrawerDifficulty] = useState('all');
+  const [drawerTrack, setDrawerTrack] = useState('all'); // 'all' | 'ddl' | 'core'
 
   // Settings Modal & Preferences with Tabbed Interface
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -611,16 +612,22 @@ export default function SqlPracticeView({
   // Filtered drawer challenges
   const drawerChallenges = useMemo(() => {
     return SQL_CHALLENGES.map((c, i) => ({ ...c, originalIndex: i })).filter((c) => {
+      if (drawerTrack === 'ddl' && !c.id.startsWith('ddl-')) {
+        return false;
+      }
+      if (drawerTrack === 'core' && c.id.startsWith('ddl-')) {
+        return false;
+      }
       if (drawerDifficulty !== 'all' && c.difficulty?.toLowerCase() !== drawerDifficulty.toLowerCase()) {
         return false;
       }
       if (drawerSearch.trim()) {
         const q = drawerSearch.toLowerCase();
-        return c.title.toLowerCase().includes(q) || c.moduleTitle?.toLowerCase().includes(q);
+        return c.title.toLowerCase().includes(q) || c.moduleTitle?.toLowerCase().includes(q) || c.id.toLowerCase().includes(q);
       }
       return true;
     });
-  }, [drawerSearch, drawerDifficulty]);
+  }, [drawerSearch, drawerDifficulty, drawerTrack]);
 
   return (
     <div
@@ -1554,6 +1561,48 @@ export default function SqlPracticeView({
                     <X size={13} />
                   </button>
                 )}
+              </div>
+
+              {/* Track Category Tabs */}
+              <div className="flex items-center space-x-1 overflow-x-auto pb-0.5">
+                <button
+                  type="button"
+                  onClick={() => setDrawerTrack('all')}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
+                    drawerTrack === 'all'
+                      ? 'bg-slate-900 text-white font-extrabold shadow-2xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  }`}
+                >
+                  All ({totalCount})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDrawerTrack('ddl')}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center space-x-1 ${
+                    drawerTrack === 'ddl'
+                      ? 'bg-blue-600 text-white font-extrabold shadow-2xs'
+                      : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200/80'
+                  }`}
+                >
+                  <span>📘 50 DDL Questions</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                    drawerTrack === 'ddl' ? 'bg-blue-700 text-white' : 'bg-blue-200/80 text-blue-900'
+                  }`}>
+                    50
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDrawerTrack('core')}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
+                    drawerTrack === 'core'
+                      ? 'bg-indigo-600 text-white font-extrabold shadow-2xs'
+                      : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200/80'
+                  }`}
+                >
+                  <span>Core SQL (16)</span>
+                </button>
               </div>
 
               <div className="grid grid-cols-4 gap-1">
