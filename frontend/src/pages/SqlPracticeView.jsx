@@ -83,13 +83,10 @@ function formatSql(sql) {
 }
 
 /**
- * Generates an empty scaffold starter SQL so users write the query themselves
+ * Generates a clean empty starter SQL so users write the query themselves from a clean slate
  */
 function getCleanStarterSql(challenge = null) {
-  if (challenge?.tags?.includes('CREATE DATABASE') || challenge?.tags?.includes('DROP DATABASE') || challenge?.id?.startsWith('ddl-')) {
-    return `-- Write your DDL statement below\n`;
-  }
-  return `-- Write your SQL solution below\nSELECT \n\n`;
+  return '';
 }
 
 /**
@@ -331,7 +328,7 @@ export default function SqlPracticeView({
 
   // Filters for Problemset List
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDifficulty, setSelectedDifficulty] = useState('all'); // 'all' | 'easy' | 'medium' | 'hard'
+  const [selectedDifficulty, setSelectedDifficulty] = useState('all'); // 'all' | 'basic' | 'easy' | 'medium' | 'hard'
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all'); // 'all' | 'solved' | 'unsolved'
 
@@ -353,11 +350,30 @@ export default function SqlPracticeView({
   const [showDrawer, setShowDrawer] = useState(false);
   const [drawerSearch, setDrawerSearch] = useState('');
   const [drawerDifficulty, setDrawerDifficulty] = useState('all');
-  const [drawerTrack, setDrawerTrack] = useState('all'); // 'all' | 'ddl' | 'core'
+  const [drawerTrack, setDrawerTrack] = useState('all'); // 'all' | 'ddl' | 'dml' | 'core'
   const [drawerDdlFilter, setDrawerDdlFilter] = useState('all'); // 'all' | 'create' | 'use' | 'alter' | 'rename' | 'truncate' | 'drop'
+  const [drawerDmlFilter, setDrawerDmlFilter] = useState('all'); // 'all' | 'insert' | 'update' | 'delete' | 'select'
 
-  // Sync initialChallengeIndex from parent prop
+  // Sync initialChallengeIndex from parent prop or URL search param (?challenge=dml-01)
   useEffect(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const targetId = urlParams.get('challenge') || urlParams.get('id') || urlParams.get('challengeId');
+      if (targetId) {
+        const foundIdx = SQL_CHALLENGES.findIndex(c => c.id.toLowerCase() === targetId.toLowerCase());
+        if (foundIdx !== -1) {
+          setSelectedChallengeIndex(foundIdx);
+          setViewMode('solve');
+          if (targetId.toLowerCase().startsWith('dml-')) {
+            setDrawerTrack('dml');
+          } else if (targetId.toLowerCase().startsWith('ddl-')) {
+            setDrawerTrack('ddl');
+          }
+          return;
+        }
+      }
+    } catch (_) {}
+
     if (initialChallengeIndex !== null && initialChallengeIndex >= 0 && initialChallengeIndex < SQL_CHALLENGES.length) {
       setSelectedChallengeIndex(initialChallengeIndex);
       setViewMode('solve');
@@ -642,7 +658,17 @@ export default function SqlPracticeView({
           if (drawerDdlFilter === 'drop' && !matchString.includes('drop')) return false;
         }
       }
-      if (drawerTrack === 'core' && c.id.startsWith('ddl-')) {
+      if (drawerTrack === 'dml') {
+        if (!c.id.startsWith('dml-')) return false;
+        if (drawerDmlFilter !== 'all') {
+          const matchString = (c.title + ' ' + (c.tags || []).join(' ') + ' ' + (c.moduleTitle || '')).toLowerCase();
+          if (drawerDmlFilter === 'insert' && !matchString.includes('insert')) return false;
+          if (drawerDmlFilter === 'update' && !matchString.includes('update')) return false;
+          if (drawerDmlFilter === 'delete' && !matchString.includes('delete')) return false;
+          if (drawerDmlFilter === 'select' && !matchString.includes('select')) return false;
+        }
+      }
+      if (drawerTrack === 'core' && (c.id.startsWith('ddl-') || c.id.startsWith('dml-'))) {
         return false;
       }
       if (drawerDifficulty !== 'all' && c.difficulty?.toLowerCase() !== drawerDifficulty.toLowerCase()) {
@@ -654,7 +680,7 @@ export default function SqlPracticeView({
       }
       return true;
     });
-  }, [drawerSearch, drawerDifficulty, drawerTrack, drawerDdlFilter]);
+  }, [drawerSearch, drawerDifficulty, drawerTrack, drawerDdlFilter, drawerDmlFilter]);
 
   return (
     <div
@@ -718,7 +744,9 @@ export default function SqlPracticeView({
             </span>
             <span
               className={`text-[11px] sm:text-xs font-bold capitalize shrink-0 ${
-                activeChallenge?.difficulty?.toLowerCase() === 'easy'
+                activeChallenge?.difficulty?.toLowerCase() === 'basic'
+                  ? 'text-sky-600'
+                  : activeChallenge?.difficulty?.toLowerCase() === 'easy'
                   ? 'text-emerald-600'
                   : activeChallenge?.difficulty?.toLowerCase() === 'medium'
                   ? 'text-amber-500'
@@ -935,7 +963,9 @@ export default function SqlPracticeView({
                   <div className="flex flex-wrap items-center gap-2 text-xs">
                     <span
                       className={`font-bold capitalize ${
-                        activeChallenge?.difficulty?.toLowerCase() === 'easy'
+                        activeChallenge?.difficulty?.toLowerCase() === 'basic'
+                          ? 'text-sky-600'
+                          : activeChallenge?.difficulty?.toLowerCase() === 'easy'
                           ? 'text-emerald-600'
                           : activeChallenge?.difficulty?.toLowerCase() === 'medium'
                           ? 'text-amber-500'
@@ -1156,7 +1186,7 @@ export default function SqlPracticeView({
                 }}
                 style={{ fontSize: `${settings.fontSize || '13'}px` }}
                 className="w-full h-full p-4 font-mono text-slate-900 bg-white focus:outline-none focus:ring-0 leading-relaxed font-semibold resize-none overflow-y-auto"
-                placeholder="-- Write your SQL query here... e.g. SELECT * FROM table_name;"
+                placeholder="Type your SQL statement here..."
                 spellCheck="false"
               />
             </div>
@@ -1621,6 +1651,22 @@ export default function SqlPracticeView({
                 </button>
                 <button
                   type="button"
+                  onClick={() => setDrawerTrack('dml')}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center space-x-1 ${
+                    drawerTrack === 'dml'
+                      ? 'bg-emerald-600 text-white font-extrabold shadow-2xs'
+                      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/80'
+                  }`}
+                >
+                  <span>📗 50 DML Questions</span>
+                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                    drawerTrack === 'dml' ? 'bg-emerald-700 text-white' : 'bg-emerald-200/80 text-emerald-900'
+                  }`}>
+                    50
+                  </span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => setDrawerTrack('core')}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
                     drawerTrack === 'core'
@@ -1643,25 +1689,51 @@ export default function SqlPracticeView({
                     { id: 'rename', label: 'RENAME' },
                     { id: 'truncate', label: 'TRUNCATE' },
                     { id: 'drop', label: 'DROP' }
-                  ].map((op) => (
+                  ].map((sub) => (
                     <button
-                      key={op.id}
+                      key={sub.id}
                       type="button"
-                      onClick={() => setDrawerDdlFilter(op.id)}
-                      className={`px-2 py-0.5 rounded-md text-[10.5px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
-                        drawerDdlFilter === op.id
-                          ? 'bg-blue-600 text-white shadow-2xs'
+                      onClick={() => setDrawerDdlFilter(sub.id)}
+                      className={`px-2 py-0.5 rounded-md text-[10.5px] font-bold transition-all cursor-pointer shrink-0 ${
+                        drawerDdlFilter === sub.id
+                          ? 'bg-blue-600 text-white'
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                     >
-                      {op.label}
+                      {sub.label}
                     </button>
                   ))}
                 </div>
               )}
 
-              <div className="grid grid-cols-4 gap-1">
-                {['all', 'easy', 'medium', 'hard'].map((df) => (
+              {/* DML Operational Granular Filters (INSERT, UPDATE, DELETE, SELECT) */}
+              {drawerTrack === 'dml' && (
+                <div className="flex items-center space-x-1 overflow-x-auto pb-1 scrollbar-none pt-0.5">
+                  {[
+                    { id: 'all', label: 'All DML (50)' },
+                    { id: 'insert', label: 'INSERT (12)' },
+                    { id: 'update', label: 'UPDATE (16)' },
+                    { id: 'delete', label: 'DELETE (10)' },
+                    { id: 'select', label: 'SELECT (12)' }
+                  ].map((sub) => (
+                    <button
+                      key={sub.id}
+                      type="button"
+                      onClick={() => setDrawerDmlFilter(sub.id)}
+                      className={`px-2 py-0.5 rounded-md text-[10.5px] font-bold transition-all cursor-pointer shrink-0 ${
+                        drawerDmlFilter === sub.id
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {sub.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="grid grid-cols-5 gap-1">
+                {['all', 'basic', 'easy', 'medium', 'hard'].map((df) => (
                   <button
                     key={df}
                     type="button"
@@ -1704,7 +1776,9 @@ export default function SqlPracticeView({
                     <div className="flex items-center space-x-1.5 shrink-0">
                       <span
                         className={`text-[10.5px] font-bold capitalize ${
-                          ch.difficulty?.toLowerCase() === 'easy'
+                          ch.difficulty?.toLowerCase() === 'basic'
+                            ? 'text-sky-600'
+                            : ch.difficulty?.toLowerCase() === 'easy'
                             ? 'text-emerald-600'
                             : ch.difficulty?.toLowerCase() === 'medium'
                             ? 'text-amber-500'

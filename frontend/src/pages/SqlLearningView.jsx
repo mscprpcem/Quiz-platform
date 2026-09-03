@@ -15,6 +15,7 @@ import {
 import ChapterComingSoon from '../components/learn/ChapterComingSoon';
 import ComparisonTable from '../components/learn/ComparisonTable';
 import DdlQuestionsBank from '../components/learn/DdlQuestionsBank';
+import DmlQuestionsBank from '../components/learn/DmlQuestionsBank';
 
 /**
  * SQL Syntax Colorizer
@@ -492,7 +493,11 @@ export default function SqlLearningView({
             </div>
           ) : topicData.isQuestionsBankTopic ? (
             <div className="w-full max-w-7xl mx-auto px-6 sm:px-10 py-8">
-              <DdlQuestionsBank onJumpToPractice={onJumpToPractice} />
+              {topicData.questionBankType === 'dml' ? (
+                <DmlQuestionsBank onJumpToPractice={onJumpToPractice} />
+              ) : (
+                <DdlQuestionsBank onJumpToPractice={onJumpToPractice} />
+              )}
             </div>
           ) : (
             <article className="w-full max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 py-8 sm:py-10 space-y-10 animate-fadeIn text-slate-900">
@@ -1060,12 +1065,12 @@ export default function SqlLearningView({
                           </p>
                         )}
 
-                        {st.code && (
+                        {(st.code || st.sql) && (
                           <CodeBlock
-                            code={st.code}
-                            title={`Step ${st.step}: SQL Implementation`}
-                            onCopy={() => handleCopyCode(st.code, `step-sql-${st.step}`)}
-                            isCopied={copiedSection === `step-sql-${st.step}`}
+                            code={st.code || st.sql}
+                            title={`Step ${st.step || st.stepNumber}: SQL Implementation`}
+                            onCopy={() => handleCopyCode(st.code || st.sql, `step-sql-${st.step || st.stepNumber}`)}
+                            isCopied={copiedSection === `step-sql-${st.step || st.stepNumber}`}
                           />
                         )}
                       </div>

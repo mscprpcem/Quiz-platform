@@ -1,5 +1,4 @@
-// Comprehensive 21-Module SQL Curriculum, Concepts, Syntax Guidelines, and Multi-Type Questions
-import { COMMON_SCHEMAS } from './sqlChallenges';
+import { COMMON_SCHEMAS } from './sqlChallenges.js';
 
 export const SQL_MODULES = [
   // =========================================================================
@@ -427,22 +426,14 @@ DROP DATABASE IF EXISTS staging_test_db;`,
     summary: 'Master inserting single and multiple rows, updating records safely with WHERE clauses, deleting records, and INSERT INTO SELECT.',
     topics: [
       {
-        id: 'top-03-01',
-        title: 'INSERT INTO & Batch Ingestion',
-        subtopics: ['INSERT INTO syntax', 'Insert single record', 'Insert multiple records in batch', 'INSERT INTO SELECT from another table'],
-        conceptText: `\`INSERT INTO\` adds new rows to a table. You can insert individual records, multiple rows in a single batch statement for high throughput, or copy rows from another table using \`INSERT INTO ... SELECT\`.`,
-        syntaxGuide: `-- Single row insert specifying columns:
-INSERT INTO customers (id, name, email, city, country) 
-VALUES (10, 'Aria Stark', 'aria@winterfell.com', 'North', 'Westeros');
-
--- Multi-row batch insert:
+        id: 'top-04-01',
+        title: 'INSERT INTO & Bulk Data Ingestion',
+        subtopics: ['Explicit column mapping', 'Single-row vs multi-row batching', 'Handling DEFAULT & AUTO_INCREMENT', 'INSERT INTO ... SELECT'],
+        conceptText: 'INSERT INTO writes new rows into an existing table. Explicit column mapping guarantees schema stability, while multi-row batching reduces network trips and transaction log flushes by over 80%.',
+        syntaxGuide: `-- Multi-row batch insert with explicit columns:
 INSERT INTO customers (id, name, email, city, country) VALUES
   (11, 'Jon Snow', 'jon@castleblack.com', 'Wall', 'Westeros'),
-  (12, 'Sansa Stark', 'sansa@winterfell.com', 'North', 'Westeros');
-
--- Ingest from query:
-INSERT INTO archived_customers (id, name, email)
-SELECT id, name, email FROM customers WHERE country = 'USA';`,
+  (12, 'Sansa Stark', 'sansa@winterfell.com', 'North', 'Westeros');`,
         exampleSnippet: {
           title: 'Batch Insert & Verification',
           query: `INSERT INTO departments (id, department_name, location, budget) VALUES
@@ -455,31 +446,65 @@ SELECT * FROM departments WHERE id >= 10;`,
         commonPitfall: 'Mismatching the count or data types of values in the VALUES clause with the specified column list.'
       },
       {
-        id: 'top-03-02',
-        title: 'UPDATE & DELETE with Safe Filtering',
-        subtopics: ['UPDATE statement syntax', 'UPDATE with WHERE condition', 'Updating multiple columns', 'DELETE with WHERE', 'Avoiding accidental full table updates'],
-        conceptText: `\`UPDATE\` modifies column values in existing rows. \`DELETE\` removes specific rows from a table. Both commands should virtually ALWAYS include a \`WHERE\` clause; running either without \`WHERE\` modifies or deletes ALL records in the entire table!`,
-        syntaxGuide: `-- Update specific record:
+        id: 'top-04-02',
+        title: 'UPDATE & Conditional Data Modification',
+        subtopics: ['UPDATE statement syntax', 'Targeted updates with primary key WHERE', 'Multi-column updates', 'Atomic computed increments (col = col + 1)'],
+        conceptText: 'UPDATE modifies column values in existing rows. Always write the WHERE clause first before specifying column assignments to avoid catastrophic whole-table overwrites.',
+        syntaxGuide: `-- Targeted update with primary key:
 UPDATE employees 
 SET salary = salary * 1.10, department_id = 1
-WHERE id = 3;
-
--- Delete specific record:
-DELETE FROM employees 
-WHERE id = 10;`,
+WHERE id = 3;`,
         exampleSnippet: {
-          title: 'Safe Update and Delete Verification',
+          title: 'Safe Update and Verification',
           query: `UPDATE employees 
 SET salary = salary + 5000 
 WHERE department_id = 3;
-
-SELECT id, first_name, salary, department_id 
-FROM employees 
-WHERE department_id = 3;`,
+SELECT id, first_name, salary, department_id FROM employees WHERE department_id = 3;`,
           setupSql: COMMON_SCHEMAS.hrCompany
         },
-        keyTakeaway: 'Always test your WHERE clause with a SELECT query first before executing destructive UPDATE or DELETE statements.',
-        commonPitfall: 'Forgetting the WHERE clause in an UPDATE statement: `UPDATE employees SET salary = 100000;` overwrites every employee’s salary.'
+        keyTakeaway: 'Always test your WHERE clause with a SELECT query first before executing destructive UPDATE statements.',
+        commonPitfall: 'Forgetting the WHERE clause in an UPDATE statement: UPDATE employees SET salary = 100000 overwrites every employee’s salary.'
+      },
+      {
+        id: 'top-04-03',
+        title: 'DELETE FROM & Mutation Safety',
+        subtopics: ['DELETE with WHERE condition', 'DELETE vs TRUNCATE vs DROP', 'Soft deletion pattern (is_deleted)', 'Foreign key cascade safeguards'],
+        conceptText: 'DELETE removes specific rows matching a WHERE condition. In production environments, enterprise applications frequently use soft deletion (is_deleted = TRUE) to preserve audit trails.',
+        syntaxGuide: `-- Targeted row deletion:
+DELETE FROM employees 
+WHERE id = 10;
+
+-- Soft delete pattern:
+UPDATE employees SET is_deleted = TRUE WHERE id = 10;`,
+        exampleSnippet: {
+          title: 'Targeted Row Deletion Verification',
+          query: `DELETE FROM employees WHERE id = 10;
+SELECT * FROM employees WHERE id = 10;`,
+          setupSql: COMMON_SCHEMAS.hrCompany
+        },
+        keyTakeaway: 'DELETE logs each deleted row and fires triggers; TRUNCATE deallocates data pages instantly without row-level logging.',
+        commonPitfall: 'Executing DELETE FROM table without WHERE wipes all records from the table.'
+      },
+      {
+        id: 'top-04-04',
+        title: 'Transactions & Production Safety Guards',
+        subtopics: ['START TRANSACTION / BEGIN', 'COMMIT to persist changes', 'ROLLBACK to undo changes', 'Safe Updates Mode (SQL_SAFE_UPDATES)'],
+        conceptText: 'ACID transactions ensure that related multi-statement mutations execute atomically: either all succeed together (COMMIT) or all revert completely (ROLLBACK).',
+        syntaxGuide: `-- Atomic multi-statement transaction:
+START TRANSACTION;
+UPDATE bank_accounts SET balance = balance - 100 WHERE id = 1;
+UPDATE bank_accounts SET balance = balance + 100 WHERE id = 2;
+COMMIT;`,
+        exampleSnippet: {
+          title: 'Atomic Transaction with Rollback',
+          query: `START TRANSACTION;
+UPDATE employees SET salary = salary + 1000 WHERE department_id = 1;
+ROLLBACK;
+SELECT * FROM employees WHERE department_id = 1;`,
+          setupSql: COMMON_SCHEMAS.hrCompany
+        },
+        keyTakeaway: 'Always wrap multi-table business mutations in transactions to prevent partial corruption.',
+        commonPitfall: 'Leaving open uncommitted transactions, which locks table rows and starves concurrent users.'
       }
     ],
     questions: [
@@ -517,11 +542,11 @@ WHERE department_id = 3;`,
   },
 
   // =========================================================================
-  // MODULE 4: DQL (DATA QUERY LANGUAGE - SELECT)
+  // MODULE 5: DQL (DATA QUERY LANGUAGE - SELECT)
   // =========================================================================
   {
-    id: 'mod-04',
-    number: 4,
+    id: 'mod-05',
+    number: 5,
     title: 'DQL (SELECT, Filtering & Sorting)',
     icon: 'Search',
     difficulty: 'Beginner',

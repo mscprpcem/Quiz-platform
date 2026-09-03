@@ -1,23 +1,14 @@
 import { CHAPTER_0_METADATA, CHAPTER_0_TOPICS } from './chapter0Fundamentals.js';
 import { CHAPTER_2_METADATA, CHAPTER_2_TOPICS } from './chapter2BuildingBlocks.js';
 import { CHAPTER_1_METADATA, CHAPTER_1_TOPICS } from './chapter1Ddl.js';
+import { CHAPTER_3_METADATA, CHAPTER_3_TOPICS } from './chapter3Dml.js';
 
 // All Chapters Catalog with Availability Status
 export const CHAPTER_CATALOG = [
   CHAPTER_0_METADATA,
   CHAPTER_2_METADATA,
   CHAPTER_1_METADATA,
-  {
-    id: 'mod-04',
-    number: 4,
-    title: 'DML (Data Manipulation Language)',
-    shortTitle: 'DML',
-    status: 'coming_soon',
-    badge: 'In Production',
-    releaseDate: 'Coming Soon',
-    description: 'Master row-level data modifications: INSERT INTO, UPDATE with WHERE safety filters, DELETE vs soft deletion, bulk inserts, and transactional multi-row mutations.',
-    plannedTopics: ['INSERT INTO & Bulk Inserts', 'UPDATE with Strict WHERE Filters', 'DELETE FROM & Safe Deletions', 'Soft Deletes with is_deleted Flags', 'Transactions (COMMIT & ROLLBACK)']
-  },
+  CHAPTER_3_METADATA,
   {
     id: 'mod-05',
     number: 5,
@@ -101,7 +92,8 @@ export const CHAPTER_CATALOG = [
 export const ALL_TOPIC_DETAILS = {
   ...CHAPTER_0_TOPICS,
   ...CHAPTER_2_TOPICS,
-  ...CHAPTER_1_TOPICS
+  ...CHAPTER_1_TOPICS,
+  ...CHAPTER_3_TOPICS
 };
 
 // Helper utilities

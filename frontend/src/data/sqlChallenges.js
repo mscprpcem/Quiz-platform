@@ -1,4 +1,5 @@
-import { DDL_CHALLENGES } from './ddlChallenges';
+import { DDL_CHALLENGES } from './ddlChallenges.js';
+import { DML_CHALLENGES } from './dmlChallenges.js';
 
 // Enterprise & E-Commerce Seed Schemas
 export const COMMON_SCHEMAS = {
@@ -1321,7 +1322,7 @@ The subquery groups by \`department_id\` and extracts the peak salary for each d
   }
 ];
 
-export const SQL_CHALLENGES = [...BASE_CHALLENGES, ...DDL_CHALLENGES];
+export const SQL_CHALLENGES = [...BASE_CHALLENGES, ...DDL_CHALLENGES, ...DML_CHALLENGES];
 
 // Helper functions for Admin custom challenge management
 export function getStoredCustomChallenges() {
