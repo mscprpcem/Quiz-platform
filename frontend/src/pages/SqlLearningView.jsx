@@ -18,7 +18,7 @@ import DdlQuestionsBank from '../components/learn/DdlQuestionsBank';
 
 /**
  * SQL Syntax Colorizer
- * Highlights SQL keywords, data types, numbers, strings, comments, and identifiers in high-contrast light theme
+ * Highlights SQL keywords, data types, numbers, strings, comments, and identifiers on modern dark IDE background
  */
 function HighlightedSql({ code }) {
   if (!code) return null;
@@ -31,7 +31,7 @@ function HighlightedSql({ code }) {
         // Handle comment line
         if (line.trim().startsWith('--') || line.trim().startsWith('/*') || line.trim().startsWith('#')) {
           return (
-            <div key={lineIdx} className="text-slate-500 italic font-medium">
+            <div key={lineIdx} className="text-slate-400 italic font-medium">
               {line}
             </div>
           );
@@ -58,7 +58,7 @@ function HighlightedSql({ code }) {
                  'VERSION', 'CURRENT_TIMESTAMP', 'USER', 'DATABASE'].includes(upper)
               ) {
                 return (
-                  <span key={tIdx} className="text-blue-700 font-black">
+                  <span key={tIdx} className="text-sky-400 font-bold">
                     {token}
                   </span>
                 );
@@ -67,7 +67,7 @@ function HighlightedSql({ code }) {
               // SQL Data Types
               if (['INT', 'INTEGER', 'VARCHAR', 'DECIMAL', 'DATE', 'BOOLEAN', 'TEXT', 'FLOAT', 'DOUBLE', 'BIGINT', 'TIMESTAMP'].includes(upper)) {
                 return (
-                  <span key={tIdx} className="text-indigo-700 font-black">
+                  <span key={tIdx} className="text-purple-400 font-bold">
                     {token}
                   </span>
                 );
@@ -76,14 +76,14 @@ function HighlightedSql({ code }) {
               // Placeholder syntax tags
               if (token.toLowerCase() === 'datatype') {
                 return (
-                  <span key={tIdx} className="text-teal-700 font-bold">
+                  <span key={tIdx} className="text-teal-300 font-medium">
                     {token}
                   </span>
                 );
               }
               if (token.toLowerCase() === '[constraints]') {
                 return (
-                  <span key={tIdx} className="text-slate-500 font-medium">
+                  <span key={tIdx} className="text-slate-400 font-medium">
                     {token}
                   </span>
                 );
@@ -92,7 +92,7 @@ function HighlightedSql({ code }) {
               // Strings
               if (token.startsWith("'") && token.endsWith("'")) {
                 return (
-                  <span key={tIdx} className="text-emerald-700 font-semibold">
+                  <span key={tIdx} className="text-emerald-300 font-medium">
                     {token}
                   </span>
                 );
@@ -101,7 +101,7 @@ function HighlightedSql({ code }) {
               // Numbers
               if (/^\d+(?:\.\d+)?$/.test(token)) {
                 return (
-                  <span key={tIdx} className="text-amber-700 font-bold">
+                  <span key={tIdx} className="text-amber-400 font-bold">
                     {token}
                   </span>
                 );
@@ -110,14 +110,14 @@ function HighlightedSql({ code }) {
               // Punctuation
               if (['(', ')', ',', ';'].includes(token)) {
                 return (
-                  <span key={tIdx} className="text-slate-900 font-bold">
+                  <span key={tIdx} className="text-slate-400 font-bold">
                     {token}
                   </span>
                 );
               }
 
               return (
-                <span key={tIdx} className="text-slate-900 font-medium">
+                <span key={tIdx} className="text-slate-200 font-normal">
                   {token}
                 </span>
               );
@@ -125,6 +125,43 @@ function HighlightedSql({ code }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+function CodeBlock({ code, title = 'SQL', language = 'sql', onCopy, isCopied }) {
+  if (!code) return null;
+
+  return (
+    <div className="rounded-xl overflow-hidden border border-slate-800 bg-slate-900 shadow-md my-4">
+      <div className="flex items-center justify-between px-4 py-2.5 bg-slate-950/90 border-b border-slate-800/80 select-none">
+        <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-1.5">
+            <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80 inline-block" />
+            <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80 inline-block" />
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80 inline-block" />
+          </div>
+          <span className="text-[11px] font-mono font-bold text-slate-300 tracking-wide">
+            {title}
+          </span>
+        </div>
+        <div className="flex items-center space-x-2">
+          <span className="text-[10px] font-mono font-bold uppercase text-slate-400 bg-slate-800/80 px-2 py-0.5 rounded border border-slate-700/60">
+            {language}
+          </span>
+          <button
+            type="button"
+            onClick={onCopy}
+            className="flex items-center space-x-1 text-[11px] font-bold text-slate-300 hover:text-white px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 border border-slate-700/60 transition-all cursor-pointer shadow-xs active:scale-95"
+          >
+            {isCopied ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+            <span className={isCopied ? 'text-emerald-400 font-bold' : ''}>{isCopied ? 'Copied' : 'Copy'}</span>
+          </button>
+        </div>
+      </div>
+      <div className="p-4 sm:p-5 overflow-x-auto text-[13px] leading-relaxed">
+        <HighlightedSql code={code} />
+      </div>
     </div>
   );
 }
@@ -238,44 +275,30 @@ export default function SqlLearningView({
     setTimeout(() => setCopiedSection(null), 2000);
   };
 
+  // Prevent duplicate window scrollbar while in full-height learning view
+  useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
+    };
+  }, []);
+
   return (
     <div
-      style={{ height: 'calc(100vh - 63px)', overflow: 'hidden' }}
-      className="w-full flex font-segoe text-slate-800 bg-slate-50/40"
+      style={{ height: 'calc(100vh - 64px)', overflow: 'hidden' }}
+      className="w-full h-[calc(100vh-64px)] flex font-segoe text-slate-800 bg-white overflow-hidden"
     >
       {/* =========================================================================
           LEFT SIDEBAR: CURRICULUM SYLLABUS (MODULAR CHAPTERS + COMING SOON BUTTONS)
          ========================================================================= */}
       <aside className="w-80 border-r border-slate-200/90 bg-white flex flex-col shrink-0 h-full select-none z-10 shadow-xs hidden lg:flex">
         
-        {/* ── TOP HEADER: Syllabus Title + Quick Exit to Hub ── */}
-        <div className="p-4 border-b border-slate-100 space-y-3 shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold">
-                <BookOpen size={16} />
-              </div>
-              <div>
-                <span className="text-xs font-black uppercase tracking-wider text-slate-900 block leading-tight">
-                  SQL Syllabus
-                </span>
-                <span className="text-[10px] text-slate-500 font-medium">
-                  {CHAPTER_CATALOG.filter(c => c.status === 'available').length} Chapters Live • {CHAPTER_CATALOG.filter(c => c.status === 'coming_soon').length} Upcoming
-                </span>
-              </div>
-            </div>
-
-            {onBackToOverview && (
-              <button
-                type="button"
-                onClick={onBackToOverview}
-                className="text-[11px] font-bold text-slate-500 hover:text-blue-600 flex items-center space-x-1 px-2.5 py-1 rounded-lg hover:bg-slate-50 transition-all cursor-pointer border border-transparent hover:border-slate-200"
-              >
-                <ArrowLeft size={12} />
-                <span>Hub</span>
-              </button>
-            )}
-          </div>
+        {/* ── TOP HEADER: Reading Progress ── */}
+        <div className="p-4 border-b border-slate-100 space-y-1.5 shrink-0">
 
           {/* Overall Reading Progress bar */}
           <div className="space-y-1.5 pt-0.5">
@@ -364,7 +387,7 @@ export default function SqlLearningView({
 
                 {isExpanded && mod.topics && (
                   <div className="ml-3 pl-2.5 border-l-2 border-slate-200/80 space-y-0.5 pt-1 pb-1">
-                    {mod.topics.map((t) => {
+                    {mod.topics.map((t, idx) => {
                       const isTopicSelected = currentActiveTopicId === t.id && isAvailable;
                       const isCompleted = localCompletedTopics.includes(t.id);
 
@@ -383,7 +406,11 @@ export default function SqlLearningView({
                             {isCompleted ? (
                               <CheckCircle2 size={13} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
                             ) : (
-                              <span className={`text-xs leading-none shrink-0 ${isTopicSelected ? 'text-blue-600 font-bold' : 'text-slate-300'}`}>•</span>
+                              <span className={`text-[10px] font-mono font-bold shrink-0 px-1.5 py-0.5 rounded ${
+                                isTopicSelected ? 'bg-blue-200/80 text-blue-900 font-black' : 'text-slate-500 bg-slate-100'
+                              }`}>
+                                {t.lessonCode || `${mod.number}.${idx + 1}`}
+                              </span>
                             )}
                             <span className="truncate">{t.title}</span>
                           </div>
@@ -426,7 +453,7 @@ export default function SqlLearningView({
       {/* =========================================================================
           RIGHT MAIN CONTENT: SCROLLABLE WORKSPACE
          ========================================================================= */}
-      <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden">
+      <div className="flex-1 min-w-0 flex flex-col h-full overflow-hidden bg-white">
         
         {/* ── MOBILE TOP BAR (<1024px) ── */}
         <div className="lg:hidden flex items-center justify-between px-4 py-2.5 bg-white border-b border-slate-200 shrink-0 shadow-2xs">
@@ -448,196 +475,313 @@ export default function SqlLearningView({
         </div>
 
         {/* ── MAIN SCROLLABLE CONTENT ── */}
-        <main className="flex-1 overflow-y-auto px-4 sm:px-8 py-6 sm:py-8">
+        <main className="flex-1 overflow-y-auto bg-white custom-scrollbar">
           {!isChapterLive ? (
-            <ChapterComingSoon
-              chapter={activeChapter}
-              onSelectChapter={(modId) => {
-                setSelectedModuleId && setSelectedModuleId(modId);
-                const targetMod = CHAPTER_CATALOG.find(m => m.id === modId);
-                if (targetMod?.topics?.[0]) {
-                  handleSelectTopic(targetMod.topics[0].id, modId);
-                }
-              }}
-              onJumpToPractice={onJumpToPractice}
-            />
+            <div className="py-8 px-4 sm:px-8">
+              <ChapterComingSoon
+                chapter={activeChapter}
+                onSelectChapter={(modId) => {
+                  setSelectedModuleId && setSelectedModuleId(modId);
+                  const targetMod = CHAPTER_CATALOG.find(m => m.id === modId);
+                  if (targetMod?.topics?.[0]) {
+                    handleSelectTopic(targetMod.topics[0].id, modId);
+                  }
+                }}
+                onJumpToPractice={onJumpToPractice}
+              />
+            </div>
           ) : topicData.isQuestionsBankTopic ? (
-            <DdlQuestionsBank onJumpToPractice={onJumpToPractice} />
+            <div className="w-full max-w-7xl mx-auto px-6 sm:px-10 py-8">
+              <DdlQuestionsBank onJumpToPractice={onJumpToPractice} />
+            </div>
           ) : (
-            <div className="max-w-5xl mx-auto space-y-6 sm:space-y-8 animate-fadeIn">
+            <article className="w-full max-w-7xl mx-auto px-6 sm:px-10 lg:px-12 py-8 sm:py-10 space-y-10 animate-fadeIn text-slate-900">
 
-              {/* 1. TOPIC HEADER CARD (Clean Light Theme & Spacing) */}
-              <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 shadow-2xs space-y-4">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 sm:w-11 h-10 sm:h-11 rounded-xl bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center shadow-xs shrink-0 font-black text-sm">
-                      {topicData.chapterNumber !== undefined ? `${topicData.chapterNumber}.${topicData.id.slice(-2)}` : <Table size={20} strokeWidth={2.2} />}
+              {/* 1. TOPIC HEADER */}
+              <div>
+                <header className="space-y-3.5 pb-6 border-b border-slate-200">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center space-x-2">
+                      <span className="px-3 py-1 rounded-lg bg-blue-600 text-white text-xs font-black tracking-wide shadow-xs">
+                        {topicData.chapterNumber !== undefined && topicData.lessonNumber !== undefined
+                          ? `Chapter ${topicData.chapterNumber} • Lesson ${topicData.lessonNumber}`
+                          : (activeChapter?.title || 'SQL Topic')}
+                      </span>
+                      {topicData.lessonCode && (
+                        <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-xs font-mono font-bold border border-slate-200">
+                          {topicData.lessonCode}
+                        </span>
+                      )}
                     </div>
-                    <div>
-                      <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight leading-tight">
-                        {topicData.title}
-                      </h1>
-                      <p className="text-xs sm:text-sm text-slate-500 font-medium">
-                        {topicData.subtitle}
-                      </p>
-                    </div>
+
+                    {/* MARK AS COMPLETED BUTTON */}
+                    <button
+                      type="button"
+                      onClick={() => handleToggleRead(topicData.id)}
+                      className={`inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer border ${
+                        isCurrentTopicRead
+                          ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200 font-extrabold'
+                          : 'bg-white hover:bg-slate-50 text-slate-700 hover:text-blue-600 border-slate-200'
+                      }`}
+                    >
+                      <CheckCircle2
+                        size={15}
+                        className={isCurrentTopicRead ? 'text-emerald-600' : 'text-slate-400'}
+                        strokeWidth={isCurrentTopicRead ? 2.5 : 2}
+                      />
+                      <span>{isCurrentTopicRead ? 'Completed' : 'Mark as Read'}</span>
+                    </button>
                   </div>
 
-                  {/* MARK AS READ BUTTON */}
-                  <button
-                    type="button"
-                    onClick={() => handleToggleRead(topicData.id)}
-                    className={`inline-flex items-center space-x-2 px-4 py-2 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer border ${
-                      isCurrentTopicRead
-                        ? 'bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border-emerald-200 font-extrabold'
-                        : 'bg-white hover:bg-slate-50 text-slate-700 hover:text-blue-600 border-slate-200/90'
-                    }`}
-                  >
-                    <CheckCircle2
-                      size={16}
-                      className={isCurrentTopicRead ? 'text-emerald-600' : 'text-slate-400'}
-                      strokeWidth={isCurrentTopicRead ? 2.5 : 2}
-                    />
-                    <span>{isCurrentTopicRead ? 'Marked as Read' : 'Mark as Read'}</span>
-                  </button>
-                </div>
+                  <h1 className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight leading-tight">
+                    {topicData.title}
+                  </h1>
 
-                <p className="text-xs sm:text-sm text-slate-600 leading-relaxed pt-1 max-w-5xl">
-                  {topicData.intro}
-                </p>
+                  {topicData.subtitle && (
+                    <p className="text-base sm:text-lg text-slate-600 font-medium leading-normal">
+                      {topicData.subtitle}
+                    </p>
+                  )}
+
+                  {topicData.intro && (
+                    <p className="text-sm sm:text-base text-slate-700 leading-relaxed pt-1">
+                      {topicData.intro}
+                    </p>
+                  )}
+                </header>
               </div>
 
-              {/* 2. ARCHITECTURAL COMPARISON MATRIX (Generic & Dynamic) */}
-              {topicData.comparisonTable && (
-                <ComparisonTable comparison={topicData.comparisonTable} />
+              {/* 2. INFOGRAPHIC IMAGE SHOWCASE (FIGURE) */}
+              {topicData.infographicImage && (
+                <figure className="space-y-2.5 my-6">
+                  <div className="flex items-center justify-between pb-1">
+                    <div className="flex items-center space-x-2 text-slate-800">
+                      <BookOpen size={16} className="text-blue-600" />
+                      <span className="text-sm sm:text-base font-black">
+                        {topicData.infographicTitle || 'Visual Architecture & Flow Diagram'}
+                      </span>
+                    </div>
+                    <span className="text-[11px] font-bold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-100">
+                      Visual Guide
+                    </span>
+                  </div>
+
+                  <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-xs bg-slate-50">
+                    <img
+                      src={topicData.infographicImage}
+                      alt={topicData.infographicTitle}
+                      className="w-full h-auto object-contain max-h-[520px] mx-auto hover:scale-[1.01] transition-transform duration-300"
+                    />
+                  </div>
+
+                  {topicData.infographicCaption && (
+                    <figcaption className="text-xs text-slate-500 font-medium italic pt-1 text-center sm:text-left">
+                      {topicData.infographicCaption}
+                    </figcaption>
+                  )}
+                </figure>
               )}
 
-              {/* 3. WHY DO WE NEED AN RDBMS (ACID Properties) */}
+              {/* 3. ARCHITECTURAL COMPARISON MATRIX (Generic & Dynamic) */}
+              {topicData.comparisonTable && (
+                <section className="pt-6 border-t border-slate-100">
+                  <ComparisonTable comparison={topicData.comparisonTable} />
+                </section>
+              )}
+
+              {/* 4. WHY DO WE NEED AN RDBMS (ACID Properties) */}
               {topicData.whyWeNeedItSection && (
-                <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 shadow-2xs space-y-5">
+                <section className="pt-8 border-t border-slate-100 space-y-4">
                   <div className="flex items-center space-x-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center font-bold">
-                      <Shield size={15} />
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center font-bold">
+                      <Shield size={16} />
                     </div>
                     <div>
-                      <h2 className="text-sm sm:text-base font-black text-slate-900">
+                      <h2 className="text-lg sm:text-xl font-black text-slate-900">
                         {topicData.whyWeNeedItSection.title}
                       </h2>
-                      <p className="text-xs text-slate-500 font-medium">
+                      <p className="text-xs sm:text-sm text-slate-500 font-medium">
                         {topicData.whyWeNeedItSection.subtitle}
                       </p>
                     </div>
                   </div>
 
-                  <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
+                  <p className="text-sm text-slate-700 leading-relaxed font-normal">
                     {topicData.whyWeNeedItSection.intro}
                   </p>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-                    {topicData.whyWeNeedItSection.acidPillars.map((pillar) => (
-                      <div key={pillar.letter} className="bg-slate-50/80 border border-slate-200/90 rounded-xl p-4 space-y-2.5 shadow-2xs flex flex-col justify-between">
-                        <div className="space-y-1.5">
-                          <div className="flex items-center space-x-2">
-                            <span className={`w-6 h-6 rounded-lg font-black text-xs flex items-center justify-center ${
-                              pillar.badgeColor === 'blue' ? 'bg-blue-600 text-white' :
-                              pillar.badgeColor === 'emerald' ? 'bg-emerald-600 text-white' :
-                              pillar.badgeColor === 'indigo' ? 'bg-indigo-600 text-white' :
-                              'bg-purple-600 text-white'
-                            }`}>
-                              {pillar.letter}
-                            </span>
-                            <span className="text-xs font-black text-slate-900">
+                  <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 sm:gap-5 pt-2">
+                    {topicData.whyWeNeedItSection.acidPillars.map((pillar) => {
+                      const isA = pillar.letter === 'A';
+                      const isC = pillar.letter === 'C';
+                      const isI = pillar.letter === 'I';
+
+                      const borderCol = isA ? 'border-blue-200/90 hover:border-blue-400' :
+                                        isC ? 'border-emerald-200/90 hover:border-emerald-400' :
+                                        isI ? 'border-indigo-200/90 hover:border-indigo-400' :
+                                        'border-purple-200/90 hover:border-purple-400';
+
+                      const topBarCol = isA ? 'bg-blue-600' :
+                                        isC ? 'bg-emerald-600' :
+                                        isI ? 'bg-indigo-600' :
+                                        'bg-purple-600';
+
+                      const badgeBg = isA ? 'bg-blue-600 text-white' :
+                                      isC ? 'bg-emerald-600 text-white' :
+                                      isI ? 'bg-indigo-600 text-white' :
+                                      'bg-purple-600 text-white';
+
+                      const mottoBg = isA ? 'bg-blue-50 text-blue-700 border-blue-200' :
+                                      isC ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
+                                      isI ? 'bg-indigo-50 text-indigo-700 border-indigo-200' :
+                                      'bg-purple-50 text-purple-700 border-purple-200';
+
+                      return (
+                        <div
+                          key={pillar.letter}
+                          className={`bg-white border ${borderCol} rounded-2xl p-5 sm:p-6 flex flex-col justify-between shadow-xs hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 relative overflow-hidden`}
+                        >
+                          {/* Top Accent Strip */}
+                          <div className={`absolute top-0 left-0 right-0 h-1.5 ${topBarCol}`} />
+
+                          <div className="space-y-3 pt-2">
+                            {/* Card Top Row: Pillar Letter & Motto Badge */}
+                            <div className="flex items-center justify-between">
+                              <span className={`w-9 h-9 rounded-xl font-black text-sm flex items-center justify-center shadow-xs ${badgeBg}`}>
+                                {pillar.letter}
+                              </span>
+
+                              {pillar.motto && (
+                                <span className={`text-[11px] font-extrabold px-2.5 py-1 rounded-full border whitespace-nowrap ${mottoBg}`}>
+                                  {pillar.motto}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Card Title */}
+                            <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
                               {pillar.name}
-                            </span>
+                            </h3>
+
+                            {/* Card Description with consistent height */}
+                            <p className="text-xs sm:text-[13px] text-slate-600 leading-relaxed font-normal min-h-[64px]">
+                              {pillar.desc}
+                            </p>
                           </div>
-                          <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
-                            {pillar.desc}
-                          </p>
+
+                          {/* Production Example Box at bottom with matching height */}
+                          {pillar.example && (
+                            <div className="pt-3 border-t border-slate-100 mt-4 space-y-1.5">
+                              <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
+                                Production Example:
+                              </span>
+                              <div className="text-[11px] text-slate-700 font-medium leading-relaxed bg-slate-50 border-l-3 border-slate-300 rounded-r-lg p-2.5 min-h-[76px] flex items-center">
+                                {pillar.example}
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
-                </div>
+                </section>
               )}
 
-              {/* 4. STRUCTURAL HIERARCHY DEFINITIONS (Table, Row, Column, Cell) */}
+              {/* 5. STRUCTURAL HIERARCHY DEFINITIONS (Table, Row, Column, Cell) */}
               {topicData.structuralDefinitions && (
-                <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 shadow-2xs space-y-5">
+                <section className="pt-8 border-t border-slate-100 space-y-4">
                   <div className="flex items-center space-x-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center font-bold">
-                      <Layers size={15} />
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center font-bold">
+                      <Layers size={16} />
                     </div>
                     <div>
-                      <h2 className="text-sm sm:text-base font-black text-slate-900">
+                      <h2 className="text-lg sm:text-xl font-black text-slate-900">
                         The 6 Core Structural Layers
                       </h2>
-                      <p className="text-xs text-slate-500 font-medium">
+                      <p className="text-xs sm:text-sm text-slate-500 font-medium">
                         From physical database container down to an atomic data cell
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
                     {topicData.structuralDefinitions.map((t) => (
-                      <div key={t.term} className="bg-slate-50/80 border border-slate-200/90 rounded-xl p-4 space-y-2 shadow-2xs flex flex-col justify-between">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-black text-slate-900">{t.term}</span>
-                        </div>
-                        <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
+                      <div
+                        key={t.term}
+                        className="bg-white border border-slate-200/90 rounded-2xl p-5 space-y-2 shadow-xs hover:border-slate-300 transition-all flex flex-col justify-between min-h-[110px]"
+                      >
+                        <span className="text-sm font-black text-slate-900 block">
+                          {t.term}
+                        </span>
+                        <p className="text-xs sm:text-[13px] text-slate-600 leading-relaxed font-normal">
                           {t.definition}
                         </p>
                       </div>
                     ))}
                   </div>
-                </div>
+                </section>
               )}
 
-              {/* 5. SQL COMMAND TYPES GRID (DDL, DML, DQL, DCL, TCL) */}
+              {/* 6. SQL COMMAND TYPES GRID (DDL, DML, DQL, DCL, TCL) */}
               {topicData.commandTypesGrid && (
-                <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 shadow-2xs space-y-5">
+                <section className="pt-8 border-t border-slate-100 space-y-5">
                   <div className="flex items-center space-x-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center font-bold">
-                      <Code2 size={15} />
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 border border-emerald-100 flex items-center justify-center font-bold">
+                      <Code2 size={16} />
                     </div>
                     <div>
-                      <h2 className="text-sm sm:text-base font-black text-slate-900">
+                      <h2 className="text-lg sm:text-xl font-black text-slate-900">
                         The 5 SQL Command Families (DDL, DML, DQL, DCL, TCL)
                       </h2>
-                      <p className="text-xs text-slate-500 font-medium">
+                      <p className="text-xs sm:text-sm text-slate-500 font-medium">
                         Comprehensive classification, operational scope, and transaction behavior
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
                     {topicData.commandTypesGrid.map((cmd) => (
-                      <div key={cmd.category} className="bg-slate-50/70 border border-slate-200/90 rounded-xl p-4 flex flex-col justify-between space-y-3 shadow-2xs hover:border-indigo-200 transition-all">
-                        <div className="space-y-2">
+                      <div
+                        key={cmd.category}
+                        className="bg-slate-50/70 border border-slate-200/80 rounded-xl p-4.5 flex flex-col justify-between space-y-3.5 shadow-xs hover:border-slate-300 transition-all"
+                      >
+                        <div className="space-y-2.5">
                           <div className="flex items-center justify-between">
-                            <span className={`px-2.5 py-0.5 rounded-lg text-xs font-black tracking-wide ${
-                              cmd.category === 'DDL' ? 'bg-blue-100 text-blue-800 border border-blue-200' :
-                              cmd.category === 'DML' ? 'bg-emerald-100 text-emerald-800 border border-emerald-200' :
-                              cmd.category === 'DQL' ? 'bg-indigo-100 text-indigo-800 border border-indigo-200' :
-                              cmd.category === 'DCL' ? 'bg-amber-100 text-amber-800 border border-amber-200' :
-                              'bg-purple-100 text-purple-800 border border-purple-200'
-                            }`}>
+                            <span
+                              className={`px-2.5 py-0.5 rounded-lg text-xs font-black tracking-wide ${
+                                cmd.category === 'DDL'
+                                  ? 'bg-blue-100 text-blue-800 border border-blue-200'
+                                  : cmd.category === 'DML'
+                                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                                  : cmd.category === 'DQL'
+                                  ? 'bg-indigo-100 text-indigo-800 border border-indigo-200'
+                                  : cmd.category === 'DCL'
+                                  ? 'bg-amber-100 text-amber-800 border border-amber-200'
+                                  : 'bg-purple-100 text-purple-800 border border-purple-200'
+                              }`}
+                            >
                               {cmd.category}
                             </span>
-                            <span className="text-[10px] font-bold text-slate-500">
+                            <span className="text-[11px] font-bold text-slate-500">
                               {cmd.target}
                             </span>
                           </div>
 
                           <div>
-                            <div className="text-xs font-black text-slate-900">{cmd.fullForm}</div>
-                            <p className="text-[11px] text-slate-600 leading-relaxed font-medium mt-1">
+                            <div className="text-xs sm:text-[13px] font-black text-slate-900">
+                              {cmd.fullForm}
+                            </div>
+                            <p className="text-xs text-slate-600 leading-relaxed font-medium mt-1">
                               {cmd.purpose}
                             </p>
                           </div>
 
                           <div className="flex flex-wrap gap-1 pt-1">
-                            {cmd.commands.map(c => (
-                              <span key={c} className="font-mono text-[11px] font-bold px-2 py-0.5 bg-white border border-slate-200 text-slate-800 rounded-md shadow-2xs">
+                            {cmd.commands.map((c) => (
+                              <span
+                                key={c}
+                                className="font-mono text-[11px] font-bold px-2 py-0.5 bg-white border border-slate-200 text-slate-800 rounded-md shadow-2xs"
+                              >
                                 {c}
                               </span>
                             ))}
@@ -645,55 +789,59 @@ export default function SqlLearningView({
                         </div>
 
                         <div className="pt-2 border-t border-slate-200/60 space-y-1.5">
-                          <div className="flex items-center justify-between text-[10.5px]">
+                          <div className="flex items-center justify-between text-[11px]">
                             <span className="font-bold text-slate-500">Rollback via TCL:</span>
-                            <span className={`font-black ${cmd.category === 'DML' ? 'text-emerald-600' : 'text-slate-700'}`}>
+                            <span
+                              className={`font-black ${
+                                cmd.category === 'DML' ? 'text-emerald-600' : 'text-slate-700'
+                              }`}
+                            >
                               {cmd.rollback}
                             </span>
                           </div>
-                          <div className="font-mono text-[10.5px] font-bold bg-white text-slate-900 p-2.5 rounded-lg border border-slate-200 overflow-x-auto whitespace-pre shadow-2xs">
+                          <div className="font-mono text-[11px] font-bold bg-slate-900 text-slate-100 p-2.5 rounded-lg overflow-x-auto whitespace-pre">
                             {cmd.example}
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
-                </div>
+                </section>
               )}
 
-              {/* 6. OS DOWNLOAD PANELS (Windows & macOS) */}
+              {/* 7. OS DOWNLOAD PANELS (Windows & macOS) */}
               {topicData.osDownloadPanels && (
-                <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 shadow-2xs space-y-4">
+                <section className="pt-8 border-t border-slate-100 space-y-4">
                   <div className="flex items-center space-x-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center font-bold">
-                      <Download size={15} />
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center font-bold">
+                      <Download size={16} />
                     </div>
                     <div>
-                      <h2 className="text-sm sm:text-base font-black text-slate-900">
+                      <h2 className="text-lg sm:text-xl font-black text-slate-900">
                         Official Downloads Matrix (Windows & macOS)
                       </h2>
-                      <p className="text-xs text-slate-500 font-medium">
+                      <p className="text-xs sm:text-sm text-slate-500 font-medium">
                         Direct official Oracle links for MySQL Server 8.0 & MySQL Workbench
                       </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-1">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5 pt-1">
                     {/* WINDOWS CARD */}
-                    <div className="bg-slate-50/90 border border-slate-200/90 rounded-2xl p-4 sm:p-5 flex flex-col justify-between space-y-4 shadow-2xs">
+                    <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-5 sm:p-6 flex flex-col justify-between space-y-4 shadow-xs">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="font-black text-xs text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-100">
+                          <span className="font-black text-xs text-blue-700 bg-blue-50 px-3 py-0.5 rounded-full border border-blue-100">
                             {topicData.osDownloadPanels.windows.osName}
                           </span>
-                          <span className="text-[10px] font-extrabold text-slate-500 bg-white px-2 py-0.5 rounded-md border border-slate-200">
+                          <span className="text-[11px] font-bold text-slate-500 bg-white px-2.5 py-0.5 rounded-md border border-slate-200">
                             {topicData.osDownloadPanels.windows.badge}
                           </span>
                         </div>
-                        <h3 className="text-sm font-black text-slate-900">
+                        <h3 className="text-sm sm:text-base font-black text-slate-900">
                           {topicData.osDownloadPanels.windows.packageTitle}
                         </h3>
-                        <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
                           {topicData.osDownloadPanels.windows.stepsOverview}
                         </p>
                       </div>
@@ -702,7 +850,7 @@ export default function SqlLearningView({
                         href={topicData.osDownloadPanels.windows.downloadUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="inline-flex items-center justify-center space-x-1.5 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-xs transition-all text-center cursor-pointer"
+                        className="inline-flex items-center justify-center space-x-2 py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-xs transition-all text-center cursor-pointer active:scale-95"
                       >
                         <Download size={14} />
                         <span>Download Windows Installer (MSI)</span>
@@ -711,36 +859,36 @@ export default function SqlLearningView({
                     </div>
 
                     {/* MACOS CARD */}
-                    <div className="bg-slate-50/90 border border-slate-200/90 rounded-2xl p-4 sm:p-5 flex flex-col justify-between space-y-4 shadow-2xs">
+                    <div className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-5 sm:p-6 flex flex-col justify-between space-y-4 shadow-xs">
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
-                          <span className="font-black text-xs text-slate-700 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
+                          <span className="font-black text-xs text-slate-700 bg-slate-100 px-3 py-0.5 rounded-full border border-slate-200">
                             {topicData.osDownloadPanels.macos.osName}
                           </span>
-                          <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200">
                             {topicData.osDownloadPanels.macos.badge}
                           </span>
                         </div>
-                        <h3 className="text-sm font-black text-slate-900">
+                        <h3 className="text-sm sm:text-base font-black text-slate-900">
                           {topicData.osDownloadPanels.macos.packageTitle}
                         </h3>
-                        
-                        <div className="space-y-1">
+
+                        <div className="space-y-1.5 pt-1">
                           <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider">
                             Or via Terminal (Homebrew):
                           </span>
-                          <div className="bg-white text-slate-800 font-mono text-[10px] font-bold p-2.5 rounded-lg overflow-x-auto whitespace-pre border border-slate-200 shadow-2xs">
+                          <div className="bg-slate-900 text-slate-200 font-mono text-xs font-bold p-3 rounded-xl overflow-x-auto whitespace-pre shadow-xs">
                             {topicData.osDownloadPanels.macos.brewCommand}
                           </div>
                         </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-2 gap-2.5 pt-2">
                         <a
                           href={topicData.osDownloadPanels.macos.serverLink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center space-x-1 py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200/90 font-black text-[11px] shadow-2xs transition-all text-center"
+                          className="inline-flex items-center justify-center space-x-1.5 py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 font-black text-xs shadow-xs transition-all text-center"
                         >
                           <Download size={13} />
                           <span>Server DMG</span>
@@ -750,7 +898,7 @@ export default function SqlLearningView({
                           href={topicData.osDownloadPanels.macos.workbenchLink}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center space-x-1 py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-black text-[11px] shadow-xs transition-all text-center"
+                          className="inline-flex items-center justify-center space-x-1.5 py-2.5 px-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs shadow-xs transition-all text-center"
                         >
                           <Download size={13} />
                           <span>Workbench</span>
@@ -759,330 +907,282 @@ export default function SqlLearningView({
                       </div>
                     </div>
                   </div>
-                </div>
+                </section>
               )}
 
-              {/* 7. STEP-BY-STEP SETUP GUIDE */}
+              {/* 8. STEP-BY-STEP SETUP GUIDE */}
               {topicData.setupGuide && (
-                <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 shadow-2xs space-y-6">
+                <section className="pt-8 border-t border-slate-100 space-y-6">
                   <div className="flex items-center space-x-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-indigo-50 text-indigo-600 border border-indigo-100 flex items-center justify-center font-bold">
-                      <Laptop size={15} />
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center font-bold">
+                      <Laptop size={16} />
                     </div>
                     <div>
-                      <h2 className="text-sm sm:text-base font-black text-slate-900">
-                        Step-by-Step Installation & First Connection Walkthrough
+                      <h2 className="text-lg sm:text-xl font-black text-slate-900">
+                        Step-by-Step Installation Walkthrough
                       </h2>
-                      <p className="text-xs text-slate-500 font-medium">
+                      <p className="text-xs sm:text-sm text-slate-500 font-medium">
                         Follow these 5 steps to get MySQL Server and Workbench running locally
                       </p>
                     </div>
                   </div>
 
-                  <div className="space-y-6">
+                  <div className="relative pl-6 sm:pl-8 border-l-2 border-slate-200 space-y-8 ml-3 sm:ml-4 pt-1">
                     {topicData.setupGuide.map((stepItem) => (
-                      <div key={stepItem.step} className="space-y-2 border-l-2 border-slate-200/80 pl-4 relative">
-                        <div className="flex items-center space-x-2">
-                          <span className="w-6 h-6 rounded-full bg-indigo-600 text-white font-black text-xs flex items-center justify-center shadow-2xs">
-                            {stepItem.step}
-                          </span>
-                          <h3 className="text-xs sm:text-sm font-black text-slate-900">
-                            {stepItem.title}
-                          </h3>
-                        </div>
-
-                        <p className="text-xs text-slate-600 leading-relaxed font-medium pl-8">
+                      <div key={stepItem.step} className="relative space-y-2.5">
+                        <span className="w-7 h-7 rounded-full bg-blue-600 text-white font-black text-xs flex items-center justify-center absolute -left-[37px] sm:-left-[45px] top-0 shadow-xs ring-4 ring-white">
+                          {stepItem.step}
+                        </span>
+                        <h3 className="text-sm sm:text-base font-black text-slate-900 pt-0.5">
+                          {stepItem.title}
+                        </h3>
+                        <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
                           {stepItem.description}
                         </p>
 
                         {stepItem.code && (
-                          <div className="ml-8 bg-white border border-slate-200/90 rounded-xl p-3.5 sm:p-4 relative group overflow-x-auto shadow-2xs">
-                            <button
-                              type="button"
-                              onClick={() => handleCopyCode(stepItem.code, `step-${stepItem.step}`)}
-                              className="absolute top-2.5 right-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 hover:text-blue-600 px-2.5 py-1 rounded-lg text-[10px] font-bold flex items-center space-x-1 transition-all cursor-pointer shadow-2xs"
-                            >
-                              {copiedSection === `step-${stepItem.step}` ? <Check size={11} className="text-emerald-600" /> : <Copy size={11} />}
-                              <span className={copiedSection === `step-${stepItem.step}` ? "text-emerald-600 font-bold" : ""}>
-                                {copiedSection === `step-${stepItem.step}` ? 'Copied' : 'Copy'}
-                              </span>
-                            </button>
-                            <div className="pt-1">
-                              <HighlightedSql code={stepItem.code} />
-                            </div>
-                          </div>
+                          <CodeBlock
+                            code={stepItem.code}
+                            title={`Step ${stepItem.step} SQL Script`}
+                            onCopy={() => handleCopyCode(stepItem.code, `step-${stepItem.step}`)}
+                            isCopied={copiedSection === `step-${stepItem.step}`}
+                          />
                         )}
 
                         {stepItem.tip && (
-                          <div className="ml-8 bg-amber-50/80 border border-amber-200/90 rounded-lg p-2.5 flex items-start space-x-2 text-[11px] text-amber-900 font-medium">
-                            <Lightbulb size={14} className="text-amber-600 shrink-0 mt-0.5" />
+                          <div className="bg-amber-50 border border-amber-200/80 rounded-xl p-3 flex items-start space-x-2.5 text-xs text-amber-950 font-medium">
+                            <Lightbulb size={16} className="text-amber-600 shrink-0 mt-0.5" />
                             <span><strong>Pro Tip: </strong>{stepItem.tip}</span>
                           </div>
                         )}
                       </div>
                     ))}
                   </div>
-                </div>
+                </section>
               )}
 
-              {/* 8. UNDER THE HOOD DATABASE ENGINE INTERNALS */}
+              {/* 9. UNDER THE HOOD DATABASE ENGINE INTERNALS */}
               {topicData.underTheHood && (
-                <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 shadow-2xs space-y-5">
+                <section className="pt-8 border-t border-slate-100 space-y-4">
                   <div className="flex items-center space-x-2.5">
-                    <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center font-bold">
-                      <Server size={15} />
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center font-bold">
+                      <Server size={16} />
                     </div>
                     <div>
-                      <h2 className="text-sm sm:text-base font-black text-slate-900">
+                      <h2 className="text-lg sm:text-xl font-black text-slate-900">
                         {topicData.underTheHood.title}
                       </h2>
-                      <p className="text-xs text-slate-500 font-medium">
+                      <p className="text-xs sm:text-sm text-slate-500 font-medium">
                         What physically happens inside MySQL Engine, System Catalog, and Disk Storage
                       </p>
                     </div>
                   </div>
 
                   {topicData.underTheHood.summary && (
-                    <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
+                    <p className="text-sm text-slate-700 leading-relaxed font-normal">
                       {topicData.underTheHood.summary}
                     </p>
                   )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-1">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
                     {topicData.underTheHood.steps.map((st) => (
-                      <div key={st.step} className="bg-slate-50/80 border border-slate-200/90 rounded-xl p-4 space-y-2 shadow-2xs flex flex-col justify-between hover:border-blue-200 transition-all">
-                        <div className="space-y-1.5">
-                          <div className="flex items-center space-x-2">
-                            <span className="w-5 h-5 rounded-full bg-blue-600 text-white font-black text-[10px] flex items-center justify-center shrink-0">
+                      <div
+                        key={st.step}
+                        className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs hover:border-blue-300 hover:shadow-sm transition-all flex flex-col justify-between space-y-3"
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-start space-x-3">
+                            <div className="w-7 h-7 rounded-lg bg-blue-600 text-white font-black text-xs flex items-center justify-center shrink-0 shadow-2xs mt-0.5">
                               {st.step}
-                            </span>
-                            <h3 className="text-xs font-black text-slate-900">
+                            </div>
+                            <h3 className="text-sm font-black text-slate-900 leading-snug">
                               {st.title}
                             </h3>
                           </div>
-                          <p className="text-[11px] text-slate-600 leading-relaxed font-medium pl-7">
+                          <p className="text-xs sm:text-[13px] text-slate-600 leading-relaxed font-normal pt-1">
                             {st.desc}
                           </p>
                         </div>
                       </div>
                     ))}
                   </div>
-                </div>
+                </section>
               )}
 
-              {/* 9. VISUAL INFOGRAPHIC IMAGE SHOWCASE */}
-              {topicData.infographicImage && (
-                <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 shadow-2xs space-y-3">
+              {/* 10. STEP-BY-STEP SQL QUERIES & ARCHITECTURE */}
+              {topicData.sqlSteps && topicData.sqlSteps.length > 0 ? (
+                <section className="pt-8 border-t border-slate-100 space-y-6">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2.5">
-                      <div className="w-7 h-7 rounded-lg bg-teal-50 text-teal-600 border border-teal-100 flex items-center justify-center font-bold">
-                        <BookOpen size={15} />
+                      <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center font-bold">
+                        <Code2 size={18} />
                       </div>
-                      <h2 className="text-sm sm:text-base font-black text-slate-900">
-                        {topicData.infographicTitle || 'Visual Architecture & Flow Diagram'}
-                      </h2>
+                      <div>
+                        <h2 className="text-xl sm:text-2xl font-black text-slate-900">
+                          Step-by-Step SQL Queries & Execution Guide
+                        </h2>
+                        <p className="text-xs sm:text-sm text-slate-500 font-medium">
+                          Each query is broken down into an isolated step with execution rationale, syntax breakdown, and dark IDE formatting
+                        </p>
+                      </div>
                     </div>
-                    <span className="text-[10px] font-bold text-teal-700 bg-teal-50 px-2.5 py-1 rounded-full border border-teal-100">
-                      Visual Guide
+                    <span className="text-xs font-black text-blue-700 bg-blue-50 px-3 py-1 rounded-full border border-blue-100 hidden sm:inline-block">
+                      {topicData.sqlSteps.length} Steps
                     </span>
                   </div>
 
-                  <div className="rounded-xl overflow-hidden border border-slate-200 shadow-2xs bg-slate-50">
-                    <img
-                      src={topicData.infographicImage}
-                      alt={topicData.infographicTitle}
-                      className="w-full h-auto object-contain max-h-[500px] mx-auto hover:scale-[1.01] transition-transform duration-300"
-                    />
-                  </div>
+                  <div className="space-y-6">
+                    {topicData.sqlSteps.map((st) => (
+                      <div
+                        key={st.step}
+                        className="bg-white border border-slate-200/90 rounded-2xl p-5 sm:p-6 shadow-xs hover:border-slate-300 transition-all space-y-4"
+                      >
+                        {/* Step Header */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 rounded-xl bg-blue-600 text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0">
+                              {st.step}
+                            </div>
+                            <h3 className="text-base sm:text-lg font-black text-slate-900">
+                              {st.title}
+                            </h3>
+                          </div>
+                          {st.badge && (
+                            <span className="text-xs font-bold text-blue-700 bg-blue-50 px-3 py-1 rounded-lg border border-blue-100 shrink-0">
+                              {st.badge}
+                            </span>
+                          )}
+                        </div>
 
-                  {topicData.infographicCaption && (
-                    <p className="text-[11px] text-slate-500 font-medium italic pt-1 text-center sm:text-left">
-                      {topicData.infographicCaption}
-                    </p>
+                        {st.explanation && (
+                          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-normal">
+                            {st.explanation}
+                          </p>
+                        )}
+
+                        {st.code && (
+                          <CodeBlock
+                            code={st.code}
+                            title={`Step ${st.step}: SQL Implementation`}
+                            onCopy={() => handleCopyCode(st.code, `step-sql-${st.step}`)}
+                            isCopied={copiedSection === `step-sql-${st.step}`}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </section>
+              ) : (
+                /* Fallback if topic only has syntax or example */
+                <>
+                  {topicData.syntax && (
+                    <section className="pt-8 border-t border-slate-100 space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <Code2 size={18} className="text-blue-600" />
+                        <h2 className="text-lg sm:text-xl font-black text-slate-900">
+                          Syntax Specification
+                        </h2>
+                      </div>
+                      <CodeBlock
+                        code={topicData.syntax}
+                        title="SQL Syntax Definition"
+                        onCopy={() => handleCopyCode(topicData.syntax, 'syntax')}
+                        isCopied={copiedSection === 'syntax'}
+                      />
+                    </section>
                   )}
-                </div>
+
+                  {topicData.example && (
+                    <section className="pt-8 border-t border-slate-100 space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <Sparkles size={18} className="text-emerald-600" />
+                        <h2 className="text-lg sm:text-xl font-black text-slate-900">
+                          Practical Working Example
+                        </h2>
+                      </div>
+                      <CodeBlock
+                        code={topicData.example}
+                        title="Production Example"
+                        onCopy={() => handleCopyCode(topicData.example, 'example')}
+                        isCopied={copiedSection === 'example'}
+                      />
+                    </section>
+                  )}
+                </>
               )}
 
-              {/* 10. TWO-COLUMN GRID: LEFT (SYNTAX, EXAMPLE, NOTE) & RIGHT (MISTAKES, KEY POINTS) */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start w-full">
-                
-                {/* LEFT COLUMN (7 cols) */}
-                <div className="lg:col-span-7 space-y-6">
-                  
-                  {/* (1) SYNTAX CARD */}
-                  <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-3">
-                    <div className="flex items-center space-x-2 text-slate-900 font-black text-sm">
-                      <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-[11px] font-black flex items-center justify-center">1</span>
-                      <span>Syntax</span>
-                    </div>
-                    <div className="bg-white border border-slate-200/90 rounded-xl p-4 sm:p-5 relative group overflow-x-auto shadow-2xs">
-                      <button
-                        type="button"
-                        onClick={() => handleCopyCode(topicData.syntax, 'syntax')}
-                        className="absolute top-3 right-3 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 text-slate-600 hover:text-indigo-600 px-2.5 py-1 rounded-lg text-xs font-bold flex items-center space-x-1 shadow-2xs transition-all cursor-pointer"
-                      >
-                        {copiedSection === 'syntax' ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
-                        <span>{copiedSection === 'syntax' ? 'Copied' : 'Copy'}</span>
-                      </button>
-                      <div className="pt-1">
-                        <HighlightedSql code={topicData.syntax} />
-                      </div>
-                    </div>
+              {/* 11. ARCHITECTURAL NOTE */}
+              {topicData.note && (
+                <aside className="my-6 bg-amber-50/60 border-l-4 border-amber-500 rounded-r-xl p-4 sm:p-5 flex items-start space-x-3 text-xs sm:text-sm leading-relaxed text-amber-950 shadow-xs">
+                  <Lightbulb size={20} className="text-amber-600 shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <span className="font-black text-amber-900 uppercase tracking-wider text-xs block">
+                      Architectural Note
+                    </span>
+                    <p className="font-medium text-slate-800">{topicData.note}</p>
                   </div>
+                </aside>
+              )}
 
-                  {/* (2) EXAMPLE CARD */}
-                  <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-3">
-                    <div className="flex items-center space-x-2 text-slate-900 font-black text-sm">
-                      <span className="w-5 h-5 rounded-full bg-indigo-600 text-white text-[11px] font-black flex items-center justify-center">2</span>
-                      <span>Example</span>
-                    </div>
-                    <div className="bg-white border border-slate-200/90 rounded-xl p-4 sm:p-5 relative group overflow-x-auto shadow-2xs">
-                      <button
-                        type="button"
-                        onClick={() => handleCopyCode(topicData.example, 'example')}
-                        className="absolute top-3 right-3 bg-slate-50 hover:bg-slate-100 border border-slate-200/90 text-slate-600 hover:text-indigo-600 px-2.5 py-1 rounded-lg text-xs font-bold flex items-center space-x-1 shadow-2xs transition-all cursor-pointer"
-                      >
-                        {copiedSection === 'example' ? <Check size={12} className="text-emerald-600" /> : <Copy size={12} />}
-                        <span>{copiedSection === 'example' ? 'Copied' : 'Copy'}</span>
-                      </button>
-                      <div className="pt-1">
-                        <HighlightedSql code={topicData.example} />
-                      </div>
-                    </div>
+              {/* 12. COMMON BEGINNER MISTAKES */}
+              {topicData.mistakes && topicData.mistakes.length > 0 && (
+                <section className="pt-8 border-t border-slate-100 space-y-4">
+                  <div className="flex items-center space-x-2 text-rose-800 font-black text-base sm:text-lg">
+                    <AlertTriangle size={18} className="text-rose-600" />
+                    <span>Common Beginner Mistakes to Avoid</span>
                   </div>
-
-                  {/* (3) ARCHITECTURAL NOTE */}
-                  {topicData.note && (
-                    <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex items-start space-x-3 text-xs leading-relaxed text-slate-700">
-                      <Lightbulb size={17} className="text-amber-500 shrink-0 mt-0.5" />
-                      <div className="space-y-1">
-                        <span className="font-black text-slate-900 block text-xs">Architectural Note</span>
-                        <p>{topicData.note}</p>
-                      </div>
-                    </div>
-                  )}
-
-                </div>
-
-                {/* RIGHT COLUMN (5 cols) */}
-                <div className="lg:col-span-5 space-y-6">
-
-                  {/* (1) COMMON BEGINNER MISTAKES */}
-                  {topicData.mistakes && topicData.mistakes.length > 0 && (
-                    <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
-                      <div className="flex items-center space-x-2 text-rose-800 font-black text-sm">
-                        <AlertTriangle size={17} className="text-rose-600" />
-                        <span>Common Beginner Mistakes</span>
-                      </div>
-
-                      <div className="space-y-3">
-                        {topicData.mistakes.map((m, idx) => (
-                          <div key={idx} className="bg-rose-50/40 border border-rose-100 rounded-xl p-3.5 space-y-2">
-                            <span className="text-xs font-black text-rose-900 block">
-                              ✕ {m.title}
-                            </span>
-                            <div className="bg-white border border-rose-200/80 rounded-lg p-2 font-mono text-[11px] text-rose-700 whitespace-pre overflow-x-auto shadow-2xs">
-                              {m.badCode}
-                            </div>
-                            <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
-                              {m.explanation}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* (2) KEY TAKEAWAYS */}
-                  {topicData.keyPoints && topicData.keyPoints.length > 0 && (
-                    <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
-                      <div className="flex items-center space-x-2 text-emerald-800 font-black text-sm">
-                        <CheckCircle2 size={17} className="text-emerald-600" />
-                        <span>Key Takeaways</span>
-                      </div>
-
-                      <div className="space-y-2.5">
-                        {topicData.keyPoints.map((kp, idx) => (
-                          <div key={idx} className="flex items-start space-x-2.5 text-xs text-slate-700 leading-relaxed font-medium">
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mt-1.5" />
-                            <span>{kp}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* (3) NEXT TOPIC PREVIEW CARD */}
-                  {topicData.nextTopicId && (
-                    <div className="bg-indigo-50/40 border border-indigo-200/80 rounded-2xl p-5 shadow-2xs space-y-3">
-                      <div className="flex items-center space-x-1.5 text-indigo-900 font-black text-xs uppercase tracking-wider">
-                        <Sparkles size={14} className="text-indigo-600" />
-                        <span>Up Next</span>
-                      </div>
-                      <div className="space-y-1">
-                        <h4 className="text-sm font-black text-slate-900">
-                          {topicData.nextTopicName}
-                        </h4>
-                        <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
-                          Continue along the structured learning path.
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {topicData.mistakes.map((m, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-rose-50/40 border border-rose-200/80 rounded-xl p-4 space-y-2.5 shadow-xs"
+                      >
+                        <span className="text-xs font-black text-rose-900 flex items-center space-x-1.5">
+                          <span className="w-4 h-4 rounded-full bg-rose-600 text-white text-[10px] flex items-center justify-center font-black">
+                            ✕
+                          </span>
+                          <span>{m.title}</span>
+                        </span>
+                        <div className="bg-slate-900 text-rose-300 font-mono text-xs p-2.5 rounded-lg overflow-x-auto shadow-inner">
+                          {m.badCode}
+                        </div>
+                        <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                          {m.explanation}
                         </p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleSelectTopic(topicData.nextTopicId, selectedModuleId)}
-                        className="w-full py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-black text-xs rounded-xl shadow-2xs transition-all flex items-center justify-center space-x-1 cursor-pointer"
-                      >
-                        <span>Next: {topicData.nextTopicName}</span>
-                        <ArrowRight size={13} />
-                      </button>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* 13. KEY TAKEAWAYS */}
+              {topicData.keyPoints && topicData.keyPoints.length > 0 && (
+                <section className="pt-6">
+                  <div className="bg-emerald-50/60 border-l-4 border-emerald-500 rounded-r-xl p-5 space-y-3 shadow-xs">
+                    <div className="flex items-center space-x-2 text-emerald-900 font-black text-sm uppercase tracking-wider">
+                      <CheckCircle2 size={18} className="text-emerald-600" />
+                      <span>Key Architectural Takeaways</span>
                     </div>
-                  )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-1">
+                      {topicData.keyPoints.map((kp, idx) => (
+                        <div
+                          key={idx}
+                          className="flex items-start space-x-2 text-xs sm:text-[13px] text-slate-800 font-medium leading-relaxed"
+                        >
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 shrink-0 mt-2" />
+                          <span>{kp}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </section>
+              )}
 
-                </div>
 
-              </div>
+              {/* Clean bottom termination (no prev/next topic buttons) */}
+              <div className="pb-16" />
 
-              {/* 11. BOTTOM ACTION BAR */}
-              <div className="pt-4 border-t border-slate-200/80 flex flex-wrap items-center justify-between gap-3 pb-8">
-                {topicData.prevTopicId ? (
-                  <button
-                    type="button"
-                    onClick={() => handleSelectTopic(topicData.prevTopicId, selectedModuleId)}
-                    className="inline-flex items-center space-x-1.5 py-2.5 px-4 rounded-xl bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 text-xs font-black shadow-2xs transition-all cursor-pointer"
-                  >
-                    <ArrowLeft size={14} />
-                    <span>Previous: {topicData.prevTopicName}</span>
-                  </button>
-                ) : <div />}
-
-                <div className="flex items-center space-x-3">
-                  <button
-                    type="button"
-                    onClick={() => handleToggleRead(topicData.id)}
-                    className={`inline-flex items-center space-x-1.5 py-2.5 px-4 rounded-xl text-xs font-black transition-all shadow-2xs cursor-pointer border ${
-                      isCurrentTopicRead
-                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
-                    }`}
-                  >
-                    <Check size={14} className={isCurrentTopicRead ? 'text-emerald-600' : 'text-slate-400'} />
-                    <span>{isCurrentTopicRead ? 'Read' : 'Mark as Read'}</span>
-                  </button>
-
-                  {topicData.nextTopicId && (
-                    <button
-                      type="button"
-                      onClick={() => handleSelectTopic(topicData.nextTopicId, selectedModuleId)}
-                      className="inline-flex items-center space-x-1.5 py-2.5 px-5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black shadow-2xs transition-all cursor-pointer"
-                    >
-                      <span>Next Topic</span>
-                      <ArrowRight size={14} />
-                    </button>
-                  )}
-                </div>
-              </div>
-
-            </div>
+            </article>
           )}
         </main>
       </div>
@@ -1179,7 +1279,7 @@ export default function SqlLearningView({
 
                     {isExpanded && mod.topics && (
                       <div className="ml-3 pl-2.5 border-l-2 border-slate-200/80 space-y-0.5 pt-1 pb-1">
-                        {mod.topics.map((t) => {
+                        {mod.topics.map((t, idx) => {
                           const isTopicSelected = currentActiveTopicId === t.id && isAvailable;
                           const isCompleted = localCompletedTopics.includes(t.id);
 
@@ -1201,7 +1301,11 @@ export default function SqlLearningView({
                                 {isCompleted ? (
                                   <CheckCircle2 size={13} className="text-emerald-500 shrink-0" strokeWidth={2.5} />
                                 ) : (
-                                  <span className="text-slate-400 shrink-0">•</span>
+                                  <span className={`text-[10px] font-mono font-bold shrink-0 px-1.5 py-0.5 rounded ${
+                                    isTopicSelected ? 'bg-blue-200 text-blue-900 font-black' : 'text-slate-500 bg-slate-100'
+                                  }`}>
+                                    {t.lessonCode || `${mod.number}.${idx + 1}`}
+                                  </span>
                                 )}
                                 <span className="truncate">{t.title}</span>
                               </div>

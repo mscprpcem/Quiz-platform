@@ -436,8 +436,8 @@ export const DDL_50_QUESTIONS = [
     id: 41,
     challengeId: 'ddl-41',
     section: 'SECTION I',
-    sectionTitle: 'DROP DATABASE',
-    question: 'Drop school_db.',
+    sectionTitle: 'CREATE & DROP DATABASE',
+    question: 'Drop the school_db database.',
     sql: 'DROP DATABASE school_db;',
     explanation: 'Permanently destroys the entire school_db schema catalog and all contained tables.',
     type: 'DDL'
@@ -446,8 +446,8 @@ export const DDL_50_QUESTIONS = [
     id: 42,
     challengeId: 'ddl-42',
     section: 'SECTION I',
-    sectionTitle: 'DROP DATABASE',
-    question: 'Create office_db.',
+    sectionTitle: 'CREATE & DROP DATABASE',
+    question: 'Create a new database named office_db.',
     sql: 'CREATE DATABASE office_db;',
     explanation: 'Initializes a new database catalog container for corporate office operations.',
     type: 'DDL'
@@ -456,8 +456,8 @@ export const DDL_50_QUESTIONS = [
     id: 43,
     challengeId: 'ddl-43',
     section: 'SECTION I',
-    sectionTitle: 'DROP DATABASE',
-    question: 'Drop office_db.',
+    sectionTitle: 'CREATE & DROP DATABASE',
+    question: 'Permanently drop the office_db database.',
     sql: 'DROP DATABASE office_db;',
     explanation: 'Removes the office_db directory and unregisters it from the database server.',
     type: 'DDL'
@@ -466,8 +466,8 @@ export const DDL_50_QUESTIONS = [
     id: 44,
     challengeId: 'ddl-44',
     section: 'SECTION I',
-    sectionTitle: 'DROP DATABASE',
-    question: 'Create test_db.',
+    sectionTitle: 'CREATE & DROP DATABASE',
+    question: 'Create a new database named test_db.',
     sql: 'CREATE DATABASE test_db;',
     explanation: 'Sets up an isolated test sandbox environment for QA and development verification.',
     type: 'DDL'
@@ -476,8 +476,8 @@ export const DDL_50_QUESTIONS = [
     id: 45,
     challengeId: 'ddl-45',
     section: 'SECTION I',
-    sectionTitle: 'DROP DATABASE',
-    question: 'Drop test_db.',
+    sectionTitle: 'CREATE & DROP DATABASE',
+    question: 'Permanently drop the test_db database.',
     sql: 'DROP DATABASE test_db;',
     explanation: 'Tears down test sandbox environment after test suite completion.',
     type: 'DDL'
@@ -551,6 +551,6 @@ export const DDL_SECTIONS = [
   { id: 'SECTION F', label: 'F: RENAME TABLE', count: 5 },
   { id: 'SECTION G', label: 'G: TRUNCATE', count: 5 },
   { id: 'SECTION H', label: 'H: DROP TABLE', count: 5 },
-  { id: 'SECTION I', label: 'I: DROP DB', count: 5 },
+  { id: 'SECTION I', label: 'I: CREATE/DROP DB', count: 5 },
   { id: 'SECTION J', label: 'J: INTERVIEW', count: 5 }
 ];

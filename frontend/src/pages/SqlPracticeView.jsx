@@ -15,7 +15,7 @@ import { executeSqlQuery, validateChallengeWithTestcases, getTablesPreview } fro
  * Clean & Short Category Name Helper
  * Strips leading numbering (e.g., "1. Basic Filtering" -> "Filtering & Sorting")
  */
-export function getCleanCategoryName(title) {
+function getCleanCategoryName(title) {
   if (!title) return 'General';
   const cleaned = title.replace(/^(\d+\.|\d+\)|\bModule\s*\d+:?)\s*/i, '').trim();
   
@@ -34,6 +34,9 @@ export function getCleanCategoryName(title) {
   if (cleaned.toLowerCase().includes('window')) {
     return 'Window Functions';
   }
+  if (cleaned.toLowerCase().includes('database') || cleaned.toLowerCase().includes('drop db') || cleaned.toLowerCase().includes('create db')) {
+    return 'Database Lifecycle';
+  }
   if (cleaned.toLowerCase().includes('ddl') || cleaned.toLowerCase().includes('data definition')) {
     return 'DDL Operations';
   }
@@ -46,6 +49,9 @@ export function getCleanCategoryName(title) {
   if (cleaned.toLowerCase().includes('interview') || cleaned.toLowerCase().includes('leetcode') || cleaned.toLowerCase().includes('faang')) {
     return 'Interview Challenges';
   }
+  if (cleaned.toLowerCase().startsWith('section ')) {
+    return cleaned.replace(/^section\s+[a-z]:\s*/i, '');
+  }
   return cleaned;
 }
 
@@ -53,7 +59,7 @@ export function getCleanCategoryName(title) {
  * SQL Formatter Utility
  * Formats SQL keywords to uppercase with proper spacing
  */
-export function formatSql(sql) {
+function formatSql(sql) {
   if (!sql) return '';
   
   const keywords = [
@@ -79,14 +85,17 @@ export function formatSql(sql) {
 /**
  * Generates an empty scaffold starter SQL so users write the query themselves
  */
-export function getCleanStarterSql() {
+function getCleanStarterSql(challenge = null) {
+  if (challenge?.tags?.includes('CREATE DATABASE') || challenge?.tags?.includes('DROP DATABASE') || challenge?.id?.startsWith('ddl-')) {
+    return `-- Write your DDL statement below\n`;
+  }
   return `-- Write your SQL solution below\nSELECT \n\n`;
 }
 
 /**
  * Rock-Solid Cross-Browser Pixel-Perfect Toggle Switch
  */
-export function ToggleSwitch({ checked, onChange, label }) {
+function ToggleSwitch({ checked, onChange, label }) {
   return (
     <button
       type="button"
@@ -345,6 +354,15 @@ export default function SqlPracticeView({
   const [drawerSearch, setDrawerSearch] = useState('');
   const [drawerDifficulty, setDrawerDifficulty] = useState('all');
   const [drawerTrack, setDrawerTrack] = useState('all'); // 'all' | 'ddl' | 'core'
+  const [drawerDdlFilter, setDrawerDdlFilter] = useState('all'); // 'all' | 'create' | 'use' | 'alter' | 'rename' | 'truncate' | 'drop'
+
+  // Sync initialChallengeIndex from parent prop
+  useEffect(() => {
+    if (initialChallengeIndex !== null && initialChallengeIndex >= 0 && initialChallengeIndex < SQL_CHALLENGES.length) {
+      setSelectedChallengeIndex(initialChallengeIndex);
+      setViewMode('solve');
+    }
+  }, [initialChallengeIndex]);
 
   // Settings Modal & Preferences with Tabbed Interface
   const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -413,14 +431,14 @@ export default function SqlPracticeView({
   const activeChallenge = SQL_CHALLENGES[selectedChallengeIndex] || SQL_CHALLENGES[0];
 
   // User query state (Start with clean blank scaffold rather than giving the solution away)
-  const [userSql, setUserSql] = useState(getCleanStarterSql());
+  const [userSql, setUserSql] = useState(() => getCleanStarterSql(activeChallenge));
   const [tableSchemas, setTableSchemas] = useState([]);
   const [loadingSchemas, setLoadingSchemas] = useState(false);
 
   // Sync starter scaffold & schemas when active challenge changes
   useEffect(() => {
     if (!activeChallenge) return;
-    setUserSql(getCleanStarterSql());
+    setUserSql(getCleanStarterSql(activeChallenge));
     setConsoleMode('idle');
     setRawExecutionResult(null);
     setRawExpectedResult(null);
@@ -514,7 +532,7 @@ export default function SqlPracticeView({
 
   // Reset code action
   const handleResetCode = () => {
-    setUserSql(getCleanStarterSql());
+    setUserSql(getCleanStarterSql(activeChallenge));
   };
 
   // 1. RUN QUERY (Instant raw execution on current SQLite DB)
@@ -612,8 +630,17 @@ export default function SqlPracticeView({
   // Filtered drawer challenges
   const drawerChallenges = useMemo(() => {
     return SQL_CHALLENGES.map((c, i) => ({ ...c, originalIndex: i })).filter((c) => {
-      if (drawerTrack === 'ddl' && !c.id.startsWith('ddl-')) {
-        return false;
+      if (drawerTrack === 'ddl') {
+        if (!c.id.startsWith('ddl-')) return false;
+        if (drawerDdlFilter !== 'all') {
+          const matchString = (c.title + ' ' + (c.tags || []).join(' ') + ' ' + (c.moduleTitle || '')).toLowerCase();
+          if (drawerDdlFilter === 'create' && !matchString.includes('create')) return false;
+          if (drawerDdlFilter === 'use' && !matchString.includes('use')) return false;
+          if (drawerDdlFilter === 'alter' && !matchString.includes('alter') && !matchString.includes('add') && !matchString.includes('modify')) return false;
+          if (drawerDdlFilter === 'rename' && !matchString.includes('rename')) return false;
+          if (drawerDdlFilter === 'truncate' && !matchString.includes('truncate')) return false;
+          if (drawerDdlFilter === 'drop' && !matchString.includes('drop')) return false;
+        }
       }
       if (drawerTrack === 'core' && c.id.startsWith('ddl-')) {
         return false;
@@ -627,7 +654,7 @@ export default function SqlPracticeView({
       }
       return true;
     });
-  }, [drawerSearch, drawerDifficulty, drawerTrack]);
+  }, [drawerSearch, drawerDifficulty, drawerTrack, drawerDdlFilter]);
 
   return (
     <div
@@ -903,7 +930,7 @@ export default function SqlPracticeView({
                 {/* Header Title & Badges */}
                 <div className="space-y-2 pb-3 border-b border-slate-100">
                   <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
-                    {selectedChallengeIndex + 1}. {activeChallenge?.title}
+                    {selectedChallengeIndex + 1}. {activeChallenge?.title?.replace(/:\s*(CREATE|DROP|ALTER|TRUNCATE|RENAME)\b.*/i, '').trim()}
                   </h1>
                   <div className="flex flex-wrap items-center gap-2 text-xs">
                     <span
@@ -1604,6 +1631,34 @@ export default function SqlPracticeView({
                   <span>Core SQL (16)</span>
                 </button>
               </div>
+
+              {/* DDL Operational Granular Filters (CREATE, USE, ALTER, RENAME, TRUNCATE, DROP) */}
+              {drawerTrack === 'ddl' && (
+                <div className="flex items-center space-x-1 overflow-x-auto pb-1 scrollbar-none pt-0.5">
+                  {[
+                    { id: 'all', label: 'All DDL' },
+                    { id: 'create', label: 'CREATE' },
+                    { id: 'use', label: 'USE' },
+                    { id: 'alter', label: 'ALTER' },
+                    { id: 'rename', label: 'RENAME' },
+                    { id: 'truncate', label: 'TRUNCATE' },
+                    { id: 'drop', label: 'DROP' }
+                  ].map((op) => (
+                    <button
+                      key={op.id}
+                      type="button"
+                      onClick={() => setDrawerDdlFilter(op.id)}
+                      className={`px-2 py-0.5 rounded-md text-[10.5px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap ${
+                        drawerDdlFilter === op.id
+                          ? 'bg-blue-600 text-white shadow-2xs'
+                          : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      {op.label}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               <div className="grid grid-cols-4 gap-1">
                 {['all', 'easy', 'medium', 'hard'].map((df) => (

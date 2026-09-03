@@ -1,13 +1,15 @@
-import { CHAPTER_0_METADATA, CHAPTER_0_TOPICS } from './chapter0Fundamentals';
-import { CHAPTER_1_METADATA, CHAPTER_1_TOPICS } from './chapter1Ddl';
+import { CHAPTER_0_METADATA, CHAPTER_0_TOPICS } from './chapter0Fundamentals.js';
+import { CHAPTER_2_METADATA, CHAPTER_2_TOPICS } from './chapter2BuildingBlocks.js';
+import { CHAPTER_1_METADATA, CHAPTER_1_TOPICS } from './chapter1Ddl.js';
 
 // All Chapters Catalog with Availability Status
 export const CHAPTER_CATALOG = [
   CHAPTER_0_METADATA,
+  CHAPTER_2_METADATA,
   CHAPTER_1_METADATA,
   {
-    id: 'mod-03',
-    number: 2,
+    id: 'mod-04',
+    number: 4,
     title: 'DML (Data Manipulation Language)',
     shortTitle: 'DML',
     status: 'coming_soon',
@@ -17,8 +19,8 @@ export const CHAPTER_CATALOG = [
     plannedTopics: ['INSERT INTO & Bulk Inserts', 'UPDATE with Strict WHERE Filters', 'DELETE FROM & Safe Deletions', 'Soft Deletes with is_deleted Flags', 'Transactions (COMMIT & ROLLBACK)']
   },
   {
-    id: 'mod-04',
-    number: 3,
+    id: 'mod-05',
+    number: 5,
     title: 'SELECT & Filtering',
     shortTitle: 'SELECT & Filtering',
     status: 'coming_soon',
@@ -28,8 +30,8 @@ export const CHAPTER_CATALOG = [
     plannedTopics: ['SELECT & Column Aliasing', 'WHERE Filtering Operators (=, !=, <, >)', 'LIKE & Wildcard Regex Patterns', 'BETWEEN, IN & NOT IN Conditions', 'ORDER BY & Multi-Column Sorting', 'LIMIT & OFFSET Pagination']
   },
   {
-    id: 'mod-05',
-    number: 4,
+    id: 'mod-06',
+    number: 6,
     title: 'SQL Built-in Functions',
     shortTitle: 'Functions',
     status: 'coming_soon',
@@ -39,8 +41,8 @@ export const CHAPTER_CATALOG = [
     plannedTopics: ['String Manipulation Functions', 'Date & Time Processing', 'Mathematical Operations', 'CASE WHEN Conditional Branching', 'COALESCE & NULLIF Handling']
   },
   {
-    id: 'mod-06',
-    number: 5,
+    id: 'mod-07',
+    number: 7,
     title: 'GROUP BY & Aggregations',
     shortTitle: 'GROUP BY & HAVING',
     status: 'coming_soon',
@@ -50,8 +52,8 @@ export const CHAPTER_CATALOG = [
     plannedTopics: ['Aggregate Functions (COUNT, SUM, AVG)', 'GROUP BY Categorical Bucketing', 'HAVING vs WHERE Deep Dive', 'Multi-Column Grouping', 'Rollups & Grouping Sets']
   },
   {
-    id: 'mod-07',
-    number: 6,
+    id: 'mod-08',
+    number: 8,
     title: 'JOINS Mastery',
     shortTitle: 'JOINS',
     status: 'coming_soon',
@@ -61,8 +63,8 @@ export const CHAPTER_CATALOG = [
     plannedTopics: ['Relational Linkage & Foreign Keys', 'INNER JOIN (Intersection of Tables)', 'LEFT JOIN (Preserving Left Parent Records)', 'RIGHT & FULL OUTER JOINS', 'SELF JOINS & Hierarchical Trees', 'CROSS JOIN (Cartesian Products)']
   },
   {
-    id: 'mod-08',
-    number: 7,
+    id: 'mod-09',
+    number: 9,
     title: 'Subqueries & CTEs',
     shortTitle: 'Subqueries & CTEs',
     status: 'coming_soon',
@@ -72,8 +74,8 @@ export const CHAPTER_CATALOG = [
     plannedTopics: ['Single-Value Scalar Subqueries', 'IN & ANY / ALL Multi-Row Subqueries', 'Correlated Subqueries & EXISTS', 'Common Table Expressions (WITH Clause)', 'Recursive CTEs for Tree Traversal']
   },
   {
-    id: 'mod-09',
-    number: 8,
+    id: 'mod-10',
+    number: 10,
     title: 'Views & Virtual Tables',
     shortTitle: 'Views',
     status: 'coming_soon',
@@ -83,8 +85,8 @@ export const CHAPTER_CATALOG = [
     plannedTopics: ['CREATE VIEW (Virtual Table Encapsulation)', 'Security & Row-Level Masking with Views', 'Updatable vs Read-Only Views', 'Materialized Views vs Standard Views', 'DROP & ALTER VIEW']
   },
   {
-    id: 'mod-10',
-    number: 9,
+    id: 'mod-11',
+    number: 11,
     title: 'Advanced SQL & Index Optimization',
     shortTitle: 'Advanced SQL',
     status: 'coming_soon',
@@ -98,6 +100,7 @@ export const CHAPTER_CATALOG = [
 // Unified Topic Details Map
 export const ALL_TOPIC_DETAILS = {
   ...CHAPTER_0_TOPICS,
+  ...CHAPTER_2_TOPICS,
   ...CHAPTER_1_TOPICS
 };
 

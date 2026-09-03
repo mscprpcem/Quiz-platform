@@ -353,7 +353,11 @@ export default function SqlCourseHub() {
   };
 
   return (
-    <div className="min-h-[calc(100vh-60px)] bg-slate-50 text-slate-800 font-segoe w-full flex flex-col">
+    <div className={`bg-slate-50 text-slate-800 font-segoe w-full flex flex-col ${
+      currentMode === 'learn' || currentMode === 'practice'
+        ? 'h-[calc(100vh-64px)] max-h-[calc(100vh-64px)] overflow-hidden'
+        : 'min-h-[calc(100vh-64px)]'
+    }`}>
       
       {/* =========================================================================
           VIEW 1: LANDING OVERVIEW PAGE (DEFAULT VIEW - ZERO EXTRA TOP BARS!)

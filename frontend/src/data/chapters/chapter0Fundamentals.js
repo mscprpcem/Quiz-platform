@@ -1,19 +1,19 @@
 // =========================================================================
-// CHAPTER 0: FUNDAMENTALS (DBMS vs RDBMS, Schema, Commands, Setup)
+// CHAPTER 1: SQL FUNDAMENTALS (DBMS vs RDBMS, Schema, Commands, Setup)
 // =========================================================================
 
 export const CHAPTER_0_METADATA = {
   id: 'mod-01',
-  number: 0,
-  title: 'Fundamentals',
+  number: 1,
+  title: 'SQL Fundamentals',
   status: 'available',
   badge: 'Core Foundation',
   description: 'Master core database concepts, DBMS vs RDBMS architecture, tables, columns, rows, the 5 SQL command types, and complete local MySQL & Workbench installation.',
   topics: [
-    { id: 'top-01-01', title: 'DBMS vs RDBMS' },
-    { id: 'top-01-02', title: 'Tables, Rows, Columns & Schema' },
-    { id: 'top-01-03', title: 'SQL Command Types' },
-    { id: 'top-01-04', title: 'Install MySQL & Workbench' }
+    { id: 'top-01-01', title: 'DBMS vs RDBMS', lessonCode: '1.1' },
+    { id: 'top-01-02', title: 'Tables, Rows, Columns & Schema', lessonCode: '1.2' },
+    { id: 'top-01-03', title: 'SQL Command Types', lessonCode: '1.3' },
+    { id: 'top-01-04', title: 'Install MySQL & Workbench', lessonCode: '1.4' }
   ]
 };
 
@@ -21,7 +21,9 @@ export const CHAPTER_0_TOPICS = {
   'top-01-01': {
     id: 'top-01-01',
     moduleId: 'mod-01',
-    chapterNumber: 0,
+    chapterNumber: 1,
+    lessonNumber: 1,
+    lessonCode: '1.1',
     title: 'DBMS vs RDBMS',
     subtitle: 'From Flat File Systems to Relational Tables, ACID Guarantees & Constraints',
     intro: 'Before writing SQL queries, you must understand how databases evolved. In the early computing era, applications stored data in flat operating system files (CSV, XML, JSON). As datasets expanded, file systems failed to handle concurrent multi-user writes, led to massive data duplication, and suffered from catastrophic file corruption during unexpected power loss. This crisis motivated the creation of the Relational Database Management System (RDBMS), founded on E.F. Codd’s relational model.',
@@ -99,53 +101,85 @@ export const CHAPTER_0_TOPICS = {
         {
           letter: 'A',
           name: 'Atomicity',
+          motto: 'All or Nothing',
           badgeColor: 'blue',
-          desc: 'All or Nothing. If a transaction has 4 steps and step 3 fails, the entire transaction is rolled back automatically with zero partial writes.'
+          desc: 'If a transaction has 4 steps and step 3 fails, the entire transaction is rolled back automatically with zero partial writes.',
+          example: 'Bank transfer: Money debited from Account A MUST reach Account B. If power fails mid-way, the transaction reverts 100%.'
         },
         {
           letter: 'C',
           name: 'Consistency',
+          motto: 'Zero Corruption',
           badgeColor: 'emerald',
-          desc: 'Integrity Rules. Data must conform to all schema constraints (Primary Key uniqueness, Foreign Keys, data types) before and after execution.'
+          desc: 'Data must conform strictly to all schema rules (Primary Keys, Foreign Keys, NOT NULL, CHECK) before and after execution.',
+          example: 'Account balance can never drop below zero if a CHECK (balance >= 0) constraint is defined on the column.'
         },
         {
           letter: 'I',
           name: 'Isolation',
+          motto: 'No Dirty Reads',
           badgeColor: 'indigo',
-          desc: 'Independent Sessions. Concurrent transactions run independently without seeing half-completed changes from other users.'
+          desc: 'Concurrent transactions run independently without colliding or reading half-committed dirty rows from other simultaneous users.',
+          example: 'When two users book the last seat simultaneously, the second user safely sees "Sold Out" instead of a double booking.'
         },
         {
           letter: 'D',
           name: 'Durability',
+          motto: 'Survives Crashes',
           badgeColor: 'purple',
-          desc: 'Permanent Etch. Once a transaction is committed, changes are guaranteed to survive server crashes, restarts, or power failures.'
+          desc: 'Once a transaction is committed, changes are etched permanently to non-volatile disk pages and survive server crashes or restarts.',
+          example: 'Even if the database server abruptly loses power 1 millisecond after COMMIT, your saved record will still exist upon reboot.'
         }
       ]
     },
-    syntax: `-- Relational Model in Action: Parent & Child Tables linked via Foreign Key
--- 1. Parent Entity (departments)
-CREATE TABLE departments (
+    sqlSteps: [
+      {
+        step: 1,
+        title: 'Create the Parent Table (departments)',
+        badge: 'Parent Entity',
+        explanation: 'In a relational schema, parent tables must be established before child relationships can reference them. Here, department_id is the Primary Key with AUTO_INCREMENT, and department_name is constrained by UNIQUE to prevent duplicates.',
+        code: `CREATE TABLE departments (
     department_id INT PRIMARY KEY AUTO_INCREMENT,
     department_name VARCHAR(50) NOT NULL UNIQUE
-);
-
--- 2. Child Entity (employees) with Referential Integrity Constraint
-CREATE TABLE employees (
+);`
+      },
+      {
+        step: 2,
+        title: 'Create the Child Table (employees) with Foreign Key',
+        badge: 'Referential Integrity',
+        explanation: 'The employees table references departments via department_id. We enforce ON UPDATE CASCADE (changes to parent IDs cascade down) and ON DELETE RESTRICT (a department cannot be deleted while employees still belong to it).',
+        code: `CREATE TABLE employees (
     employee_id INT PRIMARY KEY AUTO_INCREMENT,
     full_name VARCHAR(100) NOT NULL,
     department_id INT,
     FOREIGN KEY (department_id) REFERENCES departments(department_id)
         ON UPDATE CASCADE 
         ON DELETE RESTRICT
-);`,
-    example: `-- Inserting connected records demonstrating referential integrity:
-INSERT INTO departments (department_name) VALUES ('Engineering'), ('Finance');
+);`
+      },
+      {
+        step: 3,
+        title: 'Insert Valid Linked Records',
+        badge: 'Valid Write',
+        explanation: 'We first insert departments (#1 Engineering, #2 Finance) into the parent table. Next, inserting Alex Chen linked to department_id = 1 succeeds because department #1 physically exists in the parent table.',
+        code: `-- 1. Insert parent departments:
+INSERT INTO departments (department_name) 
+VALUES ('Engineering'), ('Finance');
 
--- Valid insert linked to existing department #1
-INSERT INTO employees (full_name, department_id) VALUES ('Alex Chen', 1);
-
--- This insert will FAIL because department #99 does not exist!
--- INSERT INTO employees (full_name, department_id) VALUES ('Ghost User', 99);`,
+-- 2. Insert child record referencing valid department #1:
+INSERT INTO employees (full_name, department_id) 
+VALUES ('Alex Chen', 1);`
+      },
+      {
+        step: 4,
+        title: 'Demonstrate Foreign Key Guardrail (Constraint Error)',
+        badge: 'Orphan Prevention',
+        explanation: 'If an application tries to insert an employee referencing non-existent department #99, the RDBMS engine halts execution with Error 1452. This is how relational databases prevent corrupted, orphaned data.',
+        code: `-- This query will FAIL with Error 1452 (Foreign Key Constraint Fails):
+INSERT INTO employees (full_name, department_id) 
+VALUES ('Ghost User', 99);`
+      }
+    ],
     note: 'In an RDBMS, foreign keys act as guardrails: you cannot insert a child record pointing to a non-existent parent, preventing orphaned and corrupted data.',
     mistakes: [
       {
@@ -174,7 +208,9 @@ INSERT INTO employees (full_name, department_id) VALUES ('Alex Chen', 1);
   'top-01-02': {
     id: 'top-01-02',
     moduleId: 'mod-01',
-    chapterNumber: 0,
+    chapterNumber: 1,
+    lessonNumber: 2,
+    lessonCode: '1.2',
     title: 'Tables, Rows, Columns & Schema',
     subtitle: 'The 4 Core Building Blocks of Every Relational Database',
     intro: 'To understand how an RDBMS works, think of an Excel spreadsheet, but with strict mathematical rules. You cannot put random text into a date column, rows must have a unique identifier, and every entity is strictly defined by an architectural blueprint called a Schema.',
@@ -213,23 +249,43 @@ INSERT INTO employees (full_name, department_id) VALUES ('Alex Chen', 1);
         definition: 'The intersection of one row and one column holding a single, atomic data point (e.g. alex@gmail.com).'
       }
     ],
-    syntax: `-- Inspecting the structure of an existing table:
-DESCRIBE students;
-
--- Viewing the exact CREATE TABLE blueprint generated by MySQL:
-SHOW CREATE TABLE students;
-
--- Listing all tables in current database:
-SHOW TABLES;`,
-    example: `-- Creating a clean, well-structured table with all core components:
-CREATE TABLE students (
-    student_id INT PRIMARY KEY AUTO_INCREMENT, -- Primary Key (Unique per row)
-    first_name VARCHAR(50) NOT NULL,           -- Attribute: Text up to 50 chars
-    last_name VARCHAR(50) NOT NULL,            -- Attribute: Text up to 50 chars
-    email VARCHAR(100) UNIQUE,                 -- Attribute: Must be unique across all rows
-    admission_date DATE DEFAULT (CURRENT_DATE),-- Attribute: Calendar date
-    cgpa DECIMAL(3,2) DEFAULT 0.00             -- Attribute: Precise decimal (e.g. 3.85)
-);`,
+    sqlSteps: [
+      {
+        step: 1,
+        title: 'Create Table with Typed Columns & Constraints',
+        badge: 'Schema Definition',
+        explanation: 'We create a structured students table where student_id is the Primary Key, first_name and last_name are mandatory (NOT NULL), email is guaranteed unique across all records, admission_date defaults to today, and cgpa stores precise decimal values.',
+        code: `CREATE TABLE students (
+    student_id INT PRIMARY KEY AUTO_INCREMENT,
+    first_name VARCHAR(50) NOT NULL,
+    last_name VARCHAR(50) NOT NULL,
+    email VARCHAR(100) UNIQUE,
+    admission_date DATE DEFAULT (CURRENT_DATE),
+    cgpa DECIMAL(3,2) DEFAULT 0.00
+);`
+      },
+      {
+        step: 2,
+        title: 'Inspect Table Structure with DESCRIBE',
+        badge: 'Metadata Inspection',
+        explanation: 'The DESCRIBE command displays the columns, data types, nullability, key indexes, and default values directly from the database system catalog.',
+        code: `DESCRIBE students;`
+      },
+      {
+        step: 3,
+        title: 'View the Generated DDL Blueprint with SHOW CREATE TABLE',
+        badge: 'Storage Blueprint',
+        explanation: 'SHOW CREATE TABLE prints the exact internal SQL statement MySQL used to build this table on disk, including the InnoDB storage engine and character set.',
+        code: `SHOW CREATE TABLE students;`
+      },
+      {
+        step: 4,
+        title: 'List All Tables in the Active Database',
+        badge: 'Catalog Listing',
+        explanation: 'The SHOW TABLES command checks the database catalog and returns all active relations currently present in your selected database.',
+        code: `SHOW TABLES;`
+      }
+    ],
     note: 'In relational design, each cell must be atomic (containing only a single value). Never store comma-separated lists like "reading, coding, gaming" inside a single cell—create a separate relationship table instead!',
     mistakes: [
       {
@@ -258,7 +314,9 @@ CREATE TABLE students (
   'top-01-03': {
     id: 'top-01-03',
     moduleId: 'mod-01',
-    chapterNumber: 0,
+    chapterNumber: 1,
+    lessonNumber: 3,
+    lessonCode: '1.3',
     title: 'SQL Command Types',
     subtitle: 'The 5 Command Families: DDL, DML, DQL, DCL, and TCL',
     intro: 'SQL is not just a single command language. It is divided into 5 specialized command families, each responsible for a distinct layer of database management: defining structures, manipulating records, querying data, managing permissions, and controlling transaction boundaries.',
@@ -309,31 +367,51 @@ CREATE TABLE students (
         example: 'COMMIT; -- Saves transaction permanently'
       }
     ],
-    syntax: `-- 1. DDL: Create Table
-CREATE TABLE accounts (account_id INT PRIMARY KEY, balance DECIMAL(10,2));
+    sqlSteps: [
+      {
+        step: 1,
+        title: 'DDL — Create the Accounts Table Structure',
+        badge: 'DDL (Auto-Commit)',
+        explanation: 'Data Definition Language creates the structural schema container. Because it is DDL, it allocates physical tablespace and auto-commits immediately without rollback.',
+        code: `CREATE TABLE accounts (
+    account_id INT PRIMARY KEY,
+    balance DECIMAL(10,2) NOT NULL DEFAULT 0.00
+);`
+      },
+      {
+        step: 2,
+        title: 'DML — Insert Row Records into Accounts',
+        badge: 'DML (Modifies Data)',
+        explanation: 'Data Manipulation Language adds row records for two bank accounts (Alice with $5,000 and Bob with $3,000). DML statements can be rolled back via TCL before commit.',
+        code: `INSERT INTO accounts (account_id, balance) 
+VALUES (101, 5000.00), (102, 3000.00);`
+      },
+      {
+        step: 3,
+        title: 'DQL — Query Account Balances',
+        badge: 'DQL (Read-Only)',
+        explanation: 'Data Query Language (SELECT) retrieves rows without changing any values on disk. It reads from the InnoDB Buffer Pool or disk storage pages.',
+        code: `SELECT account_id, balance 
+FROM accounts 
+WHERE balance >= 4000.00;`
+      },
+      {
+        step: 4,
+        title: 'TCL — Multi-Step Bank Transfer Transaction',
+        badge: 'TCL (ACID Control)',
+        explanation: 'To transfer $500 from Account 101 to Account 102, we wrap both DML updates inside START TRANSACTION. If both succeed, COMMIT seals the changes permanently. If any step fails, ROLLBACK restores both balances instantly.',
+        code: `START TRANSACTION;
 
--- 2. DML: Insert row
-INSERT INTO accounts VALUES (101, 5000.00);
-
--- 3. DQL: Query data
-SELECT * FROM accounts WHERE account_id = 101;
-
--- 4. TCL: Save transaction
-COMMIT;`,
-    example: `-- Real-World Bank Transfer Transaction (DML + TCL):
-START TRANSACTION;
-
--- Step 1: Deduct $500 from Alice (Account 101)
+-- 1. Deduct $500 from Alice (Account 101)
 UPDATE accounts SET balance = balance - 500.00 WHERE account_id = 101;
 
--- Step 2: Add $500 to Bob (Account 102)
+-- 2. Credit $500 to Bob (Account 102)
 UPDATE accounts SET balance = balance + 500.00 WHERE account_id = 102;
 
--- Step 3: If everything succeeds, commit permanently:
-COMMIT;
-
--- If an error happened, rollback would undo both updates:
--- ROLLBACK;`,
+-- 3. Both succeeded: commit changes permanently
+COMMIT;`
+      }
+    ],
     note: 'Remember: DDL commands (CREATE, ALTER, DROP, TRUNCATE) issue an implicit auto-commit in MySQL! You cannot wrap a TRUNCATE TABLE in a transaction and expect ROLLBACK to restore the data.',
     mistakes: [
       {
@@ -363,7 +441,9 @@ COMMIT;
   'top-01-04': {
     id: 'top-01-04',
     moduleId: 'mod-01',
-    chapterNumber: 0,
+    chapterNumber: 1,
+    lessonNumber: 4,
+    lessonCode: '1.4',
     title: 'Install MySQL & Workbench',
     subtitle: 'Zero-to-Hero Installation Guide for Windows & macOS with Download Links',
     intro: 'To write and practice SQL on your computer, you need two software components: MySQL Server (the background engine that manages database storage, memory, and indexing) and MySQL Workbench (the visual GUI client where you write queries and design ER diagrams).',
@@ -437,6 +517,44 @@ SELECT * FROM welcome_status;`,
         tip: 'Use Ctrl + Enter (Windows) or Cmd + Enter (macOS) in Workbench to execute the query line under your cursor.'
       }
     ],
+    sqlSteps: [
+      {
+        step: 1,
+        title: 'Connect to Local MySQL Server via Terminal',
+        badge: 'CLI Handshake',
+        explanation: 'Launch your terminal or command prompt and connect to MySQL Server using the root administrative account. You will be prompted for your password.',
+        code: `mysql -u root -p`
+      },
+      {
+        step: 2,
+        title: 'Run Server Handshake Verification Query',
+        badge: 'Status Verification',
+        explanation: 'Execute this status query in Workbench or Terminal to confirm server connectivity, active engine version, and current authenticated user.',
+        code: `SELECT 
+    VERSION() AS mysql_version, 
+    CURRENT_TIMESTAMP AS server_time, 
+    USER() AS current_user;`
+      },
+      {
+        step: 3,
+        title: 'Initialize Practice Sandbox Database & Table',
+        badge: 'First Table Setup',
+        explanation: 'Run these queries to create a dedicated sandbox database and verify that table creation and data insertion work smoothly on your system.',
+        code: `CREATE DATABASE IF NOT EXISTS day1_sql_setup;
+USE day1_sql_setup;
+
+CREATE TABLE IF NOT EXISTS welcome_status (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    message VARCHAR(100) NOT NULL,
+    setup_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO welcome_status (message) 
+VALUES ('MySQL Server and Workbench Setup Completed Successfully!');
+
+SELECT * FROM welcome_status;`
+      }
+    ],
     syntax: `-- Test Server Connection via Command Prompt / Terminal:
 mysql -u root -p
 
@@ -470,7 +588,7 @@ SELECT
     ],
     prevTopicName: 'SQL Command Types',
     prevTopicId: 'top-01-03',
-    nextTopicName: 'CREATE (DDL Deep Dive)',
-    nextTopicId: 'top-create-table'
+    nextTopicName: 'SQL Keywords & Reserved Words',
+    nextTopicId: 'top-02-01'
   }
 };

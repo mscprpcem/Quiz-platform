@@ -7,8 +7,8 @@ export const SQL_MODULES = [
   // =========================================================================
   {
     id: 'mod-01',
-    number: 0,
-    title: 'Fundamentals',
+    number: 1,
+    title: 'SQL Fundamentals',
     icon: 'Database',
     difficulty: 'Beginner',
     difficultyColor: 'emerald',
@@ -169,12 +169,90 @@ SELECT * FROM status;`,
   },
 
   // =========================================================================
-  // MODULE 2: DDL DEEP DIVE (CREATE, ALTER, DROP, TRUNCATE, RENAME)
+  // MODULE 2: SQL KEYWORDS, DATA TYPES & OPERATORS
   // =========================================================================
   {
     id: 'mod-02',
-    number: 1,
-    title: 'DDL Deep Dive',
+    number: 2,
+    title: 'SQL Keywords, Data Types & Operators',
+    icon: 'Code2',
+    difficulty: 'Beginner',
+    difficultyColor: 'emerald',
+    badge: 'Core Primitives',
+    estimatedHours: 2.5,
+    summary: 'Master the atomic building blocks of SQL: reserved language keywords & clause order, complete numeric/string/date data types, and arithmetic/comparison/logical operators.',
+    topics: [
+      {
+        id: 'top-02-01',
+        title: 'SQL Keywords & Reserved Words',
+        subtopics: ['What are SQL Keywords?', 'Reserved vs Non-Reserved Tokens', 'Clause Hierarchy (SELECT to LIMIT)', 'Identifier Quoting (Backticks vs Double Quotes)', 'Case-Sensitivity Conventions'],
+        conceptText: 'SQL Keywords are standardized vocabulary words reserved by the language specification (ANSI SQL) to perform specific operations—such as selecting data, declaring constraints, or filtering rows.',
+        syntaxGuide: `-- Universal Syntactic Clause Order
+SELECT column_1, COUNT(column_2) AS total_count
+FROM employees
+WHERE hire_date >= '2020-01-01'
+GROUP BY department_id
+HAVING COUNT(column_2) > 5
+ORDER BY total_count DESC
+LIMIT 10;`,
+        exampleSnippet: {
+          title: 'Identifier Quoting for Reserved Words',
+          query: "SELECT `order`, `group`, `user` FROM `orders` WHERE `status` = 'ACTIVE';",
+          setupSql: ''
+        },
+        keyTakeaway: 'Always format keywords in UPPERCASE and object identifiers in lowercase_snake_case for clean readability.',
+        commonPitfall: 'Using unquoted reserved words like "order" or "group" as column names, which causes syntax errors.'
+      },
+      {
+        id: 'top-02-02',
+        title: 'SQL Data Types Deep Dive',
+        subtopics: ['Numeric Types (INT, BIGINT, DECIMAL)', 'String Types (CHAR, VARCHAR, TEXT)', 'Date & Time (DATE, DATETIME, TIMESTAMP)', 'Boolean & JSON Types', 'Type Casting (CAST & CONVERT)'],
+        conceptText: 'Data types define the nature of data stored inside each column, physical storage allocation on disk blocks, and what operations or indexes are allowed.',
+        syntaxGuide: `-- Column Data Types Definition
+CREATE TABLE financial_accounts (
+    account_id INT PRIMARY KEY AUTO_INCREMENT,
+    current_balance DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+    country_code CHAR(2) NOT NULL,
+    account_name VARCHAR(100) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);`,
+        exampleSnippet: {
+          title: 'Safe Casting & Precise Arithmetic',
+          query: 'SELECT CAST(10 AS DECIMAL(5, 2)) / 4 AS precise_result;',
+          setupSql: ''
+        },
+        keyTakeaway: 'Always use DECIMAL(M, D) for currency and never FLOAT or DOUBLE to prevent floating-point rounding errors.',
+        commonPitfall: 'Using FLOAT for money or over-allocating VARCHAR(255) for fixed-length state codes.'
+      },
+      {
+        id: 'top-02-03',
+        title: 'Operators in SQL (Arithmetic, Comparison & Logical)',
+        subtopics: ['Arithmetic Operators (+, -, *, /, %)', 'Comparison Operators (=, !=, <, >, BETWEEN, IN, LIKE)', 'Logical Operators (AND, OR, NOT)', 'Three-Valued Logic (3VL & IS NULL)', 'Operator Precedence & Parentheses'],
+        conceptText: 'Operators execute computations, evaluate comparisons, and combine conditions in SQL Three-Valued Logic (TRUE, FALSE, UNKNOWN).',
+        syntaxGuide: `-- Logical Operators with Precedence Protection
+SELECT * FROM employees
+WHERE (department = 'Engineering' OR department = 'Data Science')
+  AND salary > 90000
+  AND manager_id IS NOT NULL;`,
+        exampleSnippet: {
+          title: 'Three-Valued Logic and NULL Comparison',
+          query: 'SELECT * FROM employees WHERE manager_id IS NULL;',
+          setupSql: ''
+        },
+        keyTakeaway: 'AND evaluates before OR. Always use parentheses when combining AND with OR to prevent logic bypass bugs.',
+        commonPitfall: 'Using = NULL instead of IS NULL, which always returns UNKNOWN and drops all records.'
+      }
+    ],
+    questions: []
+  },
+
+  // =========================================================================
+  // MODULE 3: DDL DEEP DIVE (CREATE, ALTER, DROP, TRUNCATE, RENAME)
+  // =========================================================================
+  {
+    id: 'mod-03',
+    number: 3,
+    title: 'Data Definition Language (DDL)',
     icon: 'Layers',
     difficulty: 'Beginner',
     difficultyColor: 'emerald',
@@ -234,22 +312,22 @@ ALTER TABLE employees DROP COLUMN temp_notes;`,
         commonPitfall: 'Dropping a column referenced by an active Foreign Key, or shrinking column length below existing data values causing truncation errors.'
       },
       {
-        id: 'top-drop-table',
-        title: 'DROP',
-        subtopics: ['What Happens in DB (Under the Hood)', 'Foreign Key Referential Checks', 'Buffer Pool Memory Eviction', 'Unlinking Physical .ibd Files', 'Purging Catalog Metadata', 'DROP TABLE vs DROP DATABASE'],
-        conceptText: `The \`DROP\` statement permanently destroys a table or database. Under the hood, MySQL verifies foreign key dependencies (blocking if child records exist), acquires an exclusive lock, evicts cached dirty pages from the in-memory Buffer Pool, unlinks (deletes) the physical \`.ibd\` storage file from disk, and erases all catalog metadata from the Data Dictionary.`,
-        syntaxGuide: `-- Drop a specific table safely:
-DROP TABLE IF EXISTS audit_logs_2021;
+        id: 'top-rename-table',
+        title: 'RENAME',
+        subtopics: ['What Happens in DB (Under the Hood)', 'Dual Exclusive Metadata Lock', 'Data Dictionary Pointer Swap', 'Instant Physical .ibd File Rename', 'Zero Row Copying / Zero Downtime', 'Atomic Multi-Table Swapping'],
+        conceptText: `\`RENAME TABLE\` modifies table identifiers in catalog metadata. Because data rows are tied to internal tablespace identifiers rather than human-readable names, renaming a table requires zero row copying or re-indexing: the engine updates the table name string in the Data Dictionary and renames the physical \`.ibd\` file in microseconds.`,
+        syntaxGuide: `-- Dedicated RENAME syntax:
+RENAME TABLE old_name TO new_name;
 
--- Drop an entire database container:
-DROP DATABASE IF EXISTS staging_test_db;`,
+-- Zero-Downtime Blue/Green Table Swap:
+RENAME TABLE active_orders TO orders_backup, staging_orders TO active_orders;`,
         exampleSnippet: {
-          title: 'Clean Idempotent Drop',
-          query: `DROP TABLE IF EXISTS temporary_order_calculations;`,
+          title: 'Atomic Multi-Table Renaming',
+          query: `RENAME TABLE clients TO customers;`,
           setupSql: ``
         },
-        keyTakeaway: 'DROP permanently deletes both table structure and data from disk, returning disk space back to the operating system.',
-        commonPitfall: 'Running DROP TABLE without IF EXISTS in automated migration scripts, or attempting to drop a parent table before child tables.'
+        keyTakeaway: 'RENAME executes in microseconds because it only swaps metadata pointers and renames the physical storage file with zero row copying.',
+        commonPitfall: 'Renaming a table without updating dependent views, stored procedures, or application queries that reference the old table name.'
       },
       {
         id: 'top-truncate-table',
@@ -267,22 +345,22 @@ TRUNCATE TABLE staging_orders;`,
         commonPitfall: 'Expecting ROLLBACK to restore truncated data, or trying to use a WHERE clause with TRUNCATE.'
       },
       {
-        id: 'top-rename-table',
-        title: 'RENAME',
-        subtopics: ['What Happens in DB (Under the Hood)', 'Dual Exclusive Metadata Lock', 'Data Dictionary Pointer Swap', 'Instant Physical .ibd File Rename', 'Zero Row Copying / Zero Downtime', 'Atomic Multi-Table Swapping'],
-        conceptText: `\`RENAME TABLE\` modifies table identifiers in catalog metadata. Because data rows are tied to internal tablespace identifiers rather than human-readable names, renaming a table requires zero row copying or re-indexing: the engine updates the table name string in the Data Dictionary and renames the physical \`.ibd\` file in microseconds.`,
-        syntaxGuide: `-- Dedicated RENAME syntax:
-RENAME TABLE old_name TO new_name;
+        id: 'top-drop-table',
+        title: 'DROP',
+        subtopics: ['What Happens in DB (Under the Hood)', 'Foreign Key Referential Checks', 'Buffer Pool Memory Eviction', 'Unlinking Physical .ibd Files', 'Purging Catalog Metadata', 'DROP TABLE vs DROP DATABASE'],
+        conceptText: `The \`DROP\` statement permanently destroys a table or database. Under the hood, MySQL verifies foreign key dependencies (blocking if child records exist), acquires an exclusive lock, evicts cached dirty pages from the in-memory Buffer Pool, unlinks (deletes) the physical \`.ibd\` storage file from disk, and erases all catalog metadata from the Data Dictionary.`,
+        syntaxGuide: `-- Drop a specific table safely:
+DROP TABLE IF EXISTS audit_logs_2021;
 
--- Zero-Downtime Blue/Green Table Swap:
-RENAME TABLE active_orders TO orders_backup, staging_orders TO active_orders;`,
+-- Drop an entire database container:
+DROP DATABASE IF EXISTS staging_test_db;`,
         exampleSnippet: {
-          title: 'Atomic Multi-Table Renaming',
-          query: `RENAME TABLE clients TO customers;`,
+          title: 'Clean Idempotent Drop',
+          query: `DROP TABLE IF EXISTS temporary_order_calculations;`,
           setupSql: ``
         },
-        keyTakeaway: 'RENAME executes in microseconds because it only swaps metadata pointers and renames the physical storage file with zero row copying.',
-        commonPitfall: 'Renaming a table without updating dependent views, stored procedures, or application queries that reference the old table name.'
+        keyTakeaway: 'DROP permanently deletes both table structure and data from disk, returning disk space back to the operating system.',
+        commonPitfall: 'Running DROP TABLE without IF EXISTS in automated migration scripts, or attempting to drop a parent table before child tables.'
       }
     ],
     questions: [
@@ -335,11 +413,11 @@ RENAME TABLE active_orders TO orders_backup, staging_orders TO active_orders;`,
   },
 
   // =========================================================================
-  // MODULE 3: DML (DATA MANIPULATION LANGUAGE)
+  // MODULE 4: DML (DATA MANIPULATION LANGUAGE)
   // =========================================================================
   {
-    id: 'mod-03',
-    number: 3,
+    id: 'mod-04',
+    number: 4,
     title: 'DML (Data Manipulation Language)',
     icon: 'Edit3',
     difficulty: 'Beginner',
@@ -2031,5 +2109,5 @@ ORDER BY average_salary DESC;`,
 ];
 
 export const TOTAL_MODULES_COUNT = SQL_MODULES.length;
-export const TOTAL_TOPICS_COUNT = SQL_MODULES.reduce((sum, m) => sum + m.topics.length, 0);
-export const TOTAL_QUESTIONS_COUNT = SQL_MODULES.reduce((sum, m) => sum + m.questions.length, 0);
+export const TOTAL_TOPICS_COUNT = SQL_MODULES.reduce((sum, m) => sum + (m.topics?.length || 0), 0);
+export const TOTAL_QUESTIONS_COUNT = SQL_MODULES.reduce((sum, m) => sum + (m.questions?.length || 0), 0);
