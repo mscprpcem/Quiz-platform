@@ -260,8 +260,8 @@ export default function DdlQuestionsBank({ onJumpToPractice }) {
                     )}
                   </div>
 
-                  {/* ACTION BUTTONS: SOLVE IN LAB + EYE TOGGLE */}
-                  <div className="flex items-center space-x-2">
+                  {/* ACTION BUTTONS: PRACTICE -> + EYE TOGGLE */}
+                  <div className="flex items-center space-x-1.5">
                     {onJumpToPractice && (
                       <button
                         type="button"
@@ -269,25 +269,24 @@ export default function DdlQuestionsBank({ onJumpToPractice }) {
                         className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs transition-all shrink-0 cursor-pointer active:scale-95"
                         title="Practice writing this query in the SQL Engine Lab"
                       >
-                        <Code2 size={13} />
-                        <span>Practice in Lab</span>
-                        <ArrowRight size={12} />
+                        <span>Practice</span>
+                        <ArrowRight size={13} />
                       </button>
                     )}
 
-                    {/* EYE BUTTON (REVEAL / HIDE) */}
+                    {/* EYE BUTTON (JUST EYE ICON) */}
                     <button
                       type="button"
                       onClick={() => toggleRevealSolution(q.id)}
-                      className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-black border transition-all cursor-pointer shadow-2xs ${
+                      className={`inline-flex items-center justify-center w-8 h-8 rounded-xl border transition-all cursor-pointer shadow-2xs active:scale-95 ${
                         isRevealed
-                          ? 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200'
-                          : 'bg-slate-100 hover:bg-blue-50 text-slate-700 hover:text-blue-700 border-slate-200'
+                          ? 'bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-300'
+                          : 'bg-slate-100 hover:bg-blue-50 text-slate-600 hover:text-blue-600 border-slate-200'
                       }`}
                       title={isRevealed ? 'Hide solution' : 'Reveal solution'}
+                      aria-label={isRevealed ? 'Hide solution' : 'Reveal solution'}
                     >
-                      {isRevealed ? <EyeOff size={14} /> : <Eye size={14} className="text-blue-600" />}
-                      <span>{isRevealed ? 'Hide Solution' : 'Reveal Solution'}</span>
+                      {isRevealed ? <EyeOff size={15} /> : <Eye size={15} />}
                     </button>
                   </div>
                 </div>
@@ -334,7 +333,7 @@ export default function DdlQuestionsBank({ onJumpToPractice }) {
                         <Eye size={13} />
                       </div>
                       <span className="font-medium text-slate-600">
-                        Solution hidden — test your query in the Practice Lab, then click <strong>Reveal Solution</strong>.
+                        Solution hidden — test your query first, then click the eye icon to view.
                       </span>
                     </div>
                     <button
@@ -342,7 +341,7 @@ export default function DdlQuestionsBank({ onJumpToPractice }) {
                       onClick={() => toggleRevealSolution(q.id)}
                       className="text-blue-600 hover:text-blue-700 font-bold text-xs hover:underline flex items-center space-x-1 cursor-pointer shrink-0"
                     >
-                      <span>Show Answer</span>
+                      <span>Show Solution</span>
                       <ArrowRight size={12} />
                     </button>
                   </div>

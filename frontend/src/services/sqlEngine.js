@@ -143,6 +143,16 @@ function registerCustomSqlFunctions(db) {
   }
 }
 
+// Session-level virtual database catalog registry across runs
+const virtualDatabases = new Set();
+
+/**
+ * Reset all virtual databases in the session (e.g. when resetting the lab)
+ */
+export function resetVirtualDatabases() {
+  virtualDatabases.clear();
+}
+
 /**
  * Universal SQL Preprocessor
  * Translates multi-dialect keywords and commands into SQLite compatible syntax
@@ -152,12 +162,18 @@ function preprocessQueryForSqlite(sql) {
 
   // 1. MySQL: SHOW TABLES; / SHOW FULL TABLES;
   if (/^SHOW\s+(?:FULL\s+)?TABLES(?:\s+LIKE\s+['"][^'"]+['"])?\s*;?/i.test(processed)) {
-    return `SELECT name AS Tables_in_database FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';`;
+    return `SELECT name AS Tables_in_database FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '__catalog_%';`;
   }
 
   // 2. MySQL: SHOW DATABASES;
   if (/^SHOW\s+DATABASES\s*;?/i.test(processed)) {
-    return `SELECT 'main' AS Database_Name UNION SELECT 'temp' AS Database_Name;`;
+    return `SELECT 'main' AS Database_Name 
+            UNION SELECT 'temp' AS Database_Name 
+            UNION 
+            SELECT REPLACE(name, '__catalog_', '') AS Database_Name 
+            FROM sqlite_master 
+            WHERE type='table' AND name LIKE '__catalog_%' 
+            ORDER BY Database_Name ASC;`;
   }
 
   // 3. MySQL / Oracle: DESCRIBE table; / DESC table; / SHOW COLUMNS FROM table;
@@ -174,10 +190,12 @@ function preprocessQueryForSqlite(sql) {
   if (/^(CREATE|DROP)\s+DATABASE\s+([a-zA-Z0-9_]+)\s*;?/i.test(processed)) {
     const match = processed.match(/^(CREATE|DROP)\s+DATABASE\s+([a-zA-Z0-9_]+)/i);
     const action = match[1].toUpperCase();
-    const dbName = match[2];
+    const dbName = match[2].toLowerCase();
     if (action === 'CREATE') {
+      virtualDatabases.add(dbName);
       return `CREATE TABLE IF NOT EXISTS __catalog_${dbName} (created_at TEXT);`;
     } else {
+      virtualDatabases.delete(dbName);
       return `DROP TABLE IF EXISTS __catalog_${dbName};`;
     }
   }
@@ -253,6 +271,13 @@ export async function executeSqlQuery(setupSql, querySql) {
     if (setupSql && setupSql.trim()) {
       db.run(setupSql);
     }
+
+    // Seed any session-created virtual databases
+    virtualDatabases.forEach((vDb) => {
+      try {
+        db.run(`CREATE TABLE IF NOT EXISTS __catalog_${vDb} (created_at TEXT);`);
+      } catch (_) {}
+    });
 
     // 2. Execute query (with multi-dialect preprocessor)
     const trimmedQuery = (querySql || '').trim();
