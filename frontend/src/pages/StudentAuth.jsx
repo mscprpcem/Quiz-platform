@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import {
-  Mail, Lock, User, CheckCircle2, ArrowRight,
+  Mail, Lock, User, CheckCircle2, ArrowRight, AlertCircle,
   AlertTriangle, Loader2, BookOpen, Eye, EyeOff, KeyRound, ArrowLeft, ShieldCheck,
   ExternalLink, Search, Sparkles, Check, X
 } from 'lucide-react';

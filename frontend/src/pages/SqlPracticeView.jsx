@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   Database, Play, CheckCircle2, XCircle, AlertTriangle, Lightbulb,
-  RotateCcw, Sparkles, ChevronRight, ChevronLeft, ArrowRight, ArrowLeft,
+  RotateCcw, Sparkles, ChevronRight, ChevronLeft, ChevronDown, ArrowRight, ArrowLeft,
   BookOpen, Code2, Trophy, ListOrdered, Table, Layers, Clock, Eye,
   HelpCircle, Copy, Check, Terminal, Search, Filter, ShieldCheck, CheckSquare,
   ArrowUpRight, Flame, BarChart3, RefreshCw, X, GripVertical, GripHorizontal,
@@ -351,6 +351,8 @@ export default function SqlPracticeView({
   const [drawerSearch, setDrawerSearch] = useState('');
   const [drawerDifficulty, setDrawerDifficulty] = useState('all');
   const [drawerTrack, setDrawerTrack] = useState('all'); // 'all' | 'ddl' | 'dml' | 'core'
+  const [drawerTrackFilter, setDrawerTrackFilter] = useState('all'); // 'all' | 'eq_ddl' | 'neq_ddl' | 'eq_dml' | 'neq_dml' | 'eq_core' | 'neq_core'
+  const [drawerLevelFilter, setDrawerLevelFilter] = useState('all'); // 'all' | 'eq_basic' | 'neq_basic' | 'eq_easy' | 'neq_easy' | 'eq_medium' | 'neq_medium' | 'eq_hard' | 'neq_hard'
   const [drawerDdlFilter, setDrawerDdlFilter] = useState('all'); // 'all' | 'create' | 'use' | 'alter' | 'rename' | 'truncate' | 'drop'
   const [drawerDmlFilter, setDrawerDmlFilter] = useState('all'); // 'all' | 'insert' | 'update' | 'delete' | 'select'
 
@@ -366,8 +368,10 @@ export default function SqlPracticeView({
           setViewMode('solve');
           if (targetId.toLowerCase().startsWith('dml-')) {
             setDrawerTrack('dml');
+            setDrawerTrackFilter('eq_dml');
           } else if (targetId.toLowerCase().startsWith('ddl-')) {
             setDrawerTrack('ddl');
+            setDrawerTrackFilter('eq_ddl');
           }
           return;
         }
@@ -646,41 +650,59 @@ export default function SqlPracticeView({
   // Filtered drawer challenges
   const drawerChallenges = useMemo(() => {
     return SQL_CHALLENGES.map((c, i) => ({ ...c, originalIndex: i })).filter((c) => {
-      if (drawerTrack === 'ddl') {
-        if (!c.id.startsWith('ddl-')) return false;
-        if (drawerDdlFilter !== 'all') {
-          const matchString = (c.title + ' ' + (c.tags || []).join(' ') + ' ' + (c.moduleTitle || '')).toLowerCase();
-          if (drawerDdlFilter === 'create' && !matchString.includes('create')) return false;
-          if (drawerDdlFilter === 'use' && !matchString.includes('use')) return false;
-          if (drawerDdlFilter === 'alter' && !matchString.includes('alter') && !matchString.includes('add') && !matchString.includes('modify')) return false;
-          if (drawerDdlFilter === 'rename' && !matchString.includes('rename')) return false;
-          if (drawerDdlFilter === 'truncate' && !matchString.includes('truncate')) return false;
-          if (drawerDdlFilter === 'drop' && !matchString.includes('drop')) return false;
-        }
+      const isDdl = c.id.startsWith('ddl-');
+      const isDml = c.id.startsWith('dml-');
+      const isCore = !isDdl && !isDml;
+
+      // 1. Operator-based Track / Type Filter (= and not =)
+      if (drawerTrackFilter === 'eq_ddl' && !isDdl) return false;
+      if (drawerTrackFilter === 'neq_ddl' && isDdl) return false;
+      if (drawerTrackFilter === 'eq_dml' && !isDml) return false;
+      if (drawerTrackFilter === 'neq_dml' && isDml) return false;
+      if (drawerTrackFilter === 'eq_core' && !isCore) return false;
+      if (drawerTrackFilter === 'neq_core' && isCore) return false;
+
+      // Granular sub-filter for DDL (when DDL is active)
+      if (drawerTrackFilter === 'eq_ddl' && drawerDdlFilter !== 'all') {
+        const matchString = (c.title + ' ' + (c.tags || []).join(' ') + ' ' + (c.moduleTitle || '')).toLowerCase();
+        if (drawerDdlFilter === 'create' && !matchString.includes('create')) return false;
+        if (drawerDdlFilter === 'use' && !matchString.includes('use')) return false;
+        if (drawerDdlFilter === 'alter' && !matchString.includes('alter') && !matchString.includes('add') && !matchString.includes('modify')) return false;
+        if (drawerDdlFilter === 'rename' && !matchString.includes('rename')) return false;
+        if (drawerDdlFilter === 'truncate' && !matchString.includes('truncate')) return false;
+        if (drawerDdlFilter === 'drop' && !matchString.includes('drop')) return false;
       }
-      if (drawerTrack === 'dml') {
-        if (!c.id.startsWith('dml-')) return false;
-        if (drawerDmlFilter !== 'all') {
-          const matchString = (c.title + ' ' + (c.tags || []).join(' ') + ' ' + (c.moduleTitle || '')).toLowerCase();
-          if (drawerDmlFilter === 'insert' && !matchString.includes('insert')) return false;
-          if (drawerDmlFilter === 'update' && !matchString.includes('update')) return false;
-          if (drawerDmlFilter === 'delete' && !matchString.includes('delete')) return false;
-          if (drawerDmlFilter === 'select' && !matchString.includes('select')) return false;
-        }
+
+      // Granular sub-filter for DML (when DML is active)
+      if (drawerTrackFilter === 'eq_dml' && drawerDmlFilter !== 'all') {
+        const matchString = (c.title + ' ' + (c.tags || []).join(' ') + ' ' + (c.moduleTitle || '')).toLowerCase();
+        if (drawerDmlFilter === 'insert' && !matchString.includes('insert')) return false;
+        if (drawerDmlFilter === 'update' && !matchString.includes('update')) return false;
+        if (drawerDmlFilter === 'delete' && !matchString.includes('delete')) return false;
+        if (drawerDmlFilter === 'select' && !matchString.includes('select')) return false;
       }
-      if (drawerTrack === 'core' && (c.id.startsWith('ddl-') || c.id.startsWith('dml-'))) {
-        return false;
+
+      // 2. Operator-based Level / Difficulty Filter (= and not =)
+      if (drawerLevelFilter !== 'all') {
+        const diff = (c.difficulty || '').toLowerCase();
+        if (drawerLevelFilter === 'eq_basic' && diff !== 'basic') return false;
+        if (drawerLevelFilter === 'neq_basic' && diff === 'basic') return false;
+        if (drawerLevelFilter === 'eq_easy' && diff !== 'easy') return false;
+        if (drawerLevelFilter === 'neq_easy' && diff === 'easy') return false;
+        if (drawerLevelFilter === 'eq_medium' && diff !== 'medium') return false;
+        if (drawerLevelFilter === 'neq_medium' && diff === 'medium') return false;
+        if (drawerLevelFilter === 'eq_hard' && diff !== 'hard') return false;
+        if (drawerLevelFilter === 'neq_hard' && diff === 'hard') return false;
       }
-      if (drawerDifficulty !== 'all' && c.difficulty?.toLowerCase() !== drawerDifficulty.toLowerCase()) {
-        return false;
-      }
+
+      // 3. Search Query Filter
       if (drawerSearch.trim()) {
         const q = drawerSearch.toLowerCase();
         return c.title.toLowerCase().includes(q) || c.moduleTitle?.toLowerCase().includes(q) || c.id.toLowerCase().includes(q);
       }
       return true;
     });
-  }, [drawerSearch, drawerDifficulty, drawerTrack, drawerDdlFilter, drawerDmlFilter]);
+  }, [drawerSearch, drawerTrackFilter, drawerLevelFilter, drawerDdlFilter, drawerDmlFilter]);
 
   return (
     <div
@@ -1620,66 +1642,166 @@ export default function SqlPracticeView({
                 )}
               </div>
 
-              {/* Track Category Tabs */}
-              <div className="flex items-center space-x-1 overflow-x-auto pb-0.5">
+              {/* Track Quick Tabs (Compact labels: All, DDL, DML, Core to save space) */}
+              <div className="flex items-center space-x-1 overflow-x-auto pb-0.5 scrollbar-none">
                 <button
                   type="button"
-                  onClick={() => setDrawerTrack('all')}
+                  onClick={() => {
+                    setDrawerTrack('all');
+                    setDrawerTrackFilter('all');
+                  }}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
-                    drawerTrack === 'all'
+                    drawerTrackFilter === 'all'
                       ? 'bg-slate-900 text-white font-extrabold shadow-2xs'
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
-                  All ({totalCount})
+                  All
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDrawerTrack('ddl')}
+                  onClick={() => {
+                    setDrawerTrack('ddl');
+                    setDrawerTrackFilter(drawerTrackFilter === 'eq_ddl' ? 'all' : 'eq_ddl');
+                  }}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center space-x-1 ${
-                    drawerTrack === 'ddl'
+                    drawerTrackFilter === 'eq_ddl'
                       ? 'bg-blue-600 text-white font-extrabold shadow-2xs'
                       : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200/80'
                   }`}
                 >
-                  <span>📘 50 DDL Questions</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                    drawerTrack === 'ddl' ? 'bg-blue-700 text-white' : 'bg-blue-200/80 text-blue-900'
+                  <span>DDL</span>
+                  <span className={`text-[9.5px] px-1.5 py-0.2 rounded-full font-black ${
+                    drawerTrackFilter === 'eq_ddl' ? 'bg-blue-700 text-white' : 'bg-blue-200/80 text-blue-900'
                   }`}>
                     50
                   </span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDrawerTrack('dml')}
+                  onClick={() => {
+                    setDrawerTrack('dml');
+                    setDrawerTrackFilter(drawerTrackFilter === 'eq_dml' ? 'all' : 'eq_dml');
+                  }}
                   className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center space-x-1 ${
-                    drawerTrack === 'dml'
+                    drawerTrackFilter === 'eq_dml'
                       ? 'bg-emerald-600 text-white font-extrabold shadow-2xs'
                       : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/80'
                   }`}
                 >
-                  <span>📗 50 DML Questions</span>
-                  <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                    drawerTrack === 'dml' ? 'bg-emerald-700 text-white' : 'bg-emerald-200/80 text-emerald-900'
+                  <span>DML</span>
+                  <span className={`text-[9.5px] px-1.5 py-0.2 rounded-full font-black ${
+                    drawerTrackFilter === 'eq_dml' ? 'bg-emerald-700 text-white' : 'bg-emerald-200/80 text-emerald-900'
                   }`}>
                     50
                   </span>
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDrawerTrack('core')}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer ${
-                    drawerTrack === 'core'
+                  onClick={() => {
+                    setDrawerTrack('core');
+                    setDrawerTrackFilter(drawerTrackFilter === 'eq_core' ? 'all' : 'eq_core');
+                  }}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold whitespace-nowrap transition-all cursor-pointer flex items-center space-x-1 ${
+                    drawerTrackFilter === 'eq_core'
                       ? 'bg-indigo-600 text-white font-extrabold shadow-2xs'
                       : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200/80'
                   }`}
                 >
-                  <span>Core SQL (16)</span>
+                  <span>Core</span>
+                  <span className={`text-[9.5px] px-1.5 py-0.2 rounded-full font-black ${
+                    drawerTrackFilter === 'eq_core' ? 'bg-indigo-700 text-white' : 'bg-indigo-200/80 text-indigo-900'
+                  }`}>
+                    16
+                  </span>
                 </button>
               </div>
 
+              {/* Operator-Based Filter Controls Bar (= and not =) for Type & Level */}
+              <div className="flex items-center gap-1.5 pt-0.5">
+                {/* Type Filter Dropdown */}
+                <div className="relative flex-1 min-w-0">
+                  <select
+                    value={drawerTrackFilter}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setDrawerTrackFilter(val);
+                      if (val === 'eq_ddl') setDrawerTrack('ddl');
+                      else if (val === 'eq_dml') setDrawerTrack('dml');
+                      else if (val === 'eq_core') setDrawerTrack('core');
+                      else setDrawerTrack('all');
+                    }}
+                    className={`w-full py-1.5 pl-2.5 pr-6 text-[11px] font-bold rounded-xl border appearance-none cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-blue-500/20 ${
+                      drawerTrackFilter !== 'all'
+                        ? 'bg-blue-50/90 border-blue-300 text-blue-900 font-extrabold'
+                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <option value="all">Type: All</option>
+                    <optgroup label="Equal (=)">
+                      <option value="eq_ddl">= DDL (50)</option>
+                      <option value="eq_dml">= DML (50)</option>
+                      <option value="eq_core">= Core (16)</option>
+                    </optgroup>
+                    <optgroup label="Not Equal (not =)">
+                      <option value="neq_ddl">not = DDL (66)</option>
+                      <option value="neq_dml">not = DML (66)</option>
+                      <option value="neq_core">not = Core (100)</option>
+                    </optgroup>
+                  </select>
+                  <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                </div>
+
+                {/* Level Filter Dropdown */}
+                <div className="relative flex-1 min-w-0">
+                  <select
+                    value={drawerLevelFilter}
+                    onChange={(e) => setDrawerLevelFilter(e.target.value)}
+                    className={`w-full py-1.5 pl-2.5 pr-6 text-[11px] font-bold rounded-xl border appearance-none cursor-pointer transition-all focus:outline-none focus:ring-2 focus:ring-amber-500/20 ${
+                      drawerLevelFilter !== 'all'
+                        ? 'bg-amber-50/90 border-amber-300 text-amber-900 font-extrabold'
+                        : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100'
+                    }`}
+                  >
+                    <option value="all">Level: All</option>
+                    <optgroup label="Equal (=)">
+                      <option value="eq_basic">= Basic</option>
+                      <option value="eq_easy">= Easy</option>
+                      <option value="eq_medium">= Medium</option>
+                      <option value="eq_hard">= Hard</option>
+                    </optgroup>
+                    <optgroup label="Not Equal (not =)">
+                      <option value="neq_basic">not = Basic</option>
+                      <option value="neq_easy">not = Easy</option>
+                      <option value="neq_medium">not = Medium</option>
+                      <option value="neq_hard">not = Hard</option>
+                    </optgroup>
+                  </select>
+                  <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                </div>
+
+                {/* Clear / Reset Filter Button */}
+                {(drawerTrackFilter !== 'all' || drawerLevelFilter !== 'all' || drawerDdlFilter !== 'all' || drawerDmlFilter !== 'all' || drawerSearch !== '') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDrawerTrack('all');
+                      setDrawerTrackFilter('all');
+                      setDrawerLevelFilter('all');
+                      setDrawerDdlFilter('all');
+                      setDrawerDmlFilter('all');
+                      setDrawerSearch('');
+                    }}
+                    className="p-1.5 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-600 border border-slate-200 hover:border-rose-200 transition-all cursor-pointer shrink-0"
+                    title="Reset all filters"
+                  >
+                    <RotateCcw size={13} />
+                  </button>
+                )}
+              </div>
+
               {/* DDL Operational Granular Filters (CREATE, USE, ALTER, RENAME, TRUNCATE, DROP) */}
-              {drawerTrack === 'ddl' && (
+              {drawerTrackFilter === 'eq_ddl' && (
                 <div className="flex items-center space-x-1 overflow-x-auto pb-1 scrollbar-none pt-0.5">
                   {[
                     { id: 'all', label: 'All DDL' },
@@ -1707,7 +1829,7 @@ export default function SqlPracticeView({
               )}
 
               {/* DML Operational Granular Filters (INSERT, UPDATE, DELETE, SELECT) */}
-              {drawerTrack === 'dml' && (
+              {drawerTrackFilter === 'eq_dml' && (
                 <div className="flex items-center space-x-1 overflow-x-auto pb-1 scrollbar-none pt-0.5">
                   {[
                     { id: 'all', label: 'All DML (50)' },
@@ -1731,23 +1853,6 @@ export default function SqlPracticeView({
                   ))}
                 </div>
               )}
-
-              <div className="grid grid-cols-5 gap-1">
-                {['all', 'basic', 'easy', 'medium', 'hard'].map((df) => (
-                  <button
-                    key={df}
-                    type="button"
-                    onClick={() => setDrawerDifficulty(df)}
-                    className={`py-1 rounded-lg text-[11px] font-bold capitalize transition-all cursor-pointer text-center ${
-                      drawerDifficulty === df
-                        ? 'bg-blue-600 text-white font-extrabold shadow-2xs'
-                        : 'bg-slate-100/90 text-slate-600 hover:bg-slate-200/80'
-                    }`}
-                  >
-                    {df === 'medium' ? 'Med' : df}
-                  </button>
-                ))}
-              </div>
             </div>
 
             {/* Drawer Problem List */}

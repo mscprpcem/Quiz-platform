@@ -1104,7 +1104,7 @@ export default function SqlPractice() {
                       : isDarkMode ? 'bg-slate-800 text-slate-400 hover:text-slate-200' : 'bg-slate-200/80 text-slate-600 hover:bg-slate-300'
                   }`}
                 >
-                  DDL Tracks (50)
+                  DDL (50)
                 </button>
                 <button
                   onClick={() => setDrawerTrack('dml')}
@@ -1114,7 +1114,7 @@ export default function SqlPractice() {
                       : isDarkMode ? 'bg-slate-800 text-slate-400 hover:text-slate-200' : 'bg-slate-200/80 text-slate-600 hover:bg-slate-300'
                   }`}
                 >
-                  JOINs & Placements (16)
+                  Core (16)
                 </button>
                 <button
                   onClick={() => setDrawerTrack('solved')}
