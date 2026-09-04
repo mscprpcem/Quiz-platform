@@ -210,14 +210,14 @@ const renderHtmlWrapper = ({ title, preheader, content }) => `
           <!-- Institutional Footer -->
           <tr>
             <td style="padding: 20px 24px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center; font-size: 12px; color: #64748b; line-height: 1.5;">
-              <p style="margin: 0 0 6px 0; font-weight: 600; color: #475569;">
+              <p style="margin: 0 0 4px 0; font-weight: 700; color: #1e293b; font-size: 13px;">
+                Microsoft Student Club (MSC)
+              </p>
+              <p style="margin: 0 0 6px 0; color: #64748b;">
                 P.R. Pote (Patil) College of Engineering & Management, Amravati
               </p>
-              <p style="margin: 0 0 6px 0;">
-                Department of Technical Events & Microsoft Student Club
-              </p>
               <p style="margin: 0; font-size: 11px; color: #94a3b8;">
-                Support: <a href="mailto:mlsc@prpotepatilengg.ac.in" style="color: #2563eb; text-decoration: none; font-weight: 600;">mlsc@prpotepatilengg.ac.in</a> | Official Platform Notification
+                Support: <a href="mailto:mlsc@prpotepatilengg.ac.in" style="color: #2563eb; text-decoration: none; font-weight: 600;">mlsc@prpotepatilengg.ac.in</a>
               </p>
             </td>
           </tr>
@@ -231,7 +231,7 @@ const renderHtmlWrapper = ({ title, preheader, content }) => `
 `;
 
 /**
- * Send 6-Digit OTP Verification Email (Highly Optimized for Primary Inbox Delivery)
+ * Send 6-Digit OTP Verification Email (Simple, Clean, and Highly Deliverable)
  */
 const sendOtpEmail = async ({ to, name, otp, type = 'registration' }) => {
   const transport = getTransporter();
@@ -239,31 +239,35 @@ const sendOtpEmail = async ({ to, name, otp, type = 'registration' }) => {
   const fromAddr = getSenderAddress();
   const replyToAddr = getReplyToAddress();
 
-  let subject = 'Your Verification Code — MSC Quiz Platform';
-  let heading = 'Verify Your Email Address';
-  let description = 'Use the 6-digit verification code below to complete your registration on the Microsoft Student Club Quiz Platform:';
+  let subject = `${otp} is your verification code — MSC PRPCEM`;
+  let heading = 'Verification Code';
+  let description = 'Use the 6-digit verification code below to complete your verification:';
 
   if (type === 'password_reset') {
-    subject = 'Password Reset Code — MSC Quiz Platform';
-    heading = 'Reset Your Password';
-    description = 'We received a request to reset your password. Enter the 6-digit verification code below to update your credentials:';
+    subject = `${otp} is your password reset code — MSC PRPCEM`;
+    heading = 'Password Reset Code';
+    description = 'Use the 6-digit code below to reset your password:';
   } else if (type === 'login') {
-    subject = 'Your Login Security Code — MSC Quiz Platform';
-    heading = 'Your Security Login Code';
-    description = 'Use the security verification code below to sign in to your student account:';
+    subject = `${otp} is your login code — MSC PRPCEM`;
+    heading = 'Security Login Code';
+    description = 'Use the 6-digit code below to sign in to your account:';
+  } else if (type === 'quiz') {
+    subject = `${otp} is your quiz access code — MSC PRPCEM`;
+    heading = 'Quiz Access Code';
+    description = 'Use the 6-digit code below to access your quiz:';
   }
 
   const html = renderHtmlWrapper({
     title: heading,
     preheader: `Your verification code is ${otp}. Valid for 15 minutes.`,
     content: `
-      <p style="margin-top: 0;">Hello <strong>${userName}</strong>,</p>
-      <p>${description}</p>
+      <p style="margin-top: 0; font-size: 15px; color: #1e293b;">Hello <strong>${userName}</strong>,</p>
+      <p style="font-size: 15px; color: #334155; margin-bottom: 20px;">${description}</p>
       
       <!-- OTP Box -->
-      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 24px 0;">
+      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0;">
         <tr>
-          <td align="center" style="background-color: #eff6ff; border: 2px dashed #3b82f6; border-radius: 12px; padding: 22px 16px;">
+          <td align="center" style="background-color: #eff6ff; border: 2px dashed #2563eb; border-radius: 12px; padding: 22px 16px;">
             <div class="otp-code-text" style="font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace; font-size: 38px; font-weight: 900; letter-spacing: 8px; color: #1d4ed8; line-height: 1;">
               ${otp}
             </div>
@@ -274,13 +278,13 @@ const sendOtpEmail = async ({ to, name, otp, type = 'registration' }) => {
         </tr>
       </table>
 
-      <p style="font-size: 13px; color: #64748b; margin-bottom: 0;">
-        If you did not request this verification code, please disregard this email or contact support at <a href="mailto:${replyToAddr}" style="color: #2563eb;">${replyToAddr}</a>.
+      <p style="font-size: 13px; color: #64748b; margin-top: 20px; margin-bottom: 0;">
+        If you did not request this code, you can safely ignore this email.
       </p>
     `
   });
 
-  const plainText = `Hello ${userName},\n\nYour 6-digit verification code is: ${otp}\n\nThis code is valid for 15 minutes.\nIf you did not request this code, please ignore this email.\n\n—\nMicrosoft Student Club\nP.R. Pote Patil College of Engineering & Management, Amravati\nSupport: ${replyToAddr}`;
+  const plainText = `Hello ${userName},\n\nYour 6-digit verification code is: ${otp}\n\nThis code is valid for 15 minutes.\nIf you did not request this code, please ignore this email.\n\n—\nMicrosoft Student Club (MSC)\nP.R. Pote (Patil) College of Engineering & Management, Amravati\nSupport: ${replyToAddr}`;
 
   return transport.sendMail({
     from: fromAddr,
@@ -308,27 +312,37 @@ const sendQuizReminderEmail = async ({ to, name, quizTitle, eventName, startTime
   const fromAddr = getSenderAddress();
   const replyToAddr = getReplyToAddress();
   const dateStr = startTime ? new Date(startTime).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', dateStyle: 'medium', timeStyle: 'short' }) : 'Soon';
+  const targetQuizTitle = quizTitle || 'Live Assessment';
+  const quizUrl = directUrl || 'https://quiz.mscprpcem.tech';
 
   const html = renderHtmlWrapper({
-    title: 'Upcoming Quiz Reminder',
-    preheader: `Reminder: ${quizTitle} is scheduled for ${dateStr}.`,
+    title: 'Quiz Reminder',
+    preheader: `Reminder: ${targetQuizTitle} is starting soon — join code: ${joinCode || 'LIVE'}`,
     content: `
-      <p style="margin-top: 0;">Hello <strong>${userName}</strong>,</p>
-      <p>Get ready! The scheduled challenge <strong>${quizTitle}</strong> (${eventName || 'MSC Tech Challenge'}) is starting soon.</p>
+      <p style="margin-top: 0; font-size: 15px; color: #1e293b;">Hello <strong>${userName}</strong>,</p>
+      <p style="font-size: 15px; color: #334155; line-height: 1.6;">
+        Get ready! Your scheduled challenge <strong>${targetQuizTitle}</strong>${eventName ? ` (${eventName})` : ''} is starting soon.
+      </p>
       
+      <!-- Quiz Schedule Box -->
       <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
         <tr>
           <td style="padding: 16px 20px;">
-            <p style="margin: 4px 0; color: #334155;"><strong>📅 Start Time:</strong> ${dateStr} (IST)</p>
-            <p style="margin: 4px 0; color: #334155;"><strong>🔑 Join Code:</strong> <code style="background-color: #e0f2fe; color: #0369a1; padding: 3px 8px; border-radius: 4px; font-size: 15px; font-weight: 700;">${joinCode || 'LIVE'}</code></p>
+            <p style="margin: 4px 0; color: #334155; font-size: 14px;"><strong>📅 Start Time:</strong> ${dateStr} (IST)</p>
+            <p style="margin: 8px 0 4px 0; color: #334155; font-size: 14px;">
+              <strong>🔑 Join Code:</strong> 
+              <code style="background-color: #eff6ff; color: #1d4ed8; padding: 4px 10px; border-radius: 6px; font-size: 16px; font-weight: 800; letter-spacing: 1px;">${joinCode || 'LIVE'}</code>
+            </p>
+            ${eventName ? `<p style="margin: 8px 0 4px 0; color: #64748b; font-size: 13px;"><strong>🏷️ Event:</strong> ${eventName}</p>` : ''}
           </td>
         </tr>
       </table>
 
+      <!-- Action Button -->
       <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 24px 0;">
         <tr>
           <td align="center">
-            <a href="${directUrl || 'https://quiz.mscprpcem.tech'}" target="_blank" style="display: inline-block; background-color: #2563eb; color: #ffffff !important; font-weight: 700; font-size: 14px; text-decoration: none; padding: 12px 28px; border-radius: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
+            <a href="${quizUrl}" target="_blank" style="display: inline-block; background-color: #2563eb; color: #ffffff !important; font-weight: 700; font-size: 14px; text-decoration: none; padding: 12px 28px; border-radius: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
               Start / Join Quiz Now &rarr;
             </a>
           </td>
@@ -336,18 +350,157 @@ const sendQuizReminderEmail = async ({ to, name, quizTitle, eventName, startTime
       </table>
 
       <p style="font-size: 13px; color: #64748b; text-align: center; margin-bottom: 0;">
-        Direct access link: <a href="${directUrl}" style="color: #2563eb; word-break: break-all;">${directUrl}</a>
+        Direct link: <a href="${quizUrl}" style="color: #2563eb; word-break: break-all;">${quizUrl}</a>
       </p>
     `
   });
 
-  const plainText = `Hello ${userName},\n\nYour quiz "${quizTitle}" is starting at ${dateStr} (IST).\nJoin Code: ${joinCode || 'LIVE'}\nDirect Link: ${directUrl}\n\nGood luck!\n\n—\nMicrosoft Student Club\nP.R. Pote Patil College of Engineering & Management, Amravati`;
+  const plainText = `Hello ${userName},\n\nYour quiz "${targetQuizTitle}" is starting at ${dateStr} (IST).\nJoin Code: ${joinCode || 'LIVE'}\nDirect Link: ${quizUrl}\n\nGood luck!\n\n—\nMicrosoft Student Club (MSC)\nP.R. Pote (Patil) College of Engineering & Management, Amravati\nSupport: ${replyToAddr}`;
 
   return transport.sendMail({
     from: fromAddr,
     to: to.trim(),
     replyTo: replyToAddr,
-    subject: `Reminder: ${quizTitle} — Starting ${dateStr}`,
+    subject: `Reminder: ${targetQuizTitle} — Starting ${dateStr}`,
+    text: plainText,
+    html,
+    messageId: generateMessageId(fromAddr),
+    headers: {
+      'X-Mailer': 'MSC-PRPCEM-QuizPlatform',
+      'List-Unsubscribe': `<mailto:${replyToAddr}?subject=unsubscribe>`
+    }
+  });
+};
+
+/**
+ * Send Instant Event Registration Confirmation Email
+ * Used when a student registers on mscprpcem-website or the Quiz Platform.
+ */
+const sendEventRegistrationEmail = async ({
+  to,
+  name,
+  eventName,
+  eventDate,
+  eventVenue,
+  registrationId,
+  college,
+  branch,
+  year,
+  tracks = [],
+  directUrl
+}) => {
+  const transport = getTransporter();
+  const userName = name || (to ? to.split('@')[0] : 'Student');
+  const fromAddr = getSenderAddress();
+  const replyToAddr = getReplyToAddress();
+  const targetEventName = eventName || 'MSC PRPCEM Event';
+  const portalUrl = directUrl || 'https://www.mscprpcem.tech';
+
+  let tracksHtml = '';
+  let tracksPlainText = '';
+  if (tracks && tracks.length > 0) {
+    tracksHtml = `
+      <div style="margin: 20px 0; padding: 16px 18px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px;">
+        <p style="margin: 0 0 10px 0; font-size: 13px; font-weight: 700; color: #1e293b; text-transform: uppercase; letter-spacing: 0.5px;">
+          Included Assessment Tracks / Quizzes
+        </p>
+        <ul style="margin: 0; padding-left: 20px; color: #334155; font-size: 14px;">
+          ${tracks.map(t => `
+            <li style="margin-bottom: 8px;">
+              <strong>${t.title}</strong> — Join Code: <code style="background-color: #eff6ff; color: #1d4ed8; padding: 2px 6px; border-radius: 4px; font-weight: 700; font-size: 13px;">${t.join_code || 'LIVE'}</code>
+              ${t.direct_url ? `<br/><a href="${t.direct_url}" style="color: #2563eb; font-size: 12px; font-weight: 600; text-decoration: none;">Launch Assessment &rarr;</a>` : ''}
+            </li>
+          `).join('')}
+        </ul>
+      </div>
+    `;
+    tracksPlainText = `\nIncluded Assessment Tracks:\n` + tracks.map(t => `• ${t.title} (Join Code: ${t.join_code || 'LIVE'})${t.direct_url ? ` - Link: ${t.direct_url}` : ''}`).join('\n') + '\n';
+  }
+
+  // Summary table rows
+  const detailRows = [
+    `<tr>
+      <td style="padding: 8px 12px; color: #64748b; font-size: 13px; width: 140px; border-bottom: 1px solid #f1f5f9;">Event</td>
+      <td style="padding: 8px 12px; color: #0f172a; font-size: 13px; font-weight: 600; border-bottom: 1px solid #f1f5f9;">${targetEventName}</td>
+    </tr>`,
+    `<tr>
+      <td style="padding: 8px 12px; color: #64748b; font-size: 13px; border-bottom: 1px solid #f1f5f9;">Participant</td>
+      <td style="padding: 8px 12px; color: #0f172a; font-size: 13px; font-weight: 600; border-bottom: 1px solid #f1f5f9;">${userName}</td>
+    </tr>`,
+    college ? `<tr>
+      <td style="padding: 8px 12px; color: #64748b; font-size: 13px; border-bottom: 1px solid #f1f5f9;">College</td>
+      <td style="padding: 8px 12px; color: #334155; font-size: 13px; border-bottom: 1px solid #f1f5f9;">${college}</td>
+    </tr>` : '',
+    (branch || year) ? `<tr>
+      <td style="padding: 8px 12px; color: #64748b; font-size: 13px; border-bottom: 1px solid #f1f5f9;">Branch / Year</td>
+      <td style="padding: 8px 12px; color: #334155; font-size: 13px; border-bottom: 1px solid #f1f5f9;">${[branch, year].filter(Boolean).join(' • ')}</td>
+    </tr>` : '',
+    registrationId ? `<tr>
+      <td style="padding: 8px 12px; color: #64748b; font-size: 13px; border-bottom: 1px solid #f1f5f9;">Registration ID</td>
+      <td style="padding: 8px 12px; color: #2563eb; font-size: 13px; font-weight: 700; font-family: monospace; border-bottom: 1px solid #f1f5f9;">${registrationId}</td>
+    </tr>` : '',
+    eventDate ? `<tr>
+      <td style="padding: 8px 12px; color: #64748b; font-size: 13px; border-bottom: 1px solid #f1f5f9;">Date &amp; Time</td>
+      <td style="padding: 8px 12px; color: #334155; font-size: 13px; border-bottom: 1px solid #f1f5f9;">${eventDate}</td>
+    </tr>` : '',
+    eventVenue ? `<tr>
+      <td style="padding: 8px 12px; color: #64748b; font-size: 13px; border-bottom: 1px solid #f1f5f9;">Venue</td>
+      <td style="padding: 8px 12px; color: #334155; font-size: 13px; border-bottom: 1px solid #f1f5f9;">${eventVenue}</td>
+    </tr>` : ''
+  ].filter(Boolean).join('');
+
+  const html = renderHtmlWrapper({
+    title: 'Registration Confirmed',
+    preheader: `You are registered for ${targetEventName} — MSC PRPCEM`,
+    content: `
+      <p style="margin-top: 0; font-size: 15px; color: #1e293b;">Hello <strong>${userName}</strong>,</p>
+      <p style="font-size: 15px; color: #334155; line-height: 1.6;">
+        Your registration for <strong>${targetEventName}</strong> has been successfully confirmed. We look forward to seeing you at the event!
+      </p>
+
+      <!-- Registration Summary Card -->
+      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; overflow: hidden;">
+        <tr>
+          <td style="padding: 12px 16px; background-color: #f1f5f9; border-bottom: 1px solid #e2e8f0; font-size: 12px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">
+            Registration Details
+          </td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 4px;">
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              ${detailRows}
+            </table>
+          </td>
+        </tr>
+      </table>
+
+      ${tracksHtml}
+
+      <!-- Action Button -->
+      <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 26px 0;">
+        <tr>
+          <td align="center">
+            <a href="${portalUrl}" target="_blank" style="display: inline-block; background-color: #2563eb; color: #ffffff !important; font-weight: 700; font-size: 14px; text-decoration: none; padding: 12px 28px; border-radius: 8px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);">
+              Access Student Portal &rarr;
+            </a>
+          </td>
+        </tr>
+      </table>
+
+      <p style="font-size: 13px; color: #64748b; line-height: 1.6; margin-bottom: 0;">
+        Please keep this confirmation for your records. For any questions or updates, reach out to our team at
+        <a href="mailto:${replyToAddr}" style="color: #2563eb; text-decoration: none; font-weight: 600;">${replyToAddr}</a>.
+      </p>
+    `
+  });
+
+  const plainText = `Hello ${userName},\n\nYour registration for ${targetEventName} has been confirmed!\n\nRegistration Details:\n• Event: ${targetEventName}\n• Participant: ${userName}${registrationId ? `\n• Registration ID: ${registrationId}` : ''}${college ? `\n• College: ${college}` : ''}${branch || year ? `\n• Branch/Year: ${[branch, year].filter(Boolean).join(' - ')}` : ''}${eventDate ? `\n• Date: ${eventDate}` : ''}${eventVenue ? `\n• Venue: ${eventVenue}` : ''}\n${tracksPlainText}\nAccess Portal: ${portalUrl}\n\nWe look forward to seeing you at the event!\n\n—\nMicrosoft Student Club (MSC)\nP.R. Pote (Patil) College of Engineering & Management, Amravati\nSupport: ${replyToAddr}`;
+
+  return transport.sendMail({
+    from: fromAddr,
+    to: to.trim(),
+    replyTo: replyToAddr,
+    subject: `Registration Confirmed: ${targetEventName} — MSC PRPCEM`,
     text: plainText,
     html,
     messageId: generateMessageId(fromAddr),
@@ -415,7 +568,7 @@ const sendCustomBroadcastEmail = async ({ to, recipientName, subject, heading, m
     `
   });
 
-  const plainText = `${greetingPlainText}${messageHtml.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim()}\n\n${ctaText && ctaUrl ? `${ctaText}: ${ctaUrl}\n\n` : ''}—\nMicrosoft Student Club\nP.R. Pote Patil College of Engineering & Management, Amravati\nSupport: ${replyToAddr}`;
+  const plainText = `${greetingPlainText}${messageHtml.replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').trim()}\n\n${ctaText && ctaUrl ? `${ctaText}: ${ctaUrl}\n\n` : ''}—\nMicrosoft Student Club (MSC)\nP.R. Pote (Patil) College of Engineering & Management, Amravati\nSupport: ${replyToAddr}`;
 
   return transport.sendMail({
     from: fromAddr,
@@ -435,6 +588,7 @@ const sendCustomBroadcastEmail = async ({ to, recipientName, subject, heading, m
 module.exports = {
   sendOtpEmail,
   sendQuizReminderEmail,
+  sendEventRegistrationEmail,
   sendCustomBroadcastEmail,
   getTransporter,
   verifyEmailConfiguration

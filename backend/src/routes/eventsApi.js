@@ -7,7 +7,7 @@ const crypto = require('crypto');
 const multer = require('multer');
 const { Event, Quiz, Question, Participant, QuizAttempt, ScheduledOccurrence, User, EventRegistration } = require('../models');
 const { ensureEventsTableSchema } = require('../services/schemaMigration');
-const { sendCustomBroadcastEmail } = require('../services/emailService');
+const { sendCustomBroadcastEmail, sendEventRegistrationEmail } = require('../services/emailService');
 const { uploadImageToAzureBlob } = require('../services/azureBlobService');
 const { Op } = require('sequelize');
 const authMiddleware = require('../middleware/auth');
@@ -1566,32 +1566,24 @@ router.post('/register', async (req, res) => {
     const primaryEventName = (targetEvent && targetEvent.name) || targetEventName || (matchingQuizzes[0]?.event_name) || 'MSC Event';
     const primaryDirectUrl = registeredTracks[0]?.direct_url || `${baseUrl}/login`;
 
-    // 5. Send Instant Confirmation Email
+    // 5. Send Instant Confirmation Email using Universal Template
     try {
-      const tracksListHtml = registeredTracks.length > 0
-        ? registeredTracks.map(t => `
-          <li style="margin-bottom: 8px;">
-            <strong>${t.title}</strong> — Join Code: <code style="color:#2563eb;font-weight:bold;">${t.join_code}</code><br/>
-            <a href="${t.direct_url}" style="color:#2563eb;font-size:12px;">Launch Assessment ↗</a>
-          </li>
-        `).join('')
-        : `<p style="font-size: 13px; color: #475569;">You are registered for <strong>${primaryEventName}</strong>. Any live assessments or challenges will be sent directly to this email.</p>`;
+      const eventDateStr = (targetEvent && targetEvent.start_date)
+        ? new Date(targetEvent.start_date).toLocaleDateString('en-IN', { dateStyle: 'medium' })
+        : null;
 
-      sendCustomBroadcastEmail({
+      sendEventRegistrationEmail({
         to: cleanEmail,
-        recipientName: cleanName,
-        subject: `Registration Confirmed: ${primaryEventName}`,
-        heading: `Event Registration Confirmed`,
-        messageHtml: `
-          <p>Hello <strong>${cleanName}</strong>,</p>
-          <p>You have successfully registered for <strong>${primaryEventName}</strong> organized by the Microsoft Student Club PRPCEM.</p>
-          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin: 20px 0;">
-            ${tracksListHtml}
-          </div>
-          <p>Please keep this email safe. We look forward to seeing you at the event!</p>
-        `,
-        ctaText: 'Access Student Portal',
-        ctaUrl: primaryDirectUrl
+        name: cleanName,
+        eventName: primaryEventName,
+        eventDate: eventDateStr,
+        eventVenue: targetEvent ? targetEvent.venue : null,
+        registrationId: registration.id,
+        college: cleanCollege,
+        branch: cleanBranch,
+        year: cleanYear,
+        tracks: registeredTracks,
+        directUrl: primaryDirectUrl
       }).catch(mailErr => console.warn('Registration confirmation email warning:', mailErr.message));
     } catch (e) {
       console.warn('Email dispatch warning:', e.message);
