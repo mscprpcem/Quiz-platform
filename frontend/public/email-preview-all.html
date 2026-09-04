@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+  <html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Universal Email Templates Showcase — MSC PRPCEM</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 40px 24px;
+        background-color: #0f172a;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        color: #f8fafc;
+      }
+      .header-title {
+        text-align: center;
+        margin-bottom: 40px;
+      }
+      .header-title h1 {
+        font-size: 32px;
+        font-weight: 800;
+        margin: 0 0 10px 0;
+        color: #ffffff;
+        letter-spacing: -0.5px;
+      }
+      .header-title p {
+        color: #94a3b8;
+        font-size: 16px;
+        margin: 0;
+      }
+      .badge {
+        display: inline-block;
+        background: rgba(37, 99, 235, 0.25);
+        border: 1px solid #3b82f6;
+        color: #93c5fd;
+        padding: 6px 16px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        margin-bottom: 14px;
+      }
+      .grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 32px;
+        max-width: 1750px;
+        margin: 0 auto;
+        justify-content: center;
+      }
+      .card {
+        flex: 1 1 500px;
+        max-width: 560px;
+        background: #1e293b;
+        border: 1px solid #334155;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 12px 30px rgba(0,0,0,0.4);
+      }
+      .card-header {
+        padding: 16px 20px;
+        background: #1e293b;
+        border-bottom: 1px solid #334155;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .card-header h2 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 700;
+        color: #f1f5f9;
+      }
+      .card-header span {
+        font-size: 11px;
+        font-weight: 600;
+        color: #60a5fa;
+        background: rgba(37, 99, 235, 0.15);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        padding: 3px 10px;
+        border-radius: 12px;
+      }
+      .frame-wrap {
+        padding: 18px;
+        background: #f1f5f9;
+      }
+      iframe {
+        width: 100%;
+        border: none;
+        display: block;
+        background: #ffffff;
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="header-title">
+      <div class="badge">Universal Email System</div>
+      <h1>Microsoft Student Club PRPCEM</h1>
+      <p>Standardized, High-Deliverability Universal Email Templates</p>
+    </div>
+
+    <div class="grid">
+      <!-- 1. Verification OTP -->
+      <div class="card">
+        <div class="card-header">
+          <h2>1. Verification OTP</h2>
+          <span>Registration / Login / Reset</span>
+        </div>
+        <div class="frame-wrap">
+          <iframe src="/email-preview-otp.html" height="580"></iframe>
+        </div>
+      </div>
+
+      <!-- 2. Quiz Reminder -->
+      <div class="card">
+        <div class="card-header">
+          <h2>2. Quiz Access &amp; Reminder</h2>
+          <span>Scheduled / Live Challenges</span>
+        </div>
+        <div class="frame-wrap">
+          <iframe src="/email-preview-quiz.html" height="580"></iframe>
+        </div>
+      </div>
+
+      <!-- 3. Event Confirmation -->
+      <div class="card">
+        <div class="card-header">
+          <h2>3. Event Registration Confirmation</h2>
+          <span>mscprpcem-website &amp; Platform</span>
+        </div>
+        <div class="frame-wrap">
+          <iframe src="/email-preview-event.html" height="760"></iframe>
+        </div>
+      </div>
+    </div>
+  </body>
+  </html>
