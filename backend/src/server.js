@@ -167,6 +167,7 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/export", exportRoutes);
 app.use("/api/branding", brandingRoutes);
 app.use("/api/student", studentSyncRoutes);
+app.use("/api/student-sync", studentSyncRoutes);
 app.use("/api/admin/email-dispatch", emailDispatchRoutes);
 app.use("/api/admin/users", userDirectoryRoutes);
 app.use("/api/users-directory", userDirectoryRoutes);
