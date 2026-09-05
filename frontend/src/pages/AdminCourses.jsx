@@ -22,7 +22,13 @@ const resolveCourseImage = (src) => {
   if (!src) return '/logo.png';
   if (src.startsWith('http://') || src.startsWith('https://')) return src;
   if (src.startsWith('/assets/quiz/')) return `${BLOB_BASE}/${src.replace('/assets/quiz/', '')}`;
-  if (src.startsWith('/azure') || src.startsWith('/microsoft-copilot') || src === '/database.svg' || src === '/github.svg') {
+  if (
+    src.startsWith('/azure') ||
+    src.startsWith('/microsoft-copilot') ||
+    src === '/database.svg' ||
+    src === '/github.svg' ||
+    src === '/azure-ai-foundry-logo.jpg'
+  ) {
     return `${BLOB_BASE}${src}`;
   }
   return src;
@@ -137,7 +143,16 @@ const INITIAL_QUESTIONS = [
 export default function AdminCourses() {
   const [courses, setCourses] = useState(() => {
     const saved = localStorage.getItem('msc_admin_courses');
-    return saved ? JSON.parse(saved) : INITIAL_COURSES;
+    if (!saved) return INITIAL_COURSES;
+    try {
+      const parsed = JSON.parse(saved);
+      return parsed.map(c => ({
+        ...c,
+        imageSrc: resolveCourseImage(c.imageSrc)
+      }));
+    } catch {
+      return INITIAL_COURSES;
+    }
   });
 
   const [questions, setQuestions] = useState(() => {
@@ -505,7 +520,15 @@ export default function AdminCourses() {
                         <div className="space-y-4">
                           <div className="flex items-start justify-between">
                             <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center p-2.5 shadow-2xs group-hover:scale-105 transition-transform">
-                              <img src={resolveCourseImage(course.imageSrc)} alt={course.title} className="w-full h-full object-contain" />
+                              <img
+                                src={resolveCourseImage(course.imageSrc)}
+                                alt={course.title}
+                                className="w-full h-full object-contain"
+                                onError={(e) => {
+                                  e.target.onerror = null;
+                                  e.target.src = '/logo.png';
+                                }}
+                              />
                             </div>
 
                             <button
@@ -979,6 +1002,10 @@ export default function AdminCourses() {
                           src={resolveCourseImage(courseForm.imageSrc)}
                           alt="Technology Icon"
                           className="w-full h-full object-contain"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = '/logo.png';
+                          }}
                         />
                       </div>
 
@@ -1021,7 +1048,15 @@ export default function AdminCourses() {
                                 : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-100'
                             }`}
                           >
-                            <img src={preset.path} alt={preset.label} className="w-4 h-4 object-contain" />
+                            <img
+                              src={resolveCourseImage(preset.path)}
+                              alt={preset.label}
+                              className="w-4 h-4 object-contain"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = '/logo.png';
+                              }}
+                            />
                             <span>{preset.label}</span>
                           </button>
                         ))}

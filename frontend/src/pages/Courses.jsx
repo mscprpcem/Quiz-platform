@@ -9,7 +9,13 @@ const resolveCourseImage = (src) => {
   if (!src) return '/logo.png';
   if (src.startsWith('http://') || src.startsWith('https://')) return src;
   if (src.startsWith('/assets/quiz/')) return `${BLOB_BASE}/${src.replace('/assets/quiz/', '')}`;
-  if (src.startsWith('/azure') || src.startsWith('/microsoft-copilot') || src === '/database.svg' || src === '/github.svg') {
+  if (
+    src.startsWith('/azure') ||
+    src.startsWith('/microsoft-copilot') ||
+    src === '/database.svg' ||
+    src === '/github.svg' ||
+    src === '/azure-ai-foundry-logo.jpg'
+  ) {
     return `${BLOB_BASE}${src}`;
   }
   return src;
@@ -78,13 +84,32 @@ export default function Courses() {
 
   const [courses, setCourses] = useState(() => {
     const saved = localStorage.getItem('msc_admin_courses');
-    return saved ? JSON.parse(saved) : FALLBACK_COURSES;
+    if (!saved) return FALLBACK_COURSES;
+    try {
+      const parsed = JSON.parse(saved);
+      return parsed.map(c => ({
+        ...c,
+        imageSrc: resolveCourseImage(c.imageSrc)
+      }));
+    } catch {
+      return FALLBACK_COURSES;
+    }
   });
 
   useEffect(() => {
     const handleStorageChange = () => {
       const saved = localStorage.getItem('msc_admin_courses');
-      if (saved) setCourses(JSON.parse(saved));
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          setCourses(parsed.map(c => ({
+            ...c,
+            imageSrc: resolveCourseImage(c.imageSrc)
+          })));
+        } catch {
+          // ignore
+        }
+      }
     };
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
@@ -208,7 +233,15 @@ export default function Courses() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-start">
                       <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-50 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-300 border border-slate-200/80 p-2 overflow-hidden">
-                        <img src={resolveCourseImage(course.imageSrc)} alt={course.title} className="object-contain w-full h-full" />
+                        <img
+                          src={resolveCourseImage(course.imageSrc)}
+                          alt={course.title}
+                          className="object-contain w-full h-full"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = '/logo.png';
+                          }}
+                        />
                       </div>
 
                       <span className={`text-[10px] font-extrabold px-3 py-0.5 rounded-full uppercase tracking-wider ${
