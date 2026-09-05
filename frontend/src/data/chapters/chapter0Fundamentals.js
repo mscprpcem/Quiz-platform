@@ -27,9 +27,9 @@ export const CHAPTER_0_TOPICS = {
     title: 'DBMS vs RDBMS',
     subtitle: 'From Flat File Systems to Relational Tables, ACID Guarantees & Constraints',
     intro: 'Before writing SQL queries, you must understand how databases evolved. In the early computing era, applications stored data in flat operating system files (CSV, XML, JSON). As datasets expanded, file systems failed to handle concurrent multi-user writes, led to massive data duplication, and suffered from catastrophic file corruption during unexpected power loss. This crisis motivated the creation of the Relational Database Management System (RDBMS), founded on E.F. Codd’s relational model.',
-    infographicImage: '/file-system-vs-dbms-vs-rdbms.jpg',
-    infographicTitle: 'Evolutionary Architecture: File Systems vs DBMS vs RDBMS',
-    infographicCaption: 'Notice the progression: Flat Files (unstructured) ➔ DBMS (hierarchical/flat) ➔ RDBMS (strict 2D tables with keys, ACID compliance, and zero data redundancy).',
+    infographicImage: 'https://mscprpcem.blob.core.windows.net/quiz/file-system-vs-dbms-vs-rdbms.jpg',
+    infographicTitle: 'Evolution: File System ➔ DBMS ➔ RDBMS',
+    infographicCaption: 'From physical file cabinets to centralized database servers, and modern relational tables connected by keys.',
     comparisonTable: {
       title: 'DBMS vs RDBMS Comprehensive Comparison',
       badge: '8 Architectural Dimensions',
@@ -214,9 +214,9 @@ VALUES ('Ghost User', 99);`
     title: 'Tables, Rows, Columns & Schema',
     subtitle: 'The 4 Core Building Blocks of Every Relational Database',
     intro: 'To understand how an RDBMS works, think of an Excel spreadsheet, but with strict mathematical rules. You cannot put random text into a date column, rows must have a unique identifier, and every entity is strictly defined by an architectural blueprint called a Schema.',
-    infographicImage: '/table-row-column-guide.jpg',
+    infographicImage: 'https://mscprpcem.blob.core.windows.net/quiz/table-row-column-guide.jpg',
     infographicTitle: 'Beginner Visual Guide: What is a Table, Row, Column, and Cell?',
-    infographicCaption: 'Notice the Students table: A Column runs vertically defining the attribute (e.g. Email), a Row runs horizontally representing a complete student record, and a Cell is a single data value.',
+    infographicCaption: 'A Column runs vertically (attribute), a Row runs horizontally (record), and a Cell is the single data value at their intersection.',
     structuralDefinitions: [
       {
         term: '1. Database',
@@ -447,9 +447,9 @@ COMMIT;`
     title: 'Install MySQL & Workbench',
     subtitle: 'Zero-to-Hero Installation Guide for Windows & macOS with Download Links',
     intro: 'To write and practice SQL on your computer, you need two software components: MySQL Server (the background engine that manages database storage, memory, and indexing) and MySQL Workbench (the visual GUI client where you write queries and design ER diagrams).',
-    infographicImage: '/mysql-workbench-architecture.jpg',
-    infographicTitle: 'Client-Server Architecture: MySQL Server vs MySQL Workbench',
-    infographicCaption: 'Notice how MySQL Workbench communicates with the background MySQL Server process on localhost (127.0.0.1) via TCP/IP Port 3306.',
+    infographicImage: 'https://mscprpcem.blob.core.windows.net/quiz/mysql-workbench-architecture.jpg',
+    infographicTitle: 'Client-Server Architecture: MySQL Workbench & Server',
+    infographicCaption: 'MySQL Workbench acts as the visual client sending queries across Port 3306 to the MySQL Server background engine.',
     osDownloadPanels: {
       windows: {
         osName: 'Windows (10 / 11)',

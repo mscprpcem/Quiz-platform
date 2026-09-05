@@ -3,13 +3,25 @@ import { useNavigate } from 'react-router-dom';
 import { BookOpen, Sparkles, Clock, ArrowRight, CheckCircle2, Maximize2, Shuffle, ShieldCheck, Loader2, Code2, Zap } from 'lucide-react';
 import api from '../services/api';
 
+const BLOB_BASE = 'https://mscprpcem.blob.core.windows.net/quiz';
+
+const resolveCourseImage = (src) => {
+  if (!src) return '/logo.png';
+  if (src.startsWith('http://') || src.startsWith('https://')) return src;
+  if (src.startsWith('/assets/quiz/')) return `${BLOB_BASE}/${src.replace('/assets/quiz/', '')}`;
+  if (src.startsWith('/azure') || src.startsWith('/microsoft-copilot') || src === '/database.svg' || src === '/github.svg') {
+    return `${BLOB_BASE}${src}`;
+  }
+  return src;
+};
+
 const FALLBACK_COURSES = [
   {
     title: 'Microsoft Azure',
     slug: 'cloud',
     category: 'Cloud Infrastructure',
     desc: 'Master Microsoft Azure cloud services, virtual machines, resource management, and AZ-900 exam preparation.',
-    imageSrc: '/azure.png',
+    imageSrc: 'https://mscprpcem.blob.core.windows.net/quiz/azure.png',
     color: 'from-blue-50/80 to-indigo-50/50 border-blue-200/80',
     status: 'coming_soon',
     badge: 'Coming Soon'
@@ -19,7 +31,7 @@ const FALLBACK_COURSES = [
     slug: 'cloud-ai',
     category: 'Artificial Intelligence',
     desc: 'Explore Azure OpenAI, Cognitive Services, Computer Vision, and natural language processing solutions.',
-    imageSrc: '/azure-ai-foundry-logo.jpg',
+    imageSrc: 'https://mscprpcem.blob.core.windows.net/quiz/azure-ai-foundry-logo.jpg',
     color: 'from-purple-50/80 to-indigo-50/50 border-purple-200/80',
     status: 'coming_soon',
     badge: 'Coming Soon'
@@ -29,7 +41,7 @@ const FALLBACK_COURSES = [
     slug: 'dsa',
     category: 'Core Computer Science',
     desc: 'Build rock-solid foundations in operating systems, computer architecture, memory management, and networking.',
-    imageSrc: '/microsoft-copilot.png',
+    imageSrc: 'https://mscprpcem.blob.core.windows.net/quiz/microsoft-copilot.png',
     color: 'from-amber-50/80 to-orange-50/50 border-amber-200/80',
     status: 'coming_soon',
     badge: 'Coming Soon'
@@ -39,7 +51,7 @@ const FALLBACK_COURSES = [
     slug: 'dbms',
     category: 'Database Systems',
     desc: 'Master relational queries, multi-table JOINs, aggregations, and placement challenges with real-time query validation.',
-    imageSrc: '/database.svg',
+    imageSrc: 'https://mscprpcem.blob.core.windows.net/quiz/database.svg',
     color: 'from-emerald-50/80 to-teal-50/50 border-emerald-200/80',
     status: 'published',
     badge: 'Interactive Lab Active',
@@ -50,7 +62,7 @@ const FALLBACK_COURSES = [
     slug: 'frontend',
     category: 'Version Control & Open Source',
     desc: 'Master Git branching, pull requests, merge conflict resolution, CI/CD workflows, and open-source collaboration.',
-    imageSrc: '/github.svg',
+    imageSrc: 'https://mscprpcem.blob.core.windows.net/quiz/github.svg',
     color: 'from-rose-50/80 to-pink-50/50 border-rose-200/80',
     status: 'coming_soon',
     badge: 'Coming Soon'
@@ -196,7 +208,7 @@ export default function Courses() {
                   <div className="space-y-3">
                     <div className="flex justify-between items-start">
                       <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-50 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-300 border border-slate-200/80 p-2 overflow-hidden">
-                        <img src={course.imageSrc || '/logo.png'} alt={course.title} className="object-contain w-full h-full" />
+                        <img src={resolveCourseImage(course.imageSrc)} alt={course.title} className="object-contain w-full h-full" />
                       </div>
 
                       <span className={`text-[10px] font-extrabold px-3 py-0.5 rounded-full uppercase tracking-wider ${

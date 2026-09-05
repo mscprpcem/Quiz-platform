@@ -16,12 +16,24 @@ const DEFAULT_QUIZ_SETTINGS = {
   enableCertificate: true
 };
 
+const BLOB_BASE = 'https://mscprpcem.blob.core.windows.net/quiz';
+
+const resolveCourseImage = (src) => {
+  if (!src) return '/logo.png';
+  if (src.startsWith('http://') || src.startsWith('https://')) return src;
+  if (src.startsWith('/assets/quiz/')) return `${BLOB_BASE}/${src.replace('/assets/quiz/', '')}`;
+  if (src.startsWith('/azure') || src.startsWith('/microsoft-copilot') || src === '/database.svg' || src === '/github.svg') {
+    return `${BLOB_BASE}${src}`;
+  }
+  return src;
+};
+
 const PRESET_ICONS = [
-  { label: 'Azure Cloud', path: '/azure.png' },
-  { label: 'Azure AI', path: '/azure-ai-foundry-logo.jpg' },
-  { label: 'Database SQL', path: '/database.svg' },
-  { label: 'Git & GitHub', path: '/github.svg' },
-  { label: 'Copilot', path: '/microsoft-copilot.png' },
+  { label: 'Azure Cloud', path: 'https://mscprpcem.blob.core.windows.net/quiz/azure.png' },
+  { label: 'Azure AI', path: 'https://mscprpcem.blob.core.windows.net/quiz/azure-ai-foundry-logo.jpg' },
+  { label: 'Database SQL', path: 'https://mscprpcem.blob.core.windows.net/quiz/database.svg' },
+  { label: 'Git & GitHub', path: 'https://mscprpcem.blob.core.windows.net/quiz/github.svg' },
+  { label: 'Copilot', path: 'https://mscprpcem.blob.core.windows.net/quiz/microsoft-copilot.png' },
   { label: 'MSC Logo', path: '/logo.png' }
 ];
 
@@ -32,7 +44,7 @@ const INITIAL_COURSES = [
     title: 'Microsoft Azure',
     category: 'Cloud Infrastructure',
     desc: 'Master Microsoft Azure cloud services, virtual machines, resource management, and AZ-900 exam preparation.',
-    imageSrc: '/azure.png',
+    imageSrc: 'https://mscprpcem.blob.core.windows.net/quiz/azure.png',
     status: 'coming_soon',
     badge: 'Coming Soon',
     quizSettings: { ...DEFAULT_QUIZ_SETTINGS, timeLimitMinutes: 10, passingScore: 70 }
@@ -43,7 +55,7 @@ const INITIAL_COURSES = [
     title: 'Azure AI',
     category: 'Artificial Intelligence',
     desc: 'Explore Azure OpenAI, Cognitive Services, Computer Vision, and natural language processing solutions.',
-    imageSrc: '/azure-ai-foundry-logo.jpg',
+    imageSrc: 'https://mscprpcem.blob.core.windows.net/quiz/azure-ai-foundry-logo.jpg',
     status: 'coming_soon',
     badge: 'Coming Soon',
     quizSettings: { ...DEFAULT_QUIZ_SETTINGS, timeLimitMinutes: 15, passingScore: 75 }
@@ -54,7 +66,7 @@ const INITIAL_COURSES = [
     title: 'Computer Fundamentals',
     category: 'Core Computer Science',
     desc: 'Build rock-solid foundations in operating systems, computer architecture, memory management, and networking.',
-    imageSrc: '/microsoft-copilot.png',
+    imageSrc: 'https://mscprpcem.blob.core.windows.net/quiz/microsoft-copilot.png',
     status: 'coming_soon',
     badge: 'Coming Soon',
     quizSettings: { ...DEFAULT_QUIZ_SETTINGS, timeLimitMinutes: 10, passingScore: 60 }
@@ -65,7 +77,7 @@ const INITIAL_COURSES = [
     title: 'Database (SQL)',
     category: 'Database Systems',
     desc: 'Learn relational database design, SQL querying, indexing, normalized schema design, and transaction management.',
-    imageSrc: '/database.svg',
+    imageSrc: 'https://mscprpcem.blob.core.windows.net/quiz/database.svg',
     status: 'coming_soon',
     badge: 'Coming Soon',
     quizSettings: { ...DEFAULT_QUIZ_SETTINGS, timeLimitMinutes: 12, passingScore: 70 }
@@ -76,7 +88,7 @@ const INITIAL_COURSES = [
     title: 'Git & GitHub',
     category: 'Version Control & Open Source',
     desc: 'Master Git branching, pull requests, merge conflict resolution, CI/CD workflows, and open-source collaboration.',
-    imageSrc: '/github.svg',
+    imageSrc: 'https://mscprpcem.blob.core.windows.net/quiz/github.svg',
     status: 'coming_soon',
     badge: 'Coming Soon',
     quizSettings: { ...DEFAULT_QUIZ_SETTINGS, timeLimitMinutes: 8, passingScore: 70 }
@@ -493,7 +505,7 @@ export default function AdminCourses() {
                         <div className="space-y-4">
                           <div className="flex items-start justify-between">
                             <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center p-2.5 shadow-2xs group-hover:scale-105 transition-transform">
-                              <img src={course.imageSrc || '/logo.png'} alt={course.title} className="w-full h-full object-contain" />
+                              <img src={resolveCourseImage(course.imageSrc)} alt={course.title} className="w-full h-full object-contain" />
                             </div>
 
                             <button
@@ -964,7 +976,7 @@ export default function AdminCourses() {
                     <div className="flex flex-col sm:flex-row items-center gap-5 pt-1">
                       <div className="w-20 h-20 rounded-2xl bg-white border border-slate-200 flex items-center justify-center p-3 shadow-2xs flex-shrink-0">
                         <img
-                          src={courseForm.imageSrc || '/logo.png'}
+                          src={resolveCourseImage(courseForm.imageSrc)}
                           alt="Technology Icon"
                           className="w-full h-full object-contain"
                         />
@@ -989,7 +1001,7 @@ export default function AdminCourses() {
                           type="text"
                           value={courseForm.imageSrc}
                           onChange={(e) => setCourseForm({ ...courseForm, imageSrc: e.target.value })}
-                          placeholder="Or enter Image URL (e.g. /azure.png)"
+                          placeholder="Or enter Image URL (e.g. https://mscprpcem.blob.core.windows.net/quiz/azure.png)"
                           className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-semibold focus:outline-none focus:border-purple-600 bg-white"
                         />
                       </div>
