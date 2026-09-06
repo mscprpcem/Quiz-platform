@@ -16,8 +16,7 @@ router.get('/public/leaderboard', async (req, res) => {
 
     // 1. Process Scheduled Quiz Attempts (Completed)
     const completedAttempts = await QuizAttempt.findAll({
-      where: { status: 'completed' },
-      include: [{ model: AttemptAnswer, as: 'answers' }]
+      where: { status: 'completed' }
     }).catch(() => []);
 
     // Also include injected scores (e.g. Week 1 JSON)
@@ -25,6 +24,7 @@ router.get('/public/leaderboard', async (req, res) => {
     for (const entry of injectedEntries) {
       if (Array.isArray(entry.participants)) {
         for (const p of entry.participants) {
+          if (p.status !== 'completed' || !p.score) continue;
           completedAttempts.push({
             id: `injected_${entry.quiz_id}_${p.email}`,
             quiz_id: entry.quiz_id,
@@ -68,8 +68,15 @@ router.get('/public/leaderboard', async (req, res) => {
         is_authenticated: true
       };
 
-      existing.score += Math.round(Number(att.score) || 0);
-      existing.correctCount += Number(att.correct_count) || 0;
+      let attScore = Math.round(Number(att.score) || 0);
+      const attCorrect = Number(att.correct_count) || 0;
+      // Normalize legacy inflated scores (e.g. 10,000 or 100+ points when questions are few) to 1 count per question
+      if (attScore >= 50 && attCorrect > 0 && attCorrect <= 30) {
+        attScore = attCorrect;
+      }
+
+      existing.score += attScore;
+      existing.correctCount += attCorrect;
       existing.totalQuestions += (Number(att.correct_count) || 0) + (Number(att.incorrect_count) || 0) + (Number(att.unanswered_count) || 0);
       existing.quizzesCompleted += 1;
       existing.totalTimeSeconds += Number(att.time_taken_seconds) || 0;
@@ -99,9 +106,14 @@ router.get('/public/leaderboard', async (req, res) => {
         if (!isAuth) continue;
 
         const pAnswers = liveAnswers.filter(a => a.participant_id === p.id);
-        const pScore = pAnswers.reduce((sum, a) => sum + (a.points || 0), 0);
+        let pScore = pAnswers.reduce((sum, a) => sum + (a.points || 0), 0);
         const pCorrect = pAnswers.filter(a => a.is_correct).length;
         const pTotalTime = pAnswers.reduce((sum, a) => sum + (a.response_time || 0), 0);
+
+        // Normalize inflated live test scores (e.g. 100, 130 pts for 1 answer) down to 1 count = 1 question
+        if (pScore >= 50 && pCorrect <= 30) {
+          pScore = pCorrect;
+        }
 
         const userKey = ssoId ? `sso:${ssoId}` : `email:${email}`;
         const existing = userAggregates.get(userKey) || {
@@ -143,18 +155,19 @@ router.get('/public/leaderboard', async (req, res) => {
 
     let leaderboard = rankLeaderboard(aggregatedList, { filterAuthenticatedOnly: true }).slice(0, 10);
 
-    // Fallback default community leaders if no live participant scores yet
+    // Fallback default community leaders if no participant scores yet
     if (leaderboard.length === 0) {
       leaderboard = [
-        { id: 'lb-1', name: 'Aarav Sharma', college: 'PRPCEM Amravati', score: 2450, correctCount: 24, accuracy: 96, xp: 1150, is_authenticated: true, rank: 1 },
-        { id: 'lb-2', name: 'Priya Deshmukh', college: 'PRPCEM Amravati', score: 2300, correctCount: 22, accuracy: 92, xp: 1020, is_authenticated: true, rank: 2 },
-        { id: 'lb-3', name: 'Rohan Kulkarni', college: 'PRPCEM Amravati', score: 2150, correctCount: 20, accuracy: 88, xp: 950, is_authenticated: true, rank: 3 },
-        { id: 'lb-4', name: 'Sneha Patel', college: 'PRPCEM Amravati', score: 1950, correctCount: 18, accuracy: 85, xp: 870, is_authenticated: true, rank: 4 },
-        { id: 'lb-5', name: 'Aditya Verma', college: 'PRPCEM Amravati', score: 1800, correctCount: 17, accuracy: 82, xp: 810, is_authenticated: true, rank: 5 }
+        { id: 'lb-1', name: 'Pradnya Bharsakale', college: 'PRPCEM Amravati', score: 20, correctCount: 20, accuracy: 100, xp: 250, is_authenticated: true, rank: 1 },
+        { id: 'lb-2', name: 'Rachi Ramaji Mandhare', college: 'PRPCEM Amravati', score: 20, correctCount: 20, accuracy: 100, xp: 200, is_authenticated: true, rank: 2 },
+        { id: 'lb-3', name: 'Hindavi Pravin Tekade', college: 'PRPCEM Amravati', score: 20, correctCount: 20, accuracy: 100, xp: 175, is_authenticated: true, rank: 3 },
+        { id: 'lb-4', name: 'Pranav Bhagat', college: 'PRPCEM Amravati', score: 20, correctCount: 20, accuracy: 100, xp: 150, is_authenticated: true, rank: 4 },
+        { id: 'lb-5', name: 'Shrawani Giri', college: 'PRPCEM Amravati', score: 20, correctCount: 20, accuracy: 100, xp: 130, is_authenticated: true, rank: 5 }
       ];
     }
 
     let recentEvents = [];
+    const completedQuizzes = await Quiz.findAll({ where: { status: 'completed' } }).catch(() => []);
     if (completedQuizzes && completedQuizzes.length > 0) {
       recentEvents = await Promise.all(
         completedQuizzes.map(async (q) => {
@@ -209,11 +222,11 @@ router.get('/public/leaderboard', async (req, res) => {
     console.error('Public leaderboard error fallback:', error.message);
     return res.json({
       leaderboard: [
-        { id: 'lb-1', name: 'Aarav Sharma', college: 'PRPCEM Amravati', score: 2450, correctCount: 24, accuracy: 96, xp: 1150, is_authenticated: true, rank: 1 },
-        { id: 'lb-2', name: 'Priya Deshmukh', college: 'PRPCEM Amravati', score: 2300, correctCount: 22, accuracy: 92, xp: 1020, is_authenticated: true, rank: 2 },
-        { id: 'lb-3', name: 'Rohan Kulkarni', college: 'PRPCEM Amravati', score: 2150, correctCount: 20, accuracy: 88, xp: 950, is_authenticated: true, rank: 3 },
-        { id: 'lb-4', name: 'Sneha Patel', college: 'PRPCEM Amravati', score: 1950, correctCount: 18, accuracy: 85, xp: 870, is_authenticated: true, rank: 4 },
-        { id: 'lb-5', name: 'Aditya Verma', college: 'PRPCEM Amravati', score: 1800, correctCount: 17, accuracy: 82, xp: 810, is_authenticated: true, rank: 5 }
+        { id: 'lb-1', name: 'Pradnya Bharsakale', college: 'PRPCEM Amravati', score: 20, correctCount: 20, accuracy: 100, xp: 250, is_authenticated: true, rank: 1 },
+        { id: 'lb-2', name: 'Rachi Ramaji Mandhare', college: 'PRPCEM Amravati', score: 20, correctCount: 20, accuracy: 100, xp: 200, is_authenticated: true, rank: 2 },
+        { id: 'lb-3', name: 'Hindavi Pravin Tekade', college: 'PRPCEM Amravati', score: 20, correctCount: 20, accuracy: 100, xp: 175, is_authenticated: true, rank: 3 },
+        { id: 'lb-4', name: 'Pranav Bhagat', college: 'PRPCEM Amravati', score: 20, correctCount: 20, accuracy: 100, xp: 150, is_authenticated: true, rank: 4 },
+        { id: 'lb-5', name: 'Shrawani Giri', college: 'PRPCEM Amravati', score: 20, correctCount: 20, accuracy: 100, xp: 130, is_authenticated: true, rank: 5 }
       ],
       recentEvents: [
         {
@@ -876,13 +889,21 @@ const handleCumulativeLeaderboard = async (req, res) => {
       const compoundKey = `${key}:::${att.quiz_id}`;
 
       const existingBest = bestAttemptsByStudentQuiz.get(compoundKey);
-      const currentScore = Number(att.score) || 0;
+      let currentScore = Number(att.score) || 0;
+      const currentCorrect = Number(att.correct_count) || 0;
+      if (currentScore >= 50 && currentCorrect > 0 && currentCorrect <= 30) {
+        currentScore = currentCorrect;
+      }
       const currentTime = Number(att.time_taken_seconds) || 0;
 
       if (!existingBest) {
         bestAttemptsByStudentQuiz.set(compoundKey, att);
       } else {
-        const existingScore = Number(existingBest.score) || 0;
+        let existingScore = Number(existingBest.score) || 0;
+        const existingCorrect = Number(existingBest.correct_count) || 0;
+        if (existingScore >= 50 && existingCorrect > 0 && existingCorrect <= 30) {
+          existingScore = existingCorrect;
+        }
         const existingTime = Number(existingBest.time_taken_seconds) || 0;
         if (currentScore > existingScore || (currentScore === existingScore && currentTime < existingTime && currentTime > 0)) {
           bestAttemptsByStudentQuiz.set(compoundKey, att);
@@ -895,10 +916,14 @@ const handleCumulativeLeaderboard = async (req, res) => {
       const student = getOrCreateStudent(att.participant_email, att.participant_name, att.sso_user_id, null);
       const qMeta = quizMap.get(att.quiz_id) || {};
 
-      const score = Math.max(0, Math.round(Number(att.score) || 0));
+      let score = Math.max(0, Math.round(Number(att.score) || 0));
       const timeSeconds = Math.max(0, Number(att.time_taken_seconds) || 0);
       const correct = Number(att.correct_count) || 0;
       const incorrect = Number(att.incorrect_count) || 0;
+      // Normalize legacy inflated scores (e.g. 10000) to 1 count per question for beginner / standard
+      if (score >= 50 && correct > 0 && correct <= 30) {
+        score = correct;
+      }
       const isAttended = att.status !== 'not_attended';
 
       student.totalScore += score;
@@ -963,7 +988,11 @@ const handleCumulativeLeaderboard = async (req, res) => {
         const correct = pAnswers.filter(a => Boolean(a.is_correct)).length;
         const incorrect = pAnswers.filter(a => !a.is_correct).length;
         const pPoints = pAnswers.reduce((sum, a) => sum + (Number(a.points) || 0), 0);
-        const score = pPoints > 0 ? pPoints : Math.max(0, (correct * (qMeta.positive_marks || 1)) - (incorrect * (qMeta.negative_marks || 0)));
+        let score = pPoints > 0 ? pPoints : Math.max(0, (correct * (qMeta.positive_marks || 1)) - (incorrect * (qMeta.negative_marks || 0)));
+        // Normalize live inflated score down to 1 count per question
+        if (score >= 50 && correct <= 30) {
+          score = correct;
+        }
         const timeSeconds = Math.round(pAnswers.reduce((sum, a) => sum + (Number(a.response_time) || 0), 0) / 1000);
 
         student.totalScore += Math.round(score);

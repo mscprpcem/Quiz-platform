@@ -47,6 +47,8 @@ module.exports = {
         inter: ["'Inter'", "system-ui", "-apple-system", "sans-serif"]
       },
       boxShadow: {
+        '2xs': '0 1px 2px 0 rgba(0, 0, 0, 0.04)',
+        'xs': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
         'soft': '0 2px 8px -2px rgba(15,23,42,0.08), 0 4px 16px -4px rgba(15,23,42,0.06)',
         'soft-lg': '0 4px 12px -2px rgba(15,23,42,0.08), 0 8px 24px -4px rgba(15,23,42,0.08)',
         'glow-blue': '0 0 20px rgba(37, 99, 235, 0.15), 0 0 40px rgba(37, 99, 235, 0.05)',

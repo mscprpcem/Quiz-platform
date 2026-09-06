@@ -5,26 +5,27 @@
  */
 
 // Difficulty levels configuration
+// Difficulty levels configuration - Standardized to 1 count per question for Beginner / Easy
 const DIFFICULTY_CONFIG = {
   EASY: {
     label: 'Easy',
     weight: 1.0,
-    defaultMarks: 100,
-    speedBonusFactor: 0.20, // max 20% speed bonus
+    defaultMarks: 1, // 1 count per question for beginner level
+    speedBonusFactor: 0.0, // clean 1:1 question count
     badgeColor: 'emerald'
   },
   INTERMEDIATE: {
     label: 'Intermediate',
-    weight: 1.5,
-    defaultMarks: 200,
-    speedBonusFactor: 0.30, // max 30% speed bonus
+    weight: 2.0,
+    defaultMarks: 2,
+    speedBonusFactor: 0.0,
     badgeColor: 'amber'
   },
   HARD: {
     label: 'Hard',
-    weight: 2.0,
-    defaultMarks: 300,
-    speedBonusFactor: 0.40, // max 40% speed bonus
+    weight: 3.0,
+    defaultMarks: 3,
+    speedBonusFactor: 0.0,
     badgeColor: 'rose'
   }
 };
@@ -33,7 +34,7 @@ const DIFFICULTY_CONFIG = {
  * Normalizes difficulty input into standard key ('EASY' | 'INTERMEDIATE' | 'HARD')
  */
 function normalizeDifficulty(diff) {
-  if (!diff) return 'INTERMEDIATE';
+  if (!diff) return 'EASY';
   const str = String(diff).toUpperCase().trim();
   if (str.includes('EASY') || str.includes('BEGINNER') || str.includes('BASIC')) return 'EASY';
   if (str.includes('HARD') || str.includes('ADVANCED') || str.includes('EXPERT')) return 'HARD';
@@ -45,51 +46,43 @@ function normalizeDifficulty(diff) {
  */
 function getDifficultyConfig(diff) {
   const key = normalizeDifficulty(diff);
-  return DIFFICULTY_CONFIG[key] || DIFFICULTY_CONFIG.INTERMEDIATE;
+  return DIFFICULTY_CONFIG[key] || DIFFICULTY_CONFIG.EASY;
 }
 
 /**
  * Calculate score for a single live quiz question answer
- * @param {Object} params
- * @param {number} params.marks - Base marks of question (e.g. 500 or 100)
- * @param {string} params.difficulty - 'Easy', 'Intermediate', or 'Hard'
- * @param {number} params.timer - Question timer limit in seconds
- * @param {number} params.responseTimeMs - Participant response time in milliseconds
- * @param {boolean} params.isCorrect - Whether chosen option was correct
- * @returns {number} calculated points
+ * Standardized: 1 count per question for beginner / easy level
  */
-function calculateLiveQuestionScore({ marks = 500, difficulty = 'Intermediate', timer = 30, responseTimeMs = 0, isCorrect = false }) {
+function calculateLiveQuestionScore({ marks = 1, difficulty = 'Easy', timer = 30, responseTimeMs = 0, isCorrect = false }) {
   if (!isCorrect) return 0;
 
   const diffConf = getDifficultyConfig(difficulty);
-  const baseMarks = marks > 0 ? marks : diffConf.defaultMarks;
+  let baseMarks = Number(marks) || diffConf.defaultMarks;
+  // If legacy marks were huge (e.g. 100, 500, 1000, 10000), normalize down so beginner level is 1 count per question:
+  if (baseMarks >= 50) {
+    baseMarks = diffConf.defaultMarks;
+  }
 
-  // Base marks scaled by difficulty
+  // Base marks scaled by difficulty (e.g. Easy = 1, Intermediate = 2, Hard = 3)
   const basePoints = Math.round(baseMarks * diffConf.weight);
-
-  // Speed Bonus Math: proportional to time remaining
-  const responseTimeSec = Math.max(0, responseTimeMs / 1000);
-  const timerSec = Math.max(1, timer);
-  const timeRatio = Math.max(0, Math.min(1, (timerSec - responseTimeSec) / timerSec));
-
-  const maxSpeedBonus = Math.round(basePoints * diffConf.speedBonusFactor);
-  const speedBonus = Math.round(maxSpeedBonus * timeRatio);
-
-  return basePoints + speedBonus;
+  return basePoints;
 }
 
 /**
  * Calculate scheduled quiz question score
- * Uses exact question marks / positive_marks without unexpected difficulty multipliers.
+ * Standardized: 1 count per question for beginner / easy level
  */
-function calculateScheduledQuestionScore({ positiveMarks = 1, negativeMarks = 0, difficulty = 'Intermediate', isCorrect = false, applyDifficultyWeight = false }) {
+function calculateScheduledQuestionScore({ positiveMarks = 1, negativeMarks = 0, difficulty = 'Easy', isCorrect = false, applyDifficultyWeight = false }) {
   if (!isCorrect) {
     return -Math.abs(Number(negativeMarks) || 0);
   }
-  const baseMarks = Number(positiveMarks) > 0 ? Number(positiveMarks) : 1;
+  let baseMarks = Number(positiveMarks) > 0 ? Number(positiveMarks) : 1;
+  if (baseMarks >= 50) {
+    baseMarks = 1;
+  }
   if (applyDifficultyWeight) {
     const diffConf = getDifficultyConfig(difficulty);
-    return Math.round(baseMarks * diffConf.weight * 10) / 10;
+    return Math.round(baseMarks * diffConf.weight);
   }
   return baseMarks;
 }

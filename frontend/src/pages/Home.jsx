@@ -56,23 +56,29 @@ export default function Home() {
 
   // Fallback contenders ensuring top 5 spots (Top 3 + Runner Ups #4 and #5) are always fully displayed
   const DEFAULT_LEADERBOARD = [
-    { id: 'lb-1', name: 'Aarav Sharma', college: 'PRPCEM Amravati', score: 2450, is_authenticated: true },
-    { id: 'lb-2', name: 'Priya Deshmukh', college: 'PRPCEM Amravati', score: 2300, is_authenticated: true },
-    { id: 'lb-3', name: 'Rohan Kulkarni', college: 'PRPCEM Amravati', score: 2150, is_authenticated: true },
-    { id: 'lb-4', name: 'Sneha Patel', college: 'PRPCEM Amravati', score: 1950, is_authenticated: true },
-    { id: 'lb-5', name: 'Aditya Verma', college: 'PRPCEM Amravati', score: 1800, is_authenticated: true }
+    { id: 'lb-1', name: 'Pradnya Bharsakale', college: 'PRPCEM Amravati', score: 20, is_authenticated: true },
+    { id: 'lb-2', name: 'Rachi Ramaji Mandhare', college: 'PRPCEM Amravati', score: 20, is_authenticated: true },
+    { id: 'lb-3', name: 'Hindavi Pravin Tekade', college: 'PRPCEM Amravati', score: 20, is_authenticated: true },
+    { id: 'lb-4', name: 'Pranav Bhagat', college: 'PRPCEM Amravati', score: 20, is_authenticated: true },
+    { id: 'lb-5', name: 'Shrawani Giri', college: 'PRPCEM Amravati', score: 20, is_authenticated: true }
   ];
 
   const displayLeaderboard = (() => {
-    if (!leaderboard || leaderboard.length === 0) return DEFAULT_LEADERBOARD;
-    if (leaderboard.length < 5) {
-      const merged = [...leaderboard];
-      for (let i = leaderboard.length; i < 5; i++) {
+    const base = (!leaderboard || leaderboard.length === 0) ? DEFAULT_LEADERBOARD : leaderboard;
+    const merged = [...base];
+    if (merged.length < 5) {
+      for (let i = merged.length; i < 5; i++) {
         merged.push(DEFAULT_LEADERBOARD[i]);
       }
-      return merged;
     }
-    return leaderboard;
+    return merged.map(p => {
+      let s = Math.round(Number(p.score) || 0);
+      // Normalize legacy inflated scores (e.g. 10000) to 1 count per question for beginner level
+      if (s >= 50 && p.correctCount && p.correctCount <= 30) {
+        s = p.correctCount;
+      }
+      return { ...p, score: s };
+    });
   })();
 
   // Section 10 States (FAQ Accordion)
@@ -578,14 +584,24 @@ export default function Home() {
               <p className="text-brand-textMuted text-xs sm:text-sm">Recognizing top scoring members across live quizzes and scheduled tests.</p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setShowMatrixModal(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-brand-border bg-white hover:bg-brand-bgLight text-brand-blue text-xs font-extrabold transition-all shadow-xs w-fit cursor-pointer active:scale-98"
-            >
-              <Info size={14} />
-              <span>Scoring Matrix & Rules</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setShowMatrixModal(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-brand-border bg-white hover:bg-brand-bgLight text-brand-blue text-xs font-extrabold transition-all shadow-xs w-fit cursor-pointer active:scale-98"
+              >
+                <Info size={14} />
+                <span>Scoring Matrix & Rules</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => navigate('/admin/cumulative-leaderboard')}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-purple-200 bg-purple-50/90 hover:bg-purple-100 text-purple-800 text-xs font-extrabold transition-all shadow-xs w-fit cursor-pointer active:scale-98"
+              >
+                <Trophy size={14} className="text-amber-500" />
+                <span>Tournament Standings</span>
+              </button>
+            </div>
           </div>
 
           <div className="leaderboard-grid-wrapper">
@@ -597,13 +613,20 @@ export default function Home() {
               {displayLeaderboard[1] && (
                 <div className="medalist-card medalist-card-silver order-2 sm:order-1">
                   <span className="inline-flex items-center justify-center bg-slate-100 text-slate-700 font-extrabold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full border border-slate-200 shadow-sm mb-3">Overall #2</span>
-                  <div className="flex flex-col items-center space-y-3.5">
+                  <div className="flex flex-col items-center space-y-3.5 w-full">
                     <div className="medalist-avatar-silver">
                       <div className="medalist-avatar-inner">{getInitials(displayLeaderboard[1].name)}</div>
                     </div>
-                    <div className="space-y-0.5 text-center">
-                      <h4 className="font-extrabold text-zinc-800 text-xs sm:text-sm truncate max-w-[150px] xs:max-w-[200px] sm:max-w-none">{displayLeaderboard[1].name || 'Participant'}</h4>
-                      <p className="text-[9px] font-semibold text-zinc-400">{displayLeaderboard[1].college || 'MSC Member'}</p>
+                    <div className="space-y-0.5 text-center w-full px-1">
+                      <h4 className="font-extrabold text-zinc-900 text-xs sm:text-sm line-clamp-1 max-w-[170px] sm:max-w-none mx-auto" title={displayLeaderboard[1].name}>
+                        {displayLeaderboard[1].name || 'Participant'}
+                      </h4>
+                      <p className="text-[10px] font-semibold text-zinc-500">{displayLeaderboard[1].college || 'MSC Member'}</p>
+                      {displayLeaderboard[1].totalTimeSeconds ? (
+                        <p className="text-[9px] font-extrabold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full inline-block mt-1">
+                          ⏱ {displayLeaderboard[1].totalTimeSeconds}s
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                   <span className="score-capsule score-capsule-silver">{displayLeaderboard[1].score || 0} pts</span>
@@ -614,13 +637,20 @@ export default function Home() {
               {displayLeaderboard[0] && (
                 <div className="medalist-card medalist-card-gold order-1 sm:order-2">
                   <span className="inline-flex items-center justify-center bg-amber-500 text-white font-extrabold text-[10px] uppercase tracking-wider px-3.5 py-1 rounded-full shadow-sm mb-3">👑 Overall #1</span>
-                  <div className="flex flex-col items-center space-y-3.5">
+                  <div className="flex flex-col items-center space-y-3.5 w-full">
                     <div className="medalist-avatar-gold">
                       <div className="medalist-avatar-inner medalist-avatar-inner-gold">{getInitials(displayLeaderboard[0].name)}</div>
                     </div>
-                    <div className="space-y-0.5 text-center">
-                      <h4 className="font-extrabold text-zinc-800 text-xs sm:text-sm truncate max-w-[150px] xs:max-w-[200px] sm:max-w-none">{displayLeaderboard[0].name || 'Participant'}</h4>
-                      <p className="text-[9px] font-semibold text-zinc-400">{displayLeaderboard[0].college || 'MSC Member'}</p>
+                    <div className="space-y-0.5 text-center w-full px-1">
+                      <h4 className="font-extrabold text-zinc-900 text-xs sm:text-sm md:text-base line-clamp-1 max-w-[180px] sm:max-w-none mx-auto" title={displayLeaderboard[0].name}>
+                        {displayLeaderboard[0].name || 'Participant'}
+                      </h4>
+                      <p className="text-[10px] font-semibold text-zinc-500">{displayLeaderboard[0].college || 'MSC Member'}</p>
+                      {displayLeaderboard[0].totalTimeSeconds ? (
+                        <p className="text-[9px] font-extrabold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full inline-block mt-1">
+                          ⏱ {displayLeaderboard[0].totalTimeSeconds}s
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                   <span className="score-capsule score-capsule-gold">{displayLeaderboard[0].score || 0} pts</span>
@@ -630,14 +660,21 @@ export default function Home() {
               {/* 3rd Place */}
               {displayLeaderboard[2] && (
                 <div className="medalist-card medalist-card-bronze order-3 sm:order-3">
-                  <span className="inline-flex items-center justify-center bg-orange-50 text-orange-850 font-extrabold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full border border-orange-200 shadow-sm mb-3">Overall #3</span>
-                  <div className="flex flex-col items-center space-y-3.5">
+                  <span className="inline-flex items-center justify-center bg-orange-50 text-orange-800 font-extrabold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full border border-orange-200 shadow-sm mb-3">Overall #3</span>
+                  <div className="flex flex-col items-center space-y-3.5 w-full">
                     <div className="medalist-avatar-bronze">
                       <div className="medalist-avatar-inner medalist-avatar-inner-bronze">{getInitials(displayLeaderboard[2].name)}</div>
                     </div>
-                    <div className="space-y-0.5 text-center">
-                      <h4 className="font-extrabold text-zinc-800 text-xs sm:text-sm truncate max-w-[150px] xs:max-w-[200px] sm:max-w-none">{displayLeaderboard[2].name || 'Participant'}</h4>
-                      <p className="text-[9px] font-semibold text-zinc-400">{displayLeaderboard[2].college || 'MSC Member'}</p>
+                    <div className="space-y-0.5 text-center w-full px-1">
+                      <h4 className="font-extrabold text-zinc-900 text-xs sm:text-sm line-clamp-1 max-w-[170px] sm:max-w-none mx-auto" title={displayLeaderboard[2].name}>
+                        {displayLeaderboard[2].name || 'Participant'}
+                      </h4>
+                      <p className="text-[10px] font-semibold text-zinc-500">{displayLeaderboard[2].college || 'MSC Member'}</p>
+                      {displayLeaderboard[2].totalTimeSeconds ? (
+                        <p className="text-[9px] font-extrabold text-orange-700 bg-orange-100 px-2 py-0.5 rounded-full inline-block mt-1">
+                          ⏱ {displayLeaderboard[2].totalTimeSeconds}s
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                   <span className="score-capsule score-capsule-bronze">{displayLeaderboard[2].score || 0} pts</span>
@@ -718,23 +755,23 @@ export default function Home() {
                 <div className="space-y-3">
                   <div className="flex items-center gap-2">
                     <span className="w-6 h-6 rounded-lg bg-brand-lightBlue text-brand-blue font-black text-xs flex items-center justify-center">1</span>
-                    <h4 className="font-extrabold text-sm text-brand-textMain">Question Difficulty Multipliers</h4>
+                    <h4 className="font-extrabold text-sm text-brand-textMain">Standardized Evaluation & Question Multipliers</h4>
                   </div>
                   <div className="grid grid-cols-3 gap-3">
                     <div className="bg-emerald-50/70 border border-emerald-200/80 p-3.5 rounded-2xl text-center space-y-1">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">🟢 Easy</span>
-                      <p className="text-base font-black text-emerald-900">1.0x Weight</p>
-                      <p className="text-[11px] text-emerald-700 font-medium">Up to +20% Speed Bonus</p>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">🟢 Beginner / Easy</span>
+                      <p className="text-base font-black text-emerald-900">1 Count / Q</p>
+                      <p className="text-[11px] text-emerald-700 font-medium">1.0x Weight (Clean 1:1 Standard)</p>
                     </div>
                     <div className="bg-amber-50/70 border border-amber-200/80 p-3.5 rounded-2xl text-center space-y-1">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">🟡 Medium</span>
-                      <p className="text-base font-black text-amber-900">1.5x Weight</p>
-                      <p className="text-[11px] text-amber-700 font-medium">Up to +30% Speed Bonus</p>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">🟡 Intermediate</span>
+                      <p className="text-base font-black text-amber-900">2 Counts / Q</p>
+                      <p className="text-[11px] text-amber-700 font-medium">2.0x Weight Multiplier</p>
                     </div>
                     <div className="bg-rose-50/70 border border-rose-200/80 p-3.5 rounded-2xl text-center space-y-1">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-rose-800 bg-rose-100 px-2 py-0.5 rounded-full">🔴 Hard</span>
-                      <p className="text-base font-black text-rose-900">2.0x Weight</p>
-                      <p className="text-[11px] text-rose-700 font-medium">Up to +40% Speed Bonus</p>
+                      <span className="text-[10px] font-black uppercase tracking-wider text-rose-800 bg-rose-100 px-2 py-0.5 rounded-full">🔴 Hard / Advanced</span>
+                      <p className="text-base font-black text-rose-900">3 Counts / Q</p>
+                      <p className="text-[11px] text-rose-700 font-medium">3.0x Weight Multiplier</p>
                     </div>
                   </div>
                 </div>
@@ -752,7 +789,7 @@ export default function Home() {
                         <span>Live Synchronous Quiz</span>
                       </div>
                       <p className="text-xs text-zinc-600 leading-relaxed font-medium">
-                        Points = <span className="font-bold text-zinc-800">Base Marks × Weight + Speed Bonus</span> based on response time in seconds. Faster answers award higher points!
+                        Points = <span className="font-bold text-zinc-800">1 pt per question (Beginner)</span>. Normalized from legacy 10,000 inflated scale so each question represents a clean, transparent score.
                       </p>
                     </div>
 
@@ -762,7 +799,7 @@ export default function Home() {
                         <span>Scheduled Assessment</span>
                       </div>
                       <p className="text-xs text-zinc-600 leading-relaxed font-medium">
-                        Marks = <span className="font-bold text-zinc-800">(Correct × Weight) − Negative Marks</span>. Deduplicated by participant's latest/best attempt.
+                        Points = <span className="font-bold text-zinc-800">Correct Questions Count</span>. Time taken in seconds serves as the primary tie-breaker for podium rankings.
                       </p>
                     </div>
                   </div>
