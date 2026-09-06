@@ -140,11 +140,11 @@ export default function AdminEmailDispatch() {
           return;
         }
 
-        if (quizzesList.length > 0 && !selectedQuizId) {
+        if (quizzesList.length > 0 && (!selectedQuizId || !quizzesList.some(q => String(q.id) === String(selectedQuizId)))) {
           setSelectedQuizId(quizzesList[0].id);
           setSelectedQuizInfo(quizzesList[0]);
         }
-        if (eventsList.length > 0 && !selectedEventId) {
+        if (eventsList.length > 0 && (!selectedEventId || !eventsList.some(e => String(e.id) === String(selectedEventId)))) {
           setSelectedEventId(eventsList[0].id);
           setSelectedEventInfo(eventsList[0]);
         }
@@ -539,7 +539,14 @@ export default function AdminEmailDispatch() {
 
               <button
                 type="button"
-                onClick={() => { setAudienceType('quiz_participants'); setExcludedEmails(new Set()); }}
+                onClick={() => {
+                  setAudienceType('quiz_participants');
+                  setExcludedEmails(new Set());
+                  if (audienceData.quizzes.length > 0 && (!selectedQuizId || !audienceData.quizzes.some(q => String(q.id) === String(selectedQuizId)))) {
+                    setSelectedQuizId(audienceData.quizzes[0].id);
+                    setSelectedQuizInfo(audienceData.quizzes[0]);
+                  }
+                }}
                 className={`py-2.5 px-2 rounded-xl text-xs font-bold border transition-all cursor-pointer text-center ${
                   audienceType === 'quiz_participants'
                     ? 'bg-blue-50 text-blue-700 border-blue-300 shadow-2xs font-black'
@@ -636,23 +643,105 @@ export default function AdminEmailDispatch() {
             {audienceType === 'quiz_participants' && (
               <div className="space-y-3.5 animate-fade-in bg-blue-50/50 p-4 rounded-2xl border border-blue-100">
                 <div className="space-y-1">
-                  <label className="block text-xs font-black text-blue-900">Select Quiz Assessment</label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-black text-blue-900">Select Quiz Assessment</label>
+                    {loadingQuizParticipants && (
+                      <span className="flex items-center space-x-1 text-[11px] font-bold text-blue-600 animate-pulse">
+                        <Loader2 size={12} className="animate-spin" />
+                        <span>Loading participants...</span>
+                      </span>
+                    )}
+                  </div>
                   <select
                     value={selectedQuizId}
                     onChange={(e) => {
-                      setSelectedQuizId(e.target.value);
-                      const q = audienceData.quizzes.find(item => String(item.id) === String(e.target.value));
+                      const newId = e.target.value;
+                      setSelectedQuizId(newId);
+                      const q = audienceData.quizzes.find(item => String(item.id) === String(newId));
                       if (q) setSelectedQuizInfo(q);
                     }}
                     className="w-full border border-blue-200 rounded-xl px-3.5 py-2.5 text-xs font-bold bg-white text-slate-800 focus:border-blue-600 outline-none"
                   >
-                    {audienceData.quizzes.map((q) => (
-                      <option key={q.id} value={q.id}>
-                        {q.title} — [{q.event_name || 'MSC Event'}] ({q.mode || 'LIVE'})
-                      </option>
-                    ))}
+                    {audienceData.quizzes.length === 0 ? (
+                      <option value="" disabled>No quizzes found in database</option>
+                    ) : (
+                      audienceData.quizzes.map((q) => (
+                        <option key={q.id} value={q.id}>
+                          {q.title} — [{q.event_name || 'MSC Event'}] ({q.mode || 'LIVE'})
+                        </option>
+                      ))
+                    )}
                   </select>
                 </div>
+
+                {/* Selected Quiz Context Banner & Quick Templates */}
+                {selectedQuizInfo && (
+                  <div className="bg-white border border-blue-200/80 rounded-xl p-3 space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-1.5 text-xs">
+                      <div className="flex items-center space-x-1.5">
+                        <span className={`px-2 py-0.5 rounded-md font-black text-[10px] uppercase tracking-wider ${
+                          selectedQuizInfo.mode === 'SCHEDULED'
+                            ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                            : 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                        }`}>
+                          {selectedQuizInfo.mode || 'LIVE'}
+                        </span>
+                        <span className="font-bold text-slate-700 truncate max-w-[180px]">
+                          {selectedQuizInfo.title}
+                        </span>
+                      </div>
+                      {selectedQuizInfo.join_code && (
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-600 font-mono text-[10px] rounded-md font-bold">
+                          Code: {selectedQuizInfo.join_code}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Quick Template Fill Buttons */}
+                    <div className="flex items-center gap-1.5 pt-1 border-t border-slate-100 text-[10px]">
+                      <span className="text-slate-400 font-bold uppercase tracking-wider">Quick Fill:</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSubject(`📢 Reminder: Take your "${selectedQuizInfo.title}" Assessment`);
+                          setHeading(`Assessment Reminder: ${selectedQuizInfo.title}`);
+                          setMessageBody(
+                            `Hello {name},\n\nThis is a reminder regarding the assessment for "${selectedQuizInfo.title}".\n\n` +
+                            `Please ensure you have completed your quiz before the deadline. If you have already started or submitted, please check your performance.\n\n` +
+                            `Assessment: ${selectedQuizInfo.title}\n` +
+                            `Candidate: {name}\n` +
+                            `College: {college}\n\n` +
+                            `Best regards,\nMicrosoft Student Club PRPCEM`
+                          );
+                          setCtaText('Take Assessment Now');
+                          setCtaUrl(window.location.origin + `/quiz/join/${selectedQuizInfo.join_code || selectedQuizInfo.id}`);
+                        }}
+                        className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-md font-bold transition-all cursor-pointer"
+                      >
+                        Reminder Template
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSubject(`🏆 Performance & Results: ${selectedQuizInfo.title}`);
+                          setHeading(`Assessment Results: ${selectedQuizInfo.title}`);
+                          setMessageBody(
+                            `Dear {name},\n\nThank you for participating in "${selectedQuizInfo.title}"!\n\n` +
+                            `Your recorded score is {score}.\n\n` +
+                            `You can view the leaderboard and download your credential certificate from your participant portal.\n\n` +
+                            `Congratulations on your effort!\n\n` +
+                            `Warm regards,\nMicrosoft Student Club PRPCEM`
+                          );
+                          setCtaText('View Leaderboard & Certificate');
+                          setCtaUrl(window.location.origin + `/courses`);
+                        }}
+                        className="px-2 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-md font-bold transition-all cursor-pointer"
+                      >
+                        Results Template
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Participant Filter Pills: All, Completed, Didn't Attend, In Progress */}
                 <div className="space-y-1.5 pt-1">

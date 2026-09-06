@@ -79,6 +79,19 @@ function registerCustomSqlFunctions(db) {
       return String(str).padEnd(len, String(pad));
     });
 
+    // REGEXP(regex, str) -> Enables standard `str REGEXP regex` operator in SQLite
+    db.create_function('REGEXP', (regexStr, targetStr) => {
+      if (regexStr === null || regexStr === undefined || targetStr === null || targetStr === undefined) {
+        return 0;
+      }
+      try {
+        const re = new RegExp(String(regexStr));
+        return re.test(String(targetStr)) ? 1 : 0;
+      } catch {
+        return 0;
+      }
+    });
+
     // 2. Null Handling & Conditional Functions
     // IFNULL / ISNULL / NVL
     db.create_function('IFNULL', (a, b) => (a !== null && a !== undefined ? a : b));
@@ -436,13 +449,34 @@ export async function validateChallengeWithTestcases(challenge, userSql) {
 
   // TEST CASE 2: Edge-Case Dataset (with boundary records)
   let edgeSetupSql = challenge.setupSql;
-  if (edgeSetupSql && edgeSetupSql.includes('INSERT INTO employees')) {
-    edgeSetupSql += `\nINSERT INTO employees (id, first_name, last_name, email, department_id, salary, hire_date, manager_id)
-      VALUES (999, 'Boundary', 'Tester', 'boundary@company.com', 1, 90000, '2024-02-01', 1);`;
+  if (challenge.edgeSetupSql) {
+    edgeSetupSql = challenge.edgeSetupSql;
+  } else if (edgeSetupSql && edgeSetupSql.includes('INSERT INTO employees')) {
+    if (edgeSetupSql.includes('first_name') && edgeSetupSql.includes('department_id')) {
+      // Base HR Company schema (sqlChallenges.js)
+      edgeSetupSql += `\nINSERT INTO employees (id, first_name, last_name, email, department_id, salary, hire_date, manager_id)
+        VALUES (999, 'Boundary', 'Tester', 'boundary@company.com', 1, 90000, '2024-02-01', 1);`;
+    } else if (edgeSetupSql.includes('emp_id') && edgeSetupSql.includes('hire_date')) {
+      // Day 4 Advanced Filtering schema (filteringChallenges.js)
+      edgeSetupSql += `\nINSERT INTO employees (emp_id, name, department, salary, city, hire_date)
+        VALUES (999, 'Aarav', 'IT', 95000, 'Kolkata', '2024-02-01');`;
+    } else if (edgeSetupSql.includes('emp_id')) {
+      // DML schema (dmlChallenges.js)
+      edgeSetupSql += `\nINSERT INTO employees (emp_id, name, department, salary, city)
+        VALUES (999, 'Aarav', 'IT', 95000, 'Kolkata');`;
+    }
   }
 
-  const userRes2 = await executeSqlQuery(edgeSetupSql, userSql);
-  const expRes2 = await executeSqlQuery(edgeSetupSql, challenge.expectedSql);
+  let userRes2 = await executeSqlQuery(edgeSetupSql, userSql);
+  let expRes2 = await executeSqlQuery(edgeSetupSql, challenge.expectedSql);
+
+  // Defensive fallback: If synthetic edgeSetupSql caused an execution failure while primary setupSql worked, fallback safely
+  if ((!userRes2.success || !expRes2.success) && userRes1.success && edgeSetupSql !== challenge.setupSql) {
+    edgeSetupSql = challenge.setupSql;
+    userRes2 = await executeSqlQuery(edgeSetupSql, userSql);
+    expRes2 = await executeSqlQuery(edgeSetupSql, challenge.expectedSql);
+  }
+
   const diff2 = computeResultDiff(userRes2, expRes2, challenge.checkOrder);
 
   const testcase2 = {

@@ -366,7 +366,8 @@ router.post('/forgot-password', async (req, res) => {
         }
       }
     } catch (portalErr) {
-      console.warn('Portal forgot password warning:', portalErr.message);
+      const detail = portalErr.response?.data?.error || portalErr.response?.data?.message || portalErr.message;
+      console.warn(`Portal forgot password notice (${cleanEmail}):`, detail);
     }
 
     return res.json({
@@ -408,6 +409,29 @@ router.post('/reset-password', async (req, res) => {
       localUser = await User.findOne({ where: { email: cleanEmail } });
     }
 
+    // If OTP was verified locally but local User record doesn't exist yet (e.g. participant or synced account), auto-provision
+    if (!localUser && isOtpValid && User) {
+      let participantName = null;
+      if (Participant) {
+        const p = await Participant.findOne({ where: { email: cleanEmail } }).catch(() => null);
+        if (p) participantName = p.name;
+      }
+      const displayName = memoryRecord?.name || participantName || cleanEmail.split('@')[0];
+      const cleanUsername = cleanEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_-]/g, '') || `user_${crypto.randomBytes(3).toString('hex')}`;
+      try {
+        localUser = await User.create({
+          name: displayName,
+          email: cleanEmail,
+          username: cleanUsername,
+          password: newPassword,
+          role: 'student',
+          is_verified: true
+        });
+      } catch (createErr) {
+        console.warn('Auto-create user during reset-password notice:', createErr.message);
+      }
+    }
+
     if (localUser && (isOtpValid || (localUser.otp && String(localUser.otp).trim() === inputOtp))) {
       if (localUser.otp_expiry && new Date(localUser.otp_expiry) < new Date() && !isOtpValid) {
         return res.status(400).json({ error: 'OTP code has expired. Please request a new OTP code.' });
@@ -434,7 +458,8 @@ router.post('/reset-password', async (req, res) => {
           },
           timeout: 4000
         }).catch((err) => {
-          console.warn('[Cross-Portal SSO] Reset password sync to verification portal notice:', err.message);
+          const syncDetail = err.response?.data?.error || err.response?.data?.message || err.message;
+          console.warn('[Cross-Portal SSO] Reset password sync to verification portal notice:', syncDetail);
         });
       }
 
@@ -456,7 +481,8 @@ router.post('/reset-password', async (req, res) => {
         }
       }
     } catch (portalErr) {
-      console.warn('Portal reset password warning:', portalErr.message);
+      const detail = portalErr.response?.data?.error || portalErr.response?.data?.message || portalErr.message;
+      console.warn(`Portal reset password notice (${cleanEmail}):`, detail);
     }
 
     return res.status(400).json({ error: 'Invalid or expired verification code. Please check your OTP code and try again.' });

@@ -2,6 +2,7 @@ import { CHAPTER_0_METADATA, CHAPTER_0_TOPICS } from './chapter0Fundamentals.js'
 import { CHAPTER_2_METADATA, CHAPTER_2_TOPICS } from './chapter2BuildingBlocks.js';
 import { CHAPTER_1_METADATA, CHAPTER_1_TOPICS } from './chapter1Ddl.js';
 import { CHAPTER_3_METADATA, CHAPTER_3_TOPICS } from './chapter3Dml.js';
+import { CHAPTER_4_METADATA, CHAPTER_4_TOPICS } from './chapter4Filtering.js';
 
 // All Chapters Catalog with Availability Status
 export const CHAPTER_CATALOG = [
@@ -9,17 +10,7 @@ export const CHAPTER_CATALOG = [
   CHAPTER_2_METADATA,
   CHAPTER_1_METADATA,
   CHAPTER_3_METADATA,
-  {
-    id: 'mod-05',
-    number: 5,
-    title: 'SELECT & Filtering',
-    shortTitle: 'SELECT & Filtering',
-    status: 'coming_soon',
-    badge: 'In Production',
-    releaseDate: 'Coming Soon',
-    description: 'Master data retrieval pipelines: Column projection, WHERE clause operators, LIKE pattern matching, BETWEEN ranges, IN lists, NULL handling (IS NULL / COALESCE), and ORDER BY sorting.',
-    plannedTopics: ['SELECT & Column Aliasing', 'WHERE Filtering Operators (=, !=, <, >)', 'LIKE & Wildcard Regex Patterns', 'BETWEEN, IN & NOT IN Conditions', 'ORDER BY & Multi-Column Sorting', 'LIMIT & OFFSET Pagination']
-  },
+  CHAPTER_4_METADATA,
   {
     id: 'mod-06',
     number: 6,
@@ -93,7 +84,8 @@ export const ALL_TOPIC_DETAILS = {
   ...CHAPTER_0_TOPICS,
   ...CHAPTER_2_TOPICS,
   ...CHAPTER_1_TOPICS,
-  ...CHAPTER_3_TOPICS
+  ...CHAPTER_3_TOPICS,
+  ...CHAPTER_4_TOPICS
 };
 
 // Helper utilities

@@ -1,8 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, TrendingUp, TrendingDown, Minus, Sparkles, Award, Info, X, Zap, CheckCircle2, Clock } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Trophy, TrendingUp, TrendingDown, Sparkles, Info, X, Zap, RefreshCw, CheckCircle2 } from 'lucide-react';
 
-export default function Top10Leaderboard({ leaderboard = [], currentParticipantId = null, title = "Top 10 Live Standings" }) {
+export default function Top10Leaderboard({ 
+  leaderboard = [], 
+  currentParticipantId = null, 
+  title = "Top 10 Live Standings",
+  onRefresh = null,
+  isRefreshing = false
+}) {
   const [rankedList, setRankedList] = useState([]);
   const [showMatrixModal, setShowMatrixModal] = useState(false);
   const prevRanksRef = useRef({});
@@ -43,192 +49,165 @@ export default function Top10Leaderboard({ leaderboard = [], currentParticipantI
 
   if (!leaderboard || leaderboard.length === 0) {
     return (
-      <div className="bg-white border border-brand-border rounded-2xl p-8 text-center space-y-3 shadow-soft animate-fade-in">
-        <Trophy size={36} className="mx-auto text-amber-500/40 animate-pulse" />
-        <h3 className="font-bold text-sm text-brand-textMain">Standings will appear after Question 1</h3>
-        <p className="text-xs text-brand-textMuted">Answer quickly to secure a top spot on the podium!</p>
+      <div className="bg-white border border-slate-200/90 rounded-xl p-6 text-center space-y-2 shadow-2xs animate-fade-in">
+        <Trophy size={28} className="mx-auto text-amber-500/50 animate-pulse" />
+        <h3 className="font-bold text-xs text-slate-800">Standings will appear after Question 1</h3>
+        <p className="text-[10px] text-slate-400 font-medium">Answer quickly to secure a top spot on the podium!</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white border border-brand-border rounded-2xl p-5 sm:p-7 shadow-soft space-y-5 animate-fade-in text-left relative">
+    <div className="bg-white border border-slate-200/90 rounded-xl p-3 sm:p-4 shadow-2xs space-y-2 sm:space-y-2.5 text-left relative">
       {/* Header */}
-      <div className="flex justify-between items-center border-b border-brand-border pb-4">
-        <div className="flex items-center space-x-2.5">
-          <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center border border-amber-500/20">
-            <Trophy size={20} />
+      <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+        <div className="flex items-center space-x-2">
+          <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center border border-amber-200/80 shrink-0">
+            <Trophy size={15} />
           </div>
           <div>
-            <div className="flex items-center gap-1.5">
-              <h3 className="text-base sm:text-lg font-black text-brand-textMain tracking-tight leading-none">{title}</h3>
+            <div className="flex items-center gap-1">
+              <h3 className="text-xs sm:text-sm font-bold text-slate-900 leading-tight">{title}</h3>
               <button
                 type="button"
                 onClick={() => setShowMatrixModal(true)}
-                className="w-6 h-6 rounded-full bg-brand-lightBlue hover:bg-brand-blue hover:text-white text-brand-blue flex items-center justify-center transition-all shadow-xs border border-brand-blue/20 cursor-pointer"
-                title="View Scoring Matrix & Multipliers"
-                aria-label="View Scoring Matrix & Multipliers"
+                className="p-0.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer shrink-0 self-center"
+                title="View Scoring Rules"
+                aria-label="View Scoring Rules"
               >
                 <Info size={13} />
               </button>
             </div>
-            <p className="text-[11px] font-semibold text-brand-textMuted mt-1">Live ranking after latest question</p>
+            <p className="text-[10px] text-slate-400 font-medium mt-0.5">Ranked by score & speed</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setShowMatrixModal(true)}
-            className="hidden sm:inline-flex items-center gap-1 text-[10px] font-extrabold text-brand-blue bg-white hover:bg-slate-50 border border-brand-border px-2.5 py-1 rounded-full cursor-pointer transition-all"
-          >
-            <Info size={11} />
-            <span>Rules Matrix</span>
-          </button>
-          <span className="text-[10px] font-black uppercase tracking-wider bg-brand-lightBlue text-brand-blue border border-brand-blue/15 px-3 py-1 rounded-full">
-            {rankedList.length} Performers
+
+        <div className="flex items-center gap-1.5 shrink-0 self-center">
+          <span className="text-[10px] font-semibold bg-slate-50 text-slate-600 border border-slate-200/80 px-2 py-0.5 rounded-md">
+            {rankedList.length} Players
           </span>
+
+          {onRefresh && (
+            <button
+              type="button"
+              onClick={onRefresh}
+              disabled={isRefreshing}
+              className="h-8 px-3 inline-flex items-center justify-center gap-1.5 bg-slate-50 hover:bg-slate-100 active:scale-95 text-slate-700 hover:text-blue-600 border border-slate-200/90 rounded-lg text-xs font-semibold transition-all cursor-pointer shadow-2xs shrink-0 self-center"
+              title="Refresh Standings"
+              aria-label="Refresh Standings"
+            >
+              <RefreshCw size={13} className={isRefreshing ? 'animate-spin text-blue-600' : 'text-slate-500'} />
+              <span className="text-xs">Refresh</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Top 10 List with FLIP Shuffle Animations via Framer Motion */}
-      <motion.div layout className="space-y-2.5 relative">
-        <AnimatePresence mode="popLayout">
-          {rankedList.map((player) => {
-            const isCurrentPlayer = currentParticipantId && player.id === currentParticipantId;
+      {/* Top 10 List with Smooth FLIP Position Transitions (Zero Jitter) */}
+      <div className="space-y-1 sm:space-y-1.5 relative">
+        {rankedList.map((player) => {
+          const isCurrentPlayer = currentParticipantId && player.id === currentParticipantId;
 
-            // Rank Badges Styling
-            let rankBadge = null;
-            let rowBgClass = "bg-white hover:bg-zinc-50 border-brand-border";
+          // Rank Badges Styling (Medals for Top 3, Clean Badges for Others)
+          let rankBadge = null;
+          let rowBgClass = "bg-white hover:bg-slate-50/70 border-slate-200/70";
 
-            if (player.rank === 1) {
-              rankBadge = (
-                <span className="w-7 h-7 rounded-full bg-gradient-to-r from-amber-400 to-amber-500 text-white flex items-center justify-center font-black text-xs shadow-sm">
-                  👑
-                </span>
-              );
-              rowBgClass = "bg-gradient-to-r from-amber-50/70 via-amber-50/30 to-white border-amber-200/80 shadow-sm";
-            } else if (player.rank === 2) {
-              rankBadge = (
-                <span className="w-7 h-7 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-black text-xs border border-slate-300">
-                  2
-                </span>
-              );
-              rowBgClass = "bg-gradient-to-r from-slate-50/70 via-slate-50/30 to-white border-slate-200";
-            } else if (player.rank === 3) {
-              rankBadge = (
-                <span className="w-7 h-7 rounded-full bg-orange-100 text-orange-800 flex items-center justify-center font-black text-xs border border-orange-200">
-                  3
-                </span>
-              );
-              rowBgClass = "bg-gradient-to-r from-orange-50/70 via-orange-50/30 to-white border-orange-200/80";
-            } else {
-              rankBadge = (
-                <span className="w-7 h-7 rounded-full bg-zinc-100 text-zinc-600 flex items-center justify-center font-black text-xs border border-zinc-200">
-                  {player.rank}
-                </span>
-              );
-            }
+          if (player.rank === 1) {
+            rankBadge = (
+              <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-amber-50 text-amber-600 flex items-center justify-center text-xs shrink-0 border border-amber-200">
+                🥇
+              </span>
+            );
+            rowBgClass = "bg-amber-50/25 border-amber-200/80";
+          } else if (player.rank === 2) {
+            rankBadge = (
+              <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center text-xs shrink-0 border border-slate-300">
+                🥈
+              </span>
+            );
+            rowBgClass = "bg-slate-50/50 border-slate-200";
+          } else if (player.rank === 3) {
+            rankBadge = (
+              <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-orange-50 text-orange-700 flex items-center justify-center text-xs shrink-0 border border-orange-200">
+                🥉
+              </span>
+            );
+            rowBgClass = "bg-orange-50/20 border-orange-200/70";
+          } else {
+            rankBadge = (
+              <span className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-[11px] border border-slate-200 shrink-0">
+                #{player.rank}
+              </span>
+            );
+          }
 
-            if (isCurrentPlayer) {
-              rowBgClass += " ring-2 ring-brand-blue border-brand-blue shadow-md";
-            }
+          if (isCurrentPlayer) {
+            rowBgClass += " ring-1.5 ring-blue-500 bg-blue-50/40 border-blue-300 font-semibold";
+          }
 
-            return (
-              <motion.div
-                key={player.id}
-                layout
-                initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: -10 }}
-                transition={{
-                  layout: { type: "spring", stiffness: 350, damping: 28 },
-                  opacity: { duration: 0.25 }
-                }}
-                className={`p-3.5 sm:p-4 rounded-xl border flex items-center justify-between gap-3 ${rowBgClass}`}
-              >
-                {/* Left Rank & User Info */}
-                <div className="flex items-center space-x-3 truncate">
-                  {rankBadge}
+          return (
+            <motion.div
+              key={player.id}
+              layout
+              transition={{
+                type: "spring",
+                stiffness: 320,
+                damping: 26,
+                mass: 0.6
+              }}
+              className={`p-2 px-2.5 rounded-lg border flex items-center justify-between gap-2 transition-colors duration-300 ${rowBgClass}`}
+            >
+              {/* Left: Rank & Player Identity */}
+              <div className="flex items-center space-x-2 min-w-0 flex-1 truncate">
+                {rankBadge}
 
-                  <div className="truncate text-left">
-                    <div className="flex items-center gap-1.5 truncate">
-                      <span className="font-extrabold text-xs sm:text-sm text-brand-textMain truncate">
-                        {player.name}
+                <div className="min-w-0 flex-1 truncate text-left">
+                  <div className="flex items-center gap-1.5 truncate">
+                    <span className="font-bold text-xs sm:text-sm text-slate-900 truncate block">
+                      {player.name}
+                    </span>
+
+                    {/* Current Player Pill */}
+                    {isCurrentPlayer && (
+                      <span className="text-[8.5px] font-black uppercase tracking-wider bg-blue-600 text-white px-1.5 py-0.2 rounded shrink-0">
+                        YOU
                       </span>
-                      {player.is_authenticated ? (
-                        <span className="inline-flex items-center text-[8px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded" title="Verified Student (Eligible for Global Leaderboard)">
-                          ✓ Verified
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center text-[8px] font-medium text-slate-400 bg-slate-100 px-1.5 py-0.2 rounded" title="Guest Player">
-                          Guest
-                        </span>
-                      )}
-                      {isCurrentPlayer && (
-                        <span className="text-[9px] font-black uppercase tracking-wider bg-brand-blue text-white px-2 py-0.5 rounded">
-                          You
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[10px] font-medium text-brand-textMuted truncate">
-                      {player.college || 'PRPCEM Campus'}
-                    </p>
+                    )}
                   </div>
                 </div>
+              </div>
 
-                {/* Right Rank Delta & Points */}
-                <div className="flex items-center space-x-3 flex-shrink-0">
-                  {/* Delta Badge */}
-                  {player.isNew ? (
-                    <motion.span
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      className="inline-flex items-center gap-1 bg-purple-50 text-purple-700 border border-purple-200 text-[9px] font-black uppercase px-2 py-0.5 rounded-full animate-bounce"
-                    >
-                      <Sparkles size={10} />
-                      <span>NEW</span>
-                    </motion.span>
-                  ) : player.delta > 0 ? (
-                    <motion.span
-                      initial={{ scale: 0.8 }}
-                      animate={{ scale: [1, 1.25, 1] }}
-                      transition={{ duration: 0.5 }}
-                      className="inline-flex items-center gap-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-black px-2 py-0.5 rounded-full"
-                    >
-                      <TrendingUp size={11} />
-                      <span>+{player.delta}</span>
-                    </motion.span>
-                  ) : player.delta < 0 ? (
-                    <motion.span
-                      initial={{ scale: 0.8 }}
-                      animate={{ scale: 1 }}
-                      className="inline-flex items-center gap-0.5 bg-rose-50 text-rose-700 border border-rose-200 text-[10px] font-black px-2 py-0.5 rounded-full"
-                    >
-                      <TrendingDown size={11} />
-                      <span>{player.delta}</span>
-                    </motion.span>
-                  ) : (
-                    <span className="inline-flex items-center gap-0.5 bg-slate-50 text-slate-500 border border-slate-200 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                      <Minus size={10} />
-                    </span>
-                  )}
+              {/* Right: Delta Indicator & Score Capsule */}
+              <div className="flex items-center space-x-1.5 shrink-0">
+                {/* Delta Badge */}
+                {player.isNew ? (
+                  <span className="inline-flex items-center gap-0.5 bg-purple-50 text-purple-700 border border-purple-200 text-[8.5px] font-bold uppercase px-1.5 py-0.5 rounded-md">
+                    <Sparkles size={9} />
+                    <span>NEW</span>
+                  </span>
+                ) : player.delta > 0 ? (
+                  <span className="inline-flex items-center gap-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[9.5px] font-bold px-1.5 py-0.5 rounded-md">
+                    <TrendingUp size={10} />
+                    <span>+{player.delta}</span>
+                  </span>
+                ) : player.delta < 0 ? (
+                  <span className="inline-flex items-center gap-0.5 bg-rose-50 text-rose-700 border border-rose-200 text-[9.5px] font-bold px-1.5 py-0.5 rounded-md">
+                    <TrendingDown size={10} />
+                    <span>{player.delta}</span>
+                  </span>
+                ) : (
+                  <span className="text-slate-300 text-xs px-1 select-none hidden sm:inline">—</span>
+                )}
 
-                  {/* Score Capsule */}
-                  <motion.span
-                    key={player.score}
-                    initial={{ scale: 1.15 }}
-                    animate={{ scale: 1 }}
-                    transition={{ duration: 0.3 }}
-                    className="font-extrabold text-xs sm:text-sm text-brand-blue bg-brand-lightBlue border border-brand-blue/15 px-3 py-1 rounded-full whitespace-nowrap shadow-xs"
-                  >
-                    {player.score} <span className="text-[9px] font-bold text-brand-textMuted uppercase">pts</span>
-                  </motion.span>
-                </div>
-              </motion.div>
-            );
-          })}
-        </AnimatePresence>
-      </motion.div>
+                {/* Score Capsule */}
+                <span className="font-mono font-bold text-xs text-blue-700 bg-blue-50 border border-blue-200/70 px-2 py-0.5 rounded-md whitespace-nowrap shadow-2xs">
+                  {player.score} <span className="text-[9px] font-medium text-slate-400 uppercase">pts</span>
+                </span>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
 
       {/* ── LIVE SCORING & DIFFICULTY MATRIX MODAL ── */}
       {showMatrixModal && (

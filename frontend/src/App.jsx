@@ -47,6 +47,7 @@ import AdminUsers from './pages/AdminUsers';
 import EventRegister from './pages/EventRegister';
 import SqlPractice from './pages/SqlPractice';
 import SqlCourseHub from './pages/SqlCourseHub';
+import LeaderboardPreview from './pages/LeaderboardPreview';
 import NotFound from './pages/NotFound';
 
 class ErrorBoundary extends React.Component {
@@ -137,6 +138,7 @@ export default function App() {
                 <Route path="/results" element={<Results />} />
                 <Route path="/results/:participantId" element={<Results />} />
                 <Route path="/leaderboard" element={<Navigate to="/courses" replace />} />
+                <Route path="/leaderboard-preview" element={<LeaderboardPreview />} />
                 <Route path="/courses/sql" element={<SqlCourseHub />} />
                 <Route path="/courses/sql/:tab" element={<SqlCourseHub />} />
                 <Route path="/sql" element={<SqlCourseHub />} />

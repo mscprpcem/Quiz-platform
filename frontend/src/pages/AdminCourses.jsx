@@ -519,11 +519,11 @@ export default function AdminCourses() {
                       <>
                         <div className="space-y-4">
                           <div className="flex items-start justify-between">
-                            <div className="w-14 h-14 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center p-2.5 shadow-2xs group-hover:scale-105 transition-transform">
+                            <div className="w-14 h-14 rounded-2xl bg-white border border-slate-200 flex items-center justify-center p-1.5 shadow-2xs group-hover:scale-105 transition-transform overflow-hidden">
                               <img
                                 src={resolveCourseImage(course.imageSrc)}
                                 alt={course.title}
-                                className="w-full h-full object-contain"
+                                className="w-full h-full object-contain rounded-xl"
                                 onError={(e) => {
                                   e.target.onerror = null;
                                   e.target.src = '/logo.png';
@@ -997,11 +997,11 @@ export default function AdminCourses() {
                     </div>
 
                     <div className="flex flex-col sm:flex-row items-center gap-5 pt-1">
-                      <div className="w-20 h-20 rounded-2xl bg-white border border-slate-200 flex items-center justify-center p-3 shadow-2xs flex-shrink-0">
+                      <div className="w-20 h-20 rounded-2xl bg-white border border-slate-200 flex items-center justify-center p-2 shadow-2xs flex-shrink-0 overflow-hidden">
                         <img
                           src={resolveCourseImage(courseForm.imageSrc)}
                           alt="Technology Icon"
-                          className="w-full h-full object-contain"
+                          className="w-full h-full object-contain rounded-xl"
                           onError={(e) => {
                             e.target.onerror = null;
                             e.target.src = '/logo.png';

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   BookOpen, Copy, Check, Table, CheckCircle2, ChevronRight,
-  ChevronUp, ChevronDown, ArrowRight, ArrowLeft, Lightbulb, Code2, Menu, X,
+  ChevronUp, ChevronDown, ArrowRight, ArrowLeft, Lightbulb, Code2, Menu, X, Maximize2,
   Server, Layers, ShieldCheck, Database, AlertTriangle, Shield, Zap, FileText,
   Download, ExternalLink, Laptop, Clock, Sparkles
 } from 'lucide-react';
@@ -16,6 +16,8 @@ import ChapterComingSoon from '../components/learn/ChapterComingSoon';
 import ComparisonTable from '../components/learn/ComparisonTable';
 import DdlQuestionsBank from '../components/learn/DdlQuestionsBank';
 import DmlQuestionsBank from '../components/learn/DmlQuestionsBank';
+import FilteringQuestionsBank from '../components/learn/FilteringQuestionsBank';
+import NullLogicGuide from '../components/learn/NullLogicGuide';
 
 /**
  * SQL Syntax Colorizer
@@ -179,6 +181,15 @@ export default function SqlLearningView({
 }) {
   const [copiedSection, setCopiedSection] = useState(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [selectedZoomImage, setSelectedZoomImage] = useState(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setSelectedZoomImage(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Active topic state (defaults to top-01-01)
   const [currentActiveTopicId, setCurrentActiveTopicId] = useState(selectedTopicId || 'top-01-01');
@@ -495,6 +506,8 @@ export default function SqlLearningView({
             <div className="w-full max-w-7xl mx-auto px-6 sm:px-10 py-8">
               {topicData.questionBankType === 'dml' ? (
                 <DmlQuestionsBank onJumpToPractice={onJumpToPractice} />
+              ) : topicData.questionBankType === 'filtering' ? (
+                <FilteringQuestionsBank onJumpToPractice={onJumpToPractice} />
               ) : (
                 <DdlQuestionsBank onJumpToPractice={onJumpToPractice} />
               )}
@@ -556,9 +569,13 @@ export default function SqlLearningView({
                 </header>
               </div>
 
-              {/* 2. INFOGRAPHIC IMAGE SHOWCASE (FIGURE) */}
-              {topicData.infographicImage && (
-                <figure className="space-y-2.5 my-6">
+              {/* 2. CUSTOM INTERACTIVE CODE COMPONENT OR INFOGRAPHIC IMAGE */}
+              {(topicData.customComponent === 'NullLogicGuide' || topicData.id === 'top-05-04') ? (
+                <section className="my-8 animate-fadeIn">
+                  <NullLogicGuide />
+                </section>
+              ) : topicData.infographicImage ? (
+                <figure className="space-y-3 my-8">
                   <div className="flex items-center justify-between pb-1">
                     <div className="flex items-center space-x-2 text-slate-800">
                       <BookOpen size={16} className="text-blue-600" />
@@ -566,17 +583,39 @@ export default function SqlLearningView({
                         {topicData.infographicTitle || 'Visual Architecture & Flow Diagram'}
                       </span>
                     </div>
-                    <span className="text-[11px] font-bold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-100">
-                      Visual Guide
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedZoomImage(topicData.infographicImage)}
+                        className="text-[11px] font-bold text-slate-600 hover:text-blue-600 bg-slate-100 hover:bg-blue-50 px-2.5 py-1 rounded-full border border-slate-200 hover:border-blue-200 transition-all flex items-center space-x-1 cursor-pointer"
+                        title="Click to view full screen"
+                      >
+                        <Maximize2 size={12} />
+                        <span>Zoom</span>
+                      </button>
+                      <span className="text-[11px] font-bold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-100">
+                        Visual Guide
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="rounded-2xl overflow-hidden border border-slate-200 shadow-xs bg-slate-50">
+                  {/* Seamless Card - perfectly matching image dimensions with zero letterbox padding */}
+                  <div 
+                    onClick={() => setSelectedZoomImage(topicData.infographicImage)}
+                    className="w-full rounded-2xl overflow-hidden border border-slate-200/90 shadow-sm bg-white relative group cursor-zoom-in transition-all duration-300 hover:shadow-md hover:border-blue-300"
+                  >
                     <img
                       src={topicData.infographicImage}
-                      alt={topicData.infographicTitle}
-                      className="w-full h-auto object-contain max-h-[520px] mx-auto hover:scale-[1.01] transition-transform duration-300"
+                      alt={topicData.infographicTitle || 'Visual Architecture & Flow Diagram'}
+                      className="w-full h-auto block rounded-2xl transition-transform duration-300 group-hover:scale-[1.006]"
+                      loading="lazy"
                     />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors pointer-events-none rounded-2xl flex items-center justify-center">
+                      <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900/85 text-white text-xs font-bold px-3.5 py-1.5 rounded-xl backdrop-blur-xs flex items-center space-x-1.5 shadow-lg">
+                        <Maximize2 size={13} />
+                        <span>Click to expand full size</span>
+                      </span>
+                    </div>
                   </div>
 
                   {topicData.infographicCaption && (
@@ -585,7 +624,7 @@ export default function SqlLearningView({
                     </figcaption>
                   )}
                 </figure>
-              )}
+              ) : null}
 
               {/* 3. ARCHITECTURAL COMPARISON MATRIX (Generic & Dynamic) */}
               {topicData.comparisonTable && (
@@ -1325,6 +1364,35 @@ export default function SqlLearningView({
                   </div>
                 );
               })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* FULLSCREEN IMAGE LIGHTBOX MODAL */}
+      {selectedZoomImage && (
+        <div 
+          className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4 sm:p-8 animate-fadeIn"
+          onClick={() => setSelectedZoomImage(null)}
+        >
+          <div className="relative max-w-6xl max-h-[90vh] w-full flex flex-col items-center" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              onClick={() => setSelectedZoomImage(null)}
+              className="absolute -top-11 right-0 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer shadow-lg"
+              title="Close (ESC)"
+            >
+              <X size={20} />
+            </button>
+            <div className="rounded-2xl overflow-hidden border border-white/20 shadow-2xl bg-slate-900 w-full max-h-[85vh] flex items-center justify-center p-1">
+              <img
+                src={selectedZoomImage}
+                alt="Enlarged Visual Guide"
+                className="max-w-full max-h-[83vh] w-auto h-auto object-contain rounded-xl"
+              />
+            </div>
+            <div className="text-slate-400 text-xs font-medium mt-3">
+              Click anywhere outside or press ESC to close
             </div>
           </div>
         </div>

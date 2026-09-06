@@ -109,6 +109,7 @@ export default function SqlCourseHub() {
     } else if (modeName === 'learn') {
       navigate('/courses/sql/learn');
     } else if (modeName === 'practice') {
+      setSelectedChallengeIndex(null);
       navigate('/courses/sql/practice');
     } else if (modeName === 'roadmap') {
       navigate('/courses/sql/roadmap');
@@ -174,8 +175,8 @@ export default function SqlCourseHub() {
   const [selectedTopicId, setSelectedTopicId] = useState('top-01-01');
   const [learnSearch, setLearnSearch] = useState('');
 
-  // Practice Mode Navigation
-  const [selectedChallengeIndex, setSelectedChallengeIndex] = useState(0);
+  // Practice Mode Navigation (Defaults to null so user lands on LeetCode Problemset view)
+  const [selectedChallengeIndex, setSelectedChallengeIndex] = useState(null);
   const [practiceSearch, setPracticeSearch] = useState('');
   const [practiceDifficulty, setPracticeDifficulty] = useState('all');
   const [schemaViewTab, setSchemaViewTab] = useState('data'); // 'data' | 'structure'

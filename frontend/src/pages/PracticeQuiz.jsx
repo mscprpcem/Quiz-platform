@@ -4,7 +4,8 @@ import {
   Play, RotateCcw, Clock, Trophy, Award, CheckCircle, 
   HelpCircle, ArrowRight, ArrowLeft, ShieldCheck, ChevronRight, 
   ChevronLeft, Sparkles, BookOpen, Code, Database, Globe, 
-  Cpu, Layers, Target, CheckSquare, Flag, Share2, Download, AlertCircle, XCircle
+  Cpu, Layers, Target, CheckSquare, Flag, Share2, Download, AlertCircle, XCircle,
+  ExternalLink, AlertTriangle
 } from 'lucide-react';
 import { normalizeSelection, toggleOptionInSelection, requestAppFullscreen } from '../utils/fullscreen';
 import { useAuth } from '../context/AuthContext';

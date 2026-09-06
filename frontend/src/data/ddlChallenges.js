@@ -111,18 +111,17 @@ export const DDL_CHALLENGES = [
 **Scenario**: You are onboarding as a Junior Database Administrator for an educational network. The administration requires a dedicated, isolated database container to house all academic records, student enrollments, faculty profiles, and classroom scheduling.
 
 **Task Requirements**:
-- Write a standard DDL command to create a new database catalog named **\`school_db\`**.
+- Create a new database catalog named **\`school_db\`**.
 - Ensure the syntax is compliant with standard relational database management systems.
 
-*Note: In production RDBMS like MySQL and PostgreSQL, \`CREATE DATABASE\` allocates dedicated catalog metadata and storage space.*
+*Note: Creating a database allocates dedicated catalog metadata and storage space in relational database systems.*
     `,
     setupSql: '',
-    starterSql: `-- Write DDL command to create school_db
-CREATE DATABASE school_db;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `CREATE DATABASE school_db;`,
     checkOrder: false,
     hints: [
-      'Use the `CREATE DATABASE` statement followed by the database name: `CREATE DATABASE school_db;`'
+      'Think about which SQL statement initializes a new database catalog.'
     ],
     explanation: `
 \`CREATE DATABASE db_name;\` is an initial DDL statement that establishes a new logical database instance within the RDBMS server. DDL statements are auto-committed immediately.
@@ -144,12 +143,11 @@ CREATE DATABASE school_db;`,
 - Write the SQL command to switch your active database connection context to **\`school_db\`**.
     `,
     setupSql: '',
-    starterSql: `-- Switch session context to school_db
-USE school_db;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `USE school_db;`,
     checkOrder: false,
     hints: [
-      'In SQL, use the `USE` keyword followed by the database name: `USE school_db;`'
+      'Think about which command sets the active working database for the session.'
     ],
     explanation: `
 The \`USE database_name;\` statement sets the default schema namespace for all subsequent queries and DDL operations executed within that connection session.
@@ -179,13 +177,7 @@ The \`USE database_name;\` statement sets the default schema namespace for all s
 - Write a DDL statement to create the **\`students\`** table matching the exact specifications above.
     `,
     setupSql: '',
-    starterSql: `-- Create the students table
-CREATE TABLE students (
-  student_id INTEGER PRIMARY KEY,
-  name VARCHAR(50) NOT NULL,
-  age INTEGER,
-  city VARCHAR(50)
-);`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `
 CREATE TABLE students (
   student_id INTEGER PRIMARY KEY,
@@ -224,12 +216,7 @@ CREATE TABLE students (
 - Write a DDL statement to construct the **\`teachers\`** table with all primary key and not-null constraints.
     `,
     setupSql: '',
-    starterSql: `-- Create the teachers table
-CREATE TABLE teachers (
-  teacher_id INTEGER PRIMARY KEY,
-  name VARCHAR(50) NOT NULL,
-  subject VARCHAR(50) NOT NULL
-);`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `
 CREATE TABLE teachers (
   teacher_id INTEGER PRIMARY KEY,
@@ -263,14 +250,10 @@ Ensures that no instructor profile can be inserted without an explicit name and 
 | **class_name** | VARCHAR(50) | NOT NULL | Title of the academic division |
 
 **Task Requirements**:
-- Write a \`CREATE TABLE\` query to initialize the **\`classes\`** table.
+- Create the **\`classes\`** table with the required attributes and constraints.
     `,
     setupSql: '',
-    starterSql: `-- Create the classes table
-CREATE TABLE classes (
-  class_id INTEGER PRIMARY KEY,
-  class_name VARCHAR(50) NOT NULL
-);`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `
 CREATE TABLE classes (
   class_id INTEGER PRIMARY KEY,
@@ -278,7 +261,7 @@ CREATE TABLE classes (
 );`,
     checkOrder: false,
     hints: [
-      'Use `CREATE TABLE classes (class_id INT PRIMARY KEY, class_name VARCHAR(50) NOT NULL);`'
+      'Declare primary key and not-null constraints alongside column types.'
     ],
     explanation: `
 Creates the normalized lookup entity for organizing school divisions and grade sections.
@@ -300,17 +283,15 @@ Creates the normalized lookup entity for organizing school divisions and grade s
 **Scenario**: The university is launching an automated email notification system for exam grades and announcements. The current **\`students\`** table does not have an electronic mail field.
 
 **Task Requirements**:
-- Use the \`ALTER TABLE\` DDL command to expand the **\`students\`** schema.
 - Add an **\`email\`** column of type **\`VARCHAR(100)\`**.
 - Existing student records must remain intact.
     `,
     setupSql: DDL_SCHEMAS.schoolBase,
-    starterSql: `-- Add email column to students
-ALTER TABLE students ADD COLUMN email VARCHAR(100);`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE students ADD COLUMN email VARCHAR(100);`,
     checkOrder: false,
     hints: [
-      'Syntax: `ALTER TABLE table_name ADD COLUMN column_name datatype;`'
+      'Think about which SQL DDL statement alters an existing table structure to introduce a new attribute.'
     ],
     explanation: `
 \`ALTER TABLE ... ADD COLUMN\` updates the table metadata schema in-place without requiring table drop or data migration.
@@ -329,15 +310,14 @@ ALTER TABLE students ADD COLUMN email VARCHAR(100);`,
 **Scenario**: For emergency SMS alerts and parental verification, the administration requires storing mobile numbers for all enrolled students.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` query to add a **\`phone\`** column of type **\`VARCHAR(20)\`** to the **\`students\`** table.
+- Add a **\`phone\`** column of type **\`VARCHAR(20)\`** to the **\`students\`** table.
     `,
     setupSql: DDL_SCHEMAS.schoolBase,
-    starterSql: `-- Add phone to students
-ALTER TABLE students ADD COLUMN phone VARCHAR(20);`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE students ADD COLUMN phone VARCHAR(20);`,
     checkOrder: false,
     hints: [
-      'Use `ALTER TABLE students ADD COLUMN phone VARCHAR(20);`'
+      'Consider how to modify the table structure to introduce the new column.'
     ],
     explanation: `
 Adds telephone contact metadata to existing student records.
@@ -356,15 +336,14 @@ Adds telephone contact metadata to existing student records.
 **Scenario**: The accounting department is integrating faculty payroll into the central database. You must modify the **\`teachers\`** table to support monetary compensation values.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` statement to add a **\`salary\`** column of type **\`INTEGER\`** (or numeric) to the **\`teachers\`** table.
+- Add a **\`salary\`** column of type **\`INTEGER\`** to the **\`teachers\`** table.
     `,
     setupSql: DDL_SCHEMAS.schoolBase,
-    starterSql: `-- Add salary to teachers
-ALTER TABLE teachers ADD COLUMN salary INTEGER;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE teachers ADD COLUMN salary INTEGER;`,
     checkOrder: false,
     hints: [
-      'Use `ALTER TABLE teachers ADD COLUMN salary INTEGER;`'
+      'Consider how to expand an existing table with an additional numeric column.'
     ],
     explanation: `
 Integrates financial compensation attributes into the faculty entity.
@@ -383,15 +362,14 @@ Integrates financial compensation attributes into the faculty entity.
 **Scenario**: To determine senior professorship eligibility, HR needs to log the total years of pedagogical experience for each instructor.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` statement to add an **\`experience\`** column of type **\`INTEGER\`** to the **\`teachers\`** table.
+- Add an **\`experience\`** column of type **\`INTEGER\`** to the **\`teachers\`** table.
     `,
     setupSql: DDL_SCHEMAS.schoolBase,
-    starterSql: `-- Add experience to teachers
-ALTER TABLE teachers ADD COLUMN experience INTEGER;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE teachers ADD COLUMN experience INTEGER;`,
     checkOrder: false,
     hints: [
-      'Use `ALTER TABLE teachers ADD COLUMN experience INTEGER;`'
+      'Specify the new column name and integer type on the teachers relation.'
     ],
     explanation: `
 Expands the faculty table with tenure information for appraisal reviews.
@@ -410,15 +388,14 @@ Expands the faculty table with tenure information for appraisal reviews.
 **Scenario**: Facilities management requires mapping each academic class division to its physical campus lecture hall or laboratory room.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` query to add a **\`room_no\`** column of type **\`VARCHAR(10)\`** to the **\`classes\`** table.
+- Add a **\`room_no\`** column of type **\`VARCHAR(10)\`** to the **\`classes\`** table.
     `,
     setupSql: DDL_SCHEMAS.schoolBase,
-    starterSql: `-- Add room_no to classes
-ALTER TABLE classes ADD COLUMN room_no VARCHAR(10);`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE classes ADD COLUMN room_no VARCHAR(10);`,
     checkOrder: false,
     hints: [
-      'Use `ALTER TABLE classes ADD COLUMN room_no VARCHAR(10);`'
+      'Add the new VARCHAR column to the classes relation.'
     ],
     explanation: `
 Associates physical classroom numbers with academic class divisions.
@@ -443,12 +420,11 @@ Associates physical classroom numbers with academic class divisions.
 - Write a DDL statement to modify the datatype of the **\`age\`** column in the **\`students\`** table to **\`SMALLINT\`**.
     `,
     setupSql: DDL_SCHEMAS.schoolBase,
-    starterSql: `-- Modify age column datatype
-ALTER TABLE students MODIFY COLUMN age SMALLINT;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE students MODIFY COLUMN age SMALLINT;`,
     checkOrder: false,
     hints: [
-      'Standard syntax: `ALTER TABLE students MODIFY COLUMN age SMALLINT;`'
+      'Think about how to alter a column\'s data type on an existing relation.'
     ],
     explanation: `
 \`MODIFY COLUMN\` alters the physical storage format of an existing column. \`SMALLINT\` conserves memory footprint while safely accommodating all valid human ages.
@@ -467,15 +443,14 @@ ALTER TABLE students MODIFY COLUMN age SMALLINT;`,
 **Scenario**: Several incoming international students have combined multi-word surnames and patronymics exceeding the current 50-character limit of the **\`name\`** column in the **\`students\`** table.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` query to expand the capacity of the **\`name\`** column to **\`VARCHAR(100)\`**.
+- Expand the capacity of the **\`name\`** column to **\`VARCHAR(100)\`** in the **\`students\`** table.
     `,
     setupSql: DDL_SCHEMAS.schoolBase,
-    starterSql: `-- Increase name column length
-ALTER TABLE students MODIFY COLUMN name VARCHAR(100);`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE students MODIFY COLUMN name VARCHAR(100);`,
     checkOrder: false,
     hints: [
-      'Use `ALTER TABLE students MODIFY COLUMN name VARCHAR(100);`'
+      'Consider how to update the data type definition of an existing column.'
     ],
     explanation: `
 Increasing the length of a variable-length character field is an online metadata alteration that accommodates longer text without truncating existing rows.
@@ -494,15 +469,14 @@ Increasing the length of a variable-length character field is an online metadata
 **Scenario**: The **\`phone\`** column in the **\`students\`** table needs to support country dial codes (e.g. \`+91-9876543210\`) and extension numbers.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` statement to ensure the **\`phone\`** column uses **\`VARCHAR(20)\`**.
+- Modify the **\`phone\`** column in the **\`students\`** table to use **\`VARCHAR(20)\`**.
     `,
     setupSql: DDL_SCHEMAS.studentsWithExtraCols,
-    starterSql: `-- Modify phone column
-ALTER TABLE students MODIFY COLUMN phone VARCHAR(20);`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE students MODIFY COLUMN phone VARCHAR(20);`,
     checkOrder: false,
     hints: [
-      'Use `ALTER TABLE students MODIFY COLUMN phone VARCHAR(20);`'
+      'Alter the column specification to VARCHAR(20).'
     ],
     explanation: `
 Phone numbers must always use character datatypes rather than integers to preserve leading zeroes and country code formatting symbols.
@@ -521,15 +495,14 @@ Phone numbers must always use character datatypes rather than integers to preser
 **Scenario**: To support institutional enterprise payroll scaling and multi-year pension totals, the financial director requested upgrading the **\`salary\`** column in **\`teachers\`** to a 64-bit integer.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` statement to modify the **\`salary\`** column in the **\`teachers\`** table to **\`BIGINT\`**.
+- Modify the **\`salary\`** column in the **\`teachers\`** table to **\`BIGINT\`**.
     `,
     setupSql: DDL_SCHEMAS.studentsWithExtraCols,
-    starterSql: `-- Change salary to BIGINT
-ALTER TABLE teachers MODIFY COLUMN salary BIGINT;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE teachers MODIFY COLUMN salary BIGINT;`,
     checkOrder: false,
     hints: [
-      'Use `ALTER TABLE teachers MODIFY COLUMN salary BIGINT;`'
+      'Update the data type of the salary column on the teachers table.'
     ],
     explanation: `
 Upgrading to \`BIGINT\` safeguards against arithmetic overflow when aggregating multi-million dollar institutional payroll budgets.
@@ -548,15 +521,14 @@ Upgrading to \`BIGINT\` safeguards against arithmetic overflow when aggregating 
 **Scenario**: New interdisciplinary courses such as *"Quantum Cryptography & Distributed Systems"* exceed 50 characters in length.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` query to expand the **\`subject\`** column in the **\`teachers\`** table to **\`VARCHAR(100)\`**.
+- Expand the **\`subject\`** column in the **\`teachers\`** table to **\`VARCHAR(100)\`**.
     `,
     setupSql: DDL_SCHEMAS.schoolBase,
-    starterSql: `-- Increase subject column size
-ALTER TABLE teachers MODIFY COLUMN subject VARCHAR(100);`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE teachers MODIFY COLUMN subject VARCHAR(100);`,
     checkOrder: false,
     hints: [
-      'Use `ALTER TABLE teachers MODIFY COLUMN subject VARCHAR(100);`'
+      'Alter the subject column definition on the teachers table.'
     ],
     explanation: `
 Accommodates detailed curriculum specialization names without data truncation.
@@ -578,15 +550,14 @@ Accommodates detailed curriculum specialization names without data truncation.
 **Scenario**: To adhere to corporate enterprise naming standards, the database architecture committee requested replacing generic terms with standardized schema attributes.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` statement to rename the column **\`city\`** to **\`location\`** in the **\`students\`** table.
+- Rename the column **\`city\`** to **\`location\`** in the **\`students\`** table.
     `,
     setupSql: DDL_SCHEMAS.schoolBase,
-    starterSql: `-- Rename column
-ALTER TABLE students RENAME COLUMN city TO location;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE students RENAME COLUMN city TO location;`,
     checkOrder: false,
     hints: [
-      'Syntax: `ALTER TABLE table_name RENAME COLUMN old_name TO new_name;`'
+      'Think about how to rename an attribute within a table relation.'
     ],
     explanation: `
 \`RENAME COLUMN\` updates the column dictionary identifier without touching row data pages or requiring an expensive table rebuild.
@@ -605,15 +576,14 @@ ALTER TABLE students RENAME COLUMN city TO location;`,
 **Scenario**: When joining **\`students\`** and **\`teachers\`**, both tables possessing a column named \`name\` creates ambiguity in queries and reporting scripts.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` query to rename the column **\`name\`** to **\`student_name\`** in the **\`students\`** table.
+- Rename the column **\`name\`** to **\`student_name\`** in the **\`students\`** table.
     `,
     setupSql: DDL_SCHEMAS.schoolBase,
-    starterSql: `-- Rename name to student_name
-ALTER TABLE students RENAME COLUMN name TO student_name;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE students RENAME COLUMN name TO student_name;`,
     checkOrder: false,
     hints: [
-      'Use `ALTER TABLE students RENAME COLUMN name TO student_name;`'
+      'Specify the old column name and the new column name on the students relation.'
     ],
     explanation: `
 Self-descriptive column identifiers eliminate ambiguity in multi-table queries and reporting dashboards.
@@ -632,15 +602,14 @@ Self-descriptive column identifiers eliminate ambiguity in multi-table queries a
 **Scenario**: In parallel with the student schema refactor, the faculty table column must also be explicitly named to distinguish teachers from students.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` statement to rename the column **\`name\`** to **\`teacher_name\`** in the **\`teachers\`** table.
+- Rename the column **\`name\`** to **\`teacher_name\`** in the **\`teachers\`** table.
     `,
     setupSql: DDL_SCHEMAS.schoolBase,
-    starterSql: `-- Rename name to teacher_name
-ALTER TABLE teachers RENAME COLUMN name TO teacher_name;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE teachers RENAME COLUMN name TO teacher_name;`,
     checkOrder: false,
     hints: [
-      'Use `ALTER TABLE teachers RENAME COLUMN name TO teacher_name;`'
+      'Specify the old column name and the target column name.'
     ],
     explanation: `
 Refactors the faculty name attribute to match standard relational conventions.
@@ -659,15 +628,14 @@ Refactors the faculty name attribute to match standard relational conventions.
 **Scenario**: Developers requested eliminating abbreviations across database tables to simplify automated ORM object generation in the backend.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` query to rename the column **\`room_no\`** to **\`room_number\`** in the **\`classes\`** table.
+- Rename the column **\`room_no\`** to **\`room_number\`** in the **\`classes\`** table.
     `,
     setupSql: DDL_SCHEMAS.studentsWithExtraCols,
-    starterSql: `-- Rename room_no to room_number
-ALTER TABLE classes RENAME COLUMN room_no TO room_number;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE classes RENAME COLUMN room_no TO room_number;`,
     checkOrder: false,
     hints: [
-      'Use `ALTER TABLE classes RENAME COLUMN room_no TO room_number;`'
+      'Update the column identifier on the classes relation.'
     ],
     explanation: `
 Expands abbreviated identifiers to canonical full-word schema terms.
@@ -686,15 +654,14 @@ Expands abbreviated identifiers to canonical full-word schema terms.
 **Scenario**: Some users mistakenly logged experience in months rather than years. To enforce clarity, the column name must specify the measurement unit.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` statement to rename the column **\`experience\`** to **\`years_of_experience\`** in the **\`teachers\`** table.
+- Rename the column **\`experience\`** to **\`years_of_experience\`** in the **\`teachers\`** table.
     `,
     setupSql: DDL_SCHEMAS.studentsWithExtraCols,
-    starterSql: `-- Rename experience to years_of_experience
-ALTER TABLE teachers RENAME COLUMN experience TO years_of_experience;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE teachers RENAME COLUMN experience TO years_of_experience;`,
     checkOrder: false,
     hints: [
-      'Use `ALTER TABLE teachers RENAME COLUMN experience TO years_of_experience;`'
+      'Rename the attribute on the teachers table.'
     ],
     explanation: `
 Embedding units of measurement directly in column names prevents human data entry confusion.
@@ -716,15 +683,14 @@ Embedding units of measurement directly in column names prevents human data entr
 **Scenario**: Following GDPR and student data privacy regulations, student email communications have been migrated to a centralized single sign-on authentication service. The local **\`email\`** column in **\`students\`** is deprecated and must be permanently erased.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` DDL query to permanently remove the **\`email\`** column from the **\`students\`** table.
+- Permanently remove the **\`email\`** column from the **\`students\`** table.
     `,
     setupSql: DDL_SCHEMAS.studentsWithExtraCols,
-    starterSql: `-- Drop email column
-ALTER TABLE students DROP COLUMN email;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE students DROP COLUMN email;`,
     checkOrder: false,
     hints: [
-      'Syntax: `ALTER TABLE table_name DROP COLUMN column_name;`'
+      'Think about how to remove an unwanted column from an existing table structure.'
     ],
     explanation: `
 \`DROP COLUMN\` permanently removes the field definition and data content from all rows in the relation.
@@ -743,15 +709,14 @@ ALTER TABLE students DROP COLUMN email;`,
 **Scenario**: Student phone numbers have been moved to a normalized guardian contact table.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` query to drop the **\`phone\`** column from the **\`students\`** table.
+- Remove the **\`phone\`** column from the **\`students\`** table.
     `,
     setupSql: DDL_SCHEMAS.studentsWithExtraCols,
-    starterSql: `-- Drop phone column
-ALTER TABLE students DROP COLUMN phone;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE students DROP COLUMN phone;`,
     checkOrder: false,
     hints: [
-      'Use `ALTER TABLE students DROP COLUMN phone;`'
+      'Consider which clause removes a column definition from a table relation.'
     ],
     explanation: `
 Removes redundant phone contact data from the core student entity.
@@ -770,15 +735,14 @@ Removes redundant phone contact data from the core student entity.
 **Scenario**: For security and strict role-based access control, faculty salary information must not be visible in general academic lookup tables.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` query to drop the **\`salary\`** column from the **\`teachers\`** table.
+- Remove the **\`salary\`** column from the **\`teachers\`** table.
     `,
     setupSql: DDL_SCHEMAS.studentsWithExtraCols,
-    starterSql: `-- Drop salary column
-ALTER TABLE teachers DROP COLUMN salary;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE teachers DROP COLUMN salary;`,
     checkOrder: false,
     hints: [
-      'Use `ALTER TABLE teachers DROP COLUMN salary;`'
+      'Remove the specified attribute from the teachers table.'
     ],
     explanation: `
 Decouples sensitive financial compensation from general faculty academic directories.
@@ -797,15 +761,14 @@ Decouples sensitive financial compensation from general faculty academic directo
 **Scenario**: Classroom assignments are now handled dynamically on a daily basis in a separate room scheduling table.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` query to drop the **\`room_number\`** column from the **\`classes\`** table.
+- Remove the **\`room_number\`** column from the **\`classes\`** table.
     `,
     setupSql: DDL_SCHEMAS.studentsWithExtraCols,
-    starterSql: `-- Drop room_number column
-ALTER TABLE classes DROP COLUMN room_number;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE classes DROP COLUMN room_number;`,
     checkOrder: false,
     hints: [
-      'Use `ALTER TABLE classes DROP COLUMN room_number;`'
+      'Remove the room_number attribute from the classes table.'
     ],
     explanation: `
 Eliminates static room allocations to support flexible daily schedule assignments.
@@ -824,7 +787,7 @@ Eliminates static room allocations to support flexible daily schedule assignment
 **Scenario**: Experience is now computed dynamically from \`hire_date\`. The static **\`years_of_experience\`** column is redundant.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` query to drop the **\`years_of_experience\`** column from the **\`teachers\`** table.
+- Remove the **\`years_of_experience\`** column from the **\`teachers\`** table.
     `,
     setupSql: `
       CREATE TABLE teachers (
@@ -834,12 +797,11 @@ Eliminates static room allocations to support flexible daily schedule assignment
         years_of_experience INTEGER
       );
     `,
-    starterSql: `-- Drop years_of_experience
-ALTER TABLE teachers DROP COLUMN years_of_experience;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE teachers DROP COLUMN years_of_experience;`,
     checkOrder: false,
     hints: [
-      'Use `ALTER TABLE teachers DROP COLUMN years_of_experience;`'
+      'Remove the column from the faculty table.'
     ],
     explanation: `
 Removes statically computed columns in favor of dynamic date-based calculations.
@@ -861,15 +823,14 @@ Removes statically computed columns in favor of dynamic date-based calculations.
 **Scenario**: To prevent table name collisions with newly integrated college departments, prefix all secondary school entities with \`school_\`.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` statement to rename the table **\`students\`** to **\`school_students\`**.
+- Rename the table **\`students\`** to **\`school_students\`**.
     `,
     setupSql: DDL_SCHEMAS.schoolBase,
-    starterSql: `-- Rename table
-ALTER TABLE students RENAME TO school_students;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE students RENAME TO school_students;`,
     checkOrder: false,
     hints: [
-      'Syntax: `ALTER TABLE old_table_name RENAME TO new_table_name;`'
+      'Think about how to change the name of an existing table entity in the schema.'
     ],
     explanation: `
 \`RENAME TO\` updates the relation reference in the catalog without moving or modifying data rows.
@@ -888,15 +849,14 @@ ALTER TABLE students RENAME TO school_students;`,
 **Scenario**: Prefix the faculty entity with the institutional domain identifier.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` query to rename the **\`teachers\`** table to **\`school_teachers\`**.
+- Rename the **\`teachers\`** table to **\`school_teachers\`**.
     `,
     setupSql: DDL_SCHEMAS.schoolBase,
-    starterSql: `-- Rename teachers table
-ALTER TABLE teachers RENAME TO school_teachers;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE teachers RENAME TO school_teachers;`,
     checkOrder: false,
     hints: [
-      'Use `ALTER TABLE teachers RENAME TO school_teachers;`'
+      'Rename the table entity to its target name.'
     ],
     explanation: `
 Renames the faculty table namespace.
@@ -915,15 +875,14 @@ Renames the faculty table namespace.
 **Scenario**: Continue the institutional domain prefix refactoring for classroom divisions.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` query to rename the **\`classes\`** table to **\`school_classes\`**.
+- Rename the **\`classes\`** table to **\`school_classes\`**.
     `,
     setupSql: DDL_SCHEMAS.schoolBase,
-    starterSql: `-- Rename classes table
-ALTER TABLE classes RENAME TO school_classes;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE classes RENAME TO school_classes;`,
     checkOrder: false,
     hints: [
-      'Use `ALTER TABLE classes RENAME TO school_classes;`'
+      'Rename the classes table to school_classes.'
     ],
     explanation: `
 Standardizes table naming for classes.
@@ -942,15 +901,14 @@ Standardizes table naming for classes.
 **Scenario**: The data architecture team decided that entity tables should end with \`_info\` for clarity in data warehousing pipelines.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` query to rename **\`school_students\`** to **\`students_info\`**.
+- Rename **\`school_students\`** to **\`students_info\`**.
     `,
     setupSql: DDL_SCHEMAS.renamedTables,
-    starterSql: `-- Rename to students_info
-ALTER TABLE school_students RENAME TO students_info;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE school_students RENAME TO students_info;`,
     checkOrder: false,
     hints: [
-      'Use `ALTER TABLE school_students RENAME TO students_info;`'
+      'Rename the entity to students_info.'
     ],
     explanation: `
 Refactors the entity name to students_info.
@@ -969,15 +927,14 @@ Refactors the entity name to students_info.
 **Scenario**: Match the faculty table naming with the new warehouse naming standard.
 
 **Task Requirements**:
-- Write an \`ALTER TABLE\` query to rename **\`school_teachers\`** to **\`teachers_info\`**.
+- Rename **\`school_teachers\`** to **\`teachers_info\`**.
     `,
     setupSql: DDL_SCHEMAS.renamedTables,
-    starterSql: `-- Rename to teachers_info
-ALTER TABLE school_teachers RENAME TO teachers_info;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `ALTER TABLE school_teachers RENAME TO teachers_info;`,
     checkOrder: false,
     hints: [
-      'Use `ALTER TABLE school_teachers RENAME TO teachers_info;`'
+      'Rename the entity to teachers_info.'
     ],
     explanation: `
 Updates table naming to teachers_info.
@@ -1002,12 +959,11 @@ Updates table naming to teachers_info.
 - Write the standard DDL command to instantly remove all records from **\`students_info\`** while preserving the table schema.
     `,
     setupSql: DDL_SCHEMAS.renamedTables,
-    starterSql: `-- Remove all records instantly
-TRUNCATE TABLE students_info;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `DELETE FROM students_info;`,
     checkOrder: false,
     hints: [
-      'In standard SQL: `TRUNCATE TABLE students_info;` (In SQLite: `DELETE FROM students_info;`).'
+      'Consider the operation that wipes all table data in constant time while preserving structure.'
     ],
     explanation: `
 \`TRUNCATE TABLE\` is a DDL operation that deallocates entire data storage pages. It is significantly faster than row-by-row \`DELETE\` and automatically resets identity sequences.
@@ -1029,12 +985,11 @@ TRUNCATE TABLE students_info;`,
 - Write a statement to truncate all records from **\`teachers_info\`**.
     `,
     setupSql: DDL_SCHEMAS.renamedTables,
-    starterSql: `-- Truncate teachers_info
-TRUNCATE TABLE teachers_info;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `DELETE FROM teachers_info;`,
     checkOrder: false,
     hints: [
-      'Use `TRUNCATE TABLE teachers_info;` or `DELETE FROM teachers_info;`.'
+      'Think about how to empty a table completely without removing the schema.'
     ],
     explanation: `
 Empties faculty records while preserving table columns and constraints.
@@ -1056,12 +1011,11 @@ Empties faculty records while preserving table columns and constraints.
 - Write a query to truncate all records from the **\`school_classes\`** table.
     `,
     setupSql: DDL_SCHEMAS.renamedTables,
-    starterSql: `-- Truncate school_classes
-TRUNCATE TABLE school_classes;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `DELETE FROM school_classes;`,
     checkOrder: false,
     hints: [
-      'Use `TRUNCATE TABLE school_classes;` or `DELETE FROM school_classes;`.'
+      'Wipe all rows while keeping the table definition ready for new entries.'
     ],
     explanation: `
 Wipes out all classroom assignment rows.
@@ -1083,12 +1037,11 @@ Wipes out all classroom assignment rows.
 - Execute the command to truncate **\`students_info\`** again to verify that truncating an already empty table completes successfully.
     `,
     setupSql: DDL_SCHEMAS.renamedTables,
-    starterSql: `-- Truncate students_info again
-TRUNCATE TABLE students_info;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `DELETE FROM students_info;`,
     checkOrder: false,
     hints: [
-      'Use `TRUNCATE TABLE students_info;` or `DELETE FROM students_info;`.'
+      'Run the data-clearing statement on the table.'
     ],
     explanation: `
 Demonstrates that truncating empty tables safely resets high-water marks and identity seeds.
@@ -1110,8 +1063,7 @@ Demonstrates that truncating empty tables safely resets high-water marks and ide
 - Write the command to truncate **\`teachers_info\`** again.
     `,
     setupSql: DDL_SCHEMAS.renamedTables,
-    starterSql: `-- Truncate teachers_info again
-TRUNCATE TABLE teachers_info;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `DELETE FROM teachers_info;`,
     checkOrder: false,
     hints: [
@@ -1140,12 +1092,11 @@ Confirms consistency in table lifecycle management.
 - Write a DDL statement to permanently drop the **\`students_info\`** table, its schema definition, and all associated indexes.
     `,
     setupSql: DDL_SCHEMAS.renamedTables,
-    starterSql: `-- Drop students_info table
-DROP TABLE students_info;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `DROP TABLE students_info;`,
     checkOrder: false,
     hints: [
-      'Use `DROP TABLE students_info;`'
+      'Think about how to completely erase a table definition from the schema catalog.'
     ],
     explanation: `
 \`DROP TABLE\` removes the table definition, data records, triggers, and secondary indexes permanently from the database data dictionary.
@@ -1167,12 +1118,11 @@ DROP TABLE students_info;`,
 - Write a DDL query to permanently drop the **\`teachers_info\`** table.
     `,
     setupSql: DDL_SCHEMAS.renamedTables,
-    starterSql: `-- Drop teachers_info table
-DROP TABLE teachers_info;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `DROP TABLE teachers_info;`,
     checkOrder: false,
     hints: [
-      'Use `DROP TABLE teachers_info;`'
+      'Completely erase the teachers_info table and its structure.'
     ],
     explanation: `
 Permanently drops the teachers_info relation.
@@ -1194,12 +1144,11 @@ Permanently drops the teachers_info relation.
 - Write a DDL statement to drop the **\`school_classes\`** table.
     `,
     setupSql: DDL_SCHEMAS.renamedTables,
-    starterSql: `-- Drop school_classes table
-DROP TABLE school_classes;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `DROP TABLE school_classes;`,
     checkOrder: false,
     hints: [
-      'Use `DROP TABLE school_classes;`'
+      'Remove the school_classes table definition from the catalog.'
     ],
     explanation: `
 Drops the school_classes relation.
@@ -1221,12 +1170,11 @@ Drops the school_classes relation.
 - Write a DDL query to safely drop the table **\`classes\`** only if it currently exists in the schema.
     `,
     setupSql: DDL_SCHEMAS.schoolBase,
-    starterSql: `-- Drop classes if exists
-DROP TABLE IF EXISTS classes;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `DROP TABLE IF EXISTS classes;`,
     checkOrder: false,
     hints: [
-      'Use `DROP TABLE IF EXISTS classes;`'
+      'Consider which clause prevents errors if the table does not exist.'
     ],
     explanation: `
 \`IF EXISTS\` checks the database catalog first. If the table is missing, the command completes with a notice rather than halting execution with a fatal error.
@@ -1248,12 +1196,11 @@ DROP TABLE IF EXISTS classes;`,
 - Write a safe DDL query to drop the **\`students\`** table if it exists.
     `,
     setupSql: DDL_SCHEMAS.schoolBase,
-    starterSql: `-- Drop students if exists
-DROP TABLE IF EXISTS students;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `DROP TABLE IF EXISTS students;`,
     checkOrder: false,
     hints: [
-      'Use `DROP TABLE IF EXISTS students;`'
+      'Use the conditional existence check clause when dropping.'
     ],
     explanation: `
 Safely removes the students table without crashing deployment pipelines if already removed.
@@ -1278,12 +1225,11 @@ Safely removes the students table without crashing deployment pipelines if alrea
 - Write the DDL statement to permanently delete the **\`school_db\`** database and all tables contained within it.
     `,
     setupSql: '',
-    starterSql: `-- Drop school_db database
-DROP DATABASE school_db;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `DROP DATABASE school_db;`,
     checkOrder: false,
     hints: [
-      'Use `DROP DATABASE school_db;`'
+      'Think about how to remove an entire database catalog.'
     ],
     explanation: `
 \`DROP DATABASE\` deletes all data files, tables, indexes, and catalog metadata associated with the database instance.
@@ -1305,12 +1251,11 @@ DROP DATABASE school_db;`,
 - Write a DDL statement to create a new database catalog named **\`office_db\`**.
     `,
     setupSql: '',
-    starterSql: `-- Create office_db
-CREATE DATABASE office_db;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `CREATE DATABASE office_db;`,
     checkOrder: false,
     hints: [
-      'Use `CREATE DATABASE office_db;`'
+      'Recall how to create a new database catalog.'
     ],
     explanation: `
 Allocates a new relational database named office_db.
@@ -1332,12 +1277,11 @@ Allocates a new relational database named office_db.
 - Write the DDL statement to permanently drop **\`office_db\`**.
     `,
     setupSql: '',
-    starterSql: `-- Drop office_db
-DROP DATABASE office_db;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `DROP DATABASE office_db;`,
     checkOrder: false,
     hints: [
-      'Use `DROP DATABASE office_db;`'
+      'Remove the specified database from the server.'
     ],
     explanation: `
 Removes the office_db database.
@@ -1359,12 +1303,11 @@ Removes the office_db database.
 - Write a query to create a testing database named **\`test_db\`**.
     `,
     setupSql: '',
-    starterSql: `-- Create test_db
-CREATE DATABASE test_db;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `CREATE DATABASE test_db;`,
     checkOrder: false,
     hints: [
-      'Use `CREATE DATABASE test_db;`'
+      'Create the specified database.'
     ],
     explanation: `
 Creates test_db for staging and automated unit testing.
@@ -1386,12 +1329,11 @@ Creates test_db for staging and automated unit testing.
 - Write the statement to permanently drop **\`test_db\`**.
     `,
     setupSql: '',
-    starterSql: `-- Drop test_db
-DROP DATABASE test_db;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `DROP DATABASE test_db;`,
     checkOrder: false,
     hints: [
-      'Use `DROP DATABASE test_db;`'
+      'Remove the test database.'
     ],
     explanation: `
 Cleans up the testing database after test suites complete.
@@ -1419,12 +1361,11 @@ Candidates often confuse \`DROP DATABASE\` with \`DROP TABLE\`. If you wish to d
 - Write the exact DDL statement to remove the **\`students\`** table while keeping the database intact.
     `,
     setupSql: DDL_SCHEMAS.schoolBase,
-    starterSql: `-- Write DDL command
-DROP TABLE students;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `DROP TABLE students;`,
     checkOrder: false,
     hints: [
-      'Use `DROP TABLE students;` (NOT DROP DATABASE).'
+      'Differentiate between table deletion and database deletion.'
     ],
     explanation: `
 \`DROP TABLE\` removes the relation entry from the catalog dictionary while leaving the database container and all other sibling tables intact.
@@ -1449,12 +1390,11 @@ A common placement interview trap tests if a candidate knows the distinction bet
 - Write the DDL statement to clear all records from **\`students\`** while retaining the structure intact.
     `,
     setupSql: DDL_SCHEMAS.schoolBase,
-    starterSql: `-- Clear data but preserve structure
-TRUNCATE TABLE students;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `DELETE FROM students;`,
     checkOrder: false,
     hints: [
-      'Use `TRUNCATE TABLE students;` (or in SQLite: `DELETE FROM students;`).'
+      'Differentiate between dropping a table and clearing its data contents.'
     ],
     explanation: `
 \`TRUNCATE TABLE\` purges all row entries instantaneously without modifying the table's structural definition in the schema catalog.
@@ -1481,8 +1421,7 @@ TRUNCATE TABLE students;`,
 - Demonstrate clearing the **\`students\`** table using the high-performance DDL method.
     `,
     setupSql: DDL_SCHEMAS.schoolBase,
-    starterSql: `-- Choose the faster operation
-TRUNCATE TABLE students;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `DELETE FROM students;`,
     checkOrder: false,
     hints: [
@@ -1511,12 +1450,11 @@ In enterprise relational databases, any DDL statement (\`CREATE\`, \`ALTER\`, \`
 - Demonstrate permanently removing the **\`students\`** table using DDL.
     `,
     setupSql: DDL_SCHEMAS.schoolBase,
-    starterSql: `-- DDL command that cannot be rolled back
-DROP TABLE students;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `DROP TABLE students;`,
     checkOrder: false,
     hints: [
-      'Use `DROP TABLE students;`'
+      'Think about which structural command triggers an implicit commit.'
     ],
     explanation: `
 DDL commands alter metadata catalogs and trigger automatic transaction commits. Therefore, a subsequent \`ROLLBACK\` cannot restore dropped tables or columns in standard MySQL/Oracle configurations.
@@ -1541,8 +1479,7 @@ A complete database drop is a catastrophic, unrecoverable action without externa
 - Write the command to permanently delete the **\`school_db\`** database.
     `,
     setupSql: '',
-    starterSql: `-- Permanently delete database
-DROP DATABASE school_db;`,
+    starterSql: `-- Write your SQL statement below\n`,
     expectedSql: `DROP DATABASE school_db;`,
     checkOrder: false,
     hints: [

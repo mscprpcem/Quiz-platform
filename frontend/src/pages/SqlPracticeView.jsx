@@ -6,7 +6,8 @@ import {
   HelpCircle, Copy, Check, Terminal, Search, Filter, ShieldCheck, CheckSquare,
   ArrowUpRight, Flame, BarChart3, RefreshCw, X, GripVertical, GripHorizontal,
   Send, FileText, CheckCircle, Settings, Sliders, AlignLeft, EyeOff, LayoutGrid,
-  Columns, GitCompare, CheckCheck, CircleAlert, Monitor, Smartphone, Tablet, Target
+  Columns, GitCompare, CheckCheck, CircleAlert, Monitor, Smartphone, Tablet, Target,
+  Shuffle, Gauge
 } from 'lucide-react';
 import { SQL_CHALLENGES } from '../data/sqlChallenges';
 import { executeSqlQuery, validateChallengeWithTestcases, getTablesPreview } from '../services/sqlEngine';
@@ -19,6 +20,21 @@ function getCleanCategoryName(title) {
   if (!title) return 'General';
   const cleaned = title.replace(/^(\d+\.|\d+\)|\bModule\s*\d+:?)\s*/i, '').trim();
   
+  if (cleaned.toLowerCase().includes('day 4') || cleaned.toLowerCase().includes('advanced filtering')) {
+    return 'Day 4: Advanced Filtering';
+  }
+  if (cleaned.toLowerCase().includes('drop')) {
+    return 'DROP Operations';
+  }
+  if (cleaned.toLowerCase().includes('alter') || cleaned.toLowerCase().includes('modify') || cleaned.toLowerCase().includes('add column') || cleaned.toLowerCase().includes('rename')) {
+    return 'Table Schema';
+  }
+  if (cleaned.toLowerCase().includes('truncate')) {
+    return 'Table Cleanup';
+  }
+  if (cleaned.toLowerCase().includes('create table')) {
+    return 'Table Creation';
+  }
   if (cleaned.toLowerCase().includes('filtering') || cleaned.toLowerCase().includes('sorting')) {
     return 'Filtering & Sorting';
   }
@@ -50,7 +66,7 @@ function getCleanCategoryName(title) {
     return 'Interview Challenges';
   }
   if (cleaned.toLowerCase().startsWith('section ')) {
-    return cleaned.replace(/^section\s+[a-z]:\s*/i, '');
+    return cleaned.replace(/^section\s+[a-z]:\s*/i, '').replace(/^(ALTER|CREATE|DROP|TRUNCATE)\s*–?\s*/i, '');
   }
   return cleaned;
 }
@@ -137,6 +153,135 @@ function ToggleSwitch({ checked, onChange, label }) {
         }}
       />
     </button>
+  );
+}
+
+/**
+ * Conceptual Tag Sanitizer
+ * Replaces exact SQL solution commands with conceptual topic names to avoid giving away solutions.
+ */
+function cleanTagForDisplay(rawTag) {
+  if (!rawTag) return '';
+  const tag = String(rawTag).trim();
+  const lower = tag.toLowerCase();
+
+  // Pattern Matching
+  if (lower === 'like' || lower === 'not like' || lower.includes('wildcard') || lower.includes('prefix')) return 'Pattern';
+
+  // Range & Membership
+  if (lower === 'in' || lower === 'not in') return 'Set';
+  if (lower === 'between' || lower === 'not between') return 'Range';
+
+  // Nulls
+  if (lower === 'is null' || lower === 'is not null' || lower.includes('null')) return 'Null';
+
+  // DDL Commands
+  if (lower.includes('alter') || lower.includes('modify')) return 'Alter';
+  if (lower.includes('rename')) return 'Rename';
+  if (lower.includes('drop')) return 'Drop';
+  if (lower.includes('create')) return 'Create';
+  if (lower.includes('truncate')) return 'Truncate';
+
+  // DML Commands
+  if (lower === 'insert') return 'Insert';
+  if (lower === 'update') return 'Update';
+  if (lower === 'delete') return 'Delete';
+  if (lower === 'select') return 'Select';
+
+  // Joins & Aggregations
+  if (lower.includes('join')) return 'Join';
+  if (lower === 'group by' || lower === 'having') return 'Group';
+  if (lower === 'order by') return 'Sort';
+  if (lower.includes('count') || lower.includes('sum') || lower.includes('avg') || lower.includes('agg')) return 'Agg';
+
+  // Clean abbreviations
+  if (lower === 'ddl' || lower === 'dml') return tag.toUpperCase();
+
+  // Shorten multi-word tags to max 1-2 words
+  const words = tag.split(/[\s_-]+/);
+  if (words.length > 2) {
+    return words.slice(0, 2).join(' ');
+  }
+  return tag;
+}
+
+/**
+ * Modern Custom Theme Dropdown
+ * Replaces native browser select with sleek themed dropdown menu
+ */
+function CustomDropdown({ value, onChange, options, icon: Icon, placeholder = 'Select...' }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const selectedOption = options.find((opt) => opt.value === value) || options[0];
+
+  return (
+    <div className="relative inline-block text-left" ref={dropdownRef}>
+      <button
+        type="button"
+        onClick={() => setIsOpen((prev) => !prev)}
+        className={`px-3 py-2 bg-slate-50 hover:bg-white border rounded-xl text-xs font-bold text-slate-700 hover:text-slate-900 focus:outline-none focus:border-blue-500 focus:bg-white shadow-2xs flex items-center justify-between gap-2.5 transition-all cursor-pointer min-w-[135px] ${
+          isOpen ? 'border-blue-500 ring-2 ring-blue-500/20 bg-white' : 'border-slate-200'
+        }`}
+      >
+        <div className="flex items-center gap-2 truncate">
+          {Icon && <Icon size={13} className="text-slate-400 shrink-0" />}
+          {selectedOption?.badgeColor && (
+            <span className={`w-2 h-2 rounded-full ${selectedOption.badgeColor} shrink-0`} />
+          )}
+          <span className="truncate">{selectedOption?.label || placeholder}</span>
+        </div>
+        <ChevronDown
+          size={12}
+          className={`text-slate-400 shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180 text-blue-600' : ''}`}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="absolute right-0 mt-1.5 w-48 bg-white border border-slate-200/90 rounded-2xl shadow-xl z-50 p-1.5 animate-in fade-in zoom-in-95 duration-100">
+          <div className="space-y-0.5">
+            {options.map((opt) => {
+              const isSelected = opt.value === value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => {
+                    onChange(opt.value);
+                    setIsOpen(false);
+                  }}
+                  className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${
+                    isSelected
+                      ? 'bg-blue-50 text-blue-700 font-black'
+                      : 'text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {opt.badgeColor && <span className={`w-2 h-2 rounded-full ${opt.badgeColor}`} />}
+                    <span>{opt.label}</span>
+                  </div>
+                  {isSelected && <Check size={13} className="text-blue-600 shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -322,15 +467,25 @@ export default function SqlPracticeView({
   onJumpToLearn,
   initialChallengeIndex = null
 }) {
-  // View mode: 'solve' (Dedicated LeetCode solve workspace with Problems drawer)
-  const [viewMode, setViewMode] = useState('solve');
+  // View mode: 'list' (LeetCode Problemset with Progress Card) | 'solve' (Solve Workspace)
+  const [viewMode, setViewMode] = useState(() => {
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('challenge') || urlParams.get('id') || urlParams.get('challengeId')) {
+        return 'solve';
+      }
+    } catch (_) {}
+    return initialChallengeIndex !== null ? 'solve' : 'list';
+  });
   const [selectedChallengeIndex, setSelectedChallengeIndex] = useState(() => (initialChallengeIndex !== null && initialChallengeIndex >= 0 ? initialChallengeIndex : 0));
 
   // Filters for Problemset List
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDifficulty, setSelectedDifficulty] = useState('all'); // 'all' | 'basic' | 'easy' | 'medium' | 'hard'
+  const [selectedDifficulty, setSelectedDifficulty] = useState('all'); // 'all' | 'basic' | 'medium' | 'hard'
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState('all'); // 'all' | 'solved' | 'unsolved'
+  const [jumpInput, setJumpInput] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
 
   // LeetCode Resizable Splitter State (for Desktop viewports >= 1024px)
   const [leftWidthPercent, setLeftWidthPercent] = useState(46); // Default 46% left pane, 54% right pane
@@ -394,11 +549,24 @@ export default function SqlPracticeView({
       return saved ? JSON.parse(saved) : {
         schemaOnlyMode: false, // Hide sample data rows, show only table structure
         hideHints: false,       // Hide problem hints
+        hideTags: false,        // Hide problem tags (anti-spoiler)
+        hideDifficulty: false,  // Hide difficulty indicators
+        compactView: false,     // Compact table row view
+        itemsPerPage: 50,       // 50, 100, or All
         fontSize: '13',         // 12, 13, 14, 16
         autoUppercase: true     // Auto format keywords
       };
     } catch {
-      return { schemaOnlyMode: false, hideHints: false, fontSize: '13', autoUppercase: true };
+      return {
+        schemaOnlyMode: false,
+        hideHints: false,
+        hideTags: false,
+        hideDifficulty: false,
+        compactView: false,
+        itemsPerPage: 50,
+        fontSize: '13',
+        autoUppercase: true
+      };
     }
   });
 
@@ -538,6 +706,7 @@ export default function SqlPracticeView({
 
   const handleOpenChallenge = (index) => {
     setSelectedChallengeIndex(index);
+    setViewMode('solve');
     setShowDrawer(false);
     // On mobile, start on the problem description
     if (typeof window !== 'undefined' && window.innerWidth < 1024) {
@@ -704,6 +873,1068 @@ export default function SqlPracticeView({
     });
   }, [drawerSearch, drawerTrackFilter, drawerLevelFilter, drawerDdlFilter, drawerDmlFilter]);
 
+  // ── LEETCODE PROGRESS DASHBOARD COMPUTATIONS ──
+  const solvedCount = solvedChallenges.length;
+  const overallPercent = totalCount > 0 ? Math.round((solvedCount / totalCount) * 100) : 0;
+
+  const basicEasyChallenges = useMemo(() =>
+    SQL_CHALLENGES.filter(c => ['basic', 'easy'].includes((c.difficulty || '').toLowerCase())),
+    []
+  );
+  const mediumChallenges = useMemo(() =>
+    SQL_CHALLENGES.filter(c => ['medium', 'intermediate'].includes((c.difficulty || '').toLowerCase())),
+    []
+  );
+  const hardChallenges = useMemo(() =>
+    SQL_CHALLENGES.filter(c => ['hard', 'expert', 'extreme'].includes((c.difficulty || '').toLowerCase())),
+    []
+  );
+
+  const solvedEasy = useMemo(() =>
+    basicEasyChallenges.filter(c => solvedChallenges.includes(c.id)).length,
+    [basicEasyChallenges, solvedChallenges]
+  );
+  const solvedMedium = useMemo(() =>
+    mediumChallenges.filter(c => solvedChallenges.includes(c.id)).length,
+    [mediumChallenges, solvedChallenges]
+  );
+  const solvedHard = useMemo(() =>
+    hardChallenges.filter(c => solvedChallenges.includes(c.id)).length,
+    [hardChallenges, solvedChallenges]
+  );
+
+  const easyPercent = basicEasyChallenges.length > 0 ? Math.round((solvedEasy / basicEasyChallenges.length) * 100) : 0;
+  const mediumPercent = mediumChallenges.length > 0 ? Math.round((solvedMedium / mediumChallenges.length) * 100) : 0;
+  const hardPercent = hardChallenges.length > 0 ? Math.round((solvedHard / hardChallenges.length) * 100) : 0;
+
+
+  const handlePickRandom = () => {
+    const unsolved = SQL_CHALLENGES.map((c, i) => ({ ...c, originalIndex: i })).filter(c => !solvedChallenges.includes(c.id));
+    const pool = unsolved.length > 0 ? unsolved : SQL_CHALLENGES.map((c, i) => ({ ...c, originalIndex: i }));
+    const randomCh = pool[Math.floor(Math.random() * pool.length)];
+    handleOpenChallenge(randomCh.originalIndex);
+  };
+
+  const problemsetList = useMemo(() => {
+    return SQL_CHALLENGES.map((c, i) => ({ ...c, originalIndex: i })).filter((c) => {
+      // Category Filter
+      if (selectedCategory !== 'all') {
+        const cleanCat = getCleanCategoryName(c.moduleTitle);
+        if (selectedCategory === 'DROP Operations') {
+          const isDrop = cleanCat === 'DROP Operations' ||
+            (c.title || '').toLowerCase().includes('drop') ||
+            (c.expectedSql || '').toLowerCase().includes('drop') ||
+            (c.tags || []).some(t => t.toLowerCase().includes('drop'));
+          if (!isDrop) return false;
+        } else if (cleanCat !== selectedCategory) {
+          return false;
+        }
+      }
+
+      // Difficulty Filter
+      if (selectedDifficulty !== 'all') {
+        const diff = (c.difficulty || 'Easy').toLowerCase();
+        if (selectedDifficulty === 'basic') {
+          if (diff !== 'basic') return false;
+        } else if (selectedDifficulty === 'easy') {
+          if (diff !== 'easy') return false;
+        } else if (selectedDifficulty === 'medium') {
+          if (!['medium', 'intermediate'].includes(diff) && !diff.includes('med')) return false;
+        } else if (selectedDifficulty === 'hard') {
+          if (!['hard', 'expert', 'extreme', 'advanced'].includes(diff) && !diff.includes('hard') && !diff.includes('adv')) return false;
+        }
+      }
+
+      // Status Filter
+      const isSolved = solvedChallenges.includes(c.id);
+      if (selectedStatus === 'solved' && !isSolved) return false;
+      if (selectedStatus === 'unsolved' && isSolved) return false;
+
+      // Search Filter (supports title, module, tags, ID, description, SQL, and question number e.g. "1", "117", "#117")
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const qNum = String(c.originalIndex + 1);
+        const cleanedQ = q.replace(/^#|^q\s*/i, '').trim();
+        if (cleanedQ && qNum === cleanedQ) return true;
+
+        const matchTitle = c.title.toLowerCase().includes(q);
+        const matchModule = c.moduleTitle?.toLowerCase().includes(q);
+        const matchTag = (c.tags || []).some(t => t.toLowerCase().includes(q));
+        const matchId = c.id.toLowerCase().includes(q);
+        const matchDesc = (c.description || '').toLowerCase().includes(q);
+        const matchSql = (c.expectedSql || '').toLowerCase().includes(q);
+        return matchTitle || matchModule || matchTag || matchId || matchDesc || matchSql;
+      }
+
+      return true;
+    });
+  }, [selectedCategory, selectedDifficulty, selectedStatus, searchQuery, solvedChallenges]);
+
+  // Pagination Computations (strictly 50 questions per page)
+  const itemsPerPage = 50;
+  const totalPages = Math.max(1, Math.ceil(problemsetList.length / itemsPerPage));
+  const validCurrentPage = Math.min(currentPage, totalPages);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, selectedDifficulty, selectedStatus, searchQuery]);
+
+  const paginatedProblems = useMemo(() => {
+    if (itemsPerPage >= problemsetList.length) return problemsetList;
+    const start = (validCurrentPage - 1) * itemsPerPage;
+    return problemsetList.slice(start, start + itemsPerPage);
+  }, [problemsetList, validCurrentPage]);
+
+  // Dynamic pagination numbers: < 1 2 3 if 4 present then 4 or .. last and keep showing 3 only
+  const paginationItems = useMemo(() => {
+    if (totalPages <= 4) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    // If more than 4 pages: keep showing 3 pages, then '...', then the last page
+    if (validCurrentPage <= 2) {
+      return [1, 2, 3, '...', totalPages];
+    }
+    if (validCurrentPage >= totalPages - 1) {
+      return [1, '...', totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [validCurrentPage - 1, validCurrentPage, validCurrentPage + 1, '...', totalPages];
+  }, [totalPages, validCurrentPage]);
+
+  // ── SETTINGS MODAL COMPONENT (RENDERABLE IN BOTH VIEWS) ──
+  const renderSettingsModal = () => (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div
+        onClick={() => setShowSettingsModal(false)}
+        className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
+      />
+
+      {/* Modal Container */}
+      <div className="relative w-full max-w-[520px] bg-white rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden z-10 flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150">
+        
+        {/* Header */}
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+          <div className="flex items-center space-x-3">
+            <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0 shadow-2xs">
+              <Sliders size={18} />
+            </div>
+            <div>
+              <h3 className="text-sm font-black text-slate-900 leading-tight">Preferences & Settings</h3>
+              <p className="text-[11.5px] text-slate-500 font-medium">Configure practice rules, anti-spoiler tags, and display</p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowSettingsModal(false)}
+            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+            title="Close"
+          >
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Segmented Tabs Navigation Bar */}
+        <div className="px-5 pt-3 pb-1 bg-white shrink-0">
+          <div className="grid grid-cols-3 gap-1 bg-slate-100/80 p-1 rounded-xl border border-slate-200/70">
+            <button
+              type="button"
+              onClick={() => setSettingsActiveTab('practice')}
+              className={`py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
+                settingsActiveTab === 'practice'
+                  ? 'bg-white text-blue-600 font-black shadow-xs border border-slate-200/60'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              <Target size={13} className={settingsActiveTab === 'practice' ? 'text-blue-600' : 'text-slate-400'} />
+              <span>Practice</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSettingsActiveTab('editor')}
+              className={`py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
+                settingsActiveTab === 'editor'
+                  ? 'bg-white text-blue-600 font-black shadow-xs border border-slate-200/60'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              <Code2 size={13} className={settingsActiveTab === 'editor' ? 'text-blue-600' : 'text-slate-400'} />
+              <span>Editor</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSettingsActiveTab('engine')}
+              className={`py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
+                settingsActiveTab === 'engine'
+                  ? 'bg-white text-blue-600 font-black shadow-xs border border-slate-200/60'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              <Database size={13} className={settingsActiveTab === 'engine' ? 'text-blue-600' : 'text-slate-400'} />
+              <span>Engine</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Content Body */}
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 text-xs">
+          
+          {/* TAB 1: PRACTICE RULES & ANTI-SPOILER */}
+          {settingsActiveTab === 'practice' && (
+            <div className="space-y-3">
+              
+              {/* Hide Tags (Anti-Spoiler Mode) */}
+              <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80 flex items-start justify-between gap-3 hover:border-slate-300 transition-colors">
+                <div className="space-y-1 pr-2">
+                  <div className="flex items-center space-x-1.5 font-black text-slate-900 text-xs">
+                    <EyeOff size={14} className="text-amber-600" />
+                    <span>Hide Problem Tags (Anti-Spoiler)</span>
+                  </div>
+                  <p className="text-[11.5px] text-slate-500 leading-relaxed">
+                    Hides topic tags and query clauses so you think through query syntax on your own.
+                  </p>
+                </div>
+                <ToggleSwitch
+                  checked={settings.hideTags}
+                  onChange={() => updateSetting('hideTags', !settings.hideTags)}
+                  label="Toggle Hide Tags"
+                />
+              </div>
+
+              {/* Hide Difficulty (Mock Interview Mode) */}
+              <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80 flex items-start justify-between gap-3 hover:border-slate-300 transition-colors">
+                <div className="space-y-1 pr-2">
+                  <div className="flex items-center space-x-1.5 font-black text-slate-900 text-xs">
+                    <Target size={14} className="text-purple-600" />
+                    <span>Hide Difficulty Ratings</span>
+                  </div>
+                  <p className="text-[11.5px] text-slate-500 leading-relaxed">
+                    Masks Easy, Medium, and Hard badges for real-world blind coding assessments.
+                  </p>
+                </div>
+                <ToggleSwitch
+                  checked={settings.hideDifficulty}
+                  onChange={() => updateSetting('hideDifficulty', !settings.hideDifficulty)}
+                  label="Toggle Hide Difficulty"
+                />
+              </div>
+
+              {/* Compact Row Density */}
+              <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80 flex items-start justify-between gap-3 hover:border-slate-300 transition-colors">
+                <div className="space-y-1 pr-2">
+                  <div className="flex items-center space-x-1.5 font-black text-slate-900 text-xs">
+                    <AlignLeft size={14} className="text-slate-600" />
+                    <span>Compact Table Row Density</span>
+                  </div>
+                  <p className="text-[11.5px] text-slate-500 leading-relaxed">
+                    Reduces vertical padding in the problemset list to view more questions per screen.
+                  </p>
+                </div>
+                <ToggleSwitch
+                  checked={settings.compactView}
+                  onChange={() => updateSetting('compactView', !settings.compactView)}
+                  label="Toggle Compact View"
+                />
+              </div>
+
+
+
+              {/* Schema-Only Mode */}
+              <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80 flex items-start justify-between gap-3 hover:border-slate-300 transition-colors">
+                <div className="space-y-1 pr-2">
+                  <div className="flex items-center space-x-1.5 font-black text-slate-900 text-xs">
+                    <EyeOff size={14} className="text-blue-600" />
+                    <span>Schema-Only Mode (Hide Data)</span>
+                  </div>
+                  <p className="text-[11.5px] text-slate-500 leading-relaxed">
+                    Hides sample data rows and displays only column definitions and data types.
+                  </p>
+                </div>
+                <ToggleSwitch
+                  checked={settings.schemaOnlyMode}
+                  onChange={() => updateSetting('schemaOnlyMode', !settings.schemaOnlyMode)}
+                  label="Toggle Schema-Only Mode"
+                />
+              </div>
+
+              {/* Hide Hints */}
+              <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80 flex items-start justify-between gap-3 hover:border-slate-300 transition-colors">
+                <div className="space-y-1 pr-2">
+                  <div className="flex items-center space-x-1.5 font-black text-slate-900 text-xs">
+                    <Lightbulb size={14} className="text-amber-500" />
+                    <span>Hide Hints (Strict Mode)</span>
+                  </div>
+                  <p className="text-[11.5px] text-slate-500 leading-relaxed">
+                    Hides the hints tab to simulate timed interview conditions.
+                  </p>
+                </div>
+                <ToggleSwitch
+                  checked={settings.hideHints}
+                  onChange={() => updateSetting('hideHints', !settings.hideHints)}
+                  label="Toggle Hide Hints"
+                />
+              </div>
+
+            </div>
+          )}
+
+          {/* TAB 2: CODE EDITOR */}
+          {settingsActiveTab === 'editor' && (
+            <div className="space-y-3.5">
+              
+              {/* Font Size Selector */}
+              <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-800 text-xs">Editor Font Size</span>
+                  <span className="font-mono text-xs font-bold text-blue-600">{settings.fontSize || '13'}px</span>
+                </div>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {['12', '13', '14', '16'].map((size) => (
+                    <button
+                      key={size}
+                      type="button"
+                      onClick={() => updateSetting('fontSize', size)}
+                      className={`py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center ${
+                        settings.fontSize === size
+                          ? 'bg-blue-600 text-white font-black shadow-2xs'
+                          : 'bg-white text-slate-700 border border-slate-200/80 hover:bg-slate-100'
+                      }`}
+                    >
+                      {size}px
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Auto Uppercase Keywords */}
+              <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80 flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-slate-800 text-xs">SQL Keyword Capitalization</div>
+                  <div className="text-[11px] text-slate-500 mt-0.5">Formats SELECT, FROM, WHERE, JOIN to uppercase</div>
+                </div>
+                <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10.5px] font-bold">Enabled</span>
+              </div>
+
+              {/* Live Syntax Preview */}
+              <div className="space-y-1">
+                <span className="font-bold text-slate-500 text-[10.5px] uppercase tracking-wider">Live Preview</span>
+                <div
+                  style={{ fontSize: `${settings.fontSize || '13'}px` }}
+                  className="p-3 bg-slate-900 text-emerald-400 font-mono rounded-xl border border-slate-800 shadow-inner leading-relaxed"
+                >
+                  <span className="text-blue-400">SELECT</span> id, first_name, salary<br />
+                  <span className="text-blue-400">FROM</span> employees<br />
+                  <span className="text-blue-400">WHERE</span> salary &gt; 90000;
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* TAB 3: SQL ENGINE */}
+          {settingsActiveTab === 'engine' && (
+            <div className="space-y-3">
+              
+              {/* Engine Specs */}
+              <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-800 text-xs">Runtime Engine</span>
+                  <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10.5px] font-mono font-bold">
+                    SQLite 3 WASM (Active)
+                  </span>
+                </div>
+                <p className="text-[11.5px] text-slate-500 leading-relaxed">
+                  Zero latency in-browser execution with support for 20+ custom functions (CONCAT, IFNULL, NVL, NOW, DATEDIFF, LEN).
+                </p>
+              </div>
+
+              {/* Dialects */}
+              <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-2">
+                <span className="font-bold text-slate-800 text-xs">Supported SQL Dialects</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {['ANSI SQL', 'MySQL', 'PostgreSQL', 'Oracle', 'MS SQL (T-SQL)'].map((dl) => (
+                    <span key={dl} className="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-mono text-[10.5px] font-bold text-slate-700">
+                      ✓ {dl}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Reset Progress */}
+              <div className="p-3.5 rounded-xl bg-rose-50/50 border border-rose-200/70 flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-rose-900 text-xs">Solved Challenges</div>
+                  <div className="text-[11px] text-rose-700 font-medium">{solvedChallenges.length} challenges marked solved</div>
+                </div>
+                {resetConfirm ? (
+                  <div className="flex items-center space-x-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setSolvedChallenges([]);
+                        try {
+                          localStorage.removeItem('msc_sql_solved_challenges');
+                        } catch (_) {}
+                        setResetConfirm(false);
+                      }}
+                      className="px-2.5 py-1 bg-rose-600 text-white font-bold text-[11px] rounded-lg cursor-pointer"
+                    >
+                      Confirm
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setResetConfirm(false)}
+                      className="px-2.5 py-1 bg-white border border-slate-200 text-slate-700 text-[11px] rounded-lg cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setResetConfirm(true)}
+                    className="px-3 py-1.5 bg-white hover:bg-rose-50 border border-rose-200 text-rose-700 font-bold text-xs rounded-lg transition-all cursor-pointer shadow-2xs"
+                  >
+                    Reset History
+                  </button>
+                )}
+              </div>
+
+            </div>
+          )}
+
+        </div>
+
+        {/* Modal Footer */}
+        <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
+          <span className="text-[11px] text-slate-400 font-medium">Auto-saved to local browser storage</span>
+          <button
+            type="button"
+            onClick={() => setShowSettingsModal(false)}
+            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-xs"
+          >
+            Done
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+
+  // =========================================================================
+  // VIEW 1: LEETCODE PROBLEMSET VIEW (PROGRESS CARDS & FULL QUESTIONS TABLE)
+  // =========================================================================
+  if (viewMode === 'list') {
+    return (
+      <div className="w-full h-full flex-1 overflow-y-auto bg-slate-50/70 font-segoe text-slate-800 pb-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+          {/* ── TOP HERO BANNER & ACTIONS ── */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white border border-slate-200/90 rounded-3xl p-6 sm:p-7 shadow-2xs">
+            <div className="space-y-1.5">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-xs">
+                  <Database size={19} />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                      SQL Practice Problemset
+                    </h1>
+                    <span className="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-black border border-blue-100">
+                      {totalCount} Challenges
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-500 max-w-2xl font-medium pt-0.5">
+                Solve real database interview challenges. Track your progress across Easy, Medium, and Hard FAANG problems.
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-3 shrink-0">
+              {onJumpToLearn && (
+                <button
+                  type="button"
+                  onClick={onJumpToLearn}
+                  className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-extrabold flex items-center space-x-1.5 transition-all cursor-pointer shadow-2xs"
+                >
+                  <BookOpen size={14} />
+                  <span>Curriculum</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowSettingsModal(true)}
+                className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-extrabold flex items-center space-x-1.5 transition-all cursor-pointer shadow-2xs"
+                title="Practice Settings"
+              >
+                <Settings size={14} />
+                <span className="hidden sm:inline">Settings</span>
+              </button>
+              <button
+                type="button"
+                onClick={handlePickRandom}
+                className="px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-xs font-black flex items-center space-x-2 shadow-sm transition-all cursor-pointer active:scale-95"
+              >
+                <Shuffle size={14} />
+                <span>Pick Random</span>
+              </button>
+            </div>
+          </div>
+
+          {/* ── LEETCODE PROGRESS CARDS DASHBOARD ── */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+
+            {/* CARD 1: OVERALL PROGRESS SPEEDOMETER GAUGE */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col justify-between space-y-3">
+              <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                <span className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                  <Gauge size={13} className="text-blue-600" />
+                  Overall Progress
+                </span>
+                <span className="font-mono text-[11px] font-black text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100">
+                  {solvedCount}/{totalCount} Solved
+                </span>
+              </div>
+
+              <div className="flex items-center space-x-3 sm:space-x-4">
+                {/* Speedometer SVG Gauge (Large & Prominent) */}
+                <div className="relative w-44 sm:w-48 h-28 shrink-0 flex items-center justify-center">
+                  <svg className="w-full h-full overflow-visible" viewBox="0 0 140 82">
+                    <defs>
+                      <linearGradient id="speedoGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#3b82f6" />
+                        <stop offset="50%" stopColor="#6366f1" />
+                        <stop offset="100%" stopColor="#10b981" />
+                      </linearGradient>
+                    </defs>
+                    {/* Outer Gauge Arc Track */}
+                    <path
+                      d="M 12 70 A 58 58 0 0 1 128 70"
+                      fill="none"
+                      stroke="#f1f5f9"
+                      strokeWidth="10"
+                      strokeLinecap="round"
+                    />
+                    {/* Active Speedometer Progress Arc */}
+                    <path
+                      d="M 12 70 A 58 58 0 0 1 128 70"
+                      fill="none"
+                      stroke="url(#speedoGradient)"
+                      strokeWidth="10"
+                      strokeLinecap="round"
+                      strokeDasharray="182.2"
+                      strokeDashoffset={182.2 - (Math.min(100, Math.max(0, overallPercent)) / 100) * 182.2}
+                      className="transition-all duration-700 ease-out"
+                    />
+                    {/* Gauge Pointer Needle */}
+                    <line
+                      x1="70"
+                      y1="70"
+                      x2={70 - 45 * Math.cos(Math.PI * (Math.min(100, Math.max(0, overallPercent)) / 100))}
+                      y2={70 - 45 * Math.sin(Math.PI * (Math.min(100, Math.max(0, overallPercent)) / 100))}
+                      stroke="#0f172a"
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                      className="transition-all duration-700 ease-out"
+                    />
+                    {/* Central Pivot Hub */}
+                    <circle cx="70" cy="70" r="6.5" fill="#0f172a" />
+                    <circle cx="70" cy="70" r="2.5" fill="#ffffff" />
+                    {/* Speedometer Min/Max Bounds */}
+                    <text x="12" y="80" fontSize="8.5" fontWeight="800" fill="#94a3b8" textAnchor="middle">0</text>
+                    <text x="128" y="80" fontSize="8.5" fontWeight="800" fill="#94a3b8" textAnchor="middle">{totalCount}</text>
+                    {/* Speedometer Centered Solved Metric */}
+                    <text x="70" y="55" fontSize="16" fontWeight="900" fill="#0f172a" textAnchor="middle">{overallPercent}%</text>
+                  </svg>
+                </div>
+
+                {/* Metrics on the Right */}
+                <div className="space-y-1.5 min-w-0 flex-1">
+                  <div>
+                    <div className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">Solved</div>
+                    <div className="font-mono text-base font-black text-slate-900 leading-tight">
+                      {solvedCount} <span className="text-xs text-slate-400 font-bold">/ {totalCount}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[10.5px] font-bold text-slate-400 uppercase tracking-wider">Remaining</div>
+                    <div className="font-mono text-xs font-bold text-slate-600">
+                      {totalCount - solvedCount} Problems
+                    </div>
+                  </div>
+                  <div className="pt-0.5">
+                    <span className="text-[10px] font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md border border-blue-100 inline-block">
+                      {solvedCount > 0 ? `${solvedCount} Completed` : 'Speedometer Gauge'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* CARD 2: DIFFICULTY BREAKDOWN (LeetCode Style Bars) */}
+            <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col justify-center space-y-3">
+              <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+                <span className="text-xs font-black text-slate-800 uppercase tracking-wider">Difficulty Breakdown</span>
+                <span className="text-[11px] font-bold text-slate-400">Target 100%</span>
+              </div>
+
+              {/* Easy / Basic */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs font-bold">
+                  <span className="text-emerald-700 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    Easy / Basic
+                  </span>
+                  <span className="font-mono text-slate-700">{solvedEasy}/{basicEasyChallenges.length}</span>
+                </div>
+                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${easyPercent}%` }} />
+                </div>
+              </div>
+
+              {/* Medium */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs font-bold">
+                  <span className="text-amber-700 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-500" />
+                    Medium
+                  </span>
+                  <span className="font-mono text-slate-700">{solvedMedium}/{mediumChallenges.length}</span>
+                </div>
+                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-amber-500 transition-all duration-500" style={{ width: `${mediumPercent}%` }} />
+                </div>
+              </div>
+
+              {/* Hard */}
+              <div className="space-y-1">
+                <div className="flex justify-between text-xs font-bold">
+                  <span className="text-rose-700 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-rose-500" />
+                    Hard / FAANG
+                  </span>
+                  <span className="font-mono text-slate-700">{solvedHard}/{hardChallenges.length}</span>
+                </div>
+                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-rose-500 transition-all duration-500" style={{ width: `${hardPercent}%` }} />
+                </div>
+              </div>
+            </div>
+
+            {/* CARD 3: TECHNICAL INTERVIEW READINESS & TARGET TRACK */}
+            <div className="bg-gradient-to-br from-indigo-50/60 via-white to-blue-50/60 border border-blue-200/80 rounded-2xl p-5 shadow-2xs flex flex-col justify-between space-y-3">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="px-2 py-0.5 rounded-md bg-indigo-100/80 text-indigo-800 text-[10px] font-black uppercase tracking-wide flex items-center space-x-1">
+                    <Trophy size={11} className="text-indigo-600 inline" />
+                    <span>FAANG & INTERVIEW PREP</span>
+                  </span>
+                  <span className="font-mono text-xs font-black text-indigo-700">
+                    {totalCount - solvedCount} Remaining
+                  </span>
+                </div>
+                <h3 className="text-sm font-black text-slate-900">
+                  Technical Interview Readiness
+                </h3>
+                <p className="text-xs text-slate-500 font-medium">
+                  Master production database schemas, query optimizations, edge cases, and high-frequency company interview challenges.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="w-full h-2.5 bg-slate-200/70 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-blue-600 to-indigo-600 transition-all duration-500"
+                    style={{ width: `${overallPercent}%` }}
+                  />
+                </div>
+                <div className="flex items-center justify-between pt-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedStatus('unsolved');
+                      setSelectedCategory('all');
+                      setSelectedDifficulty('all');
+                    }}
+                    className="text-xs font-extrabold text-blue-600 hover:text-blue-800 flex items-center space-x-1 cursor-pointer transition-colors"
+                  >
+                    <span>Practice Unsolved ({totalCount - solvedCount})</span>
+                    <ArrowRight size={13} />
+                  </button>
+                  <span className="text-[11px] font-mono font-bold text-slate-400">
+                    {overallPercent}% Ready
+                  </span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+
+          {/* ── FILTER & SEARCH TOOLBAR ── */}
+          <div className="space-y-3 bg-white border border-slate-200/90 rounded-2xl p-4 shadow-2xs">
+            {/* Top row: Search input & Status/Difficulty dropdowns */}
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+              <div className="relative flex-1 w-full">
+                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search questions by name, ID (e.g. filt-01), or tags..."
+                  className="w-full pl-9 pr-8 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all font-medium"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </div>
+
+              {/* Question # Quick Jump */}
+              <div className="relative flex items-center shrink-0">
+                <input
+                  type="text"
+                  value={jumpInput}
+                  onChange={(e) => setJumpInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const raw = jumpInput.replace(/^#|^q\s*/i, '').trim();
+                      const num = parseInt(raw, 10);
+                      if (!isNaN(num) && num >= 1 && num <= totalCount) {
+                        handleOpenChallenge(num - 1);
+                      }
+                    }
+                  }}
+                  placeholder="Go to #..."
+                  className="w-24 pl-7 pr-2 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:bg-white transition-all shadow-2xs"
+                  title="Type question number (e.g. 117) and press Enter"
+                />
+                <Target size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              </div>
+
+              {/* Difficulty Custom Themed Dropdown */}
+              <CustomDropdown
+                value={selectedDifficulty}
+                onChange={setSelectedDifficulty}
+                options={[
+                  { value: 'all', label: 'All Difficulties' },
+                  { value: 'basic', label: 'Basic', badgeColor: 'bg-sky-500' },
+                  { value: 'easy', label: 'Easy', badgeColor: 'bg-emerald-500' },
+                  { value: 'medium', label: 'Medium', badgeColor: 'bg-amber-500' },
+                  { value: 'hard', label: 'Hard (FAANG)', badgeColor: 'bg-rose-500' }
+                ]}
+                icon={Filter}
+              />
+
+              {/* Status Custom Themed Dropdown */}
+              <CustomDropdown
+                value={selectedStatus}
+                onChange={setSelectedStatus}
+                options={[
+                  { value: 'all', label: 'All Status' },
+                  { value: 'solved', label: 'Solved', badgeColor: 'bg-emerald-500' },
+                  { value: 'unsolved', label: 'Unsolved', badgeColor: 'bg-slate-400' }
+                ]}
+                icon={CheckCircle2}
+              />
+
+              {/* Anti-Spoiler Quick Toggle */}
+              <button
+                type="button"
+                onClick={() => updateSetting('hideTags', !settings.hideTags)}
+                className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center space-x-1.5 shadow-2xs shrink-0 ${
+                  settings.hideTags
+                    ? 'bg-amber-50 border-amber-300 text-amber-800 font-black'
+                    : 'bg-slate-50 hover:bg-white border-slate-200 text-slate-600 hover:text-slate-900'
+                }`}
+                title={settings.hideTags ? 'Tags are hidden (Anti-Spoiler Mode). Click to reveal.' : 'Click to hide tags to prevent spoilers.'}
+              >
+                {settings.hideTags ? <EyeOff size={13} className="text-amber-600" /> : <Eye size={13} className="text-slate-400" />}
+                <span className="hidden md:inline">{settings.hideTags ? 'Spoilers Hidden' : 'Hide Tags'}</span>
+              </button>
+
+              {/* Settings Button */}
+              <button
+                type="button"
+                onClick={() => setShowSettingsModal(true)}
+                className="p-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-white text-slate-600 hover:text-slate-900 transition-all cursor-pointer shadow-2xs shrink-0"
+                title="Practice Settings"
+              >
+                <Settings size={15} />
+              </button>
+            </div>
+
+            {/* Category Track Filter Pills (Hidden when hideTags Anti-Spoiler mode is active) */}
+            {!settings.hideTags && (
+              <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 scrollbar-none pt-1">
+                <button
+                  type="button"
+                  onClick={() => setSelectedCategory('all')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer ${
+                    selectedCategory === 'all'
+                      ? 'bg-slate-900 text-white shadow-xs'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                  }`}
+                >
+                  All Topics ({totalCount})
+                </button>
+
+                {categories.map((cat) => {
+                  const isActive = selectedCategory === cat;
+                  const isDay4 = cat.toLowerCase().includes('day 4');
+                  return (
+                    <button
+                      type="button"
+                      key={cat}
+                      onClick={() => setSelectedCategory(cat)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer flex items-center space-x-1.5 ${
+                        isActive
+                          ? isDay4
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : 'bg-slate-900 text-white shadow-xs'
+                          : isDay4
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200 hover:bg-blue-100'
+                            : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900'
+                      }`}
+                    >
+                      {isDay4 && <Flame size={12} className={isActive ? 'text-amber-300' : 'text-amber-500'} />}
+                      <span>{cat}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ── LEETCODE QUESTIONS TABLE ── */}
+          <div className="bg-white border border-slate-200/90 rounded-2xl overflow-hidden shadow-2xs">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-slate-200 text-left">
+                <thead className="bg-slate-50/80 font-black text-xs text-slate-500 uppercase tracking-wider">
+                  <tr>
+                    <th scope="col" className="px-4 py-3.5 w-12 text-center">Status</th>
+                    <th scope="col" className="px-3 py-3.5 w-12 text-center">#</th>
+                    <th scope="col" className="px-4 py-3.5 min-w-[280px]">Title</th>
+                    <th scope="col" className="px-4 py-3.5">Category</th>
+                    {!settings.hideTags && <th scope="col" className="px-4 py-3.5">Tags</th>}
+                    <th scope="col" className="px-4 py-3.5">Difficulty</th>
+                    <th scope="col" className="px-4 py-3.5 text-right w-24">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-sans text-xs">
+                  {problemsetList.length === 0 ? (
+                    <tr>
+                      <td colSpan={settings.hideTags ? 6 : 7} className="px-6 py-12 text-center text-slate-500">
+                        <div className="space-y-3 max-w-md mx-auto">
+                          <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200 flex items-center justify-center mx-auto shadow-2xs">
+                            <AlertTriangle size={22} />
+                          </div>
+                          <div>
+                            <p className="font-black text-slate-800 text-sm">No problems match your current filters</p>
+                            <p className="text-xs text-slate-500 mt-1">
+                              {selectedCategory !== 'all' && selectedDifficulty !== 'all'
+                                ? `Category "${selectedCategory}" may have questions under another difficulty level.`
+                                : 'Try adjusting your search query or resetting filters.'}
+                            </p>
+                          </div>
+                          <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+                            {selectedDifficulty !== 'all' && selectedCategory !== 'all' && (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedDifficulty('all')}
+                                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-black text-xs transition-all cursor-pointer shadow-xs"
+                              >
+                                Show All in {selectedCategory}
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedCategory('all');
+                                setSelectedDifficulty('all');
+                                setSelectedStatus('all');
+                                setSearchQuery('');
+                              }}
+                              className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs transition-all cursor-pointer shadow-2xs"
+                            >
+                              Reset All Filters
+                            </button>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedProblems.map((ch, idx) => {
+                      const isSolved = solvedChallenges.includes(ch.id);
+                      const diff = (ch.difficulty || 'Easy').toLowerCase();
+                      const isBasic = diff === 'basic';
+                      const isEasy = diff === 'easy';
+                      const isMedium = diff === 'medium' || diff === 'intermediate';
+                      const diffColor = isBasic
+                        ? 'text-sky-600'
+                        : isEasy
+                        ? 'text-emerald-600'
+                        : isMedium
+                        ? 'text-amber-500'
+                        : 'text-rose-600';
+                      const rowPadding = settings.compactView ? 'py-1.5' : 'py-3';
+
+                      return (
+                        <tr
+                          key={ch.id}
+                          className={`hover:bg-slate-50/80 transition-colors group ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/30'}`}
+                        >
+                          {/* Status */}
+                          <td className={`px-4 ${rowPadding} text-center`}>
+                            {isSolved ? (
+                              <CheckCircle2 size={16} className="text-emerald-500 inline-block" />
+                            ) : (
+                              <span className="w-3.5 h-3.5 rounded-full border-2 border-slate-300 inline-block group-hover:border-slate-400" />
+                            )}
+                          </td>
+
+                          {/* Canonical Question Number # */}
+                          <td className={`px-3 ${rowPadding} text-center font-mono`}>
+                            <span className="px-1.5 py-0.5 bg-slate-100 rounded text-[11px] font-black text-slate-600 border border-slate-200/70 font-mono inline-block shadow-2xs">
+                              #{ch.originalIndex + 1}
+                            </span>
+                          </td>
+
+                          {/* Title */}
+                          <td className={`px-4 ${rowPadding}`}>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenChallenge(ch.originalIndex)}
+                              className="font-bold text-slate-900 hover:text-blue-600 text-left text-xs sm:text-sm transition-colors cursor-pointer block leading-snug"
+                            >
+                              {ch.title}
+                            </button>
+                          </td>
+
+                          {/* Category */}
+                          <td className={`px-4 ${rowPadding} whitespace-nowrap text-slate-600 font-medium`}>
+                            <span className="px-2 py-0.5 bg-slate-100 rounded text-[11px] font-bold text-slate-700 border border-slate-200/50">
+                              {getCleanCategoryName(ch.moduleTitle)}
+                            </span>
+                          </td>
+
+                          {/* Conceptual Tags with Anti-Spoiler Protection (max 1 or 2 small tags) */}
+                          {!settings.hideTags && (
+                            <td className={`px-4 ${rowPadding}`}>
+                              <div className="flex flex-wrap gap-1 max-w-xs">
+                                {(ch.tags || []).slice(0, 2).map((rawTag, tIdx) => (
+                                  <span
+                                    key={tIdx}
+                                    className="px-1.5 py-0.5 bg-slate-100/90 border border-slate-200/80 rounded text-[10.5px] font-mono text-slate-600 font-bold"
+                                  >
+                                    {cleanTagForDisplay(rawTag)}
+                                  </span>
+                                ))}
+                              </div>
+                            </td>
+                          )}
+
+                          {/* Difficulty (Text Only in Color, Distinct Basic and Easy) */}
+                          <td className={`px-4 ${rowPadding} whitespace-nowrap`}>
+                            {!settings.hideDifficulty && (
+                              <span className={`text-xs font-bold ${diffColor}`}>
+                                {ch.difficulty || 'Easy'}
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Action */}
+                          <td className={`px-4 ${rowPadding} text-right whitespace-nowrap`}>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenChallenge(ch.originalIndex)}
+                              className="px-3 py-1.5 bg-blue-50 hover:bg-blue-600 text-blue-700 hover:text-white border border-blue-200 hover:border-transparent rounded-xl text-xs font-black transition-all inline-flex items-center space-x-1.5 cursor-pointer shadow-2xs active:scale-95"
+                            >
+                              <Play size={11} fill="currentColor" />
+                              <span>Solve</span>
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* ── PAGINATION CONTROLS (STRICTLY 50 QUESTIONS PER PAGE) ── */}
+            {problemsetList.length > 50 && (
+              <div className="px-5 py-3.5 border-t border-slate-200/80 bg-slate-50/70 flex items-center justify-center text-xs">
+                {/* Compact Page Navigation: < 1 2 3 if 4 present then 4 or .. last > */}
+                <div className="flex items-center space-x-1.5">
+                  <button
+                    type="button"
+                    disabled={validCurrentPage === 1}
+                    onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                    className="w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer flex items-center justify-center shadow-2xs"
+                    title="Previous Page"
+                  >
+                    <ChevronLeft size={15} />
+                  </button>
+
+                  {paginationItems.map((item, idx) => {
+                    if (item === '...') {
+                      return (
+                        <span key={`dots-${idx}`} className="w-7 h-8 flex items-center justify-center text-slate-400 font-black select-none">
+                          ...
+                        </span>
+                      );
+                    }
+                    const pageNum = Number(item);
+                    const isActive = pageNum === validCurrentPage;
+                    return (
+                      <button
+                        key={pageNum}
+                        type="button"
+                        onClick={() => setCurrentPage(pageNum)}
+                        className={`w-8 h-8 rounded-lg text-xs font-black transition-all cursor-pointer flex items-center justify-center ${
+                          isActive
+                            ? 'bg-blue-600 text-white shadow-xs'
+                            : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-100 shadow-2xs'
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    disabled={validCurrentPage === totalPages}
+                    onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                    className="w-8 h-8 rounded-lg border border-slate-200 bg-white text-slate-700 font-bold hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all cursor-pointer flex items-center justify-center shadow-2xs"
+                    title="Next Page"
+                  >
+                    <ChevronRight size={15} />
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Settings Modal (Accessible in List View) */}
+          {showSettingsModal && renderSettingsModal()}
+
+        </div>
+      </div>
+    );
+  }
+
+  // =========================================================================
+  // VIEW 2: SOLVE WORKSPACE (MONACO EDITOR + CONSOLE + TESTCASES)
+  // =========================================================================
   return (
     <div
       style={{ height: 'calc(100vh - 63px)', overflow: 'hidden' }}
@@ -714,9 +1945,22 @@ export default function SqlPracticeView({
          ========================================================================= */}
       <header className="bg-white border-b border-slate-200 px-3 sm:px-4 py-2 flex items-center justify-between shrink-0 shadow-2xs z-20 gap-2">
         
-        {/* Left Group: Problems Drawer Button & Prev/Next & Title */}
+        {/* Left Group: Back to Problemset + Problems Drawer Button & Prev/Next & Title */}
         <div className="flex items-center space-x-2 sm:space-x-2.5 min-w-0">
           
+          {/* Back to All Problems / Progress Dashboard Button */}
+          <button
+            type="button"
+            onClick={() => setViewMode('list')}
+            className="px-2.5 sm:px-3 py-1.5 bg-slate-100/90 hover:bg-slate-200 text-slate-700 hover:text-slate-900 border border-slate-200/90 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center space-x-1.5 shadow-2xs active:scale-95 shrink-0"
+            title="Back to All Problems & Progress Dashboard"
+          >
+            <ArrowLeft size={13} className="text-slate-600 shrink-0" />
+            <span className="hidden xs:inline">Problemset</span>
+          </button>
+
+          <div className="h-4 w-[1px] bg-slate-200 shrink-0 hidden xs:block" />
+
           {/* Quick Problem List Drawer Trigger Button */}
           <button
             type="button"
@@ -983,20 +2227,24 @@ export default function SqlPracticeView({
                     {selectedChallengeIndex + 1}. {activeChallenge?.title?.replace(/:\s*(CREATE|DROP|ALTER|TRUNCATE|RENAME)\b.*/i, '').trim()}
                   </h1>
                   <div className="flex flex-wrap items-center gap-2 text-xs">
-                    <span
-                      className={`font-bold capitalize ${
-                        activeChallenge?.difficulty?.toLowerCase() === 'basic'
-                          ? 'text-sky-600'
-                          : activeChallenge?.difficulty?.toLowerCase() === 'easy'
-                          ? 'text-emerald-600'
-                          : activeChallenge?.difficulty?.toLowerCase() === 'medium'
-                          ? 'text-amber-500'
-                          : 'text-rose-600'
-                      }`}
-                    >
-                      {activeChallenge?.difficulty}
-                    </span>
-                    <span>•</span>
+                    {!settings.hideDifficulty && (
+                      <>
+                        <span
+                          className={`font-bold capitalize ${
+                            activeChallenge?.difficulty?.toLowerCase() === 'basic'
+                              ? 'text-sky-600'
+                              : activeChallenge?.difficulty?.toLowerCase() === 'easy'
+                              ? 'text-emerald-600'
+                              : activeChallenge?.difficulty?.toLowerCase() === 'medium'
+                              ? 'text-amber-500'
+                              : 'text-rose-600'
+                          }`}
+                        >
+                          {activeChallenge?.difficulty}
+                        </span>
+                        <span>•</span>
+                      </>
+                    )}
                     <span className="bg-slate-100 text-slate-700 font-bold px-2 py-0.5 rounded-md text-[11px]">
                       {getCleanCategoryName(activeChallenge?.moduleTitle)}
                     </span>
@@ -1905,285 +3153,7 @@ export default function SqlPracticeView({
       {/* =========================================================================
           TABBED PRACTICE SETTINGS MODAL (PREMIUM & BALANCED UI)
          ========================================================================= */}
-      {showSettingsModal && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <div
-            onClick={() => setShowSettingsModal(false)}
-            className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs transition-opacity"
-          />
-
-          {/* Modal Container */}
-          <div className="relative w-full max-w-[500px] bg-white rounded-2xl shadow-2xl border border-slate-200/90 overflow-hidden z-10 flex flex-col max-h-[85vh] animate-in zoom-in-95 duration-150">
-            
-            {/* Header */}
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
-              <div className="flex items-center space-x-3">
-                <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center shrink-0 shadow-2xs">
-                  <Sliders size={18} />
-                </div>
-                <div>
-                  <h3 className="text-sm font-black text-slate-900 leading-tight">Preferences & Settings</h3>
-                  <p className="text-[11.5px] text-slate-500 font-medium">Configure practice rules, editor, and SQL engine</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowSettingsModal(false)}
-                className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
-                title="Close"
-              >
-                <X size={16} />
-              </button>
-            </div>
-
-            {/* Segmented Tabs Navigation Bar */}
-            <div className="px-5 pt-3 pb-1 bg-white shrink-0">
-              <div className="grid grid-cols-3 gap-1 bg-slate-100/80 p-1 rounded-xl border border-slate-200/70">
-                <button
-                  type="button"
-                  onClick={() => setSettingsActiveTab('practice')}
-                  className={`py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
-                    settingsActiveTab === 'practice'
-                      ? 'bg-white text-blue-600 font-black shadow-xs border border-slate-200/60'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-                  }`}
-                >
-                  <Target size={13} className={settingsActiveTab === 'practice' ? 'text-blue-600' : 'text-slate-400'} />
-                  <span>Practice</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSettingsActiveTab('editor')}
-                  className={`py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
-                    settingsActiveTab === 'editor'
-                      ? 'bg-white text-blue-600 font-black shadow-xs border border-slate-200/60'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-                  }`}
-                >
-                  <Code2 size={13} className={settingsActiveTab === 'editor' ? 'text-blue-600' : 'text-slate-400'} />
-                  <span>Editor</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setSettingsActiveTab('engine')}
-                  className={`py-1.5 px-2 rounded-lg text-xs font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer ${
-                    settingsActiveTab === 'engine'
-                      ? 'bg-white text-blue-600 font-black shadow-xs border border-slate-200/60'
-                      : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
-                  }`}
-                >
-                  <Database size={13} className={settingsActiveTab === 'engine' ? 'text-blue-600' : 'text-slate-400'} />
-                  <span>Engine</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Content Body */}
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3.5 text-xs">
-              
-              {/* TAB 1: PRACTICE RULES */}
-              {settingsActiveTab === 'practice' && (
-                <div className="space-y-3">
-                  
-                  {/* Schema-Only Mode */}
-                  <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80 flex items-start justify-between gap-3 hover:border-slate-300 transition-colors">
-                    <div className="space-y-1 pr-2">
-                      <div className="flex items-center space-x-1.5 font-black text-slate-900 text-xs">
-                        <EyeOff size={14} className="text-blue-600" />
-                        <span>Schema-Only Mode (Hide Data)</span>
-                      </div>
-                      <p className="text-[11.5px] text-slate-500 leading-relaxed">
-                        Hides sample data rows and displays only column definitions and data types.
-                      </p>
-                    </div>
-
-                    {/* Pixel-Perfect Toggle Switch */}
-                    <ToggleSwitch
-                      checked={settings.schemaOnlyMode}
-                      onChange={() => updateSetting('schemaOnlyMode', !settings.schemaOnlyMode)}
-                      label="Toggle Schema-Only Mode"
-                    />
-                  </div>
-
-                  {/* Hide Hints */}
-                  <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80 flex items-start justify-between gap-3 hover:border-slate-300 transition-colors">
-                    <div className="space-y-1 pr-2">
-                      <div className="flex items-center space-x-1.5 font-black text-slate-900 text-xs">
-                        <Lightbulb size={14} className="text-amber-500" />
-                        <span>Hide Hints (Strict Mode)</span>
-                      </div>
-                      <p className="text-[11.5px] text-slate-500 leading-relaxed">
-                        Hides the hints tab to simulate timed interview conditions.
-                      </p>
-                    </div>
-
-                    {/* Pixel-Perfect Toggle Switch */}
-                    <ToggleSwitch
-                      checked={settings.hideHints}
-                      onChange={() => updateSetting('hideHints', !settings.hideHints)}
-                      label="Toggle Hide Hints"
-                    />
-                  </div>
-
-                  {/* Red Discrepancy Diff Highlighter */}
-                  <div className="p-3 rounded-xl bg-slate-50/80 border border-slate-200/80 flex items-start space-x-2.5">
-                    <CircleAlert size={15} className="text-rose-600 shrink-0 mt-0.5" />
-                    <div>
-                      <div className="font-bold text-slate-800 text-xs">Red Discrepancy Highlighting</div>
-                      <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                        Incorrect or missing rows are automatically highlighted in red upon submission.
-                      </p>
-                    </div>
-                  </div>
-
-                </div>
-              )}
-
-              {/* TAB 2: CODE EDITOR */}
-              {settingsActiveTab === 'editor' && (
-                <div className="space-y-3.5">
-                  
-                  {/* Font Size Selector */}
-                  <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-800 text-xs">Editor Font Size</span>
-                      <span className="font-mono text-xs font-bold text-blue-600">{settings.fontSize || '13'}px</span>
-                    </div>
-                    <div className="grid grid-cols-4 gap-1.5">
-                      {['12', '13', '14', '16'].map((size) => (
-                        <button
-                          key={size}
-                          type="button"
-                          onClick={() => updateSetting('fontSize', size)}
-                          className={`py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer text-center ${
-                            settings.fontSize === size
-                              ? 'bg-blue-600 text-white font-black shadow-2xs'
-                              : 'bg-white text-slate-700 border border-slate-200/80 hover:bg-slate-100'
-                          }`}
-                        >
-                          {size}px
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Auto Uppercase Keywords */}
-                  <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80 flex items-center justify-between">
-                    <div>
-                      <div className="font-bold text-slate-800 text-xs">SQL Keyword Capitalization</div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">Formats SELECT, FROM, WHERE, JOIN to uppercase</div>
-                    </div>
-                    <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10.5px] font-bold">Enabled</span>
-                  </div>
-
-                  {/* Live Syntax Preview */}
-                  <div className="space-y-1">
-                    <span className="font-bold text-slate-500 text-[10.5px] uppercase tracking-wider">Live Preview</span>
-                    <div
-                      style={{ fontSize: `${settings.fontSize || '13'}px` }}
-                      className="p-3 bg-slate-900 text-emerald-400 font-mono rounded-xl border border-slate-800 shadow-inner leading-relaxed"
-                    >
-                      <span className="text-blue-400">SELECT</span> id, first_name, salary<br />
-                      <span className="text-blue-400">FROM</span> employees<br />
-                      <span className="text-blue-400">WHERE</span> salary &gt; 90000;
-                    </div>
-                  </div>
-
-                </div>
-              )}
-
-              {/* TAB 3: SQL ENGINE */}
-              {settingsActiveTab === 'engine' && (
-                <div className="space-y-3">
-                  
-                  {/* Engine Specs */}
-                  <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-800 text-xs">Runtime Engine</span>
-                      <span className="px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded text-[10.5px] font-mono font-bold">
-                        SQLite 3 WASM (Active)
-                      </span>
-                    </div>
-                    <p className="text-[11.5px] text-slate-500 leading-relaxed">
-                      Zero latency in-browser execution with support for 20+ custom functions (CONCAT, IFNULL, NVL, NOW, DATEDIFF, LEN).
-                    </p>
-                  </div>
-
-                  {/* Dialects */}
-                  <div className="p-3.5 rounded-xl bg-slate-50/80 border border-slate-200/80 space-y-2">
-                    <span className="font-bold text-slate-800 text-xs">Supported SQL Dialects</span>
-                    <div className="flex flex-wrap gap-1.5">
-                      {['ANSI SQL', 'MySQL', 'PostgreSQL', 'Oracle', 'MS SQL (T-SQL)'].map((dl) => (
-                        <span key={dl} className="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-mono text-[10.5px] font-bold text-slate-700">
-                          ✓ {dl}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Reset Progress */}
-                  <div className="p-3.5 rounded-xl bg-rose-50/50 border border-rose-200/70 flex items-center justify-between">
-                    <div>
-                      <div className="font-bold text-rose-900 text-xs">Solved Challenges</div>
-                      <div className="text-[11px] text-rose-700 font-medium">{solvedChallenges.length} challenges marked solved</div>
-                    </div>
-                    {resetConfirm ? (
-                      <div className="flex items-center space-x-1.5">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSolvedChallenges([]);
-                            try {
-                              localStorage.removeItem('msc_sql_solved_challenges');
-                            } catch (_) {}
-                            setResetConfirm(false);
-                          }}
-                          className="px-2.5 py-1 bg-rose-600 text-white font-bold text-[11px] rounded-lg cursor-pointer"
-                        >
-                          Confirm
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setResetConfirm(false)}
-                          className="px-2.5 py-1 bg-white border border-slate-200 text-slate-700 text-[11px] rounded-lg cursor-pointer"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setResetConfirm(true)}
-                        className="px-3 py-1.5 bg-white hover:bg-rose-50 border border-rose-200 text-rose-700 font-bold text-xs rounded-lg transition-all cursor-pointer shadow-2xs"
-                      >
-                        Reset History
-                      </button>
-                    )}
-                  </div>
-
-                </div>
-              )}
-
-            </div>
-
-            {/* Modal Footer */}
-            <div className="px-5 py-3 border-t border-slate-100 bg-slate-50/50 flex items-center justify-between shrink-0">
-              <span className="text-[11px] text-slate-400 font-medium">Auto-saved to local browser storage</span>
-              <button
-                type="button"
-                onClick={() => setShowSettingsModal(false)}
-                className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-xs"
-              >
-                Done
-              </button>
-            </div>
-
-          </div>
-        </div>
-      )}
+      {showSettingsModal && renderSettingsModal()}
 
     </div>
   );

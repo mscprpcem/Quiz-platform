@@ -4,7 +4,7 @@ import { useSocket } from '../context/SocketContext';
 import FullscreenHandler from '../components/FullscreenHandler';
 import { normalizeSelection, toggleOptionInSelection } from '../utils/fullscreen';
 import Top10Leaderboard from '../components/Top10Leaderboard';
-import { Clock, ShieldAlert, Award, ArrowRight } from 'lucide-react';
+import { Clock, ShieldAlert, Award, ArrowRight, CheckCircle } from 'lucide-react';
 import './LiveQuiz.css';
 
 export default function LiveQuiz() {
@@ -490,70 +490,72 @@ export default function LiveQuiz() {
                 </p>
               </div>
             ) : showFeedback ? (
-              <div className="space-y-6 animate-fade-in">
-                <div className="bg-white border border-brand-border rounded-xl p-5 sm:p-8 shadow-sm space-y-5 sm:space-y-6">
-                  <div className="text-center space-y-2">
-                    <div className="flex flex-wrap justify-center items-center gap-2">
-                      <div className="inline-block px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-amber-100 text-amber-800 border border-amber-200">
-                        ⌛ Timer Finished
+              <div className="space-y-4 sm:space-y-6 animate-fade-in">
+                <div className="bg-white border border-brand-border rounded-2xl p-4 sm:p-7 shadow-sm space-y-3 sm:space-y-4">
+                  <div className="text-center space-y-1.5">
+                    <div className="flex flex-wrap justify-center items-center gap-1.5">
+                      <div className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-50 text-amber-800 border border-amber-200">
+                        ⌛ Round Complete
                       </div>
                       {currentQuestion.totalQuestions && (currentQuestion.questionIndex + 1 === currentQuestion.totalQuestions) && (
-                        <div className="inline-block px-3.5 py-1 rounded-full text-xs font-bold uppercase tracking-widest bg-red-100 text-red-700 border border-red-200 animate-pulse">
-                          🎯 Final Question Completed
+                        <div className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-purple-100 text-purple-700 border border-purple-200 animate-pulse">
+                          🎯 Final Question
                         </div>
                       )}
                     </div>
-                    <h2 className="text-lg sm:text-2xl font-bold text-brand-textMain">{currentQuestion.question}</h2>
+                    <h2 className="text-base sm:text-xl font-bold text-brand-textMain leading-snug">{currentQuestion.question}</h2>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 my-6">
+                  {/* 2-column Compact Result Summary on Phones */}
+                  <div className="grid grid-cols-2 gap-2 sm:gap-3 my-2 sm:my-3">
                     {/* Correct Answer Display */}
-                    <div className="bg-brand-bgLight p-6 rounded-lg border border-brand-border text-center space-y-1">
-                      <span className="text-xs font-semibold text-brand-textMuted uppercase">Correct Option</span>
-                      <h3 className="text-2xl font-extrabold text-brand-success">
+                    <div className="bg-slate-50 p-2.5 sm:p-4 rounded-xl border border-slate-200/80 text-center space-y-0.5">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Correct Option</span>
+                      <h3 className="text-base sm:text-xl font-black text-emerald-600">
                         Option {feedbackData?.correctAnswer}
                       </h3>
                     </div>
 
                     {/* Player Status Display */}
-                    <div className={`p-6 rounded-lg border text-center space-y-1 ${
+                    <div className={`p-2.5 sm:p-4 rounded-xl border text-center space-y-0.5 ${
                       feedbackData?.isCorrect 
-                        ? 'bg-emerald-50 border-emerald-100 text-emerald-800' 
-                        : 'bg-red-50 border-red-100 text-red-800'
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+                        : 'bg-rose-50 border-rose-200 text-rose-800'
                     }`}>
-                      <span className="text-xs font-semibold text-brand-textMuted uppercase">Your Result</span>
-                      <h3 className="text-2xl font-extrabold">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Your Points</span>
+                      <h3 className="text-base sm:text-xl font-black">
                         {feedbackData?.isCorrect 
-                          ? `+${feedbackData?.points} Points` 
-                          : '0 Points (Wrong/No Answer)'}
+                          ? `+${feedbackData?.points} pts` 
+                          : '0 pts'}
                       </h3>
                     </div>
                   </div>
 
-                  {/* Score and rank display */}
-                  <div className="border-t border-zinc-100 pt-6 flex justify-around text-center">
+                  {/* Score and rank display in a sleek pill banner */}
+                  <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-2.5 sm:p-3 flex items-center justify-around text-center">
                     <div>
-                      <span className="text-xs font-semibold text-brand-textMuted uppercase">Your Score</span>
-                      <p className="text-xl font-bold text-brand-textMain mt-1">{feedbackData?.totalScore || 0} pts</p>
+                      <span className="text-[9.5px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Your Score</span>
+                      <p className="font-mono text-sm sm:text-base font-black text-slate-900 mt-0.5">{feedbackData?.totalScore || 0} pts</p>
                     </div>
-                    <div className="w-px bg-zinc-200"></div>
+                    <div className="w-px h-7 bg-slate-200" />
                     <div>
-                      <span className="text-xs font-semibold text-brand-textMuted uppercase">Your Rank</span>
-                      <p className="text-xl font-bold text-brand-blue mt-1">
+                      <span className="text-[9.5px] sm:text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Your Rank</span>
+                      <p className="font-mono text-sm sm:text-base font-black text-blue-600 mt-0.5">
                         {feedbackData?.isFinalQuestion || (currentQuestion.totalQuestions && currentQuestion.questionIndex + 1 === currentQuestion.totalQuestions)
-                          ? '🔒 Hidden for Finale'
+                          ? '🔒 Locked'
                           : `Rank #${feedbackData?.rank || 'N/A'}`}
                       </p>
                     </div>
                   </div>
 
-                  <div className="text-center pt-2">
+                  <div className="text-center pt-1">
                     {feedbackData?.isFinalQuestion || (currentQuestion.totalQuestions && (currentQuestion.questionIndex + 1 === currentQuestion.totalQuestions)) ? (
-                      <span className="inline-block text-xs sm:text-sm font-extrabold text-purple-800 bg-purple-50 border border-purple-200 px-4 py-2 rounded-xl shadow-xs animate-bounce">
-                        🎉 Final question completed! Standings locked. Host will release final leaderboard shortly.
+                      <span className="inline-block text-xs font-extrabold text-purple-800 bg-purple-50 border border-purple-200 px-3 py-1.5 rounded-xl shadow-xs">
+                        🎉 Final question completed! Standings locked. Host will release final winners shortly.
                       </span>
                     ) : (
-                      <span className="text-xs font-semibold text-zinc-400">
+                      <span className="text-[11px] font-semibold text-slate-400 flex items-center justify-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-ping inline-block" />
                         Waiting for host to release next question...
                       </span>
                     )}

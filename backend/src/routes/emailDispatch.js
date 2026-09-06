@@ -48,7 +48,7 @@ router.get('/audiences', authMiddleware, async (req, res) => {
 
     // 2. Get all quizzes (Live + Scheduled)
     const quizzes = await Quiz.findAll({
-      attributes: ['id', 'title', 'event_name', 'mode', 'status', 'join_code', 'subject', 'category', 'createdAt'],
+      attributes: ['id', 'title', 'event_name', 'mode', 'status', 'join_code', 'subject', 'createdAt'],
       include: [
         {
           model: ScheduledOccurrence,
@@ -58,7 +58,10 @@ router.get('/audiences', authMiddleware, async (req, res) => {
         }
       ],
       order: [['createdAt', 'DESC']]
-    }).catch(() => []);
+    }).catch((err) => {
+      console.error('Error fetching quizzes for email dispatch:', err.message);
+      return [];
+    });
 
     // 3. Get all Events & Event Registrations
     const [events, registrations] = await Promise.all([
@@ -149,7 +152,7 @@ router.get('/audiences', authMiddleware, async (req, res) => {
         mode: q.mode || 'LIVE',
         status: q.status || 'draft',
         join_code: q.join_code || '',
-        subject: q.subject || q.category || 'Technical',
+        subject: q.subject || 'Technical',
         occurrences: q.occurrences || []
       })),
       events: eventsFormatted
@@ -365,7 +368,10 @@ router.get('/quiz-participants', authMiddleware, async (req, res) => {
     let quizDetails = null;
     if (quizId) {
       quizDetails = await Quiz.findByPk(quizId, {
-        attributes: ['id', 'title', 'event_name', 'event_id', 'mode', 'join_code', 'subject', 'category']
+        attributes: ['id', 'title', 'event_name', 'event_id', 'mode', 'join_code', 'subject']
+      }).catch((err) => {
+        console.error('Error fetching quiz details for dispatch:', err.message);
+        return null;
       });
     }
 
@@ -515,7 +521,7 @@ router.get('/quiz-participants', authMiddleware, async (req, res) => {
         event_name: quizDetails.event_name,
         mode: quizDetails.mode,
         join_code: quizDetails.join_code,
-        subject: quizDetails.subject || quizDetails.category
+        subject: quizDetails.subject || 'Technical'
       } : null,
       participantFilter,
       count: filteredParticipants.length,

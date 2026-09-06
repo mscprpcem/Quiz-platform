@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1376 768" width="1376" height="768">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F8FAFC" />
+      <stop offset="100%" stop-color="#EFF6FF" />
+    </linearGradient>
+    <linearGradient id="trackRange" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10B981" />
+      <stop offset="50%" stop-color="#059669" />
+      <stop offset="100%" stop-color="#10B981" />
+    </linearGradient>
+    <linearGradient id="activeGlow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#D1FAE5" stop-opacity="0.7" />
+      <stop offset="100%" stop-color="#A7F3D0" stop-opacity="0.3" />
+    </linearGradient>
+    <filter id="cardShadow" x="-10%" y="-10%" width="125%" height="130%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#0F172A" flood-opacity="0.08" />
+    </filter>
+    <filter id="pinShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#059669" flood-opacity="0.25" />
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1376" height="768" fill="url(#bgGrad)" />
+  <circle cx="120" cy="100" r="280" fill="#3B82F6" fill-opacity="0.04" />
+  <circle cx="1260" cy="650" r="320" fill="#10B981" fill-opacity="0.05" />
+
+  <!-- Title Header -->
+  <g transform="translate(88, 70)">
+    <rect x="0" y="0" width="150" height="32" rx="16" fill="#ECFDF5" stroke="#A7F3D0" stroke-width="1.5" />
+    <text x="75" y="21" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#065F46" text-anchor="middle">RANGE FILTERING</text>
+    <text x="0" y="72" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="34" font-weight="900" fill="#0F172A">SQL BETWEEN Operator (Inclusive Range)</text>
+    <text x="0" y="104" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="500" fill="#475569">Both the lower and upper endpoints are strictly included in the query results</text>
+  </g>
+
+  <!-- Main Showcase Container Card -->
+  <rect x="88" y="210" width="1200" height="360" rx="28" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="2" filter="url(#cardShadow)" />
+
+  <!-- Visual Subtitle / Query Pill -->
+  <rect x="448" y="240" width="480" height="46" rx="23" fill="#F1F5F9" stroke="#CBD5E1" stroke-width="1.5" />
+  <text x="688" y="270" font-family="'JetBrains Mono', Consolas, monospace" font-size="17" font-weight="700" fill="#1E293B" text-anchor="middle">
+    WHERE salary <tspan fill="#2563EB" font-weight="800">BETWEEN</tspan> 30000 <tspan fill="#2563EB" font-weight="800">AND</tspan> 60000
+  </text>
+
+  <!-- NUMBER LINE SLIDER -->
+  <g transform="translate(148, 360)">
+    <!-- Base Background Rail (Excluded Zones) -->
+    <rect x="0" y="32" width="1080" height="16" rx="8" fill="#E2E8F0" />
+
+    <!-- Excluded Left Region Tint -->
+    <rect x="0" y="-30" width="240" height="140" rx="16" fill="#F8FAFC" stroke="#F1F5F9" stroke-width="1.5" />
+    <circle cx="120" cy="0" r="16" fill="#FEE2E2" />
+    <text x="120" y="6" font-family="sans-serif" font-size="16" font-weight="900" fill="#DC2626" text-anchor="middle">✕</text>
+    <text x="120" y="58" font-family="'JetBrains Mono', monospace" font-size="18" font-weight="800" fill="#64748B" text-anchor="middle">20,000</text>
+    <text x="120" y="85" font-family="sans-serif" font-size="12" font-weight="700" fill="#EF4444" text-anchor="middle">EXCLUDED</text>
+    <text x="120" y="100" font-family="sans-serif" font-size="11" font-weight="500" fill="#94A3B8" text-anchor="middle">&lt; 30,000</text>
+
+    <!-- Highlighted Active Range Bar -->
+    <rect x="240" y="-45" width="600" height="170" rx="20" fill="url(#activeGlow)" stroke="#A7F3D0" stroke-width="2" stroke-dasharray="6,4" />
+    <rect x="240" y="28" width="600" height="24" rx="12" fill="url(#trackRange)" />
+
+    <!-- Left Boundary Pin (30,000) -->
+    <g transform="translate(240, 40)" filter="url(#pinShadow)">
+      <circle cx="0" cy="0" r="22" fill="#10B981" stroke="#FFFFFF" stroke-width="4" />
+      <circle cx="0" cy="0" r="8" fill="#FFFFFF" />
+      <rect x="-85" y="-95" width="170" height="60" rx="14" fill="#065F46" />
+      <text x="0" y="-72" font-family="'JetBrains Mono', monospace" font-size="16" font-weight="800" fill="#FFFFFF" text-anchor="middle">30,000</text>
+      <text x="0" y="-50" font-family="sans-serif" font-size="11" font-weight="700" fill="#A7F3D0" text-anchor="middle">✓ INCLUDED (&gt;=)</text>
+      <polygon points="0,-35 -8,-25 8,-25" fill="#065F46" />
+    </g>
+
+    <!-- Inside Value (45,000) -->
+    <circle cx="540" cy="0" r="16" fill="#D1FAE5" />
+    <text x="540" y="6" font-family="sans-serif" font-size="16" font-weight="900" fill="#059669" text-anchor="middle">✓</text>
+    <text x="540" y="80" font-family="'JetBrains Mono', monospace" font-size="20" font-weight="800" fill="#065F46" text-anchor="middle">45,000</text>
+    <text x="540" y="105" font-family="sans-serif" font-size="13" font-weight="700" fill="#059669" text-anchor="middle">MATCHES RANGE</text>
+
+    <!-- Right Boundary Pin (60,000) -->
+    <g transform="translate(840, 40)" filter="url(#pinShadow)">
+      <circle cx="0" cy="0" r="22" fill="#10B981" stroke="#FFFFFF" stroke-width="4" />
+      <circle cx="0" cy="0" r="8" fill="#FFFFFF" />
+      <rect x="-85" y="-95" width="170" height="60" rx="14" fill="#065F46" />
+      <text x="0" y="-72" font-family="'JetBrains Mono', monospace" font-size="16" font-weight="800" fill="#FFFFFF" text-anchor="middle">60,000</text>
+      <text x="0" y="-50" font-family="sans-serif" font-size="11" font-weight="700" fill="#A7F3D0" text-anchor="middle">✓ INCLUDED (&lt;=)</text>
+      <polygon points="0,-35 -8,-25 8,-25" fill="#065F46" />
+    </g>
+
+    <!-- Excluded Right Region Tint -->
+    <rect x="840" y="-30" width="240" height="140" rx="16" fill="#F8FAFC" stroke="#F1F5F9" stroke-width="1.5" />
+    <circle cx="960" cy="0" r="16" fill="#FEE2E2" />
+    <text x="960" y="6" font-family="sans-serif" font-size="16" font-weight="900" fill="#DC2626" text-anchor="middle">✕</text>
+    <text x="960" y="58" font-family="'JetBrains Mono', monospace" font-size="18" font-weight="800" fill="#64748B" text-anchor="middle">75,000</text>
+    <text x="960" y="85" font-family="sans-serif" font-size="12" font-weight="700" fill="#EF4444" text-anchor="middle">EXCLUDED</text>
+    <text x="960" y="100" font-family="sans-serif" font-size="11" font-weight="500" fill="#94A3B8" text-anchor="middle">&gt; 60,000</text>
+  </g>
+
+  <!-- Bottom Tip Cards -->
+  <g transform="translate(88, 600)">
+    <!-- Tip 1 -->
+    <rect x="0" y="0" width="580" height="96" rx="18" fill="#ECFDF5" stroke="#A7F3D0" stroke-width="1.5" />
+    <circle cx="36" cy="48" r="18" fill="#10B981" />
+    <text x="36" y="54" font-family="sans-serif" font-size="17" font-weight="900" fill="#FFFFFF" text-anchor="middle">💡</text>
+    <text x="72" y="38" font-family="sans-serif" font-size="15" font-weight="800" fill="#065F46">The Inclusive Rule (Always Included)</text>
+    <text x="72" y="62" font-family="sans-serif" font-size="13" font-weight="500" fill="#047857">
+      Equivalent to: <tspan font-family="'JetBrains Mono', monospace" font-weight="700">salary &gt;= 30000 AND salary &lt;= 60000</tspan>
+    </text>
+    <text x="72" y="80" font-family="sans-serif" font-size="12" font-weight="500" fill="#059669">Employees with exactly 30000 or 60000 will be shown!</text>
+
+    <!-- Tip 2 -->
+    <rect x="620" y="0" width="580" height="96" rx="18" fill="#FEF2F2" stroke="#FECACA" stroke-width="1.5" />
+    <circle cx="656" cy="48" r="18" fill="#EF4444" />
+    <text x="656" y="55" font-family="sans-serif" font-size="17" font-weight="900" fill="#FFFFFF" text-anchor="middle">⚠️</text>
+    <text x="692" y="38" font-family="sans-serif" font-size="15" font-weight="800" fill="#991B1B">Common Trap: Min Value Must Come First</text>
+    <text x="692" y="62" font-family="sans-serif" font-size="13" font-weight="500" fill="#B91C1C">
+      Writing <tspan font-family="'JetBrains Mono', monospace" font-weight="700">BETWEEN 60000 AND 30000</tspan> always returns <tspan font-weight="800">0 rows</tspan>!
+    </text>
+    <text x="692" y="80" font-family="sans-serif" font-size="12" font-weight="500" fill="#DC2626">SQL does not auto-swap reverse values.</text>
+  </g>
+</svg>

@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1376 768" width="1376" height="768">
+  <defs>
+    <linearGradient id="bgGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F8FAFC" />
+      <stop offset="100%" stop-color="#F1F5F9" />
+    </linearGradient>
+    <linearGradient id="nullBoxGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FEF3C7" />
+      <stop offset="100%" stop-color="#FDE68A" />
+    </linearGradient>
+    <filter id="boxShadow" x="-10%" y="-10%" width="125%" height="130%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#0F172A" flood-opacity="0.07" />
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1376" height="768" fill="url(#bgGrad2)" />
+  <circle cx="200" cy="120" r="260" fill="#F59E0B" fill-opacity="0.04" />
+  <circle cx="1200" cy="660" r="280" fill="#3B82F6" fill-opacity="0.04" />
+
+  <!-- Title Header -->
+  <g transform="translate(88, 65)">
+    <rect x="0" y="0" width="165" height="32" rx="16" fill="#FEF3C7" stroke="#FDE68A" stroke-width="1.5" />
+    <text x="82" y="21" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="700" fill="#B45309" text-anchor="middle">THREE-VALUED LOGIC</text>
+    <text x="0" y="70" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="34" font-weight="900" fill="#0F172A">The NULL Concept: What Is NULL in SQL?</text>
+    <text x="0" y="100" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="16" font-weight="500" fill="#475569">NULL is NOT Zero • NULL is NOT Empty String • NULL Represents an UNKNOWN Value</text>
+  </g>
+
+  <!-- THREE CARDS SIDE BY SIDE -->
+  <g transform="translate(88, 195)">
+    <!-- Card 1: ZERO -->
+    <g transform="translate(0, 0)" filter="url(#boxShadow)">
+      <rect width="380" height="260" rx="24" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="2" />
+      <rect x="24" y="24" width="70" height="70" rx="18" fill="#EFF6FF" />
+      <text x="59" y="72" font-family="'JetBrains Mono', monospace" font-size="38" font-weight="900" fill="#2563EB" text-anchor="middle">0</text>
+      <text x="110" y="52" font-family="sans-serif" font-size="20" font-weight="800" fill="#0F172A">Number 0</text>
+      <text x="110" y="76" font-family="sans-serif" font-size="13" font-weight="600" fill="#2563EB">Known Numerical Value</text>
+      <line x1="24" y1="115" x2="356" y2="115" stroke="#F1F5F9" stroke-width="1.5" />
+      <text x="24" y="148" font-family="sans-serif" font-size="14" font-weight="500" fill="#475569">• An actual numeric quantity</text>
+      <text x="24" y="176" font-family="sans-serif" font-size="14" font-weight="500" fill="#475569">• Takes 4 bytes in INT</text>
+      <rect x="24" y="200" width="332" height="36" rx="10" fill="#F0FDF4" stroke="#BBF7D0" stroke-width="1" />
+      <text x="190" y="223" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="700" fill="#15803D" text-anchor="middle">0 = 0 evaluates to TRUE ✓</text>
+    </g>
+
+    <!-- Card 2: EMPTY STRING -->
+    <g transform="translate(410, 0)" filter="url(#boxShadow)">
+      <rect width="380" height="260" rx="24" fill="#FFFFFF" stroke="#E2E8F0" stroke-width="2" />
+      <rect x="24" y="24" width="70" height="70" rx="18" fill="#FAF5FF" />
+      <text x="59" y="70" font-family="'JetBrains Mono', monospace" font-size="32" font-weight="900" fill="#9333EA" text-anchor="middle">""</text>
+      <text x="110" y="52" font-family="sans-serif" font-size="20" font-weight="800" fill="#0F172A">Empty String</text>
+      <text x="110" y="76" font-family="sans-serif" font-size="13" font-weight="600" fill="#9333EA">Known Text Value</text>
+      <line x1="24" y1="115" x2="356" y2="115" stroke="#F1F5F9" stroke-width="1.5" />
+      <text x="24" y="148" font-family="sans-serif" font-size="14" font-weight="500" fill="#475569">• Known string with length = 0</text>
+      <text x="24" y="176" font-family="sans-serif" font-size="14" font-weight="500" fill="#475569">• You can concatenate to it</text>
+      <rect x="24" y="200" width="332" height="36" rx="10" fill="#F0FDF4" stroke="#BBF7D0" stroke-width="1" />
+      <text x="190" y="223" font-family="'JetBrains Mono', monospace" font-size="13" font-weight="700" fill="#15803D" text-anchor="middle">'' = '' evaluates to TRUE ✓</text>
+    </g>
+
+    <!-- Card 3: NULL (UNKNOWN) -->
+    <g transform="translate(820, 0)" filter="url(#boxShadow)">
+      <rect width="380" height="260" rx="24" fill="#FFFBEB" stroke="#FCD34D" stroke-width="2" />
+      <rect x="24" y="24" width="70" height="70" rx="18" fill="url(#nullBoxGrad)" />
+      <text x="59" y="72" font-family="sans-serif" font-size="40" font-weight="900" fill="#B45309" text-anchor="middle">?</text>
+      <text x="110" y="52" font-family="sans-serif" font-size="20" font-weight="900" fill="#B45309">NULL</text>
+      <text x="110" y="76" font-family="sans-serif" font-size="13" font-weight="700" fill="#D97706">UNKNOWN / MISSING</text>
+      <line x1="24" y1="115" x2="356" y2="115" stroke="#FDE68A" stroke-width="1.5" />
+      <text x="24" y="148" font-family="sans-serif" font-size="14" font-weight="500" fill="#78350F">• Complete absence of a value</text>
+      <text x="24" y="176" font-family="sans-serif" font-size="14" font-weight="500" fill="#78350F">• Cannot do arithmetic or compare</text>
+      <rect x="24" y="200" width="332" height="36" rx="10" fill="#FEF2F2" stroke="#FECACA" stroke-width="1" />
+      <text x="190" y="223" font-family="'JetBrains Mono', monospace" font-size="12" font-weight="700" fill="#B91C1C" text-anchor="middle">NULL = NULL is UNKNOWN ✗</text>
+    </g>
+  </g>
+
+  <!-- BOTTOM COMPARISON ROWS (THE FATAL TRAP VS SOLUTION) -->
+  <g transform="translate(88, 490)">
+    <!-- Fatal Mistake Row -->
+    <g filter="url(#boxShadow)">
+      <rect x="0" y="0" width="580" height="180" rx="20" fill="#FFFFFF" stroke="#FCA5A5" stroke-width="1.5" />
+      <rect x="20" y="18" width="130" height="30" rx="8" fill="#FEE2E2" />
+      <text x="85" y="38" font-family="sans-serif" font-size="12" font-weight="800" fill="#DC2626" text-anchor="middle">❌ THE FATAL TRAP</text>
+      <text x="20" y="78" font-family="'JetBrains Mono', monospace" font-size="17" font-weight="800" fill="#991B1B">WHERE city = NULL</text>
+      <text x="20" y="104" font-family="sans-serif" font-size="13" font-weight="600" fill="#DC2626">Result: Evaluates to UNKNOWN (Returns 0 Rows!)</text>
+      <text x="20" y="132" font-family="sans-serif" font-size="13" font-weight="400" fill="#64748B">
+        Because SQL cannot confirm if an unknown value equals another unknown, it never evaluates to TRUE.
+      </text>
+      <text x="20" y="156" font-family="sans-serif" font-size="13" font-weight="700" fill="#B91C1C">Never use = or != with NULL!</text>
+    </g>
+
+    <!-- Correct Solutions Row -->
+    <g transform="translate(620, 0)" filter="url(#boxShadow)">
+      <rect x="0" y="0" width="580" height="180" rx="20" fill="#FFFFFF" stroke="#86EFAC" stroke-width="1.5" />
+      <rect x="20" y="18" width="140" height="30" rx="8" fill="#DCFCE7" />
+      <text x="90" y="38" font-family="sans-serif" font-size="12" font-weight="800" fill="#15803D" text-anchor="middle">✅ THE SQL SOLUTION</text>
+      <g transform="translate(20, 64)">
+        <rect x="0" y="0" width="260" height="42" rx="10" fill="#F0FDF4" stroke="#BBF7D0" stroke-width="1" />
+        <text x="130" y="26" font-family="'JetBrains Mono', monospace" font-size="15" font-weight="800" fill="#166534" text-anchor="middle">WHERE city IS NULL</text>
+        <text x="280" y="26" font-family="sans-serif" font-size="13" font-weight="600" fill="#15803D">→ Finds missing values</text>
+      </g>
+      <g transform="translate(20, 118)">
+        <rect x="0" y="0" width="260" height="42" rx="10" fill="#EFF6FF" stroke="#BFDBFE" stroke-width="1" />
+        <text x="130" y="26" font-family="'JetBrains Mono', monospace" font-size="15" font-weight="800" fill="#1E40AF" text-anchor="middle">WHERE city IS NOT NULL</text>
+        <text x="280" y="26" font-family="sans-serif" font-size="13" font-weight="600" fill="#2563EB">→ Finds filled values</text>
+      </g>
+    </g>
+  </g>
+</svg>

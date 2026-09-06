@@ -232,11 +232,11 @@ export default function Courses() {
                 >
                   <div className="space-y-3">
                     <div className="flex justify-between items-start">
-                      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-slate-50 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-300 border border-slate-200/80 p-2 overflow-hidden">
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white flex items-center justify-center shadow-xs group-hover:scale-105 transition-transform duration-300 border border-slate-200/90 p-1.5 overflow-hidden">
                         <img
                           src={resolveCourseImage(course.imageSrc)}
                           alt={course.title}
-                          className="object-contain w-full h-full"
+                          className="object-contain w-full h-full rounded-xl"
                           onError={(e) => {
                             e.target.onerror = null;
                             e.target.src = '/logo.png';

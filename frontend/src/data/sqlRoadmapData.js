@@ -57,17 +57,19 @@ export const SQL_30_DAY_ROADMAP = [
   {
     day: 4,
     week: 1,
-    phase: 'DDL - Schema Modification',
-    title: 'ALTER, DROP, TRUNCATE & RENAME',
-    moduleId: 'mod-02',
-    topicId: 'top-02-02',
-    estimatedMinutes: 40,
+    phase: 'DQL - Advanced Filtering',
+    title: 'DAY 4 — ADVANCED FILTERING (LIKE, IN, BETWEEN, NULL)',
+    moduleId: 'mod-05',
+    topicId: 'top-05-01',
+    estimatedMinutes: 45,
     difficulty: 'Beginner',
-    summary: 'Modify existing tables: ADD, MODIFY, CHANGE, DROP columns, and understand DROP vs TRUNCATE vs DELETE.',
+    summary: 'Master LIKE wildcards (%, _), discrete IN matching, inclusive BETWEEN ranges, and Three-Valued Logic (IS NULL / IS NOT NULL).',
     goals: [
-      'Alter existing schemas without losing data',
-      'Understand critical differences: DROP vs TRUNCATE vs DELETE',
-      'Practice DDL schema refactoring scenarios'
+      'Master pattern matching with LIKE, %, and _ wildcards',
+      'Filter multi-value sets with IN and understand why IN beats OR',
+      'Execute continuous range queries with inclusive BETWEEN',
+      'Understand Three-Valued Logic (TRUE/FALSE/UNKNOWN) and IS NULL',
+      'Solve 30 practice questions across Level 1 to Level 6'
     ],
     milestone: false
   },
