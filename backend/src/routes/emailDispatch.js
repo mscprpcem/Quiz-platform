@@ -6,6 +6,7 @@ const authMiddleware = require('../middleware/auth');
 const { User, Quiz, ScheduledOccurrence, QuizAttempt, Participant, Event, EventRegistration } = require('../models');
 const { sendCustomBroadcastEmail } = require('../services/emailService');
 const { Op } = require('sequelize');
+const { getInjectedScoresForQuiz } = require('../services/injectedScoresService');
 
 // Load static/old events from events.json
 let staticEvents = [];
@@ -441,6 +442,26 @@ router.get('/quiz-participants', authMiddleware, async (req, res) => {
         }
       } catch (pErr) {
         console.warn('Error fetching Live Participants for dispatch:', pErr.message);
+      }
+
+      // 2.5 Injected Historical Scores (e.g. Week 1 JSON)
+      const injected = getInjectedScoresForQuiz(quizId, quizDetails?.title);
+      for (const ip of injected) {
+        if (ip.participant_email && ip.participant_email.includes('@')) {
+          const clean = ip.participant_email.toLowerCase().trim();
+          if (!participantsMap.has(clean)) {
+            participantsMap.set(clean, {
+              email: clean,
+              name: ip.participant_name || clean.split('@')[0],
+              college: 'PRPCEM',
+              source: 'Tournament Record',
+              quiz_status: 'completed',
+              status: 'Completed',
+              score: ip.score,
+              submittedAt: ip.submitted_at
+            });
+          }
+        }
       }
     }
 
@@ -909,6 +930,25 @@ router.post('/send', authMiddleware, async (req, res) => {
           }
         } catch (pErr) {
           console.warn('Error querying live participants for email send:', pErr.message);
+        }
+
+        // 2.5 Injected scores (e.g. Week 1 JSON)
+        if (participantFilter === 'completed' || participantFilter === 'all') {
+          const injected = getInjectedScoresForQuiz(quizId, quizDetails?.title);
+          for (const ip of injected) {
+            if (ip.participant_email && ip.participant_email.includes('@')) {
+              const clean = ip.participant_email.toLowerCase().trim();
+              if (!excludedSet.has(clean) && !targetRecipientsMap.has(clean)) {
+                targetRecipientsMap.set(clean, {
+                  email: clean,
+                  name: ip.participant_name || clean.split('@')[0],
+                  college: 'PRPCEM',
+                  score: ip.score,
+                  status: 'Completed'
+                });
+              }
+            }
+          }
         }
       }
 

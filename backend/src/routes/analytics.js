@@ -7,6 +7,7 @@ const {
 const authMiddleware = require('../middleware/auth');
 const { Op } = require('sequelize');
 const { rankLeaderboard, calculateNormalizedScoreAndXP } = require('../services/scoringService');
+const { getInjectedScoresForQuiz, loadInjectedScoresData } = require('../services/injectedScoresService');
 
 // Public endpoint for homepage leaderboard & recent events
 router.get('/public/leaderboard', async (req, res) => {
@@ -18,6 +19,29 @@ router.get('/public/leaderboard', async (req, res) => {
       where: { status: 'completed' },
       include: [{ model: AttemptAnswer, as: 'answers' }]
     }).catch(() => []);
+
+    // Also include injected scores (e.g. Week 1 JSON)
+    const injectedEntries = loadInjectedScoresData();
+    for (const entry of injectedEntries) {
+      if (Array.isArray(entry.participants)) {
+        for (const p of entry.participants) {
+          completedAttempts.push({
+            id: `injected_${entry.quiz_id}_${p.email}`,
+            quiz_id: entry.quiz_id,
+            participant_name: p.name,
+            participant_email: p.email,
+            sso_user_id: null,
+            score: p.score,
+            correct_count: p.score,
+            incorrect_count: Math.max(0, 20 - p.score),
+            unanswered_count: 0,
+            time_taken_seconds: p.time_taken_seconds,
+            status: 'completed',
+            submitted_at: '2026-02-15T12:00:00.000Z'
+          });
+        }
+      }
+    }
 
     for (const att of completedAttempts) {
       const ssoId = att.sso_user_id ? String(att.sso_user_id).trim() : '';
@@ -316,9 +340,15 @@ router.get('/quiz/:id', authMiddleware, async (req, res) => {
           }));
 
           attemptViolations = liveViolations;
+        } else {
+          // Check for injected JSON scores (e.g. Week 1 JSON)
+          const injected = getInjectedScoresForQuiz(quizId, quiz.title);
+          if (injected.length > 0) {
+            attempts = injected;
+          }
         }
       } else {
-        const attemptIds = attempts.map(a => a.id);
+        const attemptIds = attempts.map(a => a.id).filter(id => !String(id).startsWith('injected_'));
         if (attemptIds.length > 0) {
           [attemptAnswers, attemptViolations] = await Promise.all([
             AttemptAnswer.findAll({ where: { attempt_id: { [Op.in]: attemptIds } } }).catch(() => []),
@@ -809,13 +839,24 @@ const handleCumulativeLeaderboard = async (req, res) => {
       return studentAggregates.get(key);
     };
 
-    // 3. Process Scheduled Quiz Attempts
-    const attempts = await QuizAttempt.findAll({
+    // 3. Process Scheduled Quiz Attempts + Injected JSON Scores (e.g. Week 1)
+    const dbAttempts = await QuizAttempt.findAll({
       where: {
         quiz_id: { [Op.in]: targetQuizIds }
       },
       order: [['submitted_at', 'DESC'], ['createdAt', 'DESC']]
     }).catch(() => []);
+
+    // Combine with injected scores for any selected quizzes (e.g. Week 1 JSON)
+    const injectedAttempts = [];
+    for (const q of selectedQuizzes) {
+      const injected = getInjectedScoresForQuiz(q.id, q.title);
+      if (injected.length > 0) {
+        injectedAttempts.push(...injected);
+      }
+    }
+
+    const attempts = [...dbAttempts, ...injectedAttempts];
 
     // For each student & quiz, pick best attempt (highest score; fastest time as tie-breaker)
     const bestAttemptsByStudentQuiz = new Map();
