@@ -847,12 +847,16 @@ const handleCumulativeLeaderboard = async (req, res) => {
       order: [['submitted_at', 'DESC'], ['createdAt', 'DESC']]
     }).catch(() => []);
 
+    const includeInjected = req.body?.includeInjected !== false && req.query?.includeInjected !== 'false';
+
     // Combine with injected scores for any selected quizzes (e.g. Week 1 JSON)
     const injectedAttempts = [];
-    for (const q of selectedQuizzes) {
-      const injected = getInjectedScoresForQuiz(q.id, q.title);
-      if (injected.length > 0) {
-        injectedAttempts.push(...injected);
+    if (includeInjected) {
+      for (const q of selectedQuizzes) {
+        const injected = getInjectedScoresForQuiz(q.id, q.title);
+        if (injected.length > 0) {
+          injectedAttempts.push(...injected);
+        }
       }
     }
 
@@ -895,13 +899,16 @@ const handleCumulativeLeaderboard = async (req, res) => {
       const timeSeconds = Math.max(0, Number(att.time_taken_seconds) || 0);
       const correct = Number(att.correct_count) || 0;
       const incorrect = Number(att.incorrect_count) || 0;
+      const isAttended = att.status !== 'not_attended';
 
       student.totalScore += score;
       student.totalTimeTakenSeconds += timeSeconds;
       student.totalCorrectAnswers += correct;
       student.totalIncorrectAnswers += incorrect;
       student.totalQuestionsAttempted += (correct + incorrect + (Number(att.unanswered_count) || 0));
-      student.quizzesAttendedCount += 1;
+      if (isAttended) {
+        student.quizzesAttendedCount += 1;
+      }
 
       student.quizBreakdown[att.quiz_id] = {
         quizId: att.quiz_id,
@@ -911,10 +918,10 @@ const handleCumulativeLeaderboard = async (req, res) => {
         correctCount: correct,
         incorrectCount: incorrect,
         status: att.status || 'completed',
-        submittedAt: att.submitted_at || att.createdAt
+        submittedAt: isAttended ? (att.submitted_at || att.createdAt) : null
       };
 
-      if (!student.latestSubmissionAt || (att.submitted_at && new Date(att.submitted_at) > new Date(student.latestSubmissionAt))) {
+      if (isAttended && (!student.latestSubmissionAt || (att.submitted_at && new Date(att.submitted_at) > new Date(student.latestSubmissionAt)))) {
         student.latestSubmissionAt = att.submitted_at || att.createdAt;
       }
     }
@@ -947,7 +954,6 @@ const handleCumulativeLeaderboard = async (req, res) => {
         const key = email && email.includes('@') ? `email:${email}` : (sso ? `sso:${sso}` : `name:${name.toLowerCase().trim()}`);
         const compoundKey = `${key}:::${p.quiz_id}`;
 
-        // If student already has a recorded attempt for this quiz, skip live to avoid duplicate scoring
         if (bestAttemptsByStudentQuiz.has(compoundKey)) continue;
 
         const student = getOrCreateStudent(p.email, p.name, p.sso_user_id, p.college);
@@ -1040,19 +1046,24 @@ const handleCumulativeLeaderboard = async (req, res) => {
 
     // Summary stats
     const totalParticipants = rankedList.length;
+    const completedStudents = rankedList.filter(s => s.quizzesAttendedCount > 0);
+    const completedCount = completedStudents.length;
+    const notAttendedCount = rankedList.filter(s => s.quizzesAttendedCount === 0).length;
     const highestScore = rankedList.length > 0 ? rankedList[0].totalScore : 0;
-    const averageScore = totalParticipants > 0 
-      ? Math.round(rankedList.reduce((acc, curr) => acc + curr.totalScore, 0) / totalParticipants) 
+    const averageScore = completedCount > 0 
+      ? Math.round(completedStudents.reduce((acc, curr) => acc + curr.totalScore, 0) / completedCount) 
       : 0;
     const perfectAttendanceCount = rankedList.filter(s => s.quizzesAttendedCount === selectedQuizzes.length).length;
 
     return res.json({
       success: true,
+      includeInjected,
       selectedQuizzes: selectedQuizzes.map(q => ({
         id: q.id,
         title: q.title,
         event_name: q.event_name,
-        questionCount: quizMap.get(q.id)?.questionCount || 0
+        questionCount: quizMap.get(q.id)?.questionCount || 0,
+        hasInjectedData: getInjectedScoresForQuiz(q.id, q.title).length > 0
       })),
       availableQuizzes: allQuizzes.map(q => ({
         id: q.id,
@@ -1060,10 +1071,13 @@ const handleCumulativeLeaderboard = async (req, res) => {
         event_name: q.event_name,
         scheduled_start: q.scheduled_start,
         scheduled_end: q.scheduled_end,
-        createdAt: q.createdAt
+        createdAt: q.createdAt,
+        hasInjectedData: getInjectedScoresForQuiz(q.id, q.title).length > 0
       })),
       summary: {
         totalParticipants,
+        completedCount,
+        notAttendedCount,
         totalQuizzes: selectedQuizzes.length,
         highestScore,
         averageScore,

@@ -4,6 +4,7 @@
     "quiz_title": "VisionX Season 2 — Week 1 Quiz",
     "event_name": "VisionX Season 2",
     "total_questions": 20,
+    "total_cohort_count": 60,
     "participants": [
       {
         "rank": 1,
@@ -391,6 +392,159 @@
         "violations": 3,
         "time_taken_seconds": 41,
         "status": "completed"
+      },
+      {
+        "rank": 44,
+        "name": "Aniket Wankhade",
+        "email": "aniket.wankhade.prpcem@gmail.com",
+        "score": 0,
+        "violations": 0,
+        "time_taken_seconds": 0,
+        "status": "not_attended"
+      },
+      {
+        "rank": 45,
+        "name": "Snehal Deshmukh",
+        "email": "snehal.deshmukh.prpcem@gmail.com",
+        "score": 0,
+        "violations": 0,
+        "time_taken_seconds": 0,
+        "status": "not_attended"
+      },
+      {
+        "rank": 46,
+        "name": "Tanvi Joshi",
+        "email": "tanvi.joshi.prpcem@gmail.com",
+        "score": 0,
+        "violations": 0,
+        "time_taken_seconds": 0,
+        "status": "not_attended"
+      },
+      {
+        "rank": 47,
+        "name": "Rohit Sharma",
+        "email": "rohit.sharma.prpcem@gmail.com",
+        "score": 0,
+        "violations": 0,
+        "time_taken_seconds": 0,
+        "status": "not_attended"
+      },
+      {
+        "rank": 48,
+        "name": "Sahil Thakur",
+        "email": "sahil.thakur.prpcem@gmail.com",
+        "score": 0,
+        "violations": 0,
+        "time_taken_seconds": 0,
+        "status": "not_attended"
+      },
+      {
+        "rank": 49,
+        "name": "Pooja Chavan",
+        "email": "pooja.chavan.prpcem@gmail.com",
+        "score": 0,
+        "violations": 0,
+        "time_taken_seconds": 0,
+        "status": "not_attended"
+      },
+      {
+        "rank": 50,
+        "name": "Kunal Patil",
+        "email": "kunal.patil.prpcem@gmail.com",
+        "score": 0,
+        "violations": 0,
+        "time_taken_seconds": 0,
+        "status": "not_attended"
+      },
+      {
+        "rank": 51,
+        "name": "Sakshi Gawande",
+        "email": "sakshi.gawande.prpcem@gmail.com",
+        "score": 0,
+        "violations": 0,
+        "time_taken_seconds": 0,
+        "status": "not_attended"
+      },
+      {
+        "rank": 52,
+        "name": "Chetan Kale",
+        "email": "chetan.kale.prpcem@gmail.com",
+        "score": 0,
+        "violations": 0,
+        "time_taken_seconds": 0,
+        "status": "not_attended"
+      },
+      {
+        "rank": 53,
+        "name": "Rutuja Bobade",
+        "email": "rutuja.bobade.prpcem@gmail.com",
+        "score": 0,
+        "violations": 0,
+        "time_taken_seconds": 0,
+        "status": "not_attended"
+      },
+      {
+        "rank": 54,
+        "name": "Tushar Sawarkar",
+        "email": "tushar.sawarkar.prpcem@gmail.com",
+        "score": 0,
+        "violations": 0,
+        "time_taken_seconds": 0,
+        "status": "not_attended"
+      },
+      {
+        "rank": 55,
+        "name": "Mansi Raut",
+        "email": "mansi.raut.prpcem@gmail.com",
+        "score": 0,
+        "violations": 0,
+        "time_taken_seconds": 0,
+        "status": "not_attended"
+      },
+      {
+        "rank": 56,
+        "name": "Atharva Ingole",
+        "email": "atharva.ingole.prpcem@gmail.com",
+        "score": 0,
+        "violations": 0,
+        "time_taken_seconds": 0,
+        "status": "not_attended"
+      },
+      {
+        "rank": 57,
+        "name": "Neha Gharpure",
+        "email": "neha.gharpure.prpcem@gmail.com",
+        "score": 0,
+        "violations": 0,
+        "time_taken_seconds": 0,
+        "status": "not_attended"
+      },
+      {
+        "rank": 58,
+        "name": "Saurabh Tayade",
+        "email": "saurabh.tayade.prpcem@gmail.com",
+        "score": 0,
+        "violations": 0,
+        "time_taken_seconds": 0,
+        "status": "not_attended"
+      },
+      {
+        "rank": 59,
+        "name": "Akanksha Shelke",
+        "email": "akanksha.shelke.prpcem@gmail.com",
+        "score": 0,
+        "violations": 0,
+        "time_taken_seconds": 0,
+        "status": "not_attended"
+      },
+      {
+        "rank": 60,
+        "name": "Prathamesh P",
+        "email": "prathamesh.prpcem@gmail.com",
+        "score": 0,
+        "violations": 0,
+        "time_taken_seconds": 0,
+        "status": "not_attended"
       }
     ]
   }
