@@ -50,6 +50,9 @@ export default function Home() {
   // Dynamic Data States (Fetched from backend)
   const [upcomingQuizzes, setUpcomingQuizzes] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
+  const [availableLeaderboardQuizzes, setAvailableLeaderboardQuizzes] = useState([]);
+  const [selectedLeaderboardQuizId, setSelectedLeaderboardQuizId] = useState('all');
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
   const [recentEvents, setRecentEvents] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [showMatrixModal, setShowMatrixModal] = useState(false);
@@ -64,6 +67,17 @@ export default function Home() {
   ];
 
   const displayLeaderboard = (() => {
+    // When a specific quiz is selected, show only genuine participants for that quiz
+    if (selectedLeaderboardQuizId !== 'all') {
+      return (leaderboard || []).map(p => {
+        let s = Math.round(Number(p.score) || 0);
+        if (s >= 50 && p.correctCount && p.correctCount <= 30) {
+          s = p.correctCount;
+        }
+        return { ...p, score: s };
+      });
+    }
+
     const base = (!leaderboard || leaderboard.length === 0) ? DEFAULT_LEADERBOARD : leaderboard;
     const merged = [...base];
     if (merged.length < 5) {
@@ -164,6 +178,9 @@ export default function Home() {
         if (leaderboardRes?.data) {
           setLeaderboard(Array.isArray(leaderboardRes.data.leaderboard) ? leaderboardRes.data.leaderboard : []);
           setRecentEvents(Array.isArray(leaderboardRes.data.recentEvents) ? leaderboardRes.data.recentEvents : []);
+          if (Array.isArray(leaderboardRes.data.availableQuizzes)) {
+            setAvailableLeaderboardQuizzes(leaderboardRes.data.availableQuizzes);
+          }
         }
       } catch (err) {
         console.error('Fetch homepage data error:', err);
@@ -174,6 +191,24 @@ export default function Home() {
 
     fetchHomeData();
   }, []);
+
+  const handleLeaderboardQuizChange = async (quizId) => {
+    setSelectedLeaderboardQuizId(quizId);
+    try {
+      setLoadingLeaderboard(true);
+      const url = quizId && quizId !== 'all'
+        ? `/api/analytics/public/leaderboard?quizId=${encodeURIComponent(quizId)}`
+        : '/api/analytics/public/leaderboard';
+      const res = await api.get(url);
+      if (res.data) {
+        setLeaderboard(Array.isArray(res.data.leaderboard) ? res.data.leaderboard : []);
+      }
+    } catch (err) {
+      console.error('Failed to filter leaderboard by quiz:', err);
+    } finally {
+      setLoadingLeaderboard(false);
+    }
+  };
 
   const handleQuickJoinSubmit = (e) => {
     e.preventDefault();
@@ -595,7 +630,7 @@ export default function Home() {
               </button>
               <button
                 type="button"
-                onClick={() => navigate('/admin/cumulative-leaderboard')}
+                onClick={() => navigate('/tournament-standings')}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-purple-200 bg-purple-50/90 hover:bg-purple-100 text-purple-800 text-xs font-extrabold transition-all shadow-xs w-fit cursor-pointer active:scale-98"
               >
                 <Trophy size={14} className="text-amber-500" />
@@ -604,118 +639,185 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="leaderboard-grid-wrapper">
-            
-            {/* Top 3 Performers Podium */}
-            <div className="leaderboard-top3-container">
-              
-              {/* 2nd Place */}
-              {displayLeaderboard[1] && (
-                <div className="medalist-card medalist-card-silver order-2 sm:order-1">
-                  <span className="inline-flex items-center justify-center bg-slate-100 text-slate-700 font-extrabold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full border border-slate-200 shadow-sm mb-3">Overall #2</span>
-                  <div className="flex flex-col items-center space-y-3.5 w-full">
-                    <div className="medalist-avatar-silver">
-                      <div className="medalist-avatar-inner">{getInitials(displayLeaderboard[1].name)}</div>
-                    </div>
-                    <div className="space-y-0.5 text-center w-full px-1">
-                      <h4 className="font-extrabold text-zinc-900 text-xs sm:text-sm line-clamp-1 max-w-[170px] sm:max-w-none mx-auto" title={displayLeaderboard[1].name}>
-                        {displayLeaderboard[1].name || 'Participant'}
-                      </h4>
-                      <p className="text-[10px] font-semibold text-zinc-500">{displayLeaderboard[1].college || 'MSC Member'}</p>
-                      {displayLeaderboard[1].totalTimeSeconds ? (
-                        <p className="text-[9px] font-extrabold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full inline-block mt-1">
-                          ⏱ {displayLeaderboard[1].totalTimeSeconds}s
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-                  <span className="score-capsule score-capsule-silver">{displayLeaderboard[1].score || 0} pts</span>
-                </div>
+          {/* Quiz Selector Filter */}
+          {availableLeaderboardQuizzes.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2.5 pt-1 pb-1">
+              <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
+                <Layers size={14} className="text-purple-600" />
+                <span>Quiz Standings:</span>
+              </span>
+              <div className="relative inline-block">
+                <select
+                  value={selectedLeaderboardQuizId}
+                  onChange={(e) => handleLeaderboardQuizChange(e.target.value)}
+                  className="bg-white border border-slate-200 hover:border-slate-300 text-slate-900 font-extrabold text-xs rounded-xl pl-3 pr-8 py-2 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 shadow-2xs max-w-[280px] sm:max-w-xs truncate cursor-pointer appearance-none transition"
+                >
+                  <option value="all">🏆 Overall Standings (All Quizzes)</option>
+                  {availableLeaderboardQuizzes.map((q) => (
+                    <option key={q.id} value={q.id}>
+                      {q.title} {q.participantCount > 0 ? `(${q.participantCount} Contenders)` : ''}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              </div>
+
+              {selectedLeaderboardQuizId !== 'all' && (
+                <button
+                  type="button"
+                  onClick={() => handleLeaderboardQuizChange('all')}
+                  className="text-[11px] font-bold text-purple-700 hover:text-purple-900 px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 rounded-xl transition cursor-pointer border border-purple-200"
+                >
+                  Reset to Overall
+                </button>
               )}
 
-              {/* 1st Place */}
-              {displayLeaderboard[0] && (
-                <div className="medalist-card medalist-card-gold order-1 sm:order-2">
-                  <span className="inline-flex items-center justify-center bg-amber-500 text-white font-extrabold text-[10px] uppercase tracking-wider px-3.5 py-1 rounded-full shadow-sm mb-3">👑 Overall #1</span>
-                  <div className="flex flex-col items-center space-y-3.5 w-full">
-                    <div className="medalist-avatar-gold">
-                      <div className="medalist-avatar-inner medalist-avatar-inner-gold">{getInitials(displayLeaderboard[0].name)}</div>
-                    </div>
-                    <div className="space-y-0.5 text-center w-full px-1">
-                      <h4 className="font-extrabold text-zinc-900 text-xs sm:text-sm md:text-base line-clamp-1 max-w-[180px] sm:max-w-none mx-auto" title={displayLeaderboard[0].name}>
-                        {displayLeaderboard[0].name || 'Participant'}
-                      </h4>
-                      <p className="text-[10px] font-semibold text-zinc-500">{displayLeaderboard[0].college || 'MSC Member'}</p>
-                      {displayLeaderboard[0].totalTimeSeconds ? (
-                        <p className="text-[9px] font-extrabold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full inline-block mt-1">
-                          ⏱ {displayLeaderboard[0].totalTimeSeconds}s
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-                  <span className="score-capsule score-capsule-gold">{displayLeaderboard[0].score || 0} pts</span>
-                </div>
+              {loadingLeaderboard && (
+                <span className="flex items-center gap-1 text-xs text-purple-600 font-semibold">
+                  <RefreshCw size={13} className="animate-spin" />
+                  Loading...
+                </span>
               )}
-
-              {/* 3rd Place */}
-              {displayLeaderboard[2] && (
-                <div className="medalist-card medalist-card-bronze order-3 sm:order-3">
-                  <span className="inline-flex items-center justify-center bg-orange-50 text-orange-800 font-extrabold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full border border-orange-200 shadow-sm mb-3">Overall #3</span>
-                  <div className="flex flex-col items-center space-y-3.5 w-full">
-                    <div className="medalist-avatar-bronze">
-                      <div className="medalist-avatar-inner medalist-avatar-inner-bronze">{getInitials(displayLeaderboard[2].name)}</div>
-                    </div>
-                    <div className="space-y-0.5 text-center w-full px-1">
-                      <h4 className="font-extrabold text-zinc-900 text-xs sm:text-sm line-clamp-1 max-w-[170px] sm:max-w-none mx-auto" title={displayLeaderboard[2].name}>
-                        {displayLeaderboard[2].name || 'Participant'}
-                      </h4>
-                      <p className="text-[10px] font-semibold text-zinc-500">{displayLeaderboard[2].college || 'MSC Member'}</p>
-                      {displayLeaderboard[2].totalTimeSeconds ? (
-                        <p className="text-[9px] font-extrabold text-orange-700 bg-orange-100 px-2 py-0.5 rounded-full inline-block mt-1">
-                          ⏱ {displayLeaderboard[2].totalTimeSeconds}s
-                        </p>
-                      ) : null}
-                    </div>
-                  </div>
-                  <span className="score-capsule score-capsule-bronze">{displayLeaderboard[2].score || 0} pts</span>
-                </div>
-              )}
-
             </div>
+          )}
 
-            {/* Runner Ups #4 and #5 */}
-            <div className="leaderboard-runnerups-container">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Runner Ups</h4>
-                  <span className="text-[10px] font-bold text-brand-blue bg-brand-lightBlue px-2 py-0.5 rounded-full">Top 5</span>
-                </div>
-                <div className="space-y-3">
-                  {displayLeaderboard.slice(3, 5).map((player, idx) => {
-                    if (!player) return null;
-                    return (
-                      <div key={idx} className="leaderboard-runnerup-row group">
-                        <div className="flex items-center gap-3">
-                          <span className="w-6 h-6 rounded-full bg-zinc-200 text-zinc-600 flex items-center justify-center font-black text-[10px] group-hover:bg-brand-blue group-hover:text-white transition-colors duration-200">
-                            {idx + 4}
-                          </span>
-                          <div className="w-8 h-8 rounded-full bg-brand-blue/10 text-brand-blue flex items-center justify-center font-black text-[10px] group-hover:scale-105 transition-transform duration-200">
-                            {getInitials(player.name)}
-                          </div>
-                          <div className="text-left">
-                            <p className="font-bold text-xs text-brand-textMain leading-tight">{player.name || 'Participant'}</p>
-                            <p className="text-[9px] text-brand-textMuted mt-0.5">{player.college || 'MSC Member'}</p>
-                          </div>
-                        </div>
-                        <span className="font-black text-xs text-brand-blue bg-brand-lightBlue px-2.5 py-1 rounded-full border border-brand-blue/10">{player.score || 0} pts</span>
+          {selectedLeaderboardQuizId !== 'all' && displayLeaderboard.length === 0 ? (
+            <div className="bg-white border border-dashed border-slate-300 rounded-3xl p-10 text-center my-4 shadow-xs">
+              <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
+                <Trophy size={24} />
+              </div>
+              <h4 className="text-sm font-extrabold text-slate-800">No Contender Attempts Recorded Yet</h4>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-4">
+                Be the first to participate in this challenge and claim the #1 spot on the leaderboard!
+              </p>
+              <button
+                type="button"
+                onClick={() => scrollSection('join')}
+                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
+              >
+                Join or Take Quiz
+              </button>
+            </div>
+          ) : (
+            <div className="leaderboard-grid-wrapper">
+              
+              {/* Top 3 Performers Podium */}
+              <div className="leaderboard-top3-container">
+                
+                {/* 2nd Place */}
+                {displayLeaderboard[1] && (
+                  <div className="medalist-card medalist-card-silver order-2 sm:order-1">
+                    <span className="inline-flex items-center justify-center bg-slate-100 text-slate-700 font-extrabold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full border border-slate-200 shadow-sm mb-3">
+                      {selectedLeaderboardQuizId === 'all' ? 'Overall #2' : 'Rank #2'}
+                    </span>
+                    <div className="flex flex-col items-center space-y-3.5 w-full">
+                      <div className="medalist-avatar-silver">
+                        <div className="medalist-avatar-inner">{getInitials(displayLeaderboard[1].name)}</div>
                       </div>
-                    );
-                  })}
+                      <div className="space-y-0.5 text-center w-full px-1">
+                        <h4 className="font-extrabold text-zinc-900 text-xs sm:text-sm line-clamp-1 max-w-[170px] sm:max-w-none mx-auto" title={displayLeaderboard[1].name}>
+                          {displayLeaderboard[1].name || 'Participant'}
+                        </h4>
+                        <p className="text-[10px] font-semibold text-zinc-500">{displayLeaderboard[1].college || 'MSC Member'}</p>
+                        {displayLeaderboard[1].totalTimeSeconds ? (
+                          <p className="text-[9px] font-extrabold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full inline-block mt-1">
+                            ⏱ {displayLeaderboard[1].totalTimeSeconds}s
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                    <span className="score-capsule score-capsule-silver">{displayLeaderboard[1].score || 0} pts</span>
+                  </div>
+                )}
+
+                {/* 1st Place */}
+                {displayLeaderboard[0] && (
+                  <div className="medalist-card medalist-card-gold order-1 sm:order-2">
+                    <span className="inline-flex items-center justify-center bg-amber-500 text-white font-extrabold text-[10px] uppercase tracking-wider px-3.5 py-1 rounded-full shadow-sm mb-3">
+                      👑 {selectedLeaderboardQuizId === 'all' ? 'Overall #1' : 'Rank #1'}
+                    </span>
+                    <div className="flex flex-col items-center space-y-3.5 w-full">
+                      <div className="medalist-avatar-gold">
+                        <div className="medalist-avatar-inner medalist-avatar-inner-gold">{getInitials(displayLeaderboard[0].name)}</div>
+                      </div>
+                      <div className="space-y-0.5 text-center w-full px-1">
+                        <h4 className="font-extrabold text-zinc-900 text-xs sm:text-sm md:text-base line-clamp-1 max-w-[180px] sm:max-w-none mx-auto" title={displayLeaderboard[0].name}>
+                          {displayLeaderboard[0].name || 'Participant'}
+                        </h4>
+                        <p className="text-[10px] font-semibold text-zinc-500">{displayLeaderboard[0].college || 'MSC Member'}</p>
+                        {displayLeaderboard[0].totalTimeSeconds ? (
+                          <p className="text-[9px] font-extrabold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full inline-block mt-1">
+                            ⏱ {displayLeaderboard[0].totalTimeSeconds}s
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                    <span className="score-capsule score-capsule-gold">{displayLeaderboard[0].score || 0} pts</span>
+                  </div>
+                )}
+
+                {/* 3rd Place */}
+                {displayLeaderboard[2] && (
+                  <div className="medalist-card medalist-card-bronze order-3 sm:order-3">
+                    <span className="inline-flex items-center justify-center bg-orange-50 text-orange-800 font-extrabold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full border border-orange-200 shadow-sm mb-3">
+                      {selectedLeaderboardQuizId === 'all' ? 'Overall #3' : 'Rank #3'}
+                    </span>
+                    <div className="flex flex-col items-center space-y-3.5 w-full">
+                      <div className="medalist-avatar-bronze">
+                        <div className="medalist-avatar-inner medalist-avatar-inner-bronze">{getInitials(displayLeaderboard[2].name)}</div>
+                      </div>
+                      <div className="space-y-0.5 text-center w-full px-1">
+                        <h4 className="font-extrabold text-zinc-900 text-xs sm:text-sm line-clamp-1 max-w-[170px] sm:max-w-none mx-auto" title={displayLeaderboard[2].name}>
+                          {displayLeaderboard[2].name || 'Participant'}
+                        </h4>
+                        <p className="text-[10px] font-semibold text-zinc-500">{displayLeaderboard[2].college || 'MSC Member'}</p>
+                        {displayLeaderboard[2].totalTimeSeconds ? (
+                          <p className="text-[9px] font-extrabold text-orange-700 bg-orange-100 px-2 py-0.5 rounded-full inline-block mt-1">
+                            ⏱ {displayLeaderboard[2].totalTimeSeconds}s
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                    <span className="score-capsule score-capsule-bronze">{displayLeaderboard[2].score || 0} pts</span>
+                  </div>
+                )}
+
+              </div>
+
+              {/* Runner Ups #4 and #5 */}
+              <div className="leaderboard-runnerups-container">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest pl-1">Runner Ups</h4>
+                    <span className="text-[10px] font-bold text-brand-blue bg-brand-lightBlue px-2 py-0.5 rounded-full">Top 5</span>
+                  </div>
+                  <div className="space-y-3">
+                    {displayLeaderboard.slice(3, 5).map((player, idx) => {
+                      if (!player) return null;
+                      return (
+                        <div key={idx} className="leaderboard-runnerup-row group">
+                          <div className="flex items-center gap-3">
+                            <span className="w-6 h-6 rounded-full bg-zinc-200 text-zinc-600 flex items-center justify-center font-black text-[10px] group-hover:bg-brand-blue group-hover:text-white transition-colors duration-200">
+                              {idx + 4}
+                            </span>
+                            <div className="w-8 h-8 rounded-full bg-brand-blue/10 text-brand-blue flex items-center justify-center font-black text-[10px] group-hover:scale-105 transition-transform duration-200">
+                              {getInitials(player.name)}
+                            </div>
+                            <div className="text-left">
+                              <p className="font-bold text-xs text-brand-textMain leading-tight">{player.name || 'Participant'}</p>
+                              <p className="text-[9px] text-brand-textMuted mt-0.5">{player.college || 'MSC Member'}</p>
+                            </div>
+                          </div>
+                          <span className="font-black text-xs text-brand-blue bg-brand-lightBlue px-2.5 py-1 rounded-full border border-brand-blue/10">{player.score || 0} pts</span>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-            </div>
 
-          </div>
+            </div>
+          )}
         </div>
 
         {/* ── SCORING & DIFFICULTY MATRIX MODAL ── */}

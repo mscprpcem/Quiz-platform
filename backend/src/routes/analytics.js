@@ -13,15 +13,23 @@ const { getInjectedScoresForQuiz, loadInjectedScoresData } = require('../service
 router.get('/public/leaderboard', async (req, res) => {
   try {
     const userAggregates = new Map();
+    const targetQuizId = req.query.quizId && req.query.quizId !== 'all' ? req.query.quizId.trim() : null;
 
     // 1. Process Scheduled Quiz Attempts (Completed)
+    const attemptWhere = { status: 'completed' };
+    if (targetQuizId) {
+      attemptWhere.quiz_id = targetQuizId;
+    }
     const completedAttempts = await QuizAttempt.findAll({
-      where: { status: 'completed' }
+      where: attemptWhere
     }).catch(() => []);
 
     // Also include injected scores (e.g. Week 1 JSON)
     const injectedEntries = loadInjectedScoresData();
     for (const entry of injectedEntries) {
+      if (targetQuizId && entry.quiz_id !== targetQuizId) {
+        continue;
+      }
       if (Array.isArray(entry.participants)) {
         for (const p of entry.participants) {
           if (p.status !== 'completed' || !p.score) continue;
@@ -84,13 +92,17 @@ router.get('/public/leaderboard', async (req, res) => {
     }
 
     // 2. Process Live Quiz Participants
+    const liveWhere = {
+      [Op.or]: [
+        { sso_user_id: { [Op.ne]: null } },
+        { email: { [Op.ne]: null } }
+      ]
+    };
+    if (targetQuizId) {
+      liveWhere.quiz_id = targetQuizId;
+    }
     const liveParticipants = await Participant.findAll({
-      where: {
-        [Op.or]: [
-          { sso_user_id: { [Op.ne]: null } },
-          { email: { [Op.ne]: null } }
-        ]
-      }
+      where: liveWhere
     }).catch(() => []);
 
     if (liveParticipants.length > 0) {
@@ -155,8 +167,8 @@ router.get('/public/leaderboard', async (req, res) => {
 
     let leaderboard = rankLeaderboard(aggregatedList, { filterAuthenticatedOnly: true }).slice(0, 10);
 
-    // Fallback default community leaders if no participant scores yet
-    if (leaderboard.length === 0) {
+    // Only use default fallback when overall leaderboard is requested and empty
+    if (leaderboard.length === 0 && (!targetQuizId || targetQuizId === 'all')) {
       leaderboard = [
         { id: 'lb-1', name: 'Pradnya Bharsakale', college: 'PRPCEM Amravati', score: 20, correctCount: 20, accuracy: 100, xp: 250, is_authenticated: true, rank: 1 },
         { id: 'lb-2', name: 'Rachi Ramaji Mandhare', college: 'PRPCEM Amravati', score: 20, correctCount: 20, accuracy: 100, xp: 200, is_authenticated: true, rank: 2 },
@@ -165,6 +177,34 @@ router.get('/public/leaderboard', async (req, res) => {
         { id: 'lb-5', name: 'Shrawani Giri', college: 'PRPCEM Amravati', score: 20, correctCount: 20, accuracy: 100, xp: 130, is_authenticated: true, rank: 5 }
       ];
     }
+
+    // Dynamic list of available quizzes for the leaderboard selector
+    const allQuizzes = await Quiz.findAll({
+      order: [['createdAt', 'DESC']],
+      attributes: ['id', 'title', 'event_name', 'status', 'mode', 'createdAt']
+    }).catch(() => []);
+
+    const availableQuizzes = (await Promise.all(
+      allQuizzes.map(async (q) => {
+        const injectedCount = getInjectedScoresForQuiz(q.id, q.title).length;
+        const dbAttemptsCount = await QuizAttempt.count({ where: { quiz_id: q.id, status: 'completed' } }).catch(() => 0);
+        const livePartCount = await Participant.count({ where: { quiz_id: q.id } }).catch(() => 0);
+        const totalParticipants = injectedCount + dbAttemptsCount + livePartCount;
+
+        return {
+          id: q.id,
+          title: q.title,
+          event_name: q.event_name,
+          status: q.status,
+          mode: q.mode,
+          participantCount: totalParticipants,
+          hasData: totalParticipants > 0
+        };
+      })
+    )).sort((a, b) => {
+      if (b.hasData !== a.hasData) return b.hasData ? 1 : -1;
+      return b.participantCount - a.participantCount;
+    });
 
     let recentEvents = [];
     const completedQuizzes = await Quiz.findAll({ where: { status: 'completed' } }).catch(() => []);
@@ -183,10 +223,10 @@ router.get('/public/leaderboard', async (req, res) => {
       );
     } else {
       // Show active or scheduled events if none completed
-      const allQuizzes = await Quiz.findAll({ limit: 4, order: [['createdAt', 'DESC']] }).catch(() => []);
-      if (allQuizzes && allQuizzes.length > 0) {
+      const recentList = await Quiz.findAll({ limit: 4, order: [['createdAt', 'DESC']] }).catch(() => []);
+      if (recentList && recentList.length > 0) {
         recentEvents = await Promise.all(
-          allQuizzes.map(async (q) => {
+          recentList.map(async (q) => {
             const pCount = await Participant.count({ where: { quiz_id: q.id } }).catch(() => 0);
             return {
               id: q.id,
@@ -217,7 +257,12 @@ router.get('/public/leaderboard', async (req, res) => {
       }
     }
 
-    return res.json({ leaderboard, recentEvents });
+    return res.json({
+      leaderboard,
+      recentEvents,
+      availableQuizzes,
+      selectedQuizId: targetQuizId || 'all'
+    });
   } catch (error) {
     console.error('Public leaderboard error fallback:', error.message);
     return res.json({
@@ -735,6 +780,7 @@ router.get('/quiz/:id', authMiddleware, async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 const handleCumulativeLeaderboard = async (req, res) => {
   try {
+    const isPublic = req.isPublic || false;
     let quizIds = req.body?.quizIds || [];
     if (!quizIds || quizIds.length === 0) {
       if (req.query?.quizIds) {
@@ -743,7 +789,7 @@ const handleCumulativeLeaderboard = async (req, res) => {
     }
     const eventId = req.body?.eventId || req.query?.eventId || null;
 
-    // 1. Fetch all available quizzes for admin selector
+    // 1. Fetch all available quizzes for selector
     const allQuizzes = await Quiz.findAll({
       order: [['createdAt', 'DESC']],
       attributes: ['id', 'title', 'event_name', 'event_id', 'status', 'mode', 'schedule_type', 'scheduled_start', 'scheduled_end', 'createdAt']
@@ -754,6 +800,19 @@ const handleCumulativeLeaderboard = async (req, res) => {
     // If no quizIds specified, but eventId is provided, pick quizzes for that event
     if (targetQuizIds.length === 0 && eventId) {
       targetQuizIds = allQuizzes.filter(q => q.event_id === eventId).map(q => q.id);
+    }
+
+    // Default for public visitors: auto-select quizzes that have injected/attempt data or are completed
+    if (targetQuizIds.length === 0 && isPublic) {
+      const quizzesWithData = allQuizzes.filter(q => {
+        const injected = getInjectedScoresForQuiz(q.id, q.title);
+        return injected.length > 0 || q.status === 'completed';
+      });
+      if (quizzesWithData.length > 0) {
+        targetQuizIds = quizzesWithData.map(q => q.id);
+      } else if (allQuizzes.length > 0) {
+        targetQuizIds = allQuizzes.slice(0, 3).map(q => q.id);
+      }
     }
 
     // If still no quizIds, return the availableQuizzes list and empty leaderboard
@@ -1112,7 +1171,15 @@ const handleCumulativeLeaderboard = async (req, res) => {
         averageScore,
         perfectAttendanceCount
       },
-      leaderboard: rankedList
+      leaderboard: isPublic
+        ? rankedList.map(item => {
+            const sanitized = { ...item };
+            delete sanitized.email;
+            delete sanitized.key;
+            delete sanitized.sso_user_id;
+            return sanitized;
+          })
+        : rankedList
     });
 
   } catch (error) {
@@ -1121,8 +1188,20 @@ const handleCumulativeLeaderboard = async (req, res) => {
   }
 };
 
+// Public endpoints (no auth required, student email addresses sanitized for privacy)
+router.get('/public/cumulative-leaderboard', (req, res) => {
+  req.isPublic = true;
+  return handleCumulativeLeaderboard(req, res);
+});
+router.post('/public/cumulative-leaderboard', (req, res) => {
+  req.isPublic = true;
+  return handleCumulativeLeaderboard(req, res);
+});
+
+// Admin endpoints (requires admin auth, full export capability)
 router.post('/admin/cumulative-leaderboard', authMiddleware, handleCumulativeLeaderboard);
 router.get('/admin/cumulative-leaderboard', authMiddleware, handleCumulativeLeaderboard);
 
 module.exports = router;
+
 
