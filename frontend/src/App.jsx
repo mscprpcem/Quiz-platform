@@ -42,6 +42,7 @@ import VanityRedirect from './pages/VanityRedirect';
 import StudentAuth from './pages/StudentAuth';
 import AuthCallback from './pages/AuthCallback';
 import AdminEmailDispatch from './pages/AdminEmailDispatch';
+import AdminCumulativeLeaderboard from './pages/AdminCumulativeLeaderboard';
 import AdminEvents from './pages/AdminEvents';
 import AdminUsers from './pages/AdminUsers';
 import EventRegister from './pages/EventRegister';
@@ -298,6 +299,14 @@ export default function App() {
                   element={
                     <AdminRoute>
                       <AdminEmailDispatch />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/admin/cumulative-leaderboard"
+                  element={
+                    <AdminRoute>
+                      <AdminCumulativeLeaderboard />
                     </AdminRoute>
                   }
                 />

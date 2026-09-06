@@ -675,7 +675,6 @@ router.get('/quiz/:id', authMiddleware, async (req, res) => {
       lowestScore,
       completionPercentage,
       questionAccuracy,
-      mostMissedQuestion: mostMissedQuestion === 'N/A' && questions.length > 0 ? 'None yet' : mostMissedQuestion,
       scoreDistribution,
       accuracyChart,
       speedChart,
@@ -687,4 +686,359 @@ router.get('/quiz/:id', authMiddleware, async (req, res) => {
   }
 });
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Admin Cumulative Multi-Quiz Leaderboard
+// Aggregates participant scores and time across selected quizzes (e.g. Week 1, 2, 3)
+// ─────────────────────────────────────────────────────────────────────────────
+const handleCumulativeLeaderboard = async (req, res) => {
+  try {
+    let quizIds = req.body?.quizIds || [];
+    if (!quizIds || quizIds.length === 0) {
+      if (req.query?.quizIds) {
+        quizIds = req.query.quizIds.split(',').map(s => s.trim()).filter(Boolean);
+      }
+    }
+    const eventId = req.body?.eventId || req.query?.eventId || null;
+
+    // 1. Fetch all available quizzes for admin selector
+    const allQuizzes = await Quiz.findAll({
+      order: [['createdAt', 'DESC']],
+      attributes: ['id', 'title', 'event_name', 'event_id', 'status', 'mode', 'schedule_type', 'scheduled_start', 'scheduled_end', 'createdAt']
+    }).catch(() => []);
+
+    let targetQuizIds = Array.isArray(quizIds) ? quizIds.filter(Boolean) : [];
+
+    // If no quizIds specified, but eventId is provided, pick quizzes for that event
+    if (targetQuizIds.length === 0 && eventId) {
+      targetQuizIds = allQuizzes.filter(q => q.event_id === eventId).map(q => q.id);
+    }
+
+    // If still no quizIds, return the availableQuizzes list and empty leaderboard
+    if (targetQuizIds.length === 0) {
+      return res.json({
+        success: true,
+        selectedQuizzes: [],
+        availableQuizzes: allQuizzes,
+        summary: {
+          totalParticipants: 0,
+          totalQuizzes: 0,
+          highestScore: 0,
+          averageScore: 0,
+          perfectAttendanceCount: 0
+        },
+        leaderboard: []
+      });
+    }
+
+    // 2. Fetch selected quizzes metadata & question counts
+    const selectedQuizzes = await Quiz.findAll({
+      where: { id: { [Op.in]: targetQuizIds } },
+      order: [['createdAt', 'ASC']]
+    });
+
+    const quizMap = new Map();
+    for (const q of selectedQuizzes) {
+      const qCount = await Question.count({ where: { quiz_id: q.id } }).catch(() => 0);
+      quizMap.set(q.id, {
+        id: q.id,
+        title: q.title,
+        event_name: q.event_name,
+        questionCount: qCount,
+        positive_marks: Number(q.positive_marks) || 1,
+        negative_marks: Number(q.negative_marks) || 0
+      });
+    }
+
+    // User directory for college & clean name enrichment
+    const allUsers = await User.findAll({
+      attributes: ['id', 'email', 'name', 'college']
+    }).catch(() => []);
+    const userByEmail = new Map();
+    const userById = new Map();
+    for (const u of allUsers) {
+      if (u.email) userByEmail.set(u.email.toLowerCase().trim(), u);
+      if (u.id) userById.set(String(u.id), u);
+    }
+
+    // Aggregates map keyed by unique student identifier (email or sso_user_id)
+    const studentAggregates = new Map();
+
+    const getOrCreateStudent = (rawEmail, rawName, ssoId, collegeHint) => {
+      const email = (rawEmail || '').toLowerCase().trim();
+      const sso = (ssoId || '').toString().trim();
+      
+      let key = '';
+      if (email && email.includes('@')) {
+        key = `email:${email}`;
+      } else if (sso) {
+        key = `sso:${sso}`;
+      } else {
+        key = `name:${(rawName || 'unknown').toLowerCase().trim()}`;
+      }
+
+      if (!studentAggregates.has(key)) {
+        let enrichedName = rawName || 'Student';
+        let enrichedCollege = collegeHint || 'PRPCEM Amravati';
+
+        const foundUser = userByEmail.get(email) || (sso ? userById.get(sso) : null);
+        if (foundUser) {
+          if (foundUser.name && (!rawName || rawName === 'Student' || rawName.includes('@'))) {
+            enrichedName = foundUser.name;
+          }
+          if (foundUser.college) {
+            enrichedCollege = foundUser.college;
+          }
+        }
+
+        studentAggregates.set(key, {
+          key,
+          email: email || '',
+          name: enrichedName,
+          college: enrichedCollege,
+          sso_user_id: sso || null,
+          totalScore: 0,
+          totalTimeTakenSeconds: 0,
+          totalCorrectAnswers: 0,
+          totalIncorrectAnswers: 0,
+          totalQuestionsAttempted: 0,
+          quizzesAttendedCount: 0,
+          quizBreakdown: {}, // quizId -> { score, timeTakenSeconds, correctCount, status, submittedAt }
+          latestSubmissionAt: null
+        });
+      }
+      return studentAggregates.get(key);
+    };
+
+    // 3. Process Scheduled Quiz Attempts
+    const attempts = await QuizAttempt.findAll({
+      where: {
+        quiz_id: { [Op.in]: targetQuizIds }
+      },
+      order: [['submitted_at', 'DESC'], ['createdAt', 'DESC']]
+    }).catch(() => []);
+
+    // For each student & quiz, pick best attempt (highest score; fastest time as tie-breaker)
+    const bestAttemptsByStudentQuiz = new Map();
+
+    for (const att of attempts) {
+      if (att.status === 'disqualified') continue;
+
+      const email = (att.participant_email || '').toLowerCase().trim();
+      const sso = (att.sso_user_id || '').toString().trim();
+      const name = att.participant_name || '';
+
+      const key = email && email.includes('@') ? `email:${email}` : (sso ? `sso:${sso}` : `name:${name.toLowerCase().trim()}`);
+      const compoundKey = `${key}:::${att.quiz_id}`;
+
+      const existingBest = bestAttemptsByStudentQuiz.get(compoundKey);
+      const currentScore = Number(att.score) || 0;
+      const currentTime = Number(att.time_taken_seconds) || 0;
+
+      if (!existingBest) {
+        bestAttemptsByStudentQuiz.set(compoundKey, att);
+      } else {
+        const existingScore = Number(existingBest.score) || 0;
+        const existingTime = Number(existingBest.time_taken_seconds) || 0;
+        if (currentScore > existingScore || (currentScore === existingScore && currentTime < existingTime && currentTime > 0)) {
+          bestAttemptsByStudentQuiz.set(compoundKey, att);
+        }
+      }
+    }
+
+    // Apply best attempts to student aggregates
+    for (const [compoundKey, att] of bestAttemptsByStudentQuiz.entries()) {
+      const student = getOrCreateStudent(att.participant_email, att.participant_name, att.sso_user_id, null);
+      const qMeta = quizMap.get(att.quiz_id) || {};
+
+      const score = Math.max(0, Math.round(Number(att.score) || 0));
+      const timeSeconds = Math.max(0, Number(att.time_taken_seconds) || 0);
+      const correct = Number(att.correct_count) || 0;
+      const incorrect = Number(att.incorrect_count) || 0;
+
+      student.totalScore += score;
+      student.totalTimeTakenSeconds += timeSeconds;
+      student.totalCorrectAnswers += correct;
+      student.totalIncorrectAnswers += incorrect;
+      student.totalQuestionsAttempted += (correct + incorrect + (Number(att.unanswered_count) || 0));
+      student.quizzesAttendedCount += 1;
+
+      student.quizBreakdown[att.quiz_id] = {
+        quizId: att.quiz_id,
+        quizTitle: qMeta.title || 'Quiz',
+        score,
+        timeTakenSeconds: timeSeconds,
+        correctCount: correct,
+        incorrectCount: incorrect,
+        status: att.status || 'completed',
+        submittedAt: att.submitted_at || att.createdAt
+      };
+
+      if (!student.latestSubmissionAt || (att.submitted_at && new Date(att.submitted_at) > new Date(student.latestSubmissionAt))) {
+        student.latestSubmissionAt = att.submitted_at || att.createdAt;
+      }
+    }
+
+    // 4. Process Live Quiz Participants (for any live quizzes or attempts recorded as live)
+    const liveParticipants = await Participant.findAll({
+      where: {
+        quiz_id: { [Op.in]: targetQuizIds },
+        disqualified: false
+      }
+    }).catch(() => []);
+
+    if (liveParticipants.length > 0) {
+      const pIds = liveParticipants.map(p => p.id);
+      const answers = await Answer.findAll({
+        where: { participant_id: { [Op.in]: pIds } }
+      }).catch(() => []);
+
+      const answersByPid = new Map();
+      for (const a of answers) {
+        const pid = String(a.participant_id);
+        if (!answersByPid.has(pid)) answersByPid.set(pid, []);
+        answersByPid.get(pid).push(a);
+      }
+
+      for (const p of liveParticipants) {
+        const email = (p.email || '').toLowerCase().trim();
+        const sso = (p.sso_user_id || '').toString().trim();
+        const name = p.name || '';
+        const key = email && email.includes('@') ? `email:${email}` : (sso ? `sso:${sso}` : `name:${name.toLowerCase().trim()}`);
+        const compoundKey = `${key}:::${p.quiz_id}`;
+
+        // If student already has a recorded attempt for this quiz, skip live to avoid duplicate scoring
+        if (bestAttemptsByStudentQuiz.has(compoundKey)) continue;
+
+        const student = getOrCreateStudent(p.email, p.name, p.sso_user_id, p.college);
+        const qMeta = quizMap.get(p.quiz_id) || {};
+        const pAnswers = answersByPid.get(String(p.id)) || [];
+
+        const correct = pAnswers.filter(a => Boolean(a.is_correct)).length;
+        const incorrect = pAnswers.filter(a => !a.is_correct).length;
+        const pPoints = pAnswers.reduce((sum, a) => sum + (Number(a.points) || 0), 0);
+        const score = pPoints > 0 ? pPoints : Math.max(0, (correct * (qMeta.positive_marks || 1)) - (incorrect * (qMeta.negative_marks || 0)));
+        const timeSeconds = Math.round(pAnswers.reduce((sum, a) => sum + (Number(a.response_time) || 0), 0) / 1000);
+
+        student.totalScore += Math.round(score);
+        student.totalTimeTakenSeconds += timeSeconds;
+        student.totalCorrectAnswers += correct;
+        student.totalIncorrectAnswers += incorrect;
+        student.totalQuestionsAttempted += pAnswers.length;
+        student.quizzesAttendedCount += 1;
+
+        student.quizBreakdown[p.quiz_id] = {
+          quizId: p.quiz_id,
+          quizTitle: qMeta.title || 'Live Quiz',
+          score: Math.round(score),
+          timeTakenSeconds: timeSeconds,
+          correctCount: correct,
+          incorrectCount: incorrect,
+          status: 'completed',
+          submittedAt: p.createdAt
+        };
+
+        if (!student.latestSubmissionAt || (p.createdAt && new Date(p.createdAt) > new Date(student.latestSubmissionAt))) {
+          student.latestSubmissionAt = p.createdAt;
+        }
+      }
+    }
+
+    // 5. Fill in absent quizzes in quizBreakdown for each student
+    for (const student of studentAggregates.values()) {
+      for (const q of selectedQuizzes) {
+        if (!student.quizBreakdown[q.id]) {
+          student.quizBreakdown[q.id] = {
+            quizId: q.id,
+            quizTitle: q.title,
+            score: 0,
+            timeTakenSeconds: 0,
+            correctCount: 0,
+            incorrectCount: 0,
+            status: 'not_attended',
+            submittedAt: null
+          };
+        }
+      }
+    }
+
+    // 6. Tournament Ranking Algorithm
+    // Tie-breaker order:
+    //  1. totalScore DESC
+    //  2. totalTimeTakenSeconds ASC (faster cumulative time wins)
+    //  3. totalCorrectAnswers DESC
+    //  4. quizzesAttendedCount DESC
+    //  5. latestSubmissionAt ASC
+    const rankedList = Array.from(studentAggregates.values()).sort((a, b) => {
+      if (b.totalScore !== a.totalScore) {
+        return b.totalScore - a.totalScore;
+      }
+      if (a.totalTimeTakenSeconds !== b.totalTimeTakenSeconds) {
+        return a.totalTimeTakenSeconds - b.totalTimeTakenSeconds;
+      }
+      if (b.totalCorrectAnswers !== a.totalCorrectAnswers) {
+        return b.totalCorrectAnswers - a.totalCorrectAnswers;
+      }
+      if (b.quizzesAttendedCount !== a.quizzesAttendedCount) {
+        return b.quizzesAttendedCount - a.quizzesAttendedCount;
+      }
+      const timeA = a.latestSubmissionAt ? new Date(a.latestSubmissionAt).getTime() : Infinity;
+      const timeB = b.latestSubmissionAt ? new Date(b.latestSubmissionAt).getTime() : Infinity;
+      return timeA - timeB;
+    });
+
+    // Assign ranks & percentages
+    rankedList.forEach((item, index) => {
+      item.rank = index + 1;
+      item.attendancePercentage = selectedQuizzes.length > 0 
+        ? Math.round((item.quizzesAttendedCount / selectedQuizzes.length) * 100) 
+        : 0;
+      item.accuracyPercentage = item.totalQuestionsAttempted > 0
+        ? Math.round((item.totalCorrectAnswers / item.totalQuestionsAttempted) * 100)
+        : (item.totalCorrectAnswers > 0 ? 100 : 0);
+    });
+
+    // Summary stats
+    const totalParticipants = rankedList.length;
+    const highestScore = rankedList.length > 0 ? rankedList[0].totalScore : 0;
+    const averageScore = totalParticipants > 0 
+      ? Math.round(rankedList.reduce((acc, curr) => acc + curr.totalScore, 0) / totalParticipants) 
+      : 0;
+    const perfectAttendanceCount = rankedList.filter(s => s.quizzesAttendedCount === selectedQuizzes.length).length;
+
+    return res.json({
+      success: true,
+      selectedQuizzes: selectedQuizzes.map(q => ({
+        id: q.id,
+        title: q.title,
+        event_name: q.event_name,
+        questionCount: quizMap.get(q.id)?.questionCount || 0
+      })),
+      availableQuizzes: allQuizzes.map(q => ({
+        id: q.id,
+        title: q.title,
+        event_name: q.event_name,
+        scheduled_start: q.scheduled_start,
+        scheduled_end: q.scheduled_end,
+        createdAt: q.createdAt
+      })),
+      summary: {
+        totalParticipants,
+        totalQuizzes: selectedQuizzes.length,
+        highestScore,
+        averageScore,
+        perfectAttendanceCount
+      },
+      leaderboard: rankedList
+    });
+
+  } catch (error) {
+    console.error('Cumulative leaderboard calculation error:', error);
+    return res.status(500).json({ error: 'Failed to calculate cumulative leaderboard', details: error.message });
+  }
+};
+
+router.post('/admin/cumulative-leaderboard', authMiddleware, handleCumulativeLeaderboard);
+router.get('/admin/cumulative-leaderboard', authMiddleware, handleCumulativeLeaderboard);
+
 module.exports = router;
+

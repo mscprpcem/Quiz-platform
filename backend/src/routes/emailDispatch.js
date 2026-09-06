@@ -444,36 +444,124 @@ router.get('/quiz-participants', authMiddleware, async (req, res) => {
       }
     }
 
-    // 3. Include registered event students who haven't completed this quiz
-    if (quizDetails && (quizDetails.event_id || quizDetails.event_name)) {
-      try {
-        const evQuery = (quizDetails.event_id || quizDetails.event_name || '').toLowerCase().trim();
-        const eventRegs = await EventRegistration.findAll().catch(() => []);
-        const matchingRegs = eventRegs.filter(r => {
-          const rId = String(r.event_id || '').toLowerCase().trim();
-          const rName = String(r.event_name || '').toLowerCase().trim();
-          return rId === evQuery || rName.includes(evQuery) || evQuery.includes(rName);
-        });
+    // 3. Include registered event students, participants from other quizzes in the same series, and portal users who haven't completed this quiz
+    try {
+      // A. Event registrations
+      let eventSlug = '';
+      let eventTitle = quizDetails?.event_name || '';
+      if (quizDetails?.event_id) {
+        const ev = await Event.findByPk(quizDetails.event_id).catch(() => null);
+        if (ev) {
+          eventSlug = ev.slug || '';
+          if (!eventTitle) eventTitle = ev.name || '';
+        }
+      }
 
-        for (const reg of matchingRegs) {
-          if (reg.email && reg.email.includes('@')) {
-            const clean = reg.email.toLowerCase().trim();
-            if (!participantsMap.has(clean)) {
-              participantsMap.set(clean, {
-                email: clean,
-                name: reg.full_name || clean.split('@')[0],
-                college: reg.college || 'PRPCEM',
-                source: 'Event Registered',
-                quiz_status: 'not_completed',
-                status: 'Not Completed',
-                score: null
-              });
+      const eventRegs = await EventRegistration.findAll().catch(() => []);
+      for (const reg of eventRegs) {
+        const rId = String(reg.event_id || '').toLowerCase().trim();
+        const rName = String(reg.event_name || '').toLowerCase().trim();
+        const matchesEvent =
+          (quizDetails?.event_id && (rId === String(quizDetails.event_id).toLowerCase() || rId === eventSlug.toLowerCase())) ||
+          (eventTitle && (rName.includes(eventTitle.toLowerCase()) || eventTitle.toLowerCase().includes(rName))) ||
+          (eventSlug && rId.includes(eventSlug.toLowerCase()));
+
+        if (matchesEvent && reg.email && reg.email.includes('@')) {
+          const clean = reg.email.toLowerCase().trim();
+          if (!participantsMap.has(clean)) {
+            participantsMap.set(clean, {
+              email: clean,
+              name: reg.full_name || clean.split('@')[0],
+              college: reg.college || 'PRPCEM',
+              source: 'Event Registered',
+              quiz_status: 'not_completed',
+              status: "Didn't Attend",
+              score: null
+            });
+          }
+        }
+      }
+
+      // B. Participants from other quizzes in the same event / tournament series
+      if (quizDetails?.event_id || quizDetails?.event_name) {
+        const otherQuizzes = await Quiz.findAll({
+          where: {
+            [Op.or]: [
+              ...(quizDetails.event_id ? [{ event_id: quizDetails.event_id }] : []),
+              ...(quizDetails.event_name ? [{ event_name: quizDetails.event_name }] : [])
+            ]
+          },
+          attributes: ['id']
+        }).catch(() => []);
+
+        const otherQuizIds = otherQuizzes.map(q => q.id).filter(id => id !== quizDetails.id);
+        if (otherQuizIds.length > 0) {
+          const otherAttempts = await QuizAttempt.findAll({
+            where: { quiz_id: { [Op.in]: otherQuizIds } },
+            attributes: ['participant_email', 'participant_name']
+          }).catch(() => []);
+
+          for (const oa of otherAttempts) {
+            if (oa.participant_email && oa.participant_email.includes('@')) {
+              const clean = oa.participant_email.toLowerCase().trim();
+              if (!participantsMap.has(clean)) {
+                participantsMap.set(clean, {
+                  email: clean,
+                  name: oa.participant_name || clean.split('@')[0],
+                  college: 'PRPCEM',
+                  source: 'Tournament Participant',
+                  quiz_status: 'not_completed',
+                  status: "Didn't Attend",
+                  score: null
+                });
+              }
+            }
+          }
+
+          const otherLive = await Participant.findAll({
+            where: { quiz_id: { [Op.in]: otherQuizIds } },
+            attributes: ['email', 'name', 'college']
+          }).catch(() => []);
+
+          for (const ol of otherLive) {
+            if (ol.email && ol.email.includes('@')) {
+              const clean = ol.email.toLowerCase().trim();
+              if (!participantsMap.has(clean)) {
+                participantsMap.set(clean, {
+                  email: clean,
+                  name: ol.name || clean.split('@')[0],
+                  college: ol.college || 'PRPCEM',
+                  source: 'Tournament Participant',
+                  quiz_status: 'not_completed',
+                  status: "Didn't Attend",
+                  score: null
+                });
+              }
             }
           }
         }
-      } catch (evRegErr) {
-        console.warn('Error fetching event regs for quiz dispatch:', evRegErr.message);
       }
+
+      // C. All Registered Portal Students (User table)
+      const allUsers = await User.findAll({ attributes: ['id', 'email', 'name', 'college'] }).catch(() => []);
+      for (const u of allUsers) {
+        if (u.email && u.email.includes('@')) {
+          const clean = u.email.toLowerCase().trim();
+          if (!participantsMap.has(clean)) {
+            participantsMap.set(clean, {
+              email: clean,
+              name: u.name || clean.split('@')[0],
+              college: u.college || 'PRPCEM',
+              source: 'Student Portal User',
+              quiz_status: 'not_completed',
+              status: "Didn't Attend",
+              score: null
+            });
+          }
+        }
+      }
+    } catch (evRegErr) {
+      console.warn('Error fetching non-completed participants for quiz dispatch:', evRegErr.message);
     }
 
     // 4. Enrich with student college if in User table
@@ -787,7 +875,7 @@ router.post('/send', authMiddleware, async (req, res) => {
                 email: clean,
                 name: att.participant_name || clean.split('@')[0],
                 score: att.score,
-                status: isCompleted ? 'Completed' : (isInProgress ? 'In Progress' : 'Registered (Not Attended)')
+                status: isCompleted ? 'Completed' : (isInProgress ? 'In Progress' : "Didn't Attend")
               });
             }
           }
@@ -796,8 +884,9 @@ router.post('/send', authMiddleware, async (req, res) => {
         console.warn('Error querying attempts for email send:', attErr.message);
       }
 
-      // 2. Live participants
-      if (quizId) {
+      // 2. Live participants (only if completed/all, skip if looking for not_attended)
+      const isNotAttendedTarget = participantFilter === 'not_attended' || participantFilter === 'not_completed' || participantFilter === 'registered_not_attended';
+      if (quizId && !isNotAttendedTarget) {
         try {
           const liveParticipants = await Participant.findAll({
             where: { quiz_id: quizId },
@@ -807,10 +896,6 @@ router.post('/send', authMiddleware, async (req, res) => {
           for (const p of liveParticipants) {
             if (p.email && p.email.includes('@')) {
               const clean = p.email.toLowerCase().trim();
-              const quizStatus = 'completed';
-
-              if (participantFilter === 'not_completed') continue;
-
               if (!excludedSet.has(clean) && !targetRecipientsMap.has(clean)) {
                 targetRecipientsMap.set(clean, {
                   email: clean,
@@ -827,19 +912,30 @@ router.post('/send', authMiddleware, async (req, res) => {
         }
       }
 
-      // 3. Include registered event students who haven't completed this quiz when filter is not_completed or all
-      if ((participantFilter === 'not_completed' || participantFilter === 'all') && quizDetails && (quizDetails.event_id || quizDetails.event_name)) {
+      // 3. Include registered event students, other week participants, and portal users who haven't completed this quiz
+      if (isNotAttendedTarget || participantFilter === 'all') {
         try {
-          const evQuery = (quizDetails.event_id || quizDetails.event_name || '').toLowerCase().trim();
-          const eventRegs = await EventRegistration.findAll().catch(() => []);
-          const matchingRegs = eventRegs.filter(r => {
-            const rId = String(r.event_id || '').toLowerCase().trim();
-            const rName = String(r.event_name || '').toLowerCase().trim();
-            return rId === evQuery || rName.includes(evQuery) || evQuery.includes(rName);
-          });
+          // A. Event registrations
+          let eventSlug = '';
+          let eventTitle = quizDetails?.event_name || '';
+          if (quizDetails?.event_id) {
+            const ev = await Event.findByPk(quizDetails.event_id).catch(() => null);
+            if (ev) {
+              eventSlug = ev.slug || '';
+              if (!eventTitle) eventTitle = ev.name || '';
+            }
+          }
 
-          for (const reg of matchingRegs) {
-            if (reg.email && reg.email.includes('@')) {
+          const eventRegs = await EventRegistration.findAll().catch(() => []);
+          for (const reg of eventRegs) {
+            const rId = String(reg.event_id || '').toLowerCase().trim();
+            const rName = String(reg.event_name || '').toLowerCase().trim();
+            const matchesEvent =
+              (quizDetails?.event_id && (rId === String(quizDetails.event_id).toLowerCase() || rId === eventSlug.toLowerCase())) ||
+              (eventTitle && (rName.includes(eventTitle.toLowerCase()) || eventTitle.toLowerCase().includes(rName))) ||
+              (eventSlug && rId.includes(eventSlug.toLowerCase()));
+
+            if (matchesEvent && reg.email && reg.email.includes('@')) {
               const clean = reg.email.toLowerCase().trim();
               if (!excludedSet.has(clean) && !targetRecipientsMap.has(clean)) {
                 targetRecipientsMap.set(clean, {
@@ -847,7 +943,80 @@ router.post('/send', authMiddleware, async (req, res) => {
                   name: reg.full_name || clean.split('@')[0],
                   college: reg.college || 'PRPCEM',
                   score: null,
-                  status: 'Not Completed'
+                  status: "Didn't Attend"
+                });
+              }
+            }
+          }
+
+          // B. Participants from other quizzes in the same tournament / event series
+          if (quizDetails?.event_id || quizDetails?.event_name) {
+            const otherQuizzes = await Quiz.findAll({
+              where: {
+                [Op.or]: [
+                  ...(quizDetails.event_id ? [{ event_id: quizDetails.event_id }] : []),
+                  ...(quizDetails.event_name ? [{ event_name: quizDetails.event_name }] : [])
+                ]
+              },
+              attributes: ['id']
+            }).catch(() => []);
+
+            const otherQuizIds = otherQuizzes.map(q => q.id).filter(id => id !== quizDetails.id);
+            if (otherQuizIds.length > 0) {
+              const otherAttempts = await QuizAttempt.findAll({
+                where: { quiz_id: { [Op.in]: otherQuizIds } },
+                attributes: ['participant_email', 'participant_name']
+              }).catch(() => []);
+
+              for (const oa of otherAttempts) {
+                if (oa.participant_email && oa.participant_email.includes('@')) {
+                  const clean = oa.participant_email.toLowerCase().trim();
+                  if (!excludedSet.has(clean) && !targetRecipientsMap.has(clean)) {
+                    targetRecipientsMap.set(clean, {
+                      email: clean,
+                      name: oa.participant_name || clean.split('@')[0],
+                      college: 'PRPCEM',
+                      score: null,
+                      status: "Didn't Attend"
+                    });
+                  }
+                }
+              }
+
+              const otherLive = await Participant.findAll({
+                where: { quiz_id: { [Op.in]: otherQuizIds } },
+                attributes: ['email', 'name', 'college']
+              }).catch(() => []);
+
+              for (const ol of otherLive) {
+                if (ol.email && ol.email.includes('@')) {
+                  const clean = ol.email.toLowerCase().trim();
+                  if (!excludedSet.has(clean) && !targetRecipientsMap.has(clean)) {
+                    targetRecipientsMap.set(clean, {
+                      email: clean,
+                      name: ol.name || clean.split('@')[0],
+                      college: ol.college || 'PRPCEM',
+                      score: null,
+                      status: "Didn't Attend"
+                    });
+                  }
+                }
+              }
+            }
+          }
+
+          // C. Portal Users
+          const allUsers = await User.findAll({ attributes: ['id', 'email', 'name', 'college'] }).catch(() => []);
+          for (const u of allUsers) {
+            if (u.email && u.email.includes('@')) {
+              const clean = u.email.toLowerCase().trim();
+              if (!excludedSet.has(clean) && !targetRecipientsMap.has(clean)) {
+                targetRecipientsMap.set(clean, {
+                  email: clean,
+                  name: u.name || clean.split('@')[0],
+                  college: u.college || 'PRPCEM',
+                  score: null,
+                  status: "Didn't Attend"
                 });
               }
             }
