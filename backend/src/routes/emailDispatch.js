@@ -220,8 +220,8 @@ router.get('/event-participants', authMiddleware, async (req, res) => {
           const clean = lp.email.toLowerCase().trim();
           if (!attemptsMap.has(clean)) {
             attemptsMap.set(clean, {
-              status: lp.score > 0 ? 'completed' : 'registered',
-              score: lp.score,
+              status: 'completed',
+              score: null,
               participant_name: lp.name,
               college: lp.college
             });
@@ -417,7 +417,7 @@ router.get('/quiz-participants', authMiddleware, async (req, res) => {
       try {
         const liveParticipants = await Participant.findAll({
           where: { quiz_id: quizId },
-          attributes: ['id', 'name', 'email', 'college', 'score']
+          attributes: ['id', 'name', 'email', 'college']
         });
 
         for (const p of liveParticipants) {
@@ -429,9 +429,9 @@ router.get('/quiz-participants', authMiddleware, async (req, res) => {
                 name: p.name || clean.split('@')[0],
                 college: p.college || '',
                 source: 'Live Participant',
-                quiz_status: p.score > 0 ? 'completed' : 'registered',
-                status: p.score > 0 ? 'Completed' : 'Registered',
-                score: p.score
+                quiz_status: 'completed',
+                status: 'Completed',
+                score: null
               });
             } else {
               const existing = participantsMap.get(clean);
@@ -801,25 +801,23 @@ router.post('/send', authMiddleware, async (req, res) => {
         try {
           const liveParticipants = await Participant.findAll({
             where: { quiz_id: quizId },
-            attributes: ['name', 'email', 'college', 'score']
+            attributes: ['id', 'name', 'email', 'college']
           });
 
           for (const p of liveParticipants) {
             if (p.email && p.email.includes('@')) {
               const clean = p.email.toLowerCase().trim();
-              const isCompleted = p.score > 0;
-              const quizStatus = isCompleted ? 'completed' : 'not_completed';
+              const quizStatus = 'completed';
 
-              if (participantFilter === 'completed' && quizStatus !== 'completed') continue;
-              if (participantFilter === 'not_completed' && quizStatus !== 'not_completed') continue;
+              if (participantFilter === 'not_completed') continue;
 
               if (!excludedSet.has(clean) && !targetRecipientsMap.has(clean)) {
                 targetRecipientsMap.set(clean, {
                   email: clean,
                   name: p.name || clean.split('@')[0],
                   college: p.college || 'PRPCEM',
-                  score: p.score,
-                  status: isCompleted ? 'Completed' : 'Not Completed'
+                  score: null,
+                  status: 'Completed'
                 });
               }
             }
