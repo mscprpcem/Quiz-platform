@@ -27,31 +27,36 @@
   box-shadow: 0 12px 30px -5px rgba(99, 102, 241, 0.12), 0 4px 12px -2px rgba(37, 99, 235, 0.08);
 }
 
-/* Icon Gradient Wrappers */
+/* Icon Pastel Wrappers (Light Theme) */
 .icon-grad-blue {
-  background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
-  color: #FFFFFF;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+  background: #EFF6FF;
+  color: #2563EB;
+  border: 1px solid #DBEAFE;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
 }
 .icon-grad-purple {
-  background: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%);
-  color: #FFFFFF;
-  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25);
+  background: #F5F3FF;
+  color: #7C3AED;
+  border: 1px solid #EDE9FE;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.08);
 }
 .icon-grad-amber {
-  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
-  color: #FFFFFF;
-  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.25);
+  background: #FFFBEB;
+  color: #D97706;
+  border: 1px solid #FEF3C7;
+  box-shadow: 0 2px 8px rgba(217, 119, 6, 0.08);
 }
 .icon-grad-emerald {
-  background: linear-gradient(135deg, #10B981 0%, #047857 100%);
-  color: #FFFFFF;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+  background: #ECFDF5;
+  color: #059669;
+  border: 1px solid #D1FAE5;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.08);
 }
 .icon-grad-red {
-  background: linear-gradient(135deg, #EF4444 0%, #B91C1C 100%);
-  color: #FFFFFF;
-  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.25);
+  background: #FEF2F2;
+  color: #DC2626;
+  border: 1px solid #FEE2E2;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.08);
 }
 
 /* ============================================
@@ -170,12 +175,30 @@
    PREMIUM ACCORDION FAQ SYSTEM
    ============================================ */
 
-.faq-list-container {
-  @apply space-y-4;
+.faq-grid-container {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  align-items: start;
+  width: 100%;
+}
+
+/* Tablet & Desktop Side-by-Side Responsive Media Queries */
+@media (min-width: 768px) {
+  .faq-grid-container {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .faq-grid-container {
+    gap: 1.5rem;
+  }
 }
 
 .faq-accordion-item {
-  @apply border border-slate-200/80 bg-white rounded-2xl transition-all duration-300 overflow-hidden shadow-sm;
+  @apply border border-slate-200/80 bg-white rounded-2xl transition-all duration-300 overflow-hidden shadow-sm h-fit;
 }
 .faq-accordion-item:hover {
   @apply border-brand-blue/30 shadow-md -translate-y-0.5;
@@ -185,26 +208,26 @@
 }
 
 .faq-question-btn {
-  @apply w-full flex items-center justify-between p-5 text-left transition-colors duration-300 cursor-pointer select-none;
+  @apply w-full flex items-center justify-between p-4 sm:p-5 text-left transition-colors duration-300 cursor-pointer select-none gap-2;
 }
 
 .faq-question-text {
-  @apply font-extrabold text-sm sm:text-base text-slate-800 transition-colors duration-200;
+  @apply font-extrabold text-xs sm:text-sm text-slate-800 transition-colors duration-200 leading-snug;
 }
 .faq-accordion-item-active .faq-question-text {
   @apply text-brand-blue;
 }
 
 .faq-answer-panel {
-  @apply p-5 pt-0 text-xs sm:text-sm text-slate-600 leading-relaxed font-medium animate-fade-in;
+  @apply p-4 sm:p-5 pt-0 text-xs sm:text-sm text-slate-600 leading-relaxed font-medium animate-fade-in;
 }
 
 .faq-badge-q {
-  @apply w-6 h-6 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white flex items-center justify-center font-black text-[10px] sm:text-xs flex-shrink-0 shadow-sm mr-3.5;
+  @apply w-6 h-6 rounded-full bg-blue-50 text-blue-700 border border-blue-200 flex items-center justify-center font-black text-[10px] sm:text-xs flex-shrink-0 mr-3 shadow-2xs;
 }
 
 .faq-badge-a {
-  @apply w-6 h-6 rounded-full bg-emerald-500 text-white flex items-center justify-center font-black text-[10px] sm:text-xs flex-shrink-0 shadow-sm mr-3.5;
+  @apply w-6 h-6 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 flex items-center justify-center font-black text-[10px] sm:text-xs flex-shrink-0 mr-3 shadow-2xs;
 }
 
 /* ============================================
@@ -259,6 +282,11 @@
   .verify-cert-card {
     padding: 1rem !important;
     border-radius: 1.25rem !important;
+  }
+
+  .faq-grid-container {
+    grid-template-columns: 1fr !important;
+    gap: 0.75rem !important;
   }
 
   .faq-question-btn {

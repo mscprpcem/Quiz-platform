@@ -244,19 +244,19 @@ export default function AdminCumulativeLeaderboard() {
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8 font-sans text-slate-900">
-      {/* Header Banner - High contrast light/dark command bar */}
-      <div className="mb-6 bg-gradient-to-r from-slate-900 via-indigo-950 to-purple-950 text-white p-6 sm:p-8 rounded-3xl shadow-md relative overflow-hidden">
+      {/* Header Banner - Light theme command bar */}
+      <div className="mb-6 bg-gradient-to-r from-purple-50/70 via-indigo-50/40 to-blue-50/60 border border-purple-200/80 p-6 sm:p-8 rounded-3xl shadow-soft relative overflow-hidden text-left">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-purple-500/25 text-purple-200 border border-purple-400/30 rounded-full text-xs font-bold tracking-wide uppercase">
-              <Sparkles size={13} className="text-purple-300" />
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-purple-100 text-purple-700 border border-purple-200 rounded-full text-xs font-bold tracking-wide uppercase shadow-2xs">
+              <Sparkles size={13} className="text-purple-600" />
               Tournament Analytics & Aggregation
             </div>
-            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white flex items-center gap-3">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-slate-900 flex items-center gap-3">
               Multi-Quiz Cumulative Leaderboard
-              <Trophy size={32} className="text-amber-400 shrink-0" />
+              <Trophy size={32} className="text-amber-500 shrink-0" />
             </h1>
-            <p className="text-xs sm:text-sm text-slate-300 max-w-2xl font-medium leading-relaxed">
+            <p className="text-xs sm:text-sm text-slate-600 max-w-2xl font-medium leading-relaxed">
               Compare and aggregate participant scores, total time taken, and determine tournament champions across weekly series with automated tie-breaking.
             </p>
           </div>
@@ -265,7 +265,7 @@ export default function AdminCumulativeLeaderboard() {
             <button
               onClick={() => fetchCumulativeLeaderboard(selectedQuizIds, useInjectedData)}
               disabled={loading || selectedQuizIds.length === 0}
-              className="px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
               <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
               Recalculate
@@ -273,7 +273,7 @@ export default function AdminCumulativeLeaderboard() {
             <button
               onClick={handleExportExcel}
               disabled={leaderboardData.length === 0}
-              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+              className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
             >
               <Download size={15} />
               Export to Excel (.xlsx)

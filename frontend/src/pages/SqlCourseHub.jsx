@@ -452,7 +452,7 @@ export default function SqlCourseHub() {
                       onClick={() => setInterviewDifficulty(d)}
                       className={`px-2 py-0.5 rounded-lg text-[10px] font-bold capitalize transition-all cursor-pointer ${
                         interviewDifficulty === d
-                          ? 'bg-slate-900 text-white'
+                          ? 'bg-blue-600 text-white shadow-2xs'
                           : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                     >
@@ -530,7 +530,7 @@ export default function SqlCourseHub() {
                   <div className="pt-2 border-t border-slate-100 space-y-2">
                     <button
                       onClick={() => setShowInterviewSolution(prev => !prev)}
-                      className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-xs"
+                      className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-xs"
                     >
                       <Sparkles size={13} className="text-amber-400" />
                       <span>{showInterviewSolution ? 'Hide Model Solution & Tips' : 'Reveal Expected Solution & Tips'}</span>

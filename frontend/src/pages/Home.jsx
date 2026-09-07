@@ -81,8 +81,8 @@ export default function Home() {
     });
   })();
 
-  // Section 10 States (FAQ Accordion)
-  const [activeFaq, setActiveFaq] = useState(null);
+  // Section 10 States (FAQ Accordion Multi-Open Map)
+  const [openFaqs, setOpenFaqs] = useState({ 0: true });
 
   const handleHomeLookupSubmit = (e) => {
     e.preventDefault();
@@ -214,7 +214,7 @@ export default function Home() {
   };
 
   const toggleFaq = (idx) => {
-    setActiveFaq(activeFaq === idx ? null : idx);
+    setOpenFaqs((prev) => ({ ...prev, [idx]: !prev[idx] }));
   };
 
   const features = [
@@ -226,10 +226,38 @@ export default function Home() {
   ];
 
   const faqs = [
-    { q: 'How do I join?', a: 'Enter the 6-digit room code shared by the MC in the Join Quiz section above.' },
-    { q: 'Do I need to register?', a: 'Yes, register using the upcoming events registration link or join with your student name and ID on the prompt.' },
-    { q: 'What if my internet disconnects?', a: 'Our WebSocket protocol allows you to resume and join back immediately from the current question.' },
-    { q: 'How are winners decided?', a: 'Winners are determined by correct answers and speed response times.' }
+    { 
+      q: 'How do I join a live quiz or scheduled assessment?', 
+      a: 'Enter the 6-digit room code or event link slug in the Join Quiz section at the top of the page, or scan the event QR code using your smartphone camera.' 
+    },
+    { 
+      q: 'Do I need to register or create an account to participate?', 
+      a: 'You can quickly join live quiz lobbies as a guest by entering your name and college ID. However, signing in with your MSC Student Account ensures your scores, certificates, and podium badges are permanently linked to your profile.' 
+    },
+    { 
+      q: 'What happens if my network disconnects during an active quiz?', 
+      a: 'Our real-time WebSocket reconnect engine allows you to resume your attempt immediately. Simply refresh your browser or re-enter the room code to rejoin from the current question.' 
+    },
+    { 
+      q: 'How are scores calculated and winners ranked on the leaderboard?', 
+      a: 'Points are awarded for correct answers weighted by question difficulty (1x Beginner, 2x Intermediate, 3x Advanced). Tie-breaks are decided by faster cumulative response speed and fewer focus violations.' 
+    },
+    { 
+      q: 'How do I verify and download my participation certificate?', 
+      a: 'All event certificates are cryptographically verifiable with SHA-256 hashes. Enter your student handle (e.g., @amityadav) or credential ID in the Official Verification Portal section below to inspect or download your verified PDF.' 
+    },
+    { 
+      q: 'What is the anti-cheat and focus protection system?', 
+      a: 'To guarantee academic fairness during competitions, our system monitors full-screen lock and window blur / tab-switch violations. Exceeding allowed violation tolerances automatically locks or submits the session.' 
+    },
+    { 
+      q: 'Can I practice questions before official club competitions?', 
+      a: 'Yes! Check out our Courses and Practice hub to access curated tracks, including the interactive In-Browser SQL Lab, Cloud Fundamentals, and FAANG interview prep modules.' 
+    },
+    { 
+      q: 'Can I participate using a smartphone or tablet?', 
+      a: 'Absolutely. The platform is responsive, fast, and works seamlessly on all modern mobile and desktop browsers with no app download required.' 
+    }
   ];
 
   const getInitials = (name) => {
@@ -267,7 +295,7 @@ export default function Home() {
             <div className="flex flex-col sm:flex-row gap-2.5 sm:gap-3">
               <button 
                 onClick={() => scrollSection('join-quiz')}
-                className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-md hover:shadow-lg transition-all active:scale-95 cursor-pointer text-xs uppercase tracking-wide"
+                className="w-full sm:w-auto flex items-center justify-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3.5 px-6 rounded-xl shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer text-xs uppercase tracking-wide"
               >
                 <span>Join Quiz</span>
                 <Play size={13} fill="currentColor" />
@@ -326,7 +354,7 @@ export default function Home() {
                         className="block w-full border rounded-xl py-3 sm:py-3.5 px-3 sm:px-4 text-center font-black text-lg sm:text-xl tracking-[0.2em] sm:tracking-[0.35em] text-brand-textMain uppercase transition-all duration-200 placeholder:text-zinc-300 focus:bg-white focus:border-brand-blue focus:outline-none focus:ring-4 focus:ring-brand-blue/10 home-join-card-bg"
                       />
                     </div>
-                    <button type="submit" className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-xl shadow-md transition-all active:scale-95 cursor-pointer text-xs uppercase tracking-wider">
+                    <button type="submit" className="w-full py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl shadow-sm transition-all active:scale-95 cursor-pointer text-xs uppercase tracking-wider">
                       Join Quiz
                     </button>
                   </form>
@@ -418,7 +446,7 @@ export default function Home() {
                   const foot = document.querySelector('footer');
                   if (foot) foot.scrollIntoView({ behavior: 'smooth' });
                 }}
-                className="w-full md:w-auto flex items-center justify-center space-x-2 px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-xl shadow-[0_4px_14px_rgba(37,99,235,0.25)] hover:shadow-[0_4px_20px_rgba(37,99,235,0.35)] transition-all active:scale-95 cursor-pointer text-xs uppercase tracking-wider relative z-10 flex-shrink-0"
+                className="w-full md:w-auto flex items-center justify-center space-x-2 px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl shadow-sm hover:shadow-md transition-all active:scale-95 cursor-pointer text-xs uppercase tracking-wider relative z-10 flex-shrink-0"
               >
                 <span>Notify Me</span>
                 <ArrowRight size={14} />
@@ -439,12 +467,12 @@ export default function Home() {
                 return (
                   <div key={q.id || Math.random()} className="bg-white border border-brand-border rounded-2xl shadow-soft hover:shadow-soft-lg hover:-translate-y-0.5 transition-all duration-300 flex flex-col xs:flex-row overflow-hidden group">
                     
-                    <div className="w-full xs:w-20 sm:w-24 py-3 xs:py-0 bg-gradient-to-br from-blue-600 to-indigo-600 flex flex-row xs:flex-col justify-center items-center gap-2 xs:gap-0 text-white shrink-0 border-b xs:border-b-0 xs:border-r border-dashed border-zinc-200/30 relative">
-                      <div className="hidden xs:block absolute -top-1.5 -right-1.5 w-3 h-3 bg-[#F5FAFF] rounded-full border border-brand-border/60"></div>
-                      <div className="hidden xs:block absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-[#F5FAFF] rounded-full border border-brand-border/60"></div>
+                    <div className="w-full xs:w-20 sm:w-24 py-3 xs:py-0 bg-gradient-to-br from-blue-50/90 via-indigo-50/60 to-white flex flex-row xs:flex-col justify-center items-center gap-2 xs:gap-0 text-blue-900 shrink-0 border-b xs:border-b-0 xs:border-r border-blue-100/80 relative">
+                      <div className="hidden xs:block absolute -top-1.5 -right-1.5 w-3 h-3 bg-[#F4F8FC] rounded-full border border-brand-border/60"></div>
+                      <div className="hidden xs:block absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-[#F4F8FC] rounded-full border border-brand-border/60"></div>
                       
-                      <span className="text-[10px] sm:text-xs font-black tracking-widest uppercase opacity-85">{month}</span>
-                      <span className="text-xl xs:text-2xl sm:text-3xl font-black xs:mt-1.5 leading-none">{day}</span>
+                      <span className="text-[10px] sm:text-xs font-black tracking-widest uppercase text-blue-600">{month}</span>
+                      <span className="text-xl xs:text-2xl sm:text-3xl font-black xs:mt-1.5 leading-none text-slate-800">{day}</span>
                     </div>
 
                     <div className="flex-grow p-5 sm:p-6 text-left flex flex-col justify-between gap-4">
@@ -484,7 +512,7 @@ export default function Home() {
                         </span>
                         <button
                           onClick={() => navigate(q.mode === 'SCHEDULED' || q.occurrenceId ? `/q/${q.custom_slug || q.slug || qSlug}` : `/join/${q.join_code}`)}
-                          className="flex items-center justify-center space-x-1.5 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-extrabold rounded-lg shadow-sm transition-all active:scale-95 cursor-pointer text-[10px] uppercase tracking-wider"
+                          className="flex items-center justify-center space-x-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-lg shadow-2xs transition-all active:scale-95 cursor-pointer text-[10px] uppercase tracking-wider"
                         >
                           <span>Join Quiz</span>
                           <ArrowRight size={10} />
@@ -770,20 +798,20 @@ export default function Home() {
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="relative bg-gradient-to-r from-brand-blue via-blue-600 to-indigo-700 px-6 py-5 text-white flex items-center justify-between">
+              <div className="relative bg-white border-b border-slate-200 px-6 py-5 text-slate-900 flex items-center justify-between">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 bg-white/15 backdrop-blur-sm rounded-xl flex items-center justify-center border border-white/20">
-                    <Trophy size={20} className="text-amber-300" />
+                  <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center border border-amber-200">
+                    <Trophy size={20} className="text-amber-500" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-black tracking-tight">Leaderboard Scoring & Rules Matrix</h3>
-                    <p className="text-blue-100 text-xs font-medium">Standardized Evaluation Engine for MSC Quizzes</p>
+                    <h3 className="text-lg font-black tracking-tight text-slate-900">Leaderboard Scoring & Rules Matrix</h3>
+                    <p className="text-slate-500 text-xs font-medium">Standardized Evaluation Engine for MSC Quizzes</p>
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setShowMatrixModal(false)}
-                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors cursor-pointer"
                 >
                   <X size={16} />
                 </button>
@@ -954,41 +982,41 @@ export default function Home() {
         </div>
 
         {/* ════════ 9. VERIFICATION PORTAL & PROFILE SEARCH ════════ */}
-        <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 sm:p-10 shadow-xl relative overflow-hidden text-left border border-slate-800">
-          <div className="absolute top-0 right-0 -mt-8 -mr-8 w-48 h-48 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
-          <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-48 h-48 bg-purple-500/10 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="bg-gradient-to-br from-white via-blue-50/40 to-indigo-50/50 text-brand-textMain rounded-3xl p-6 sm:p-10 shadow-soft relative overflow-hidden text-left border border-blue-200/80">
+          <div className="absolute top-0 right-0 -mt-8 -mr-8 w-48 h-48 bg-blue-400/10 rounded-full blur-3xl pointer-events-none"></div>
+          <div className="absolute bottom-0 left-0 -mb-8 -ml-8 w-48 h-48 bg-indigo-400/10 rounded-full blur-3xl pointer-events-none"></div>
 
           <div className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
             <div className="lg:col-span-7 space-y-4">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-500/20 text-blue-300 border border-blue-400/30 rounded-full text-[10px] font-black uppercase tracking-wider">
-                <ShieldCheck size={14} className="text-blue-400" />
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-[10px] font-black uppercase tracking-wider shadow-2xs">
+                <ShieldCheck size={14} className="text-blue-600" />
                 <span>Official Verification Engine</span>
               </div>
 
-              <h2 className="text-2xl sm:text-3xl font-black tracking-tight leading-tight">
+              <h2 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-tight">
                 Verify Student Profiles & Digital Certificates
               </h2>
 
-              <p className="text-xs sm:text-sm text-slate-300 max-w-xl leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-600 max-w-xl leading-relaxed font-medium">
                 All MSC credentials, event completions, and student rank profiles are cryptographically verifiable on the MSC-PRPCEM Verification Portal.
               </p>
 
               <div className="flex flex-wrap gap-4 text-xs pt-1">
-                <div className="flex items-center gap-2 text-slate-300">
-                  <div className="w-5 h-5 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-black text-[10px]">✓</div>
+                <div className="flex items-center gap-2 text-slate-700 font-semibold">
+                  <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-[10px]">✓</div>
                   <span>Instant Public Handle Search</span>
                 </div>
-                <div className="flex items-center gap-2 text-slate-300">
-                  <div className="w-5 h-5 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center font-black text-[10px]">✓</div>
+                <div className="flex items-center gap-2 text-slate-700 font-semibold">
+                  <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-black text-[10px]">✓</div>
                   <span>Tamper-proof SHA-256 Hashes</span>
                 </div>
               </div>
             </div>
 
-            <div className="lg:col-span-5 bg-white/10 backdrop-blur-md border border-white/15 p-5 sm:p-6 rounded-2xl space-y-4 shadow-lg">
+            <div className="lg:col-span-5 bg-white/90 backdrop-blur-md border border-blue-200/80 p-5 sm:p-6 rounded-2xl space-y-4 shadow-sm">
               <div className="space-y-1">
-                <h3 className="text-sm font-extrabold text-white">Search Profile or Certificate</h3>
-                <p className="text-[11px] text-slate-300">Enter a student handle (e.g. <span className="text-blue-300 font-mono">@amityadav</span>) or Credential ID</p>
+                <h3 className="text-sm font-extrabold text-slate-900">Search Profile or Certificate</h3>
+                <p className="text-[11px] text-slate-500 font-medium">Enter a student handle (e.g. <span className="text-blue-600 font-mono font-bold">@amityadav</span>) or Credential ID</p>
               </div>
 
               <form onSubmit={handleHomeLookupSubmit} className="space-y-3">
@@ -999,14 +1027,14 @@ export default function Home() {
                     placeholder="amityadav or MSC-2026-XXXX"
                     value={homeLookupQuery}
                     onChange={(e) => setHomeLookupQuery(e.target.value)}
-                    className="w-full bg-slate-900/80 border border-white/20 rounded-xl pl-8 pr-3 py-2.5 text-xs text-white placeholder:text-slate-400 font-mono font-bold focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400 transition-all"
+                    className="w-full bg-slate-50/80 border border-slate-200 rounded-xl pl-8 pr-3 py-2.5 text-xs text-slate-800 placeholder:text-slate-400 font-mono font-bold focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:bg-white transition-all shadow-2xs"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="submit"
-                    className="py-2.5 px-3 bg-blue-600 hover:bg-blue-500 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
+                    className="py-2.5 px-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all shadow-xs active:scale-95 cursor-pointer"
                   >
                     <Search size={13} />
                     <span>Search Profile</span>
@@ -1016,10 +1044,10 @@ export default function Home() {
                     href={verificationPortalUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="py-2.5 px-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all border border-white/20 active:scale-95 cursor-pointer"
+                    className="py-2.5 px-3 bg-white hover:bg-slate-50 text-slate-700 font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all border border-slate-200 shadow-2xs active:scale-95 cursor-pointer"
                   >
                     <span>Open Portal</span>
-                    <ExternalLink size={13} />
+                    <ExternalLink size={13} className="text-slate-500" />
                   </a>
                 </div>
               </form>
@@ -1028,35 +1056,49 @@ export default function Home() {
         </div>
 
         {/* ════════ 10. FAQ SECTION ════════ */}
-        <div className="max-w-2xl mx-auto w-full text-left space-y-8">
+        <div className="max-w-5xl mx-auto w-full text-left space-y-8">
           <div className="text-center space-y-1">
             <h2 className="text-2xl sm:text-3xl font-black text-brand-textMain tracking-tight">FAQ</h2>
-            <p className="text-brand-textMuted text-xs">Common questions about joining events and earning credentials.</p>
+            <p className="text-brand-textMuted text-xs sm:text-sm">Common questions about joining events and earning credentials.</p>
           </div>
 
-          <div className="faq-list-container">
-            {faqs.map((faq, idx) => (
-              <div key={idx} className={`faq-accordion-item ${activeFaq === idx ? 'faq-accordion-item-active' : ''}`}>
-                <button 
-                  onClick={() => toggleFaq(idx)}
-                  className="faq-question-btn"
-                >
-                  <div className="flex items-center">
-                    <span className="faq-badge-q">Q</span>
-                    <span className="faq-question-text">{faq.q}</span>
-                  </div>
-                  <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${activeFaq === idx ? 'rotate-180 text-brand-blue' : ''}`} />
-                </button>
-                {activeFaq === idx && (
-                  <div className="faq-answer-panel">
-                    <div className="flex items-start">
-                      <span className="faq-badge-a">A</span>
-                      <p className="flex-1 mt-0.5">{faq.a}</p>
+          <div className="faq-grid-container">
+            {faqs.map((faq, idx) => {
+              const isOpen = Boolean(openFaqs[idx]);
+              return (
+                <div key={idx} className={`faq-accordion-item ${isOpen ? 'faq-accordion-item-active' : ''}`}>
+                  <button 
+                    onClick={() => toggleFaq(idx)}
+                    className="faq-question-btn"
+                  >
+                    <div className="flex items-center">
+                      <span className="faq-badge-q">Q</span>
+                      <span className="faq-question-text">{faq.q}</span>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
+                    <ChevronDown className={`w-4 h-4 text-slate-400 shrink-0 transition-transform duration-300 ${isOpen ? 'rotate-180 text-brand-blue' : ''}`} />
+                  </button>
+                  {isOpen && (
+                    <div className="faq-answer-panel">
+                      <div className="flex items-start">
+                        <span className="faq-badge-a">A</span>
+                        <p className="flex-1 mt-0.5">{faq.a}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="text-center pt-2">
+            <button
+              type="button"
+              onClick={() => navigate('/faq')}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-white border border-slate-200 hover:border-blue-500 text-blue-600 rounded-xl text-xs font-bold transition-all shadow-2xs hover:shadow-xs cursor-pointer active:scale-95"
+            >
+              <span>Have more questions? Read Full Documentation & FAQ</span>
+              <ArrowRight size={13} />
+            </button>
           </div>
         </div>
 

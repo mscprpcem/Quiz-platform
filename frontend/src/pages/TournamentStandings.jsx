@@ -218,18 +218,18 @@ export default function TournamentStandings() {
         </div>
 
         {/* Header Hero Banner */}
-        <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-purple-950 text-white p-6 sm:p-8 rounded-3xl shadow-md relative overflow-hidden">
+        <div className="bg-gradient-to-r from-purple-50/70 via-indigo-50/40 to-blue-50/60 border border-purple-200/80 p-6 sm:p-8 rounded-3xl shadow-soft relative overflow-hidden text-left">
           <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-purple-500/25 text-purple-200 border border-purple-400/30 rounded-full text-xs font-bold tracking-wide uppercase">
-                <Sparkles size={13} className="text-purple-300" />
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-purple-100 text-purple-700 border border-purple-200 rounded-full text-xs font-bold tracking-wide uppercase shadow-2xs">
+                <Sparkles size={13} className="text-purple-600" />
                 MSC PRPCEM Tech Championship
               </div>
-              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white flex items-center gap-3">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-slate-900 flex items-center gap-3">
                 Tournament Standings
-                <Trophy size={32} className="text-amber-400 shrink-0" />
+                <Trophy size={32} className="text-amber-500 shrink-0" />
               </h1>
-              <p className="text-xs sm:text-sm text-slate-300 max-w-2xl font-medium leading-relaxed">
+              <p className="text-xs sm:text-sm text-slate-600 max-w-2xl font-medium leading-relaxed">
                 Live cumulative rankings across weekly challenges and hackathon assessments. Ranked by verified points with total response time tie-breaking.
               </p>
             </div>
@@ -238,11 +238,11 @@ export default function TournamentStandings() {
               <button
                 type="button"
                 onClick={() => setShowQuizSelector(!showQuizSelector)}
-                className="px-4 py-2.5 bg-white/15 hover:bg-white/25 text-white rounded-xl text-xs font-bold transition flex items-center gap-2 cursor-pointer"
+                className="px-4 py-2.5 bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 rounded-xl text-xs font-bold transition shadow-xs flex items-center gap-2 cursor-pointer"
               >
                 <SlidersHorizontal size={14} />
                 <span>{showQuizSelector ? 'Hide Quiz Filter' : 'Filter Quizzes'}</span>
-                <span className="px-1.5 py-0.2 bg-purple-500 text-white rounded-md text-[10px] font-black">
+                <span className="px-1.5 py-0.2 bg-purple-600 text-white rounded-md text-[10px] font-black">
                   {selectedQuizIds.length}
                 </span>
               </button>
@@ -251,7 +251,7 @@ export default function TournamentStandings() {
                 type="button"
                 onClick={() => fetchCumulativeLeaderboard(selectedQuizIds)}
                 disabled={loading || selectedQuizIds.length === 0}
-                className="px-4 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                className="px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs font-extrabold shadow-sm transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
               >
                 <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
                 <span>Refresh</span>

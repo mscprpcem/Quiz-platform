@@ -306,7 +306,7 @@ export default function Courses() {
                       <div className="flex flex-wrap items-center gap-2">
                         <button
                           onClick={() => navigate('/courses/sql')}
-                          className="px-3.5 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl font-extrabold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 text-xs"
+                          className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-extrabold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer active:scale-95 text-xs"
                         >
                           <BookOpen size={13} />
                           <span>SQL Course Hub</span>

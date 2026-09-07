@@ -199,7 +199,7 @@ export default function Analytics() {
               <button
                 type="button"
                 onClick={() => setActiveDropdown(activeDropdown === 'responses' ? null : 'responses')}
-                className="flex items-center space-x-2 bg-slate-900 hover:bg-slate-800 text-white px-4 py-2.5 rounded-xl text-xs font-black shadow-xs transition-all cursor-pointer active:scale-95"
+                className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl text-xs font-black shadow-xs transition-all cursor-pointer active:scale-95"
               >
                 {exportLoading?.startsWith('responses') ? (
                   <Loader2 size={14} className="animate-spin" />

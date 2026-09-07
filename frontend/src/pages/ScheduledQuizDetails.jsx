@@ -318,7 +318,7 @@ export default function ScheduledQuizDetails() {
             <button
               type="button"
               onClick={() => setActiveExportDropdown(activeExportDropdown === 'responses' ? null : 'responses')}
-              className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl text-xs flex items-center space-x-1.5 shadow-xs cursor-pointer transition-all active:scale-95"
+              className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-xs flex items-center space-x-1.5 shadow-xs cursor-pointer transition-all active:scale-95"
             >
               {exportLoading?.startsWith('responses') ? (
                 <Loader2 size={14} className="animate-spin" />
@@ -485,34 +485,34 @@ export default function ScheduledQuizDetails() {
       )}
 
       {/* ════════ VANITY LINK & QR CARD ════════ */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 sm:p-8 rounded-3xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+      <div className="bg-gradient-to-r from-blue-50/70 via-indigo-50/40 to-white text-slate-900 p-6 sm:p-8 rounded-3xl border border-blue-200/80 shadow-soft flex flex-col md:flex-row items-center justify-between gap-6">
         <div className="space-y-3 max-w-lg text-left">
-          <div className="inline-flex items-center space-x-2 px-3 py-1 bg-amber-400/20 text-amber-300 border border-amber-400/30 rounded-full text-[10px] font-black uppercase">
+          <div className="inline-flex items-center space-x-2 px-3 py-1 bg-amber-50 text-amber-800 border border-amber-200 rounded-full text-[10px] font-black uppercase shadow-2xs">
             <QrCode size={13} />
             <span>Direct QR Code & Short Link</span>
           </div>
 
-          <h2 className="text-xl font-black">Direct Student Join Link</h2>
+          <h2 className="text-xl font-black text-slate-900">Direct Student Join Link</h2>
           
           <div className="flex items-center space-x-2">
             <input
               type="text"
               readOnly
               value={vanityUrl}
-              className="bg-white/10 border border-white/20 text-amber-300 font-mono font-bold text-xs px-3.5 py-2 rounded-xl w-full"
+              className="bg-white border border-slate-200 text-blue-700 font-mono font-bold text-xs px-3.5 py-2 rounded-xl w-full shadow-2xs"
             />
             <button
               onClick={handleCopyLink}
-              className="px-3.5 py-2 bg-white/20 hover:bg-white/30 text-white text-xs font-bold rounded-xl flex items-center space-x-1 cursor-pointer"
+              className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center space-x-1 cursor-pointer shadow-xs transition-all active:scale-95"
             >
-              {copiedLink ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+              {copiedLink ? <Check size={14} className="text-emerald-300" /> : <Copy size={14} />}
               <span>{copiedLink ? 'Copied' : 'Copy'}</span>
             </button>
           </div>
-          <p className="text-xs text-slate-300">Students scanning the QR code or visiting this short URL join the active quiz occurrence directly.</p>
+          <p className="text-xs text-slate-600 font-medium">Students scanning the QR code or visiting this short URL join the active quiz occurrence directly.</p>
         </div>
 
-        <div className="bg-white p-4 rounded-2xl shadow-lg flex flex-col items-center justify-center space-y-2.5">
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200 flex flex-col items-center justify-center space-y-2.5">
           <QRCodeSVG
             id="scheduled-quiz-qr-svg"
             value={vanityUrl}
@@ -532,7 +532,7 @@ export default function ScheduledQuizDetails() {
           <span className="text-[10px] font-black text-slate-600 uppercase tracking-wider">Scan to Join</span>
           <button
             onClick={handleDownloadQR}
-            className="w-full py-1.5 px-3 bg-slate-900 hover:bg-slate-800 text-white font-extrabold rounded-xl text-[11px] flex items-center justify-center space-x-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
+            className="w-full py-1.5 px-3 bg-blue-600 hover:bg-blue-700 text-white font-extrabold rounded-xl text-[11px] flex items-center justify-center space-x-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
             title="Download Direct Join Card Image"
           >
             <Download size={13} />

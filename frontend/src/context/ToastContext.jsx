@@ -260,7 +260,7 @@ function ToastItem({ toast, onDismiss }) {
                   toast.action.onClick?.();
                   handleDismiss();
                 }}
-                className="px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-[10px] font-bold transition-colors cursor-pointer shadow-2xs"
               >
                 {toast.action.label}
               </button>
