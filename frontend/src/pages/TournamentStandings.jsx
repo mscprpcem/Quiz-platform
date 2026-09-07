@@ -21,7 +21,10 @@ import {
   BarChart3,
   Calendar,
   ArrowLeft,
+  ChevronLeft,
   ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   ShieldCheck,
   SlidersHorizontal
 } from 'lucide-react';
@@ -50,6 +53,8 @@ export default function TournamentStandings() {
   const [attendanceFilter, setAttendanceFilter] = useState('all'); // 'all', 'completed', 'not_attended'
   const [sortBy, setSortBy] = useState('rank'); // 'rank', 'score', 'time', 'attendance'
   const [showQuizSelector, setShowQuizSelector] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   // Fetch available quizzes list on mount
   useEffect(() => {
@@ -184,6 +189,40 @@ export default function TournamentStandings() {
         return a.rank - b.rank; // default by rank
       });
   }, [leaderboardData, searchTerm, attendanceFilter, sortBy]);
+
+  // Reset pagination to page 1 whenever filters, search, sort, or quizzes change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, attendanceFilter, sortBy, selectedQuizIds]);
+
+  // Pagination calculations
+  const totalItems = filteredLeaderboard.length;
+  const effectivePageSize = pageSize === 'all' ? (totalItems || 1) : pageSize;
+  const totalPages = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(totalItems / effectivePageSize));
+  const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const paginatedLeaderboard = useMemo(() => {
+    if (pageSize === 'all') return filteredLeaderboard;
+    const startIndex = (validCurrentPage - 1) * effectivePageSize;
+    return filteredLeaderboard.slice(startIndex, startIndex + effectivePageSize);
+  }, [filteredLeaderboard, validCurrentPage, effectivePageSize, pageSize]);
+
+  const startRecord = totalItems === 0 ? 0 : (validCurrentPage - 1) * effectivePageSize + 1;
+  const endRecord = pageSize === 'all' ? totalItems : Math.min(validCurrentPage * effectivePageSize, totalItems);
+
+  // Dynamic pagination item list with smart ellipsis
+  const paginationItems = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (validCurrentPage <= 4) {
+      return [1, 2, 3, 4, 5, '...', totalPages];
+    }
+    if (validCurrentPage >= totalPages - 3) {
+      return [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [1, '...', validCurrentPage - 1, validCurrentPage, validCurrentPage + 1, '...', totalPages];
+  }, [totalPages, validCurrentPage]);
 
   // Top 3 from completed participants only
   const completedList = leaderboardData.filter((s) => s.quizzesAttendedCount > 0);
@@ -648,19 +687,19 @@ export default function TournamentStandings() {
                   No participants matched your current search or filters.
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
+                <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs">
+                  <table className="w-full text-left text-xs min-w-[900px]">
                     <thead>
-                      <tr className="border-b border-slate-200 text-slate-500 font-extrabold uppercase tracking-wider text-[10px] bg-slate-50/70">
-                        <th className="py-3 px-3 w-14 text-center">Rank</th>
-                        <th className="py-3 px-3 min-w-[180px]">Participant</th>
-                        <th className="py-3 px-3 text-center">Score</th>
-                        <th className="py-3 px-3 text-center">Time</th>
-                        <th className="py-3 px-3 text-center">Attendance</th>
-                        <th className="py-3 px-3 text-center">Accuracy</th>
+                      <tr className="border-b border-slate-200 text-slate-600 font-black uppercase tracking-wider text-[11px] bg-slate-100/80">
+                        <th className="py-3.5 px-3 w-16 text-center whitespace-nowrap">Rank</th>
+                        <th className="py-3.5 px-4 min-w-[200px] max-w-[280px] whitespace-nowrap">Participant</th>
+                        <th className="py-3.5 px-4 text-center whitespace-nowrap">Score</th>
+                        <th className="py-3.5 px-4 text-center whitespace-nowrap">Time</th>
+                        <th className="py-3.5 px-4 text-center whitespace-nowrap">Attendance</th>
+                        <th className="py-3.5 px-4 text-center whitespace-nowrap">Accuracy</th>
                         {selectedQuizzesMeta.map((quiz, idx) => (
-                          <th key={quiz.id} className="py-3 px-3 text-center min-w-[120px]">
-                            <span className="block truncate max-w-[130px] mx-auto text-purple-900" title={quiz.title}>
+                          <th key={quiz.id} className="py-3.5 px-3 text-center min-w-[130px] max-w-[160px] whitespace-nowrap">
+                            <span className="block truncate font-bold text-slate-800 normal-case text-xs max-w-[140px] mx-auto" title={quiz.title}>
                               Q{idx + 1}: {quiz.title}
                             </span>
                           </th>
@@ -668,7 +707,7 @@ export default function TournamentStandings() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {filteredLeaderboard.map((student) => {
+                      {paginatedLeaderboard.map((student) => {
                         const isGold = student.rank === 1 && student.quizzesAttendedCount > 0;
                         const isSilver = student.rank === 2 && student.quizzesAttendedCount > 0;
                         const isBronze = student.rank === 3 && student.quizzesAttendedCount > 0;
@@ -677,61 +716,66 @@ export default function TournamentStandings() {
                         return (
                           <tr
                             key={student.key || student.id || student.name}
-                            className={`transition hover:bg-slate-50/80 ${
+                            className={`transition-colors hover:bg-purple-50/25 ${
                               isGold ? 'bg-amber-50/40 font-semibold' : ''
-                            } ${isAbsent ? 'opacity-60 bg-slate-50/30' : ''}`}
+                            } ${isSilver ? 'bg-slate-50/70' : ''} ${isBronze ? 'bg-orange-50/30' : ''} ${
+                              isAbsent ? 'opacity-60 bg-slate-50/30' : 'bg-white'
+                            }`}
                           >
                             {/* Rank Medal / Badge */}
-                            <td className="py-3 px-3 text-center font-black">
-                              {isGold ? (
-                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-400 text-slate-950 font-black text-xs shadow-xs">
-                                  🥇
-                                </span>
-                              ) : isSilver ? (
-                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-300 text-slate-800 font-black text-xs shadow-xs">
-                                  🥈
-                                </span>
-                              ) : isBronze ? (
-                                <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-200 text-amber-950 font-black text-xs shadow-xs">
-                                  🥉
-                                </span>
-                              ) : (
-                                <span className="text-slate-500 font-extrabold text-xs">
-                                  #{student.rank}
-                                </span>
-                              )}
+                            <td className="py-3 px-3 text-center whitespace-nowrap">
+                              <div className="flex items-center justify-center">
+                                {isGold ? (
+                                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-400 text-slate-950 font-black text-xs shadow-xs ring-2 ring-amber-300/60">
+                                    🥇
+                                  </span>
+                                ) : isSilver ? (
+                                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-300 text-slate-800 font-black text-xs shadow-xs ring-2 ring-slate-200">
+                                    🥈
+                                  </span>
+                                ) : isBronze ? (
+                                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-200 text-amber-950 font-black text-xs shadow-xs ring-2 ring-amber-400/40">
+                                    🥉
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 text-slate-600 font-bold text-xs border border-slate-200">
+                                    #{student.rank}
+                                  </span>
+                                )}
+                              </div>
                             </td>
 
                             {/* Participant Name & College */}
-                            <td className="py-3 px-3">
+                            <td className="py-3 px-4 min-w-[200px] max-w-[280px]">
                               <div className="space-y-0.5">
-                                <div className="font-extrabold text-slate-900 flex items-center gap-1.5">
-                                  <span className="truncate max-w-[200px]" title={student.name}>
+                                <div className="font-extrabold text-slate-900 flex items-center gap-1.5" title={student.name}>
+                                  <span className="truncate max-w-[200px]">
                                     {student.name}
                                   </span>
                                   {student.quizzesAttendedCount > 0 && (
                                     <ShieldCheck size={13} className="text-purple-600 shrink-0" title="Verified Participant" />
                                   )}
                                 </div>
-                                <div className="text-[10px] text-slate-500 font-medium truncate max-w-[200px]">
+                                <div className="text-[10px] text-slate-500 font-medium truncate max-w-[200px]" title={student.college || 'PRPCEM Amravati'}>
                                   {student.college || 'PRPCEM Amravati'}
                                 </div>
                               </div>
                             </td>
 
                             {/* Cumulative Score */}
-                            <td className="py-3 px-3 text-center">
-                              <span className="inline-block px-2.5 py-1 bg-purple-50 text-purple-900 font-black rounded-lg border border-purple-200 text-xs shadow-2xs">
-                                {student.totalScore} pts
+                            <td className="py-3 px-4 text-center whitespace-nowrap">
+                              <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-50 text-purple-900 font-black rounded-xl border border-purple-200/80 text-xs shadow-2xs whitespace-nowrap">
+                                <span>{student.totalScore}</span>
+                                <span className="text-[10px] font-bold opacity-75 uppercase tracking-wider">pts</span>
                               </span>
                             </td>
 
                             {/* Total Time */}
-                            <td className="py-3 px-3 text-center font-bold text-slate-700">
+                            <td className="py-3 px-4 text-center font-bold text-slate-700 whitespace-nowrap">
                               {student.totalTimeTakenSeconds > 0 ? (
-                                <span className="inline-flex items-center gap-1 text-slate-700 font-semibold">
-                                  <Clock size={11} className="text-slate-400" />
-                                  {formatSeconds(student.totalTimeTakenSeconds)}
+                                <span className="inline-flex items-center justify-center gap-1.5 text-slate-700 font-semibold bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200/70 text-xs whitespace-nowrap tabular-nums">
+                                  <Clock size={12} className="text-slate-400 shrink-0" />
+                                  <span>{formatSeconds(student.totalTimeTakenSeconds)}</span>
                                 </span>
                               ) : (
                                 <span className="text-slate-400">-</span>
@@ -739,8 +783,8 @@ export default function TournamentStandings() {
                             </td>
 
                             {/* Attendance */}
-                            <td className="py-3 px-3 text-center">
-                              <div className="inline-flex flex-col items-center">
+                            <td className="py-3 px-4 text-center whitespace-nowrap">
+                              <div className="inline-flex flex-col items-center whitespace-nowrap">
                                 <span
                                   className={`text-[11px] font-extrabold ${
                                     student.quizzesAttendedCount === selectedQuizzesMeta.length
@@ -768,9 +812,9 @@ export default function TournamentStandings() {
                             </td>
 
                             {/* Accuracy */}
-                            <td className="py-3 px-3 text-center font-bold">
+                            <td className="py-3 px-4 text-center font-bold whitespace-nowrap">
                               {student.quizzesAttendedCount > 0 ? (
-                                <span className="text-slate-800">
+                                <span className="text-slate-800 text-xs sm:text-sm">
                                   {student.accuracyPercentage}%
                                 </span>
                               ) : (
@@ -784,18 +828,18 @@ export default function TournamentStandings() {
                               const isQuizAttended = breakdown && breakdown.status !== 'not_attended';
 
                               return (
-                                <td key={quiz.id} className="py-3 px-3 text-center">
+                                <td key={quiz.id} className="py-3 px-3 text-center whitespace-nowrap">
                                   {isQuizAttended ? (
-                                    <div className="space-y-0.5">
-                                      <span className="font-extrabold text-slate-900 block">
-                                        {breakdown.score} pts
+                                    <div className="inline-flex flex-col items-center justify-center px-2.5 py-1 bg-slate-50 border border-slate-200/80 rounded-xl whitespace-nowrap min-w-[80px]">
+                                      <span className="font-extrabold text-slate-900 text-xs block">
+                                        {breakdown.score} <span className="text-[10px] text-slate-500 font-medium">pts</span>
                                       </span>
-                                      <span className="text-[10px] text-slate-500 font-semibold block">
+                                      <span className="text-[10px] text-slate-500 font-semibold block mt-0.5 tabular-nums">
                                         {formatSeconds(breakdown.timeTakenSeconds)}
                                       </span>
                                     </div>
                                   ) : (
-                                    <span className="text-[10px] text-slate-400 font-semibold bg-slate-100 px-2 py-0.5 rounded">
+                                    <span className="text-[10px] text-slate-400 font-semibold bg-slate-100/80 px-2.5 py-1 rounded-lg border border-slate-200 block whitespace-nowrap">
                                       Absent
                                     </span>
                                   )}
@@ -807,6 +851,115 @@ export default function TournamentStandings() {
                       })}
                     </tbody>
                   </table>
+                </div>
+              )}
+
+              {/* Pagination Controls */}
+              {!loading && filteredLeaderboard.length > 0 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 mt-4 border-t border-slate-100">
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 font-medium">
+                    <div>
+                      Showing <span className="font-black text-slate-900">{startRecord}</span> to{' '}
+                      <span className="font-black text-slate-900">{endRecord}</span> of{' '}
+                      <span className="font-black text-slate-900">{totalItems}</span> participants
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-slate-400 text-[11px] font-semibold">Per page:</span>
+                      <select
+                        value={pageSize}
+                        onChange={(e) => {
+                          setPageSize(e.target.value === 'all' ? 'all' : Number(e.target.value));
+                          setCurrentPage(1);
+                        }}
+                        className="bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-lg px-2.5 py-1 focus:outline-none focus:ring-2 focus:ring-purple-500/20 cursor-pointer"
+                      >
+                        <option value={10}>10</option>
+                        <option value={25}>25</option>
+                        <option value={50}>50</option>
+                        <option value={100}>100</option>
+                        <option value="all">All</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {totalPages > 1 && (
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        disabled={validCurrentPage === 1}
+                        onClick={() => setCurrentPage(1)}
+                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-2xs"
+                        title="First Page"
+                        aria-label="First Page"
+                      >
+                        <ChevronsLeft size={16} />
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={validCurrentPage === 1}
+                        onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-2xs"
+                        title="Previous Page"
+                        aria-label="Previous Page"
+                      >
+                        <ChevronLeft size={16} />
+                      </button>
+
+                      <div className="flex items-center gap-1 mx-1">
+                        {paginationItems.map((item, idx) => {
+                          if (item === '...') {
+                            return (
+                              <span
+                                key={`dots-${idx}`}
+                                className="w-8 h-8 flex items-center justify-center text-slate-400 font-bold select-none text-xs"
+                              >
+                                ...
+                              </span>
+                            );
+                          }
+                          const pageNum = Number(item);
+                          const isActive = pageNum === validCurrentPage;
+                          return (
+                            <button
+                              key={pageNum}
+                              type="button"
+                              onClick={() => setCurrentPage(pageNum)}
+                              className={`w-8 h-8 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center shadow-2xs ${
+                                isActive
+                                  ? 'bg-purple-600 text-white shadow-purple-500/20'
+                                  : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+                              }`}
+                            >
+                              {pageNum}
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      <button
+                        type="button"
+                        disabled={validCurrentPage === totalPages}
+                        onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-2xs"
+                        title="Next Page"
+                        aria-label="Next Page"
+                      >
+                        <ChevronRight size={16} />
+                      </button>
+
+                      <button
+                        type="button"
+                        disabled={validCurrentPage === totalPages}
+                        onClick={() => setCurrentPage(totalPages)}
+                        className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-2xs"
+                        title="Last Page"
+                        aria-label="Last Page"
+                      >
+                        <ChevronsRight size={16} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

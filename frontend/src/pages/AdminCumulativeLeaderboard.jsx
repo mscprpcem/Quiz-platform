@@ -16,6 +16,10 @@ import {
   Sparkles,
   Layers,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Check,
   Zap,
   Flame,
@@ -48,6 +52,8 @@ export default function AdminCumulativeLeaderboard() {
   const [quizSearchQuery, setQuizSearchQuery] = useState('');
   const [attendanceFilter, setAttendanceFilter] = useState('all'); // 'all', 'completed', 'not_attended'
   const [sortBy, setSortBy] = useState('rank'); // 'rank', 'score', 'time', 'attendance'
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   // Fetch available quizzes list on mount
   useEffect(() => {
@@ -180,6 +186,40 @@ export default function AdminCumulativeLeaderboard() {
         return a.rank - b.rank; // default by rank
       });
   }, [leaderboardData, searchTerm, attendanceFilter, sortBy]);
+
+  // Reset pagination to page 1 whenever filters, search, sort, or quizzes change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, attendanceFilter, sortBy, selectedQuizIds]);
+
+  // Pagination calculations
+  const totalItems = filteredLeaderboard.length;
+  const effectivePageSize = pageSize === 'all' ? (totalItems || 1) : pageSize;
+  const totalPages = pageSize === 'all' ? 1 : Math.max(1, Math.ceil(totalItems / effectivePageSize));
+  const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+
+  const paginatedLeaderboard = useMemo(() => {
+    if (pageSize === 'all') return filteredLeaderboard;
+    const startIndex = (validCurrentPage - 1) * effectivePageSize;
+    return filteredLeaderboard.slice(startIndex, startIndex + effectivePageSize);
+  }, [filteredLeaderboard, validCurrentPage, effectivePageSize, pageSize]);
+
+  const startRecord = totalItems === 0 ? 0 : (validCurrentPage - 1) * effectivePageSize + 1;
+  const endRecord = pageSize === 'all' ? totalItems : Math.min(validCurrentPage * effectivePageSize, totalItems);
+
+  // Dynamic pagination item list with smart ellipsis
+  const paginationItems = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (validCurrentPage <= 4) {
+      return [1, 2, 3, 4, 5, '...', totalPages];
+    }
+    if (validCurrentPage >= totalPages - 3) {
+      return [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [1, '...', validCurrentPage - 1, validCurrentPage, validCurrentPage + 1, '...', totalPages];
+  }, [totalPages, validCurrentPage]);
 
   // Export to Excel
   const handleExportExcel = () => {
@@ -720,34 +760,34 @@ export default function AdminCumulativeLeaderboard() {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto -mx-5 sm:-mx-6">
-                <table className="w-full text-left border-collapse min-w-[850px]">
+              <div className="overflow-x-auto rounded-xl border border-slate-200 shadow-2xs">
+                <table className="w-full text-left border-collapse min-w-[900px]">
                   <thead>
-                    <tr className="border-b border-slate-200 text-[11px] font-black text-slate-700 uppercase tracking-wider bg-slate-100/70">
-                      <th className="py-3.5 px-4 sm:px-6 w-16">Rank</th>
-                      <th className="py-3.5 px-4 min-w-[220px]">Participant</th>
-                      <th className="py-3.5 px-4 text-center">Total Score</th>
-                      <th className="py-3.5 px-4 text-center">Total Time</th>
-                      <th className="py-3.5 px-4 text-center">Attendance</th>
+                    <tr className="border-b border-slate-200 text-[11px] font-black text-slate-700 uppercase tracking-wider bg-slate-100/80">
+                      <th className="py-3.5 px-3 text-center w-16 whitespace-nowrap">Rank</th>
+                      <th className="py-3.5 px-4 min-w-[220px] max-w-[280px] whitespace-nowrap">Participant</th>
+                      <th className="py-3.5 px-4 text-center whitespace-nowrap">Total Score</th>
+                      <th className="py-3.5 px-4 text-center whitespace-nowrap">Total Time</th>
+                      <th className="py-3.5 px-4 text-center whitespace-nowrap">Attendance</th>
                       {/* Dynamic Columns for Selected Quizzes */}
-                      {selectedQuizzesMeta.map((q, idx) => (
-                        <th key={q.id} className="py-3.5 px-3 text-center min-w-[130px]">
-                          <span className="block truncate font-black text-purple-900" title={q.title}>
+                      {selectedQuizzesMeta.map((q) => (
+                        <th key={q.id} className="py-3.5 px-3 text-center min-w-[140px] max-w-[170px] whitespace-nowrap">
+                          <span className="block truncate font-bold text-slate-900 normal-case text-xs max-w-[150px] mx-auto" title={q.title}>
                             {q.title}
                           </span>
-                          <span className="text-[10px] text-slate-500 lowercase font-medium">score / time</span>
+                          <span className="text-[10px] text-slate-400 normal-case font-medium block mt-0.5">score • time</span>
                         </th>
                       ))}
-                      <th className="py-3.5 px-4 text-center">Accuracy</th>
+                      <th className="py-3.5 px-4 text-center whitespace-nowrap">Accuracy</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 text-xs">
-                    {filteredLeaderboard.map((student) => {
+                    {paginatedLeaderboard.map((student) => {
                       const isCompleted = student.quizzesAttendedCount > 0;
                       return (
                         <tr
                           key={student.key || student.email || student.name}
-                          className={`hover:bg-slate-50 transition ${
+                          className={`hover:bg-purple-50/25 transition-colors ${
                             student.rank === 1
                               ? 'bg-amber-50/40'
                               : student.rank === 2
@@ -756,53 +796,57 @@ export default function AdminCumulativeLeaderboard() {
                               ? 'bg-orange-50/30'
                               : !isCompleted
                               ? 'bg-slate-50/30 text-slate-400'
-                              : ''
+                              : 'bg-white'
                           }`}
                         >
                           {/* Rank Badge */}
-                          <td className="py-3.5 px-4 sm:px-6 font-black">
-                            {student.rank === 1 ? (
-                              <span className="w-7 h-7 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center font-black text-xs shadow-xs">
-                                1
-                              </span>
-                            ) : student.rank === 2 ? (
-                              <span className="w-7 h-7 rounded-full bg-slate-300 text-slate-900 flex items-center justify-center font-black text-xs shadow-xs">
-                                2
-                              </span>
-                            ) : student.rank === 3 ? (
-                              <span className="w-7 h-7 rounded-full bg-amber-600 text-white flex items-center justify-center font-black text-xs shadow-xs">
-                                3
-                              </span>
-                            ) : (
-                              <span className="text-slate-500 font-bold px-2">#{student.rank}</span>
-                            )}
+                          <td className="py-3.5 px-3 text-center whitespace-nowrap">
+                            <div className="flex items-center justify-center">
+                              {student.rank === 1 ? (
+                                <span className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-400 to-amber-500 text-slate-950 flex items-center justify-center font-black text-xs shadow-xs ring-2 ring-amber-300/60">
+                                  1
+                                </span>
+                              ) : student.rank === 2 ? (
+                                <span className="w-7 h-7 rounded-full bg-gradient-to-br from-slate-200 to-slate-300 text-slate-800 flex items-center justify-center font-black text-xs shadow-xs ring-2 ring-slate-200">
+                                  2
+                                </span>
+                              ) : student.rank === 3 ? (
+                                <span className="w-7 h-7 rounded-full bg-gradient-to-br from-amber-600 to-amber-700 text-white flex items-center justify-center font-black text-xs shadow-xs ring-2 ring-amber-500/40">
+                                  3
+                                </span>
+                              ) : (
+                                <span className="w-7 h-7 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-xs border border-slate-200">
+                                  #{student.rank}
+                                </span>
+                              )}
+                            </div>
                           </td>
 
                           {/* Participant Info */}
-                          <td className="py-3.5 px-4">
+                          <td className="py-3.5 px-4 min-w-[220px] max-w-[280px]">
                             <div className="flex items-center gap-3">
                               <div
                                 className={`w-8 h-8 rounded-full font-black flex items-center justify-center text-xs shrink-0 ${
                                   isCompleted
-                                    ? 'bg-purple-100 text-purple-800'
+                                    ? 'bg-purple-100 text-purple-800 border border-purple-200/60'
                                     : 'bg-slate-200 text-slate-600'
                                 }`}
                               >
                                 {student.name ? student.name.charAt(0).toUpperCase() : 'S'}
                               </div>
-                              <div className="min-w-0">
-                                <div className="font-black text-slate-900 truncate flex items-center gap-1.5">
-                                  {student.name}
+                              <div className="min-w-0 flex-1">
+                                <div className="font-black text-slate-900 truncate flex items-center gap-1.5" title={student.name}>
+                                  <span className="truncate">{student.name}</span>
                                   {isCompleted && (
-                                    <span title="Submitted attempt" className="text-emerald-600">
-                                      <CheckCircle2 size={12} />
+                                    <span title="Submitted attempt" className="text-emerald-600 shrink-0">
+                                      <CheckCircle2 size={13} />
                                     </span>
                                   )}
                                 </div>
-                                <div className="text-[11px] text-slate-500 truncate">
+                                <div className="text-[11px] text-slate-500 truncate" title={student.email}>
                                   {student.email || 'No email registered'}
                                 </div>
-                                <div className="text-[10px] text-purple-700 font-bold truncate">
+                                <div className="text-[10px] text-purple-700 font-bold truncate block" title={student.college || 'PRPCEM'}>
                                   {student.college || 'PRPCEM'}
                                 </div>
                               </div>
@@ -810,31 +854,32 @@ export default function AdminCumulativeLeaderboard() {
                           </td>
 
                           {/* Cumulative Total Score */}
-                          <td className="py-3.5 px-4 text-center">
+                          <td className="py-3.5 px-4 text-center whitespace-nowrap">
                             <span
-                              className={`font-black text-sm sm:text-base px-2.5 py-1 rounded-lg ${
+                              className={`inline-flex items-center gap-1 font-black text-xs sm:text-sm px-3 py-1.5 rounded-xl whitespace-nowrap shadow-2xs ${
                                 isCompleted
-                                  ? 'bg-purple-100 text-purple-900'
-                                  : 'bg-slate-100 text-slate-400'
+                                  ? 'bg-purple-100 text-purple-900 border border-purple-200/80'
+                                  : 'bg-slate-100 text-slate-400 border border-slate-200'
                               }`}
                             >
-                              {student.totalScore} pts
+                              <span>{student.totalScore}</span>
+                              <span className="text-[10px] font-bold opacity-75 uppercase tracking-wider">pts</span>
                             </span>
                           </td>
 
                           {/* Total Time Taken */}
-                          <td className="py-3.5 px-4 text-center">
-                            <span className="font-bold text-slate-700 flex items-center justify-center gap-1">
-                              <Clock size={12} className="text-slate-400" />
-                              {formatSeconds(student.totalTimeTakenSeconds)}
+                          <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                            <span className="inline-flex items-center justify-center gap-1.5 font-bold text-slate-700 text-xs whitespace-nowrap bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200/70 tabular-nums">
+                              <Clock size={12} className="text-slate-400 shrink-0" />
+                              <span>{formatSeconds(student.totalTimeTakenSeconds)}</span>
                             </span>
                           </td>
 
                           {/* Attendance Progress */}
-                          <td className="py-3.5 px-4 text-center">
-                            <div className="inline-flex flex-col items-center">
+                          <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                            <div className="inline-flex flex-col items-center whitespace-nowrap">
                               <span
-                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
+                                className={`px-2.5 py-0.5 rounded-full text-[10px] font-black whitespace-nowrap ${
                                   isCompleted
                                     ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
                                     : 'bg-amber-100 text-amber-800 border border-amber-300'
@@ -842,7 +887,7 @@ export default function AdminCumulativeLeaderboard() {
                               >
                                 {student.quizzesAttendedCount} / {selectedQuizzesMeta.length}
                               </span>
-                              <span className="text-[10px] text-slate-500 mt-0.5 font-semibold">
+                              <span className="text-[10px] text-slate-500 mt-1 font-semibold whitespace-nowrap">
                                 {isCompleted ? `${student.attendancePercentage}%` : "Didn't Attend"}
                               </span>
                             </div>
@@ -853,19 +898,19 @@ export default function AdminCumulativeLeaderboard() {
                             const bd = student.quizBreakdown?.[q.id];
                             const attended = bd && bd.status !== 'not_attended';
                             return (
-                              <td key={q.id} className="py-3.5 px-3 text-center">
+                              <td key={q.id} className="py-3.5 px-3 text-center whitespace-nowrap">
                                 {attended ? (
-                                  <div className="inline-block px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-left">
+                                  <div className="inline-flex flex-col items-center justify-center px-3 py-1.5 bg-slate-50 hover:bg-white border border-slate-200/80 rounded-xl whitespace-nowrap min-w-[88px] shadow-2xs transition">
                                     <div className="font-black text-slate-900 text-xs">
-                                      {bd.score} pts
+                                      {bd.score} <span className="text-[10px] text-slate-500 font-medium">pts</span>
                                     </div>
-                                    <div className="text-[10px] text-slate-500 flex items-center gap-1 font-semibold">
-                                      <Clock size={9} />
-                                      {formatSeconds(bd.timeTakenSeconds)}
+                                    <div className="text-[10px] text-slate-500 flex items-center gap-1 font-semibold mt-0.5 tabular-nums">
+                                      <Clock size={10} className="text-slate-400 shrink-0" />
+                                      <span>{formatSeconds(bd.timeTakenSeconds)}</span>
                                     </div>
                                   </div>
                                 ) : (
-                                  <span className="inline-block px-2 py-0.5 bg-slate-100 text-slate-500 rounded text-[10px] font-semibold border border-slate-200">
+                                  <span className="inline-block px-2.5 py-1 bg-slate-100/80 text-slate-400 rounded-lg text-[10px] font-semibold border border-slate-200 whitespace-nowrap">
                                     Absent
                                   </span>
                                 )}
@@ -874,11 +919,11 @@ export default function AdminCumulativeLeaderboard() {
                           })}
 
                           {/* Accuracy */}
-                          <td className="py-3.5 px-4 text-center">
-                            <span className="font-black text-slate-800">
+                          <td className="py-3.5 px-4 text-center whitespace-nowrap">
+                            <span className="font-black text-slate-800 text-xs sm:text-sm">
                               {student.accuracyPercentage}%
                             </span>
-                            <span className="block text-[10px] text-slate-500 font-medium">
+                            <span className="block text-[10px] text-slate-500 font-medium mt-0.5 whitespace-nowrap">
                               {student.totalCorrectAnswers} correct
                             </span>
                           </td>
@@ -887,6 +932,117 @@ export default function AdminCumulativeLeaderboard() {
                     })}
                   </tbody>
                 </table>
+              </div>
+            )}
+
+            {/* Pagination Controls */}
+            {!loading && filteredLeaderboard.length > 0 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 mt-4 border-t border-slate-100">
+                {/* Entries Count & Page Size Selector */}
+                <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600 font-medium">
+                  <div>
+                    Showing <span className="font-black text-slate-900">{startRecord}</span> to{' '}
+                    <span className="font-black text-slate-900">{endRecord}</span> of{' '}
+                    <span className="font-black text-slate-900">{totalItems}</span> participants
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400 text-[11px] font-semibold">Per page:</span>
+                    <select
+                      value={pageSize}
+                      onChange={(e) => {
+                        setPageSize(e.target.value === 'all' ? 'all' : Number(e.target.value));
+                        setCurrentPage(1);
+                      }}
+                      className="bg-slate-50 border border-slate-200 text-slate-800 text-xs font-bold rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-purple-500/20 cursor-pointer"
+                    >
+                      <option value={10}>10</option>
+                      <option value={25}>25</option>
+                      <option value={50}>50</option>
+                      <option value={100}>100</option>
+                      <option value="all">All</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Page Navigation Buttons */}
+                {totalPages > 1 && (
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      disabled={validCurrentPage === 1}
+                      onClick={() => setCurrentPage(1)}
+                      className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-2xs"
+                      title="First Page"
+                      aria-label="First Page"
+                    >
+                      <ChevronsLeft size={16} />
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={validCurrentPage === 1}
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-2xs"
+                      title="Previous Page"
+                      aria-label="Previous Page"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+
+                    <div className="flex items-center gap-1 mx-1">
+                      {paginationItems.map((item, idx) => {
+                        if (item === '...') {
+                          return (
+                            <span
+                              key={`dots-${idx}`}
+                              className="w-8 h-8 flex items-center justify-center text-slate-400 font-bold select-none text-xs"
+                            >
+                              ...
+                            </span>
+                          );
+                        }
+                        const pageNum = Number(item);
+                        const isActive = pageNum === validCurrentPage;
+                        return (
+                          <button
+                            key={pageNum}
+                            type="button"
+                            onClick={() => setCurrentPage(pageNum)}
+                            className={`w-8 h-8 rounded-lg text-xs font-black transition cursor-pointer flex items-center justify-center shadow-2xs ${
+                              isActive
+                                ? 'bg-purple-600 text-white shadow-purple-500/20'
+                                : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+                            }`}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={validCurrentPage === totalPages}
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-2xs"
+                      title="Next Page"
+                      aria-label="Next Page"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={validCurrentPage === totalPages}
+                      onClick={() => setCurrentPage(totalPages)}
+                      className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:text-slate-900 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer shadow-2xs"
+                      title="Last Page"
+                      aria-label="Last Page"
+                    >
+                      <ChevronsRight size={16} />
+                    </button>
+                  </div>
+                )}
               </div>
             )}
           </div>
