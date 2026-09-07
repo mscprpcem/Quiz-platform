@@ -7,6 +7,7 @@ const { Quiz, Question, Participant, QuizAttempt, Answer, Violation, AttemptViol
 const authMiddleware = require('../middleware/auth');
 const { Op } = require('sequelize');
 const { normalizeAnswers, determineQuestionType } = require('../utils/answerUtils');
+const { getInjectedScoresForQuiz } = require('../services/injectedScoresService');
 
 // Helper: Full Cascade Deletion for any Quiz (Live or Scheduled)
 const deleteQuizWithFullCascade = async (quizId) => {
@@ -131,7 +132,8 @@ router.get('/public', async (req, res) => {
           Violation.count({ where: { quiz_id: quiz.id } }).catch(() => 0),
           QuizAttempt.findAll({ where: { quiz_id: quiz.id }, attributes: ['id'] }).catch(() => [])
         ]);
-        const participantCount = liveParticipantCount + attemptCount;
+        const injectedCount = getInjectedScoresForQuiz(quiz.id, quiz.title).length;
+        const participantCount = liveParticipantCount + attemptCount + injectedCount;
 
         const attemptIds = attempts.map(a => a.id);
         const attemptViolationCount = attemptIds.length > 0
@@ -310,7 +312,8 @@ router.get('/', authMiddleware, async (req, res) => {
           Violation.count({ where: { quiz_id: quiz.id } }).catch(() => 0),
           QuizAttempt.findAll({ where: { quiz_id: quiz.id }, attributes: ['id'] }).catch(() => [])
         ]);
-        const participantCount = liveParticipantCount + attemptCount;
+        const injectedCount = getInjectedScoresForQuiz(quiz.id, quiz.title).length;
+        const participantCount = liveParticipantCount + attemptCount + injectedCount;
 
         const attemptIds = attempts.map(a => a.id);
         const attemptViolationCount = attemptIds.length > 0

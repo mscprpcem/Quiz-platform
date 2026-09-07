@@ -8,6 +8,7 @@ const { Op } = require('sequelize');
 const sequelize = require('../config/database');
 const { sendQuizReminderEmail } = require('../services/emailService');
 const { calculateScheduledQuestionScore, calculateNormalizedScoreAndXP, rankLeaderboard, getDifficultyConfig } = require('../services/scoringService');
+const { getInjectedScoresForQuiz } = require('../services/injectedScoresService');
 const { normalizeAnswers, isAnswerCorrect, determineQuestionType } = require('../utils/answerUtils');
 
 // Helper: Sanitize Quiz object for public endpoints to prevent answer leaks
@@ -643,7 +644,8 @@ router.get('/', authMiddleware, async (req, res) => {
           Violation.count({ where: { quiz_id: quiz.id } }).catch(() => 0),
           QuizAttempt.findAll({ where: { quiz_id: quiz.id }, attributes: ['id'] }).catch(() => [])
         ]);
-        const totalParticipantCount = Math.max(attemptCount, liveParticipantCount);
+        const injectedCount = getInjectedScoresForQuiz(quiz.id, quiz.title).length;
+        const totalParticipantCount = attemptCount + liveParticipantCount + injectedCount;
         const attemptIds = attempts.map(a => a.id);
         const attemptViolationCount = attemptIds.length > 0
           ? await AttemptViolation.count({ where: { attempt_id: { [Op.in]: attemptIds } } }).catch(() => 0)
@@ -809,13 +811,20 @@ router.get('/public/all', async (req, res) => {
       const questionCount = await Question.count({ where: { quiz_id: q.id } });
 
       if (occurrences.length === 0) {
+        const [attemptCount, livePartCount] = await Promise.all([
+          QuizAttempt.count({ where: { quiz_id: q.id } }).catch(() => 0),
+          Participant.count({ where: { quiz_id: q.id } }).catch(() => 0)
+        ]);
+        const injectedCount = getInjectedScoresForQuiz(q.id, q.title).length;
+        const participantCount = attemptCount + livePartCount + injectedCount;
+
         const sTime = q.scheduled_start ? new Date(q.scheduled_start) : new Date(now.getTime() - 5 * 60 * 1000);
         const eTime = q.scheduled_end ? new Date(q.scheduled_end) : new Date(sTime.getTime() + (q.time_limit || 60) * 60 * 1000);
         let availability = 'UPCOMING';
         if (now >= sTime && now <= eTime) {
           availability = 'ACTIVE';
         } else if (now > eTime) {
-          availability = 'EXPIRED';
+          availability = participantCount > 0 ? 'COMPLETED' : 'EXPIRED';
         }
 
         const titleSlug = q.custom_slug || (q.title ? q.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : 'quiz');
@@ -834,7 +843,7 @@ router.get('/public/all', async (req, res) => {
           scheduled_end: eTime,
           timeLimit: q.time_limit || 30,
           questionCount,
-          participantCount: 0,
+          participantCount,
           availability,
           positiveMarks: q.positive_marks,
           negativeMarks: q.negative_marks
@@ -845,18 +854,21 @@ router.get('/public/all', async (req, res) => {
           const sTime = new Date(occ.start_time);
           const eTime = new Date(occ.end_time);
 
-          const [occAttempts, totalQuizAttempts] = await Promise.all([
+          const [occAttempts, totalQuizAttempts, livePartCount] = await Promise.all([
             QuizAttempt.count({
               where: {
                 quiz_id: q.id,
                 occurrence_id: occ.id
               }
-            }),
+            }).catch(() => 0),
             QuizAttempt.count({
               where: { quiz_id: q.id }
-            })
+            }).catch(() => 0),
+            Participant.count({ where: { quiz_id: q.id } }).catch(() => 0)
           ]);
-          const participantCount = occAttempts > 0 ? occAttempts : totalQuizAttempts;
+          const injectedCount = getInjectedScoresForQuiz(q.id, q.title).length;
+          const baseAttempts = occAttempts > 0 ? occAttempts : totalQuizAttempts;
+          const participantCount = baseAttempts + livePartCount + injectedCount;
 
           let availability = 'UPCOMING';
           if (now >= sTime && now <= eTime) {

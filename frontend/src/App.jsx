@@ -43,7 +43,6 @@ import StudentAuth from './pages/StudentAuth';
 import AuthCallback from './pages/AuthCallback';
 import AdminEmailDispatch from './pages/AdminEmailDispatch';
 import AdminCumulativeLeaderboard from './pages/AdminCumulativeLeaderboard';
-import TournamentStandings from './pages/TournamentStandings';
 import AdminEvents from './pages/AdminEvents';
 import AdminUsers from './pages/AdminUsers';
 import EventRegister from './pages/EventRegister';
@@ -138,10 +137,9 @@ export default function App() {
                 <Route path="/live-quiz" element={<LiveQuiz />} />
                 <Route path="/live/:participantId" element={<LiveQuiz />} />
                 <Route path="/results" element={<Results />} />
-                <Route path="/results/:participantId" element={<Results />} />
-                <Route path="/leaderboard" element={<TournamentStandings />} />
-                <Route path="/tournament-standings" element={<TournamentStandings />} />
-                <Route path="/standings" element={<TournamentStandings />} />
+                <Route path="/leaderboard" element={<Navigate to="/" replace />} />
+                <Route path="/tournament-standings" element={<Navigate to="/" replace />} />
+                <Route path="/standings" element={<Navigate to="/" replace />} />
                 <Route path="/leaderboard-preview" element={<LeaderboardPreview />} />
                 <Route path="/courses/sql" element={<SqlCourseHub />} />
                 <Route path="/courses/sql/:tab" element={<SqlCourseHub />} />

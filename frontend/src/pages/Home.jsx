@@ -50,9 +50,6 @@ export default function Home() {
   // Dynamic Data States (Fetched from backend)
   const [upcomingQuizzes, setUpcomingQuizzes] = useState([]);
   const [leaderboard, setLeaderboard] = useState([]);
-  const [availableLeaderboardQuizzes, setAvailableLeaderboardQuizzes] = useState([]);
-  const [selectedLeaderboardQuizId, setSelectedLeaderboardQuizId] = useState('all');
-  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
   const [recentEvents, setRecentEvents] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
   const [showMatrixModal, setShowMatrixModal] = useState(false);
@@ -67,17 +64,6 @@ export default function Home() {
   ];
 
   const displayLeaderboard = (() => {
-    // When a specific quiz is selected, show only genuine participants for that quiz
-    if (selectedLeaderboardQuizId !== 'all') {
-      return (leaderboard || []).map(p => {
-        let s = Math.round(Number(p.score) || 0);
-        if (s >= 50 && p.correctCount && p.correctCount <= 30) {
-          s = p.correctCount;
-        }
-        return { ...p, score: s };
-      });
-    }
-
     const base = (!leaderboard || leaderboard.length === 0) ? DEFAULT_LEADERBOARD : leaderboard;
     const merged = [...base];
     if (merged.length < 5) {
@@ -123,54 +109,72 @@ export default function Home() {
           api.get('/api/analytics/public/leaderboard').catch(() => ({ data: { leaderboard: [], recentEvents: [] } }))
         ]);
 
-        const now = new Date();
         const allPublicQuizzes = [];
-
-        // 1. Process Live/Standard Quizzes (Exclude ended/past quizzes)
-        if (Array.isArray(quizzesRes?.data)) {
-          quizzesRes.data.forEach((q) => {
-            if (!q) return;
-            // Exclude completed, ended, archived, cancelled
-            if (['completed', 'ended', 'archived', 'cancelled', 'disqualified'].includes(q.status)) {
-              return;
-            }
-            // If scheduled end time is in the past, do not show in upcoming
-            if (q.scheduled_end && new Date(q.scheduled_end).getTime() < now.getTime()) {
-              return;
-            }
-            allPublicQuizzes.push(q);
+        const availableQuizzesMap = new Map();
+        if (Array.isArray(leaderboardRes?.data?.availableQuizzes)) {
+          leaderboardRes.data.availableQuizzes.forEach(q => {
+            if (q.id) availableQuizzesMap.set(q.id, q);
           });
         }
 
-        // 2. Process Scheduled Quizzes (Exclude past/expired occurrences)
+        // 1. Process Live/Standard Quizzes
+        if (Array.isArray(quizzesRes?.data)) {
+          quizzesRes.data.forEach((q) => {
+            if (!q) return;
+            // Exclude archived, cancelled, or disqualified
+            if (['archived', 'cancelled', 'disqualified'].includes(q.status)) {
+              return;
+            }
+            const matchedMeta = availableQuizzesMap.get(q.id);
+            const pCount = Math.max(Number(q.participantCount) || 0, Number(matchedMeta?.participantCount) || 0);
+
+            allPublicQuizzes.push({
+              ...q,
+              participantCount: pCount
+            });
+          });
+        }
+
+        // 2. Process Scheduled Quizzes
         if (Array.isArray(scheduledRes?.data)) {
           scheduledRes.data.forEach(sQuiz => {
             if (!sQuiz) return;
             const avail = (sQuiz.availability || '').toUpperCase();
-            if (['CANCELLED', 'EXPIRED', 'COMPLETED', 'ENDED'].includes(avail)) {
+            if (['CANCELLED', 'ARCHIVED'].includes(avail)) {
               return;
             }
-            const endTime = sQuiz.endTime || sQuiz.end_time || sQuiz.scheduled_end;
-            if (endTime && new Date(endTime).getTime() < now.getTime()) {
-              return;
-            }
-            if (!allPublicQuizzes.some(q => q.id === sQuiz.occurrenceId || q.id === sQuiz.quizId)) {
+            const qId = sQuiz.occurrenceId || sQuiz.quizId;
+            const existingIndex = allPublicQuizzes.findIndex(q => q.id === qId || (sQuiz.quizId && q.id === sQuiz.quizId));
+            const matchedMeta = availableQuizzesMap.get(sQuiz.quizId || sQuiz.occurrenceId);
+            const pCount = Math.max(Number(sQuiz.participantCount) || 0, Number(matchedMeta?.participantCount) || 0);
+
+            if (existingIndex >= 0) {
+              allPublicQuizzes[existingIndex].participantCount = Math.max(
+                allPublicQuizzes[existingIndex].participantCount || 0,
+                pCount
+              );
+            } else {
               allPublicQuizzes.push({
                 ...sQuiz,
-                id: sQuiz.occurrenceId || sQuiz.quizId,
+                id: qId,
                 mode: 'SCHEDULED',
-                status: sQuiz.availability === 'ACTIVE' ? 'in_progress' : (sQuiz.availability || 'draft'),
-                subject: sQuiz.category || 'Technology'
+                status: sQuiz.availability === 'ACTIVE' ? 'in_progress' : sQuiz.availability === 'COMPLETED' ? 'completed' : (sQuiz.availability?.toLowerCase() || 'draft'),
+                subject: sQuiz.category || 'Technology',
+                participantCount: pCount
               });
             }
           });
         }
 
-        // Sort by closest start time first
+        // Sort by most recent first: active/live first, then by latest creation / scheduled time
         allPublicQuizzes.sort((a, b) => {
-          const aStart = new Date(a.scheduled_start || a.startTime || a.createdAt || 0);
-          const bStart = new Date(b.scheduled_start || b.startTime || b.createdAt || 0);
-          return aStart - bStart;
+          const aActive = a.status === 'in_progress' || a.status === 'waiting_lobby' ? 1 : 0;
+          const bActive = b.status === 'in_progress' || b.status === 'waiting_lobby' ? 1 : 0;
+          if (bActive !== aActive) return bActive - aActive;
+
+          const aDate = new Date(a.createdAt || a.scheduled_start || a.startTime || 0).getTime();
+          const bDate = new Date(b.createdAt || b.scheduled_start || b.startTime || 0).getTime();
+          return bDate - aDate;
         });
 
         setUpcomingQuizzes(allPublicQuizzes);
@@ -178,9 +182,6 @@ export default function Home() {
         if (leaderboardRes?.data) {
           setLeaderboard(Array.isArray(leaderboardRes.data.leaderboard) ? leaderboardRes.data.leaderboard : []);
           setRecentEvents(Array.isArray(leaderboardRes.data.recentEvents) ? leaderboardRes.data.recentEvents : []);
-          if (Array.isArray(leaderboardRes.data.availableQuizzes)) {
-            setAvailableLeaderboardQuizzes(leaderboardRes.data.availableQuizzes);
-          }
         }
       } catch (err) {
         console.error('Fetch homepage data error:', err);
@@ -191,24 +192,6 @@ export default function Home() {
 
     fetchHomeData();
   }, []);
-
-  const handleLeaderboardQuizChange = async (quizId) => {
-    setSelectedLeaderboardQuizId(quizId);
-    try {
-      setLoadingLeaderboard(true);
-      const url = quizId && quizId !== 'all'
-        ? `/api/analytics/public/leaderboard?quizId=${encodeURIComponent(quizId)}`
-        : '/api/analytics/public/leaderboard';
-      const res = await api.get(url);
-      if (res.data) {
-        setLeaderboard(Array.isArray(res.data.leaderboard) ? res.data.leaderboard : []);
-      }
-    } catch (err) {
-      console.error('Failed to filter leaderboard by quiz:', err);
-    } finally {
-      setLoadingLeaderboard(false);
-    }
-  };
 
   const handleQuickJoinSubmit = (e) => {
     e.preventDefault();
@@ -372,11 +355,23 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ════════ 3. UPCOMING QUIZZES ════════ */}
+        {/* ════════ 3. RECENT QUIZZES ════════ */}
         <div id="upcoming-quizzes" className="space-y-8 text-left">
-          <div className="space-y-1">
-            <h2 className="text-2xl sm:text-3xl font-black text-brand-textMain tracking-tight">Upcoming Quizzes</h2>
-            <p className="text-brand-textMuted text-xs sm:text-sm">Register for upcoming live events and prepare your knowledge.</p>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="space-y-1">
+              <h2 className="text-2xl sm:text-3xl font-black text-brand-textMain tracking-tight">Recent Quizzes</h2>
+              <p className="text-brand-textMuted text-xs sm:text-sm">Explore recent and active challenges conducted by Microsoft Student Club PRPCEM.</p>
+            </div>
+            {upcomingQuizzes.length > 0 && (
+              <button
+                type="button"
+                onClick={() => navigate('/courses')}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-brand-border bg-white hover:bg-slate-50 text-brand-blue text-xs font-extrabold transition-all shadow-xs w-fit cursor-pointer active:scale-98"
+              >
+                <span>All Quizzes</span>
+                <ArrowRight size={13} />
+              </button>
+            )}
           </div>
           
           {upcomingQuizzes.length === 0 ? (
@@ -431,7 +426,7 @@ export default function Home() {
             </div>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {upcomingQuizzes.map((q) => {
+              {upcomingQuizzes.slice(0, 6).map((q) => {
                 if (!q) return null;
                 const startDate = q.scheduled_start || q.startTime ? new Date(q.scheduled_start || q.startTime) : new Date(q.createdAt || Date.now());
                 const endDate = q.scheduled_end || q.endTime ? new Date(q.scheduled_end || q.endTime) : null;
@@ -500,6 +495,19 @@ export default function Home() {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {upcomingQuizzes.length > 6 && (
+            <div className="text-center pt-2">
+              <button
+                type="button"
+                onClick={() => navigate('/courses')}
+                className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 hover:border-brand-blue text-brand-blue hover:text-brand-dark rounded-xl text-xs font-black shadow-xs transition-all cursor-pointer group"
+              >
+                <span>View All Quizzes & Courses ({upcomingQuizzes.length})</span>
+                <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+              </button>
             </div>
           )}
         </div>
@@ -628,78 +636,10 @@ export default function Home() {
                 <Info size={14} />
                 <span>Scoring Matrix & Rules</span>
               </button>
-              <button
-                type="button"
-                onClick={() => navigate('/tournament-standings')}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-purple-200 bg-purple-50/90 hover:bg-purple-100 text-purple-800 text-xs font-extrabold transition-all shadow-xs w-fit cursor-pointer active:scale-98"
-              >
-                <Trophy size={14} className="text-amber-500" />
-                <span>Tournament Standings</span>
-              </button>
             </div>
           </div>
 
-          {/* Quiz Selector Filter */}
-          {availableLeaderboardQuizzes.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2.5 pt-1 pb-1">
-              <span className="text-xs font-bold text-slate-500 flex items-center gap-1.5">
-                <Layers size={14} className="text-purple-600" />
-                <span>Quiz Standings:</span>
-              </span>
-              <div className="relative inline-block">
-                <select
-                  value={selectedLeaderboardQuizId}
-                  onChange={(e) => handleLeaderboardQuizChange(e.target.value)}
-                  className="bg-white border border-slate-200 hover:border-slate-300 text-slate-900 font-extrabold text-xs rounded-xl pl-3 pr-8 py-2 focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500 shadow-2xs max-w-[280px] sm:max-w-xs truncate cursor-pointer appearance-none transition"
-                >
-                  <option value="all">🏆 Overall Standings (All Quizzes)</option>
-                  {availableLeaderboardQuizzes.map((q) => (
-                    <option key={q.id} value={q.id}>
-                      {q.title} {q.participantCount > 0 ? `(${q.participantCount} Contenders)` : ''}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown size={13} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-              </div>
-
-              {selectedLeaderboardQuizId !== 'all' && (
-                <button
-                  type="button"
-                  onClick={() => handleLeaderboardQuizChange('all')}
-                  className="text-[11px] font-bold text-purple-700 hover:text-purple-900 px-2.5 py-1.5 bg-purple-50 hover:bg-purple-100 rounded-xl transition cursor-pointer border border-purple-200"
-                >
-                  Reset to Overall
-                </button>
-              )}
-
-              {loadingLeaderboard && (
-                <span className="flex items-center gap-1 text-xs text-purple-600 font-semibold">
-                  <RefreshCw size={13} className="animate-spin" />
-                  Loading...
-                </span>
-              )}
-            </div>
-          )}
-
-          {selectedLeaderboardQuizId !== 'all' && displayLeaderboard.length === 0 ? (
-            <div className="bg-white border border-dashed border-slate-300 rounded-3xl p-10 text-center my-4 shadow-xs">
-              <div className="w-12 h-12 bg-purple-50 text-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
-                <Trophy size={24} />
-              </div>
-              <h4 className="text-sm font-extrabold text-slate-800">No Contender Attempts Recorded Yet</h4>
-              <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-4">
-                Be the first to participate in this challenge and claim the #1 spot on the leaderboard!
-              </p>
-              <button
-                type="button"
-                onClick={() => scrollSection('join')}
-                className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white rounded-xl text-xs font-bold transition shadow-xs cursor-pointer"
-              >
-                Join or Take Quiz
-              </button>
-            </div>
-          ) : (
-            <div className="leaderboard-grid-wrapper">
+          <div className="leaderboard-grid-wrapper">
               
               {/* Top 3 Performers Podium */}
               <div className="leaderboard-top3-container">
@@ -708,7 +648,7 @@ export default function Home() {
                 {displayLeaderboard[1] && (
                   <div className="medalist-card medalist-card-silver order-2 sm:order-1">
                     <span className="inline-flex items-center justify-center bg-slate-100 text-slate-700 font-extrabold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full border border-slate-200 shadow-sm mb-3">
-                      {selectedLeaderboardQuizId === 'all' ? 'Overall #2' : 'Rank #2'}
+                      Overall #2
                     </span>
                     <div className="flex flex-col items-center space-y-3.5 w-full">
                       <div className="medalist-avatar-silver">
@@ -734,7 +674,7 @@ export default function Home() {
                 {displayLeaderboard[0] && (
                   <div className="medalist-card medalist-card-gold order-1 sm:order-2">
                     <span className="inline-flex items-center justify-center bg-amber-500 text-white font-extrabold text-[10px] uppercase tracking-wider px-3.5 py-1 rounded-full shadow-sm mb-3">
-                      👑 {selectedLeaderboardQuizId === 'all' ? 'Overall #1' : 'Rank #1'}
+                      👑 Overall #1
                     </span>
                     <div className="flex flex-col items-center space-y-3.5 w-full">
                       <div className="medalist-avatar-gold">
@@ -760,7 +700,7 @@ export default function Home() {
                 {displayLeaderboard[2] && (
                   <div className="medalist-card medalist-card-bronze order-3 sm:order-3">
                     <span className="inline-flex items-center justify-center bg-orange-50 text-orange-800 font-extrabold text-[10px] uppercase tracking-wider px-3 py-1 rounded-full border border-orange-200 shadow-sm mb-3">
-                      {selectedLeaderboardQuizId === 'all' ? 'Overall #3' : 'Rank #3'}
+                      Overall #3
                     </span>
                     <div className="flex flex-col items-center space-y-3.5 w-full">
                       <div className="medalist-avatar-bronze">
@@ -817,8 +757,7 @@ export default function Home() {
               </div>
 
             </div>
-          )}
-        </div>
+          </div>
 
         {/* ── SCORING & DIFFICULTY MATRIX MODAL ── */}
         {showMatrixModal && (
