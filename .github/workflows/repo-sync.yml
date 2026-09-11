@@ -8,7 +8,8 @@ on:
 
 jobs:
   sync-to-public:
-    name: Sync main to Quiz-Platform-MSCPRPCEM
+    name: Sync main to Quiz-Platform-MSCPRPCEM (One-way Mirror)
+    if: github.repository == 'mscprpcem/Quiz-platform'
     runs-on: ubuntu-latest
 
     steps:

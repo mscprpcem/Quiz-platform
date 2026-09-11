@@ -10,6 +10,7 @@ on:
 
 jobs:
   build:
+    if: github.repository == 'mscprpcem/Quiz-platform'
     runs-on: ubuntu-latest
 
     permissions:
