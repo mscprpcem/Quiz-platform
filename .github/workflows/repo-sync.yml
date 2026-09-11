@@ -1,0 +1,44 @@
+name: Sync Main to Public Open Source Repo
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  sync-to-public:
+    name: Sync main to Quiz-Platform-MSCPRPCEM
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push to Public Open Source Repository
+        env:
+          TARGET_REPO_URL: "github.com/mscprpcem/Quiz-Platform-MSCPRPCEM.git"
+          SYNC_TOKEN: ${{ secrets.SYNC_PAT || secrets.PUBLIC_REPO_PAT || secrets.GITHUB_TOKEN }}
+        run: |
+          echo "Starting automatic synchronization to public open-source repository..."
+          
+          # Configure Git credentials
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Check token availability
+          if [ -z "${{ secrets.SYNC_PAT }}" ] && [ -z "${{ secrets.PUBLIC_REPO_PAT }}" ]; then
+            echo "::warning ::SYNC_PAT secret is not set in repository settings. Pushing using default GITHUB_TOKEN."
+            echo "If the push fails with 403 Forbidden, add a GitHub Personal Access Token (PAT) with 'repo' scope as a secret named 'SYNC_PAT'."
+          fi
+
+          # Add target remote with authentication token
+          git remote add public-target "https://x-access-token:${SYNC_TOKEN}@${TARGET_REPO_URL}"
+          
+          # Force push to mirror the exact main branch commits to public repository
+          echo "Syncing main branch to https://${TARGET_REPO_URL}..."
+          git push public-target main:main --force
+          
+          echo "Repository synchronization completed successfully!"
