@@ -5,7 +5,8 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js"
+    "dev": "nodemon src/server.js",
+    "test:neon": "node src/scripts/testNeon.js"
   },
   "dependencies": {
     "@azure/storage-blob": "^12.32.0",

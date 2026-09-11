@@ -15,18 +15,38 @@ An enterprise-grade, dual-mode real-time testing, event registration, and creden
 ## ⚡ Infrastructure Partner & Sponsorship
 
 <div align="center">
-  <a href="https://neon.com" target="_blank" rel="noopener noreferrer">
-    <img src="docs/assets/neon-logo.svg" alt="Neon Serverless Postgres" width="360" />
-  </a>
-  <p>
-    <strong>MSC Quiz Platform is proudly sponsored by the <a href="https://neon.com" target="_blank">Neon Open Source Program</a>.</strong>
-  </p>
-  <p>
-    Production database workloads, high-concurrency live quiz room state, and seamless staging environments are powered by <a href="https://neon.com"><strong>Neon Serverless Postgres</strong></a>. With built-in connection pooling (PgBouncer), auto-scaling compute, and copy-on-write database branching, Neon ensures zero packet drops even during 1,000+ candidate answer bursts.
-  </p>
-  <p>
-    👉 <strong><a href="docs/neon-guide.md">Read the Complete Neon Deployment & Running Guide &rarr;</a></strong>
-  </p>
+  <table border="0" cellpadding="0" cellspacing="0" style="border-collapse: collapse; max-width: 820px; width: 100%;">
+    <tr>
+      <td align="center" style="background: linear-gradient(180deg, #161616 0%, #0d0d0d 100%); border: 1px solid #27272a; border-radius: 16px; padding: 28px 24px; box-shadow: 0 10px 30px rgba(0, 229, 153, 0.08);">
+        <a href="https://neon.com" target="_blank" rel="noopener noreferrer">
+          <img src="docs/assets/neon-logo.svg" alt="Neon Serverless Postgres" width="360" />
+        </a>
+        <br /><br />
+        <p style="font-size: 16px; color: #ffffff; margin: 4px 0 8px 0; font-weight: 700;">
+          Official Database Infrastructure Partner of the MSC Quiz Platform
+        </p>
+        <p style="font-size: 13px; color: #a1a1aa; max-width: 620px; line-height: 1.6; margin: 0 auto 16px auto;">
+          MSC Quiz Platform is proudly sponsored by the <a href="https://neon.com" target="_blank" style="color: #34D59A; font-weight: bold; text-decoration: none;">Neon Open Source Program</a>. Real-time multiplayer quiz room state, sub-50ms question synchronization, automated schema migrations, and instant zero-risk database branching are powered by <strong>Neon Serverless Postgres</strong>.
+        </p>
+        <div style="margin: 14px 0;">
+          <a href="https://neon.com" target="_blank">
+            <img src="https://img.shields.io/badge/Neon-Serverless%20Postgres-00E599?style=for-the-badge&logo=postgresql&logoColor=white" alt="Neon Database" />
+          </a>
+          &nbsp;
+          <a href="https://neon.com" target="_blank">
+            <img src="https://img.shields.io/badge/PgBouncer-Pooled%20Concurrency-orange?style=for-the-badge" alt="PgBouncer" />
+          </a>
+          &nbsp;
+          <a href="docs/neon-guide.md">
+            <img src="https://img.shields.io/badge/Deployment%20Guide-Read%20Tutorial-0078D4?style=for-the-badge&logo=gitbook&logoColor=white" alt="Deployment Guide" />
+          </a>
+        </div>
+        <p style="margin: 12px 0 0 0;">
+          <a href="docs/neon-guide.md"><strong>📘 Explore the Complete Neon Deployment &amp; Scaling Guide &rarr;</strong></a>
+        </p>
+      </td>
+    </tr>
+  </table>
 </div>
 
 ---
