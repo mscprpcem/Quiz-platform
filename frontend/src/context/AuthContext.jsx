@@ -153,7 +153,12 @@ export const AuthProvider = ({ children }) => {
       return { success: false, error: res.data?.error || 'Login failed.' };
     } catch (err) {
       const errorMsg = err.response?.data?.error || 'Invalid credentials or server connection error.';
-      return { success: false, error: errorMsg };
+      return {
+        success: false,
+        error: errorMsg,
+        requireVerification: Boolean(err.response?.data?.requireVerification),
+        email: err.response?.data?.email || cleanEmail
+      };
     }
   };
 

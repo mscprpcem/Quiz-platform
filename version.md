@@ -8,7 +8,8 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
 
 | Version | Release Type | Key Highlights | Status |
 | :--- | :--- | :--- | :--- |
-| **v1.8.0** | **Minor (Current)** | Homepage UX streamlining, single info button, collapsed FAQ default, normalized footer styles, version registry | **Active Production** |
+| **v1.8.1** | **Patch (Current)** | User Directory responsive overhaul, 1-click & bulk verification toggles, profile modal, deferred account creation until OTP verification, admin credential lockdown | **Active Production** |
+| **v1.8.0** | Minor | Homepage UX streamlining, single info button, collapsed FAQ default, normalized footer styles, version registry | Stable |
 | **v1.7.0** | Minor | Light Theme UI overhaul, responsive FAQ accordion, Top 3 podium styling, scoring rules matrix modal | Stable |
 | **v1.6.0** | Minor | Neon Serverless Postgres integration, Open Source Program guide, universal responsive email engine | Stable |
 | **v1.5.0** | Minor | Azure Blob Storage asset migration, bidirectional Verification Portal SSO & password sync | Stable |
@@ -22,7 +23,47 @@ Welcome to the official version registry and changelog for the **Microsoft Stude
 
 ## Detailed Changelog
 
-### Version 1.8.0 (Current Release)
+### Version 1.8.1 (Current Release)
+*Theme: User Directory Overhaul, OTP Verification Guardrails & Admin Credential Lockdown*
+
+- **User Directory Layout & Responsive Geometry**:
+  - Structured minimum table width (`min-w-[1050px]`) with horizontal scrolling, completely resolving column clipping where `"Joined Date"` was squeezed to `"JOINI / DATE"` and the `"Actions"` column was hidden offscreen.
+  - Formatted the `"Joined Date"` column with clean human-readable date formatting (`MMM DD, YYYY`).
+  - Standardized user initials avatar container with gradient badges and text truncation on long student names.
+  - Added copy-to-clipboard button with visual checkmark indicator for `@username` handles.
+  - Added text truncation and hover tooltips for long college and institution names (`max-w-[190px]`).
+- **Interactive Verification Management**:
+  - Implemented 1-click Verify/Unverify action button on each row in the table, hitting `PATCH /api/users-directory/:id/verify`.
+  - Configured live visual status toggling: Emerald checkmark for Verified accounts, Amber clock for Pending accounts.
+  - Implemented `POST /api/users-directory/bulk-verify` allowing batch verification or revocation of selected user IDs.
+  - Created a floating bulk action bar with user count indicator and instant bulk Verify, bulk Unverify, and bulk Delete controls.
+- **Interactive User Profile Inspector Modal**:
+  - Added an `"Eye"` icon on each row to open a dedicated Student Profile modal.
+  - Displays user avatar, full name, username handle, Subject ID (`usr_...`), email, college, role, and exact registration timestamp.
+  - Provided direct clickable link to the user's public Verification Portal card (`verify.mscprpcem.tech/u/@username`).
+  - Integrated in-modal quick controls: Toggle verification status, switch system role (`STUDENT` / `ADMIN`), and trigger account deletion.
+- **Enhanced Filters, KPI Cards & Column Sorting**:
+  - Transformed the 4 KPI metric cards (Total Users, Verified, Students, Unverified/Pending) into interactive quick filters with active ring border indicators.
+  - Enabled multi-column table sorting by Name, Email, Role, Status, and Joined Date with directional sort arrows (`↑` / `↓`).
+  - Added instant search input with a clear button (`X`).
+  - Added customizable items-per-page selector (10, 20, 50, 100).
+  - Integrated auto-dismissing toast alert notifications for all actions.
+- **OTP Verification Security Enforcement**:
+  - Changed `User.is_verified` model default to `false` in `backend/src/models/User.js` so accounts are never auto-verified upon creation.
+  - **Deferred Account Provisioning**: Enforced that no user record is created in the database during Step 1 of registration. User accounts are strictly created only after the 6-digit email OTP is submitted and confirmed.
+  - Updated `POST /api/student/verify-otp` to provision pending registrations or mark unverified users as verified upon valid OTP verification.
+  - **Login Verification Guard**: Blocked unverified accounts from logging in via `POST /api/student/login` and returned `requireVerification: true`.
+  - Frontend `StudentAuth.jsx` seamlessly transitions unverified users attempting login into the OTP verification step.
+- **Administrator Credential Lockdown**:
+  - Prohibited student registration attempts using administrator email addresses configured in `Admin` table or `ADMIN_EMAIL` environment variable.
+  - Prohibited reserved administrator handles (`admin`, `administrator`, `root`, `mscadmin`, `superadmin`, `mod`, `moderator`, `system`, `staff`).
+  - Blocked administrator logins through the student auth endpoint and guided administrators to the Admin Portal (`/login`).
+  - Prohibited administrator credentials from being provisioned into student directory via SSO exchange or external sync endpoints.
+  - Configured dialect-safe search in `backend/src/routes/userDirectory.js` supporting both Neon PostgreSQL (`Op.iLike`) and SQLite (`Op.like`).
+
+---
+
+### Version 1.8.0
 *Theme: Homepage UX Polish, Streamlined CTA Navigation & Version Registry*
 
 - **Homepage CTA Cleanups**:

@@ -53,7 +53,7 @@ const User = sequelize.define('User', {
   },
   is_verified: {
     type: DataTypes.BOOLEAN,
-    defaultValue: true
+    defaultValue: false
   }
 }, {
   hooks: {

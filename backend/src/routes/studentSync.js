@@ -3,7 +3,7 @@ const router = express.Router();
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { Op } = require('sequelize');
-const { User, QuizAttempt, Participant } = require('../models');
+const { sequelize, User, Admin, QuizAttempt, Participant } = require('../models');
 const { exchangeCodeForTokens, generateSubjectId } = require('../services/ssoProvider');
 const { sendOtpEmail } = require('../services/emailService');
 let axios;
@@ -49,6 +49,26 @@ const otpStore = new Map();
 
 // Helper to normalize email
 const normalizeEmail = (email) => (email ? String(email).toLowerCase().trim() : '');
+
+// Helper to check if an email belongs to an administrator
+const isAdministratorEmail = async (email) => {
+  if (!email) return false;
+  const clean = normalizeEmail(email);
+  const configuredAdmin = (process.env.ADMIN_EMAIL || 'admin@mscprpcem.tech').toLowerCase().trim();
+  if (configuredAdmin && clean === configuredAdmin) return true;
+  if (Admin) {
+    const admin = await Admin.findOne({
+      where: {
+        [Op.or]: [
+          { email: clean },
+          ...(sequelize ? [sequelize.where(sequelize.fn('LOWER', sequelize.col('email')), clean)] : [])
+        ]
+      }
+    });
+    if (admin) return true;
+  }
+  return false;
+};
 
 // Helper to normalize and sanitize Verification Portal URL defensively
 const getVerificationPortalUrl = () => {
@@ -184,6 +204,11 @@ router.post('/send-otp', async (req, res) => {
       return res.status(400).json({ error: 'Please provide a valid email address.' });
     }
 
+    // Check if email belongs to an administrator
+    if (await isAdministratorEmail(cleanEmail)) {
+      return res.status(403).json({ error: 'This email address is reserved for platform administrators and cannot be used for student accounts.' });
+    }
+
     let localUser = null;
     if (User) {
       localUser = await User.findOne({ where: { email: cleanEmail } });
@@ -280,6 +305,26 @@ router.post('/verify-otp', async (req, res) => {
     }
 
     if (isValid) {
+      if (localUser) {
+        localUser.is_verified = true;
+        localUser.otp = null;
+        localUser.otp_expiry = null;
+        await localUser.save().catch(() => {});
+      } else if (memoryRecord && memoryRecord.type === 'registration' && memoryRecord.password && User) {
+        try {
+          localUser = await User.create({
+            name: memoryRecord.name,
+            email: cleanEmail,
+            username: memoryRecord.username,
+            password: memoryRecord.password,
+            role: 'student',
+            is_verified: true
+          });
+          otpStore.delete(cleanEmail);
+        } catch (createErr) {
+          console.warn('Verify-otp auto-provision notice:', createErr.message);
+        }
+      }
       return res.json({ success: true, is_email_verified: true, message: 'OTP verified successfully.' });
     }
 
@@ -388,6 +433,10 @@ router.post('/reset-password', async (req, res) => {
 
     if (!cleanEmail || !inputOtp || !newPassword) {
       return res.status(400).json({ error: 'Email, OTP code, and new password are all required.' });
+    }
+
+    if (await isAdministratorEmail(cleanEmail)) {
+      return res.status(403).json({ error: 'Administrator accounts cannot be reset through the student portal.' });
     }
 
     if (newPassword.length < 8) {
@@ -527,6 +576,10 @@ router.post('/oauth/exchange', async (req, res) => {
       }
     });
 
+    if (await isAdministratorEmail(cleanEmail)) {
+      return res.status(403).json({ error: 'invalid_grant', error_description: 'Administrator credentials cannot be exchanged as student accounts.' });
+    }
+
     if (!localUser) {
       localUser = await User.create({
         subject_id: subjectId,
@@ -655,6 +708,13 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Both Email Address and Password are required.' });
     }
 
+    // Disallow admin accounts from student portal
+    if (await isAdministratorEmail(cleanEmail)) {
+      return res.status(403).json({
+        error: 'This email belongs to an Administrator. Please use the Administrator Portal (/login) to sign in.'
+      });
+    }
+
     const verificationPortalUrl = getVerificationPortalUrl();
 
     // 1. Try Remote Verification Portal API first (best-effort)
@@ -736,6 +796,15 @@ router.post('/login', async (req, res) => {
         }
 
         if (isMatch) {
+          // Check verification status: without OTP verification user cannot log in
+          if (!localUser.is_verified) {
+            return res.status(403).json({
+              error: 'Your email address has not been verified yet. Please verify your email with the OTP code sent to your inbox.',
+              requireVerification: true,
+              email: localUser.email
+            });
+          }
+
           const studentData = {
             id: localUser.id,
             email: localUser.email,
@@ -790,10 +859,33 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters long.' });
     }
 
+    // 1. Enforce admin protection: Admin credentials / accounts cannot be created as student accounts
+    if (await isAdministratorEmail(cleanEmail)) {
+      return res.status(403).json({
+        error: 'This email address is reserved for platform administrators and cannot be registered as a student account.'
+      });
+    }
+
     const cleanName = name.trim();
     let cleanUsername = (username || cleanEmail.split('@')[0]).toLowerCase().trim().replace(/[^a-z0-9_-]/g, '');
     if (!cleanUsername || cleanUsername.length < 3) {
       cleanUsername = cleanEmail.split('@')[0].toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    }
+
+    // Disallow reserved administrative usernames
+    const reservedHandles = ['admin', 'administrator', 'root', 'mscadmin', 'superadmin', 'mod', 'moderator', 'system', 'staff'];
+    if (reservedHandles.includes(cleanUsername)) {
+      return res.status(400).json({
+        error: `The username handle @${cleanUsername} is reserved for platform administrators. Please choose a different handle.`
+      });
+    }
+
+    // Check if verified user already exists with this email
+    if (User) {
+      const existingUser = await User.findOne({ where: { email: cleanEmail } });
+      if (existingUser && existingUser.is_verified) {
+        return res.status(400).json({ error: 'An account with this email address already exists. Please log in.' });
+      }
     }
 
     // Check if username is taken by another account
@@ -806,7 +898,8 @@ router.post('/register', async (req, res) => {
 
     const inputOtp = otp ? String(otp).trim().replace(/[^0-9]/g, '') : '';
 
-    // STEP 1: If OTP is not provided, generate & send 6-digit OTP email
+    // STEP 1: If OTP is not provided, generate & send 6-digit OTP email.
+    // NOTE: DO NOT CREATE USER ACCOUNT YET. Account must only be created AFTER OTP is verified.
     if (!inputOtp) {
       const generatedOtp = crypto.randomInt(100000, 1000000).toString();
       const expiry = Date.now() + 15 * 60 * 1000; // 15 minutes
@@ -820,9 +913,10 @@ router.post('/register', async (req, res) => {
         type: 'registration'
       });
 
+      // If an existing unverified user was in DB, record OTP on their record (still unverified)
       if (User) {
         const existingUser = await User.findOne({ where: { email: cleanEmail } });
-        if (existingUser) {
+        if (existingUser && !existingUser.is_verified) {
           existingUser.otp = generatedOtp;
           existingUser.otp_expiry = new Date(Date.now() + 15 * 60 * 1000);
           await existingUser.save().catch(() => {});
@@ -1035,6 +1129,10 @@ router.post('/external-sync', async (req, res) => {
   const cleanEmail = normalizeEmail(email);
   if (!cleanEmail) {
     return res.status(400).json({ error: 'Email is required.' });
+  }
+
+  if (await isAdministratorEmail(cleanEmail)) {
+    return res.status(403).json({ error: 'Cannot sync administrator credentials into student directory.' });
   }
 
   const studentName = name || cleanEmail.split('@')[0];

@@ -315,6 +315,11 @@ export default function StudentAuth() {
           }, 600);
         } else {
           setError(res.error || 'Invalid email or password.');
+          if (res.requireVerification) {
+            setMode('register');
+            setRegStep(2);
+            setSuccessMsg('Your account requires email verification. Please enter the 6-digit OTP code to complete verification.');
+          }
         }
       }
     } catch (err) {
