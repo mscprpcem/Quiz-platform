@@ -1,6 +1,7 @@
 # 🏆 MSC PRPCEM Quiz & Technical Assessment Platform
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Database: Neon Postgres](https://img.shields.io/badge/Database-Neon%20Serverless%20Postgres-00E599?logo=postgresql&logoColor=white)](https://neon.com)
 [![Node.js](https://img.shields.io/badge/Node.js-18%2B%20LTS-green.svg)](https://nodejs.org)
 [![React](https://img.shields.io/badge/React-18%2B%20Vite-61dafb.svg)](https://reactjs.org)
 [![Socket.io](https://img.shields.io/badge/Socket.io-4.8%2B-010101.svg)](https://socket.io)
@@ -8,6 +9,25 @@
 [![Status](https://img.shields.io/badge/Security%20Audit-100%25%20Verified-success.svg)](report.md)
 
 An enterprise-grade, dual-mode real-time testing, event registration, and credentialing ecosystem engineered for the **Microsoft Student Club (MSC PRPCEM)**. Supports high-concurrency synchronized live multiplayer competitions, formal proctored scheduled certifications, public event registration with deadline controls, an email dispatch broadcast hub, and centralized Single Sign-On (SSO / OIDC).
+
+---
+
+## ⚡ Infrastructure Partner & Sponsorship
+
+<div align="center">
+  <a href="https://neon.com" target="_blank" rel="noopener noreferrer">
+    <img src="docs/assets/neon-logo.svg" alt="Neon Serverless Postgres" width="360" />
+  </a>
+  <p>
+    <strong>MSC Quiz Platform is proudly sponsored by the <a href="https://neon.com" target="_blank">Neon Open Source Program</a>.</strong>
+  </p>
+  <p>
+    Production database workloads, high-concurrency live quiz room state, and seamless staging environments are powered by <a href="https://neon.com"><strong>Neon Serverless Postgres</strong></a>. With built-in connection pooling (PgBouncer), auto-scaling compute, and copy-on-write database branching, Neon ensures zero packet drops even during 1,000+ candidate answer bursts.
+  </p>
+  <p>
+    👉 <strong><a href="docs/neon-guide.md">Read the Complete Neon Deployment & Running Guide &rarr;</a></strong>
+  </p>
+</div>
 
 ---
 
@@ -19,7 +39,7 @@ An enterprise-grade, dual-mode real-time testing, event registration, and creden
 
 ### 2. 📅 Flagship Event Management & Public Registration
 - Create, schedule, and configure events with start/end datetimes, registration deadlines, and seat capacity limits.
-- Public registration gateway ([`/register/:slug`](file:///d:/Quiz-platform/frontend/src/pages/EventRegister.jsx)) with live countdown timers and instant email confirmations.
+- Public registration gateway ([`/register/:slug`](file:///c:/Quiz-platform/frontend/src/pages/EventRegister.jsx)) with live countdown timers and instant email confirmations.
 - Automatic transition of ended events into the **Completed / Past Events** archive.
 - High-performance poster uploads backed by **Azure Blob Storage**.
 
@@ -50,7 +70,7 @@ An enterprise-grade, dual-mode real-time testing, event registration, and creden
 Quiz-platform/
 ├── backend/
 │   ├── src/
-│   │   ├── config/               # Database connection (PostgreSQL / SQLite)
+│   │   ├── config/               # Database connection (Neon Serverless Postgres / SQLite)
 │   │   ├── middleware/           # Strict JWT authentication & rate limiting
 │   │   ├── models/               # Sequelize models (User, Quiz, Event, Question, etc.)
 │   │   ├── routes/               # Modular Express API endpoints
@@ -65,7 +85,7 @@ Quiz-platform/
 │   │   │   ├── sso.js            # OAuth 2.0 / OIDC identity provider
 │   │   │   ├── studentSync.js    # Student authentication, OTPs & certificates
 │   │   │   └── userDirectory.js  # Admin user management & directory
-│   │   ├── services/             # Azure Blob Storage, Email, Socket.IO handlers
+│   │   ├── services/             # Azure Blob Storage, Email, Socket.IO, Schema Migration
 │   │   └── server.js             # Express app entry & auto-migrations
 │   └── package.json
 │
@@ -79,6 +99,7 @@ Quiz-platform/
 │   │   │   ├── AdminEmailDispatch.jsx
 │   │   │   ├── AdminUsers.jsx
 │   │   │   ├── CreateScheduledQuiz.jsx
+│   │   │   ├── Documentation.jsx # In-app platform & database docs
 │   │   │   ├── EventRegister.jsx
 │   │   │   ├── Home.jsx
 │   │   │   ├── LiveQuiz.jsx
@@ -88,6 +109,11 @@ Quiz-platform/
 │   │   │   └── WaitingRoom.jsx
 │   │   └── index.css             # Tailwind CSS & Fluent design tokens
 │   └── package.json
+│
+├── docs/
+│   ├── assets/
+│   │   └── neon-logo.svg         # Official Neon dark-mode logo asset
+│   └── neon-guide.md             # Complete Neon deployment & scaling guide
 │
 ├── report.md                     # Comprehensive security audit & remediation scorecard
 ├── DESIGN.md                     # Full engineering design & architecture specification
@@ -100,7 +126,7 @@ Quiz-platform/
 
 ### Prerequisites
 - **Node.js**: v18.0.0 or higher
-- **Database**: PostgreSQL (recommended for production) or SQLite (default fallback)
+- **Database**: **[Neon Serverless PostgreSQL](https://neon.com)** (Recommended for production & high concurrency; see [📘 Neon Guide](docs/neon-guide.md)) or SQLite (local offline development)
 - **Azure Storage** (optional): Connection string for blob poster uploads
 - **SMTP Server**: Valid credentials for email OTPs and broadcast notifications
 
@@ -120,7 +146,7 @@ Create a `.env` file in the `backend/` directory:
 ```ini
 # Server Configuration
 PORT=5000
-NODE_ENV=development
+NODE_ENV=production
 FRONTEND_URL=http://localhost:5173
 PUBLIC_QUIZ_URL=http://localhost:5173
 
@@ -128,9 +154,10 @@ PUBLIC_QUIZ_URL=http://localhost:5173
 JWT_SECRET=your_super_secret_jwt_key_2026
 SSO_SHARED_SECRET=your_sso_shared_secret_key_2026
 
-# Database (PostgreSQL or SQLite)
-DATABASE_URL=postgresql://user:password@localhost:5432/msc_quiz_db
-# Leave blank to automatically use local SQLite storage (dev mode)
+# Database (Neon Serverless PostgreSQL - Pooled Connection)
+DATABASE_URL=postgresql://user:password@ep-sample-pooler.neon.tech/msc_quiz?sslmode=require
+DB_SSL_REJECT_UNAUTHORIZED=true
+# (Leave DATABASE_URL blank to automatically fall back to local SQLite)
 
 # Admin Master Credentials
 ADMIN_EMAIL=admin@mscprpcem.tech
@@ -148,6 +175,9 @@ AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=...
 AZURE_STORAGE_CONTAINER_NAME=events
 ```
 
+> [!TIP]
+> Follow the **[Neon Deployment Guide](docs/neon-guide.md)** for a complete walkthrough on obtaining your pooled connection string and setting up instant database branches.
+
 ### 3. Launch Development Servers
 ```bash
 # Concurrently start backend (port 5000) and frontend (port 5173)
@@ -158,9 +188,17 @@ Visit `http://localhost:5173` in your browser.
 
 ---
 
+## 📚 Platform Documentation & Guides
+
+- 📘 **[Neon Serverless Postgres Guide](docs/neon-guide.md)**: Full guide to running, branching, and scaling with Neon.
+- 📐 **[Design & Architecture Specification](DESIGN.md)**: Comprehensive architectural topology, ERDs, and state diagrams.
+- 🔒 **[Security Audit & Remediation Report](report.md)**: 100% verified security audit covering all 19 remediations.
+
+---
+
 ## 🔒 Security & Hardening Highlights
 
-- **100% Remediated Scorecard**: All 19 audited vulnerabilities resolved and verified (see [`report.md`](file:///d:/Quiz-platform/report.md)).
+- **100% Remediated Scorecard**: All 19 audited vulnerabilities resolved and verified (see [`report.md`](file:///c:/Quiz-platform/report.md)).
 - **Role-Based Access Control**: Strict Bearer JWT validation across all admin management routes (`/api/quizzes`, `/api/scheduled-quizzes`, `/api/events`, `/api/admin/users`, `/api/admin/email-dispatch`).
 - **Answer Sanitization**: Plaintext `correct_answer` fields are stripped from all public and candidate-facing payloads until post-quiz review.
 - **Brute-Force Protection**: Strict rate limiters on auth and OTP endpoints (10 requests/15min).
@@ -170,4 +208,5 @@ Visit `http://localhost:5173` in your browser.
 
 ## 📜 License & Copyright
 
-Distributed under the **MIT License**. Engineered with ❤️ by the **Microsoft Student Club PRPCEM Technical Team**.
+Distributed under the **MIT License**. Engineered with ❤️ by the **Microsoft Student Club PRPCEM Technical Team**. Proudly supported by **[Neon](https://neon.com)**.
+

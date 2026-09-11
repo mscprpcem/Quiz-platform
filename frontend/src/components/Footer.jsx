@@ -167,7 +167,9 @@ export default function Footer() {
             <div className="flex items-center gap-x-3">
               <span>Version 1.0.0</span>
               <span className="text-zinc-200">|</span>
-              <span className="text-zinc-500 font-bold">Powered by Azure</span>
+              <span className="text-zinc-500 font-bold">
+                Powered by Azure &amp; <a href="https://neon.com" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 text-zinc-600 transition-colors">Neon Postgres</a>
+              </span>
             </div>
           </div>
           <p className="text-zinc-400">© {new Date().getFullYear()} MSCPRPCEM. All Rights Reserved.</p>

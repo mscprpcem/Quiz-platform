@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Terminal, Check } from 'lucide-react';
+import { ArrowLeft, Terminal, Check, Database, ExternalLink } from 'lucide-react';
 
 export default function Documentation() {
   useEffect(() => { window.scrollTo(0, 0); }, []);
@@ -31,12 +31,12 @@ export default function Documentation() {
               <span>Resources</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight">Platform Documentation</h1>
-            <p className="text-zinc-400 text-[10px] font-semibold uppercase tracking-wider">Last Updated: July 15, 2026</p>
+            <p className="text-zinc-400 text-[10px] font-semibold uppercase tracking-wider">Last Updated: September 11, 2026</p>
           </div>
 
           <div className="p-4 bg-slate-50/50 border border-slate-100 rounded-xl">
             <p className="text-xs sm:text-sm font-semibold text-slate-700 italic leading-relaxed">
-              Platform architecture details, socket configurations, and system assets references.
+              Platform architecture details, socket configurations, database tier with Neon Serverless Postgres, and system assets references.
             </p>
           </div>
 
@@ -60,6 +60,38 @@ export default function Documentation() {
               <p>
                 Club configurations, custom settings profiles, and student certificate layouts are loaded from secure Azure Blob Storage containers.
               </p>
+            </section>
+
+            <section className="space-y-3 bg-zinc-900 text-zinc-100 p-5 rounded-xl border border-zinc-800 shadow-md">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-emerald-400 font-extrabold text-xs uppercase tracking-wider">
+                  <Database size={14} />
+                  <span>Database Infrastructure</span>
+                </div>
+                <span className="text-[10px] bg-emerald-950 text-emerald-300 px-2.5 py-0.5 rounded-full font-bold border border-emerald-800/60">
+                  Neon Partner
+                </span>
+              </div>
+
+              <h3 className="font-extrabold text-sm sm:text-base text-white">4. Neon Serverless Postgres</h3>
+              <p className="text-xs text-zinc-300 leading-relaxed">
+                Production database workloads are powered by <a href="https://neon.com" target="_blank" rel="noopener noreferrer" className="text-emerald-400 font-bold hover:underline">Neon Serverless Postgres</a>. Neon provides automatic compute scaling for live competition traffic spikes, built-in PgBouncer connection pooling for thousands of concurrent submissions, and copy-on-write database branching for risk-free staging.
+              </p>
+
+              <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-t border-zinc-800">
+                <a href="https://neon.com" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 hover:opacity-90 transition-opacity">
+                  <img src="/neon-logo.svg" alt="Neon" className="h-6 w-auto object-contain rounded" />
+                </a>
+                <a 
+                  href="https://neon.com" 
+                  target="_blank" 
+                  rel="noopener noreferrer" 
+                  className="inline-flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 font-semibold"
+                >
+                  <span>Learn more at neon.com</span>
+                  <ExternalLink size={12} />
+                </a>
+              </div>
             </section>
           </div>
 

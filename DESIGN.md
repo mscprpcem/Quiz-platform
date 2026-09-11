@@ -4,7 +4,7 @@
 **System Version**: 2.3.0  
 **Document Classification**: Engineering Architecture & Technical Design Specification  
 **Primary Maintainer**: Microsoft Student Club Technical Architecture Team  
-**Target Environments**: Node.js 18+ LTS, React 18+ (Vite), Sequelize ORM 6+, Socket.io 4+, Azure Blob Storage, SQLite 3 (Dev/Staging) & PostgreSQL 15+ (Production)
+**Target Environments**: Node.js 18+ LTS, React 18+ (Vite), Sequelize ORM 6+, Socket.io 4+, Azure Blob Storage, SQLite 3 (Dev/Local) & Neon Serverless PostgreSQL 15/16+ (Production)
 
 ---
 
@@ -206,9 +206,9 @@ graph TB
         SSOProvider["OAuth 2.0 / OIDC Authorization Server"]
     end
 
-    subgraph Tier4["Tier 4: Relational Persistence Layer"]
+    subgraph Tier4["Tier 4: Relational Persistence Layer (Neon Serverless Postgres)"]
         SequelizeORM["Sequelize ORM Engine (Auto-Migrations)"]
-        Database[("Relational Database (PostgreSQL / SQLite)")]
+        Database[("Neon Serverless Postgres (PgBouncer Pooled)")]
         SequelizeORM --> Database
     end
 
