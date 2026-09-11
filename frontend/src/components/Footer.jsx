@@ -1,6 +1,6 @@
 import React from 'react';
 import { useLocation, Link } from 'react-router-dom';
-import { Mail, ShieldCheck, ExternalLink } from 'lucide-react';
+import { Mail, ExternalLink } from 'lucide-react';
 import './Footer.css';
 
 export default function Footer() {
@@ -33,13 +33,6 @@ export default function Footer() {
                 <span className="font-black text-xs sm:text-sm tracking-wide text-brand-textMain uppercase block leading-none">Microsoft Student Club PRPCEM</span>
                 <span className="font-extrabold text-[9px] text-brand-blue tracking-widest uppercase block mt-1">Quiz Platform</span>
               </div>
-            </div>
-            <p className="text-xs text-brand-textMuted leading-relaxed max-w-xs">
-              A secure platform for conducting quizzes during club events.
-            </p>
-            <div className="inline-flex items-center space-x-2 bg-blue-50 text-blue-700 border border-blue-100 text-[9px] font-bold uppercase tracking-wider px-3 py-1 rounded-full">
-              <ShieldCheck size={12} className="text-blue-600" />
-              <span>Verified Campus Portal</span>
             </div>
           </div>
 
@@ -117,7 +110,7 @@ export default function Footer() {
             <span className="footer-section-title">Connect</span>
             <ul className="space-y-2">
               <li>
-                <a href="https://linktr.ee/mscprpcem" target="_blank" rel="noopener noreferrer" className="footer-link font-bold text-brand-blue flex items-center gap-1">
+                <a href="https://linktr.ee/mscprpcem" target="_blank" rel="noopener noreferrer" className="footer-link flex items-center gap-1">
                   <span>Linktree</span>
                   <ExternalLink size={10} className="text-zinc-400" />
                 </a>
@@ -165,7 +158,7 @@ export default function Footer() {
             </div>
             <span className="hidden md:inline text-zinc-200">|</span>
             <div className="flex items-center gap-x-3">
-              <span>Version 1.0.0</span>
+              <span>Version 1.8.0</span>
               <span className="text-zinc-200">|</span>
               <span className="text-zinc-500 font-bold">
                 Powered by Azure &amp; <a href="https://neon.com" target="_blank" rel="noopener noreferrer" className="hover:text-emerald-600 text-zinc-600 transition-colors">Neon Postgres</a>

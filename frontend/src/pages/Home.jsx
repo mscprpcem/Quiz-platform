@@ -82,7 +82,7 @@ export default function Home() {
   })();
 
   // Section 10 States (FAQ Accordion Multi-Open Map)
-  const [openFaqs, setOpenFaqs] = useState({ 0: true });
+  const [openFaqs, setOpenFaqs] = useState({});
 
   const handleHomeLookupSubmit = (e) => {
     e.preventDefault();
@@ -385,21 +385,9 @@ export default function Home() {
 
         {/* ════════ 3. RECENT QUIZZES ════════ */}
         <div id="upcoming-quizzes" className="space-y-8 text-left">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="space-y-1">
-              <h2 className="text-2xl sm:text-3xl font-black text-brand-textMain tracking-tight">Recent Quizzes</h2>
-              <p className="text-brand-textMuted text-xs sm:text-sm">Explore recent and active challenges conducted by Microsoft Student Club PRPCEM.</p>
-            </div>
-            {upcomingQuizzes.length > 0 && (
-              <button
-                type="button"
-                onClick={() => navigate('/courses')}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-brand-border bg-white hover:bg-slate-50 text-brand-blue text-xs font-extrabold transition-all shadow-xs w-fit cursor-pointer active:scale-98"
-              >
-                <span>All Quizzes</span>
-                <ArrowRight size={13} />
-              </button>
-            )}
+          <div className="space-y-1">
+            <h2 className="text-2xl sm:text-3xl font-black text-brand-textMain tracking-tight">Recent Quizzes</h2>
+            <p className="text-brand-textMuted text-xs sm:text-sm">Explore recent and active challenges conducted by Microsoft Student Club PRPCEM.</p>
           </div>
           
           {upcomingQuizzes.length === 0 ? (
@@ -526,18 +514,7 @@ export default function Home() {
             </div>
           )}
 
-          {upcomingQuizzes.length > 6 && (
-            <div className="text-center pt-2">
-              <button
-                type="button"
-                onClick={() => navigate('/courses')}
-                className="inline-flex items-center gap-2 px-6 py-3 bg-white border border-slate-200 hover:border-brand-blue text-brand-blue hover:text-brand-dark rounded-xl text-xs font-black shadow-xs transition-all cursor-pointer group"
-              >
-                <span>View All Quizzes & Courses ({upcomingQuizzes.length})</span>
-                <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
-              </button>
-            </div>
-          )}
+
         </div>
 
         {/* ════════ 5. PLATFORM FEATURES ════════ */}
@@ -640,18 +617,7 @@ export default function Home() {
         <div className="space-y-6 sm:space-y-8 text-left">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="space-y-1">
-              <div className="flex items-center gap-2.5">
-                <h2 className="text-2xl sm:text-3xl font-black text-brand-textMain tracking-tight">Top Performers</h2>
-                <button
-                  type="button"
-                  onClick={() => setShowMatrixModal(true)}
-                  className="w-7 h-7 rounded-full bg-brand-lightBlue hover:bg-brand-blue hover:text-white text-brand-blue flex items-center justify-center transition-all shadow-xs border border-brand-blue/20 cursor-pointer"
-                  title="View Leaderboard & Scoring Matrix"
-                  aria-label="View Leaderboard & Scoring Matrix"
-                >
-                  <Info size={15} />
-                </button>
-              </div>
+              <h2 className="text-2xl sm:text-3xl font-black text-brand-textMain tracking-tight">Top Performers</h2>
               <p className="text-brand-textMuted text-xs sm:text-sm">Recognizing top scoring members across live quizzes and scheduled tests.</p>
             </div>
 
@@ -1003,7 +969,7 @@ export default function Home() {
 
               <div className="flex flex-wrap gap-4 text-xs pt-1">
                 <div className="flex items-center gap-2 text-slate-700 font-semibold">
-                  <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center font-black text-[10px]">✓</div>
+                  <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-black text-[10px]">✓</div>
                   <span>Instant Public Handle Search</span>
                 </div>
                 <div className="flex items-center gap-2 text-slate-700 font-semibold">
